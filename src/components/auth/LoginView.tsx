@@ -171,69 +171,72 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-100/80 text-slate-900 flex items-center justify-center p-4 sm:p-6 lg:p-10 font-sans selection:bg-orange-500 selection:text-white">
-      {/* Main Container Card Inspired by Reference */}
-      <div className="relative z-10 w-full max-w-5xl bg-white border border-slate-200/90 rounded-[32px] p-3 sm:p-4 shadow-2xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        
-        {/* Left Side: Antelope Canyon Sand Photo Hero Banner */}
-        <div className="lg:col-span-5 relative rounded-[24px] overflow-hidden min-h-[420px] lg:min-h-[580px] bg-slate-900 flex flex-col justify-between p-6 sm:p-8 text-white shadow-inner">
-          <img 
-            src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=900&auto=format&fit=crop&q=80" 
-            alt="Propofy Organic Sand Texture" 
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-90 transition duration-700 hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+    <div className="min-h-screen w-full h-screen bg-white text-slate-900 grid grid-cols-1 lg:grid-cols-12 font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
+      
+      {/* Left Side: Full Screen Hero Banner with Antelope Canyon Image */}
+      <div className="lg:col-span-5 hidden lg:flex relative bg-slate-900 h-full flex-col justify-between p-10 lg:p-14 text-white overflow-hidden shadow-2xl">
+        <img 
+          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80" 
+          alt="Propofy Organic Sand Texture" 
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-90 transition duration-700 hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
 
-          {/* Top Brand Tag inside Banner */}
-          <div className="relative z-10 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-white/90 p-1 backdrop-blur shadow flex items-center justify-center">
-              <img src={propofyStandardLogo} alt="Propofy" className="max-w-full max-h-full object-contain rounded-lg" />
-            </div>
-            <span className="text-xs font-mono font-bold tracking-widest text-white/90 uppercase">
-              Propofy OS
-            </span>
+        {/* Top Brand Tag inside Banner */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-white/95 p-1.5 backdrop-blur shadow-lg flex items-center justify-center">
+            <img src={propofyStandardLogo} alt="Propofy" className="max-w-full max-h-full object-contain rounded-xl" />
           </div>
-
-          {/* Bottom Caption inside Banner */}
-          <div className="relative z-10 space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-[11px] font-bold text-white">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Gestão Inteligente de Agências</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight text-white drop-shadow-sm">
-              Sua agência de conteúdo em outro nível.
-            </h2>
-            <p className="text-xs text-slate-200 leading-relaxed font-normal opacity-90">
-              Fluxos de aprovação com clientes, pautas editoriais e inteligência artificial para criadores.
-            </p>
+          <div>
+            <span className="text-sm font-black tracking-wider text-white uppercase block">
+              Propofy
+            </span>
+            <span className="text-[10px] font-mono font-bold tracking-widest text-orange-300 uppercase block">
+              Agency Operating System
+            </span>
           </div>
         </div>
 
-        {/* Right Side: Auth Form Container */}
-        <div className="lg:col-span-7 p-4 sm:p-6 lg:p-8 flex flex-col justify-between space-y-6">
-          
-          {/* Brand Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 p-1 flex items-center justify-center shadow-sm shrink-0">
-                <img src={propofyStandardLogo} alt="Propofy Logo" className="max-w-full max-h-full object-contain rounded-xl" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900">
-                  Propofy
-                </h1>
-                <span className="text-[10px] font-mono text-orange-600 font-bold uppercase tracking-widest block">
-                  Agency Operating System
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Badge */}
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 border border-slate-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Ambiente Seguro
-            </span>
+        {/* Bottom Caption inside Banner */}
+        <div className="relative z-10 space-y-3 max-w-lg">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold text-white shadow-sm">
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Gestão Inteligente de Agências</span>
           </div>
+          <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight text-white drop-shadow-md">
+            Sua agência de conteúdo em outro nível.
+          </h2>
+          <p className="text-sm text-slate-200 leading-relaxed font-normal opacity-90">
+            Fluxos de aprovação com clientes, pautas editoriais e inteligência artificial para criadores e gestores de mídia.
+          </p>
+        </div>
+      </div>
+
+      {/* Right Side: Full Screen Auth Form Container */}
+      <div className="lg:col-span-7 h-full overflow-y-auto p-6 sm:p-12 lg:p-16 flex flex-col justify-between space-y-6 max-w-2xl mx-auto w-full">
+        
+        {/* Brand Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 p-1.5 flex items-center justify-center shadow-sm shrink-0">
+              <img src={propofyStandardLogo} alt="Propofy Logo" className="max-w-full max-h-full object-contain rounded-xl" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                Propofy
+              </h1>
+              <span className="text-[11px] font-mono text-orange-600 font-bold uppercase tracking-widest block">
+                Agency Operating System
+              </span>
+            </div>
+          </div>
+
+          {/* Security Badge */}
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600 border border-slate-200">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            Ambiente Seguro
+          </span>
+        </div>
 
           {/* Welcome Title */}
           <div>
@@ -534,7 +537,6 @@ export const LoginView: React.FC = () => {
           </div>
         </div>
 
-      </div>
     </div>
   );
 };
