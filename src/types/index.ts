@@ -329,20 +329,37 @@ export type TabType =
 
 export type LeadStage = 'new_lead' | 'meeting_scheduled' | 'proposal_sent' | 'negotiating' | 'won' | 'lost';
 
+/**
+ * Materiais que o cliente envia pelo portal.
+ *
+ * O tipo estava divergente da tela que o consome: o portal lia `url`,
+ * `category`, `notes`, `size`, `thumbnailUrl` e `createdAt`, campos que não
+ * existiam aqui — e comparava o status com 'utilized'/'in_review', valores fora
+ * do union. Como o seed era tipado `any[]`, nada disso aparecia no typecheck e
+ * a galeria do portal renderizava campos indefinidos.
+ */
+export type ClientMaterialStatus = 'recebido' | 'in_review' | 'utilized';
+
 export interface ClientMaterial {
   id: string;
+  workspaceId?: string;
   clientId: string;
-  clientName: string;
+  clientName?: string;
   title: string;
   description?: string;
-  fileUrl: string;
-  fileType: 'image' | 'video' | 'document';
-  uploadedAt: string;
-  status: 'recebido' | 'utilizado';
+  notes?: string;
+  category?: string;
+  url: string;
+  thumbnailUrl?: string;
+  fileType?: 'image' | 'video' | 'document';
+  size?: string;
+  status: ClientMaterialStatus;
+  createdAt: string;
 }
 
 export interface TimesheetLog {
   id: string;
+  workspaceId?: string;
   jobId: string;
   jobTitle: string;
   clientId: string;

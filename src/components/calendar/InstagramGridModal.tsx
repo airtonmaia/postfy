@@ -184,7 +184,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                           <Layers className="w-2.5 h-2.5" />
                         </div>
                       )}
-                      {job.format === 'reels' && (
+                      {job.format === 'reel' && (
                         <div className="p-1 rounded-sm bg-black/60 text-white backdrop-blur-xs">
                           <Film className="w-2.5 h-2.5" />
                         </div>

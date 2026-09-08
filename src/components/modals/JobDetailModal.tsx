@@ -194,7 +194,7 @@ export const JobDetailModal: React.FC = () => {
     setTimerRunning(false);
     setTimerSeconds(0);
     setTimerNotes('');
-    setSelectedJob(prev => prev ? { ...prev, timesheetMinutes: (prev.timesheetMinutes || 0) + minutes } : null);
+    setSelectedJob({ ...selectedJob, timesheetMinutes: (selectedJob.timesheetMinutes || 0) + minutes });
   };
 
   const handleAddManualTime = () => {
@@ -210,7 +210,7 @@ export const JobDetailModal: React.FC = () => {
       notes: timerNotes || 'Lançamento manual de horas'
     });
     setTimerNotes('');
-    setSelectedJob(prev => prev ? { ...prev, timesheetMinutes: (prev.timesheetMinutes || 0) + manualMinutes } : null);
+    setSelectedJob({ ...selectedJob, timesheetMinutes: (selectedJob.timesheetMinutes || 0) + manualMinutes });
   };
 
   return (

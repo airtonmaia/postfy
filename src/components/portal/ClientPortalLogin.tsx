@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { mesmoTelefone } from '../../lib/phone';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -87,19 +88,17 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
       return;
     }
 
-    // Find client by matching phone in client.phone or contacts[].phone
+    // Comparação exata dos dígitos, tolerando apenas a variação do DDI e do
+    // nono dígito do celular brasileiro.
+    //
+    // Antes o casamento era por substring nos dois sentidos
+    // (a.includes(b) || b.includes(a)): digitar "999" casava com praticamente
+    // qualquer cliente da base e abria o portal dele.
     const matchedClient = clients.find(c => {
-      const clientPhoneDigits = normalizePhone(c.phone || '');
-      if (clientPhoneDigits && (clientPhoneDigits.includes(inputDigits) || inputDigits.includes(clientPhoneDigits))) {
-        return true;
-      }
-      
-      const hasContactMatch = (c.contacts || []).some(contact => {
-        const contactDigits = normalizePhone(contact.phone || '');
-        return contactDigits && (contactDigits.includes(inputDigits) || inputDigits.includes(contactDigits));
-      });
-
-      return hasContactMatch;
+      if (c.phone && mesmoTelefone(c.phone, inputDigits)) return true;
+      return (c.contacts || []).some(contact =>
+        contact.phone ? mesmoTelefone(contact.phone, inputDigits) : false
+      );
     });
 
     setTimeout(() => {

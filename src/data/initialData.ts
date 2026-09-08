@@ -8,7 +8,8 @@ import {
   Contract, 
   Automation, 
   Notification, 
-  ActivityLog 
+  ActivityLog,
+  ClientMaterial
 } from '../types';
 
 export const initialWorkspaces: Workspace[] = [
@@ -97,8 +98,8 @@ export const initialClients: Client[] = [
       { id: 'f-3', name: 'Pasta Geral Google Drive', category: 'documentos', url: 'https://drive.google.com', size: '1.2 GB', uploadedAt: '2025-02-15' }
     ],
     passwords: [
-      { id: 'p-1', service: 'Instagram (@aromacafegourmet)', username: 'aromacafegourmet', password: 'AromaCafe#2025!', url: 'https://instagram.com', notes: 'Conta principal de anúncios vinculada', updatedAt: '2025-02-01' },
-      { id: 'p-2', service: 'Meta Business Suite', username: 'financeiro@aromacafe.com.br', password: 'MetaBusiness@88', url: 'https://business.facebook.com', notes: 'Gerenciador da agência configurado', updatedAt: '2025-01-20' }
+      { id: 'p-1', service: 'Instagram (@aromacafegourmet)', username: 'aromacafegourmet', password: '', url: 'https://instagram.com', notes: 'Conta principal de anúncios vinculada. Senha não preenchida no dado de exemplo.', updatedAt: '2025-02-01' },
+      { id: 'p-2', service: 'Meta Business Suite', username: 'financeiro@aromacafe.com.br', password: '', url: 'https://business.facebook.com', notes: 'Gerenciador da agência configurado. Senha não preenchida no dado de exemplo.', updatedAt: '2025-01-20' }
     ],
     invoices: [
       { id: 'inv-1', number: 'NFS-e #2025-001', monthRef: 'Fevereiro/2026', value: 6300, issueDate: '2026-02-05', dueDate: '2026-02-15', status: 'pago', fileUrl: '#' },
@@ -842,16 +843,16 @@ export const initialActivityLogs: ActivityLog[] = [
   }
 ];
 
-export const initialClientMaterials: any[] = [
+export const initialClientMaterials: ClientMaterial[] = [
   {
     id: 'mat-1',
     clientId: 'c-1',
     clientName: 'Aura Café Especial',
     title: 'Fotos da Inauguração da Nova Torrefação',
     description: 'Fotos em alta resolução tiradas pelo fotógrafo no evento de sábado.',
-    fileUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
     fileType: 'image',
-    uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     status: 'recebido'
   },
   {
@@ -860,9 +861,9 @@ export const initialClientMaterials: any[] = [
     clientName: 'Aura Café Especial',
     title: 'Vídeo do Barista preparando Cold Brew',
     description: 'Vídeo na vertical (9:16) em 4K para usar como Reels ou Stories.',
-    fileUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80',
     fileType: 'video',
-    uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     status: 'recebido'
   }
 ];

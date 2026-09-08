@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { PostfyProvider, usePostfy } from './context/PostfyContext';
 import { safeTimeFormat } from './lib/utils';
 import { 
@@ -26,7 +26,8 @@ import {
   X,
   Crown,
   DollarSign,
-  Building2
+  Building2,
+  AlertTriangle
 } from 'lucide-react';
 
 // Modals
@@ -36,24 +37,33 @@ import { CreateWorkspaceModal } from './components/modals/CreateWorkspaceModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoginView } from './components/auth/LoginView';
+import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 
-// Views
-import { CalendarApp } from './components/calendar/CalendarApp';
-import { DashboardView } from './components/dashboard/DashboardView';
-import { KanbanBoard } from './components/kanban/KanbanBoard';
-import { ApprovalsView } from './components/approvals/ApprovalsView';
-import { ClientsView } from './components/clients/ClientsView';
-import { CommercialView } from './components/commercial/CommercialView';
-import { PublicationsView } from './components/publications/PublicationsView';
-import { ReportsView } from './components/reports/ReportsView';
-import { AutomationsView } from './components/automations/AutomationsView';
-import { SettingsView } from './components/settings/SettingsView';
-import { ClientPortalView } from './components/portal/ClientPortalView';
-import { SaasPlansView } from './components/saas/SaasPlansView';
-import { SaasFinancialView } from './components/saas/SaasFinancialView';
-import { SaasAgenciesView } from './components/saas/SaasAgenciesView';
+// Views carregadas sob demanda (code splitting): cada tela vira um chunk
+// próprio, então abrir o login não baixa mais relatórios, gráficos e PDF.
+const CalendarApp = lazy(() => import('./components/calendar/CalendarApp').then(m => ({ default: m.CalendarApp })));
+const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then(m => ({ default: m.DashboardView })));
+const KanbanBoard = lazy(() => import('./components/kanban/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
+const ApprovalsView = lazy(() => import('./components/approvals/ApprovalsView').then(m => ({ default: m.ApprovalsView })));
+const ClientsView = lazy(() => import('./components/clients/ClientsView').then(m => ({ default: m.ClientsView })));
+const CommercialView = lazy(() => import('./components/commercial/CommercialView').then(m => ({ default: m.CommercialView })));
+const PublicationsView = lazy(() => import('./components/publications/PublicationsView').then(m => ({ default: m.PublicationsView })));
+const ReportsView = lazy(() => import('./components/reports/ReportsView').then(m => ({ default: m.ReportsView })));
+const AutomationsView = lazy(() => import('./components/automations/AutomationsView').then(m => ({ default: m.AutomationsView })));
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })));
+const ClientPortalView = lazy(() => import('./components/portal/ClientPortalView').then(m => ({ default: m.ClientPortalView })));
+const SaasPlansView = lazy(() => import('./components/saas/SaasPlansView').then(m => ({ default: m.SaasPlansView })));
+const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView').then(m => ({ default: m.SaasFinancialView })));
+const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
+
+const CarregandoTela: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center p-8">
+    <div className="w-7 h-7 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+  </div>
+);
 import { TabType } from './types';
+import { pode, podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
@@ -61,6 +71,7 @@ import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
 const MainLayout: React.FC = () => {
   const { 
     isAuthenticated,
+    isAuthLoading,
     logout,
     activeTab, 
     setActiveTab, 
@@ -75,11 +86,16 @@ const MainLayout: React.FC = () => {
     setIsSearchModalOpen,
     isClientPortalOpen,
     openClientPortal,
+    buildClientPortalUrl,
     clients,
     clientFilter,
     setClientFilter,
     theme,
-    setTheme
+    setTheme,
+    storageWarning,
+    dismissStorageWarning,
+    syncState,
+    syncError
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -100,8 +116,25 @@ const MainLayout: React.FC = () => {
     }
   }, [currentWorkspace?.favicon]);
 
-  // Mandatory Authentication Gate
+  // Enquanto /api/auth/me responde, não decidimos nada: sem isso a tela de
+  // login pisca a cada recarregamento para quem já está autenticado.
+  if (isAuthLoading && !isClientPortalOpen) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Verificando sua sessão...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Barreira de autenticação
   if (!isAuthenticated && !isClientPortalOpen) {
+    const conviteNaUrl = new URLSearchParams(window.location.search).get('invite');
+    if (conviteNaUrl) return <AcceptInviteView token={conviteNaUrl} />;
     return <LoginView />;
   }
 
@@ -110,9 +143,16 @@ const MainLayout: React.FC = () => {
   const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
   const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
-  const isSuperAdmin = currentUser?.email === 'airtonmaiamt@gmail.com';
+  // O acesso administrativo vem do papel na sessão do servidor.
+  // Antes era uma comparação de e-mail fixa no código do cliente.
+  const isSuperAdmin = pode(currentUser?.role, 'gerenciar_saas');
 
-  const navItems: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
+  const ABAS_SAAS: TabType[] = ['saas_planos', 'saas_financeiro', 'saas_agencias'];
+  const abaPermitida = ABAS_SAAS.includes(activeTab as TabType)
+    ? isSuperAdmin
+    : podeAcessarAba(currentUser?.role, activeTab as TabType);
+
+  const todasAsAbas: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
     { id: 'producao', label: 'Quadro Kanban', icon: Kanban },
@@ -131,10 +171,16 @@ const MainLayout: React.FC = () => {
     { id: 'configuracoes', label: 'Configurações', icon: Settings },
   ];
 
+  const navItems = todasAsAbas.filter((item) => podeAcessarAba(currentUser?.role, item.id));
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 select-none transition-colors duration-200">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 transition-colors duration-200">
       {/* Client Portal Fullscreen Override if active */}
-      {isClientPortalOpen && <ClientPortalView />}
+      {isClientPortalOpen && (
+        <Suspense fallback={<CarregandoTela />}>
+          <ClientPortalView />
+        </Suspense>
+      )}
 
       {/* Global Modals */}
       <JobDetailModal />
@@ -300,22 +346,22 @@ const MainLayout: React.FC = () => {
           {/* Quick Client Portal link */}
           <button
             onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.set('portal', 'true');
-              if (clientFilter !== 'all') {
-                url.searchParams.set('clientId', clientFilter);
-              }
-              window.open(url.toString(), '_blank');
+              // Prévia interna: o portal ainda depende do cache local do
+              // navegador da agência, então o link aberto num navegador novo
+              // não encontraria o cliente. Ver a thread do portal no PR.
+              openClientPortal(
+                clientFilter === 'all' ? clients[0]?.id || '' : clientFilter
+              );
             }}
             className="w-full flex items-center justify-between p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs text-purple-700 dark:text-purple-300 font-bold transition border border-purple-200 dark:border-purple-800 cursor-pointer shadow-xs"
-            title="Abrir Portal do Cliente em Nova Janela"
+            title="Ver como o cliente enxerga. O envio do link ao cliente ainda não está disponível."
           >
             <span className="flex items-center gap-2">
               <ExternalLink className="w-3.5 h-3.5" />
               Portal do Cliente
             </span>
-            <span className="text-[10px] bg-purple-600 text-white px-1.5 py-0.5 rounded font-bold">
-              Nova Janela ↗
+            <span className="text-[10px] bg-slate-500 text-white px-1.5 py-0.5 rounded font-bold">
+              Prévia
             </span>
           </button>
 
@@ -447,7 +493,7 @@ const MainLayout: React.FC = () => {
                         <span className="font-bold text-slate-800 dark:text-slate-200 block">{n.title}</span>
                         <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5 leading-snug">{n.message}</p>
                         <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                          {safeTimeFormat(n.timestamp || (n as any).createdAt)}
+                          {safeTimeFormat(n.createdAt)}
                         </span>
                       </div>
                     ))}
@@ -458,21 +504,56 @@ const MainLayout: React.FC = () => {
           </div>
         </header>
 
+        {/* Avisos de sincronização e de armazenamento */}
+        {(storageWarning || syncState === 'error') && (
+          <div className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed flex-1">
+              {storageWarning || syncError}
+            </p>
+            {storageWarning && (
+              <button
+                onClick={dismissStorageWarning}
+                className="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
+              >
+                Dispensar
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Active Module Viewport */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'calendario' && <CalendarApp />}
-          {activeTab === 'producao' && <KanbanBoard />}
-          {activeTab === 'aprovacoes' && <ApprovalsView />}
-          {activeTab === 'clientes' && <ClientsView />}
-          {activeTab === 'comercial' && <CommercialView />}
-          {activeTab === 'publicacoes' && <PublicationsView />}
-          {activeTab === 'relatorios' && <ReportsView />}
-          {activeTab === 'automacoes' && <AutomationsView />}
-          {activeTab === 'configuracoes' && <SettingsView />}
-          {activeTab === 'saas_planos' && <SaasPlansView />}
-          {activeTab === 'saas_financeiro' && <SaasFinancialView />}
-          {activeTab === 'saas_agencias' && <SaasAgenciesView />}
+          <Suspense fallback={<CarregandoTela />}>
+          {!abaPermitida && (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="max-w-sm text-center space-y-2">
+                <ShieldCheck className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Sem acesso a esta área
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Seu perfil não tem permissão para abrir esta tela. Fale com quem
+                  administra a agência para ajustar seu papel.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {abaPermitida && activeTab === 'dashboard' && <DashboardView />}
+          {abaPermitida && activeTab === 'calendario' && <CalendarApp />}
+          {abaPermitida && activeTab === 'producao' && <KanbanBoard />}
+          {abaPermitida && activeTab === 'aprovacoes' && <ApprovalsView />}
+          {abaPermitida && activeTab === 'clientes' && <ClientsView />}
+          {abaPermitida && activeTab === 'comercial' && <CommercialView />}
+          {abaPermitida && activeTab === 'publicacoes' && <PublicationsView />}
+          {abaPermitida && activeTab === 'relatorios' && <ReportsView />}
+          {abaPermitida && activeTab === 'automacoes' && <AutomationsView />}
+          {abaPermitida && activeTab === 'configuracoes' && <SettingsView />}
+          {abaPermitida && activeTab === 'saas_planos' && <SaasPlansView />}
+          {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
+          {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
+          </Suspense>
         </main>
       </div>
     </div>

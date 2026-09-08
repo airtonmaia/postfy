@@ -3,7 +3,8 @@ import { usePostfy } from '../../context/PostfyContext';
 import { 
   Users, 
   Plus, 
-  ExternalLink, 
+  ExternalLink,
+  Eye,
   Mail, 
   Phone, 
   FileText, 
@@ -281,18 +282,21 @@ export const ClientsView: React.FC = () => {
                   Ver Calendário
                 </button>
 
+                {/*
+                  Prévia interna, não link para enviar ao cliente.
+                  O portal ainda resolve o token contra o cache local do
+                  navegador da agência, então num navegador novo ele não acha
+                  o cliente nem os conteúdos. Enquanto a resolução por token
+                  não for feita no servidor, oferecer isto como link de
+                  compartilhamento seria enganoso.
+                */}
                 <button
-                  onClick={() => {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('portal', 'true');
-                    url.searchParams.set('clientId', client.id);
-                    window.open(url.toString(), '_blank');
-                  }}
+                  onClick={() => openClientPortal(client.id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold transition cursor-pointer border border-purple-200 dark:border-purple-800"
-                  title="Abrir Portal do Cliente em Nova Aba"
+                  title="Ver como o cliente enxerga. O envio do link ao cliente ainda não está disponível."
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Portal ↗
+                  <Eye className="w-3.5 h-3.5" />
+                  Prévia do portal
                 </button>
               </div>
             </div>

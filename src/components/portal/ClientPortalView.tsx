@@ -665,7 +665,8 @@ export const ClientPortalView: React.FC = () => {
                     url: newMatUrl.trim() || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
                     thumbnailUrl: newMatUrl.trim() || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
                     size: '4.2 MB',
-                    notes: newMatNotes.trim()
+                    notes: newMatNotes.trim(),
+                    status: 'recebido'
                   });
                   setNewMatTitle('');
                   setNewMatUrl('');
