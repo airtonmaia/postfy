@@ -37,8 +37,8 @@ export const LoginView: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Standard Propofy Logo URL from user request
-  const propofyStandardLogo = 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg';
+  // Standard Orquesia Logo URL from user request
+  const orquesiaLogo = 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg';
 
   // Preset team profiles for instant sign in
   const presetProfiles: { user: User; label: string; desc: string }[] = [
@@ -174,33 +174,18 @@ export const LoginView: React.FC = () => {
     <div className="min-h-screen w-full h-screen bg-white text-slate-900 grid grid-cols-1 lg:grid-cols-12 font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
       
       {/* Left Side: Full Screen Hero Banner with Antelope Canyon Image */}
-      <div className="lg:col-span-5 hidden lg:flex relative bg-slate-900 h-full flex-col justify-between p-10 lg:p-14 text-white overflow-hidden shadow-2xl">
+      <div className="lg:col-span-5 hidden lg:flex relative bg-slate-900 h-full flex-col justify-end p-10 lg:p-14 text-white overflow-hidden shadow-2xl">
         <img 
           src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80" 
-          alt="Propofy Organic Sand Texture" 
+          alt="Orquesia Background" 
           className="absolute inset-0 w-full h-full object-cover object-center opacity-90 transition duration-700 hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
 
-        {/* Top Brand Tag inside Banner */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-white/95 p-1.5 backdrop-blur shadow-lg flex items-center justify-center">
-            <img src={propofyStandardLogo} alt="Propofy" className="max-w-full max-h-full object-contain rounded-xl" />
-          </div>
-          <div>
-            <span className="text-sm font-black tracking-wider text-white uppercase block">
-              Propofy
-            </span>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-orange-300 uppercase block">
-              Agency Operating System
-            </span>
-          </div>
-        </div>
-
         {/* Bottom Caption inside Banner */}
         <div className="relative z-10 space-y-3 max-w-lg">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold text-white shadow-sm">
-            <Sparkles className="w-4 h-4 text-amber-300" />
+            <Sparkles className="w-4 h-4 text-indigo-300" />
             <span>Gestão Inteligente de Agências</span>
           </div>
           <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight text-white drop-shadow-md">
@@ -219,13 +204,13 @@ export const LoginView: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 p-1.5 flex items-center justify-center shadow-sm shrink-0">
-              <img src={propofyStandardLogo} alt="Propofy Logo" className="max-w-full max-h-full object-contain rounded-xl" />
+              <img src={orquesiaLogo} alt="Orquesia Logo" className="max-w-full max-h-full object-contain rounded-xl" />
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Propofy
+                Orquesia
               </h1>
-              <span className="text-[11px] font-mono text-orange-600 font-bold uppercase tracking-widest block">
+              <span className="text-[11px] font-mono text-indigo-600 font-bold uppercase tracking-widest block">
                 Agency Operating System
               </span>
             </div>
@@ -241,10 +226,10 @@ export const LoginView: React.FC = () => {
           {/* Welcome Title */}
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Bem-vindo ao Propofy
+              Bem-vindo ao Orquesia
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-              Propofy é a forma mais rápida, simples e segura de gerenciar pautas, aprovações e produção de conteúdo da sua agência.
+              Orquesia é a forma mais rápida, simples e segura de gerenciar pautas, aprovações e produção de conteúdo da sua agência.
             </p>
           </div>
 
@@ -474,8 +459,8 @@ export const LoginView: React.FC = () => {
                   type="text"
                   value={regAgency}
                   onChange={(e) => setRegAgency(e.target.value)}
-                  placeholder="Ex: Agência Propofy Creative"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 transition"
+                  placeholder="Ex: Agência Orquesia Creative"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
                 />
               </div>
 
@@ -485,8 +470,8 @@ export const LoginView: React.FC = () => {
                   type="email"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="contato@propofy.com.br"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 transition"
+                  placeholder="contato@orquesia.com.br"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
                   required
                 />
               </div>
@@ -498,7 +483,7 @@ export const LoginView: React.FC = () => {
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 transition"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
                   required
                 />
               </div>
@@ -508,7 +493,7 @@ export const LoginView: React.FC = () => {
                 <select
                   value={regRole}
                   onChange={(e) => setRegRole(e.target.value as Role)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-orange-500 transition"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 transition"
                 >
                   <option value="owner">Diretor / Owner (Acesso Total)</option>
                   <option value="social_media">Social Media Manager</option>
@@ -520,9 +505,9 @@ export const LoginView: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 mt-1"
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 mt-1"
               >
-                {isLoading ? 'Criando Conta...' : 'Criar Conta Propofy'}
+                {isLoading ? 'Criando Conta...' : 'Criar Conta Orquesia'}
               </button>
             </form>
           )}

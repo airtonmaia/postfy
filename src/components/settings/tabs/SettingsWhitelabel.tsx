@@ -242,7 +242,7 @@ export const SettingsWhitelabel: React.FC = () => {
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    {agencyName || 'Propofy Ops'}
+                    {agencyName || 'Orquesia Ops'}
                   </span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30">
                     PRO

@@ -14,11 +14,11 @@ import {
 export const initialWorkspaces: Workspace[] = [
   {
     id: 'ws-1',
-    name: 'Propofy Ops',
-    slug: 'propofy-ops',
+    name: 'Orquesia Ops',
+    slug: 'orquesia-ops',
     logo: 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg',
-    primaryColor: '#f97316',
-    customDomain: 'app.propofy.com.br',
+    primaryColor: '#6366f1',
+    customDomain: 'app.orquesia.com.br',
     whiteLabel: true,
     timezone: 'America/Sao_Paulo',
   },

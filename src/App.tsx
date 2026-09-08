@@ -80,16 +80,6 @@ const MainLayout: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
 
-  // Mandatory Authentication Gate
-  if (!isAuthenticated && !isClientPortalOpen) {
-    return <LoginView />;
-  }
-
-  // Unread notifications & pending approvals count
-  const unreadNotifs = notifications.filter(n => !n.read).length;
-  const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
-  const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
-
   // Sync dynamic favicon when whitelabel favicon is updated
   useEffect(() => {
     if (currentWorkspace?.favicon) {
@@ -102,6 +92,16 @@ const MainLayout: React.FC = () => {
       link.href = currentWorkspace.favicon;
     }
   }, [currentWorkspace?.favicon]);
+
+  // Mandatory Authentication Gate
+  if (!isAuthenticated && !isClientPortalOpen) {
+    return <LoginView />;
+  }
+
+  // Unread notifications & pending approvals count
+  const unreadNotifs = notifications.filter(n => !n.read).length;
+  const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
+  const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
   const navItems: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -162,7 +162,7 @@ const MainLayout: React.FC = () => {
               )}
               <div className="min-w-0">
                 <h1 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                  <span className="truncate">{currentWorkspace?.name || 'Propofy Ops'}</span>
+                  <span className="truncate">{currentWorkspace?.name || 'Orquesia Ops'}</span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shrink-0">
                     PRO
                   </span>
