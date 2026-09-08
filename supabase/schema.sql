@@ -43,13 +43,13 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     caption TEXT,
     cta TEXT,
     hashtags JSONB DEFAULT '[]'::jsonb,
-    platform TEXT NOT NULL CHECK (platform IN ('instagram', 'facebook', 'linkedin', 'tiktok', 'youtube', 'x', 'pinterest')),
-    format TEXT NOT NULL CHECK (format IN ('feed', 'carrossel', 'reels', 'stories', 'artigo', 'video', 'shorts')),
-    status TEXT NOT NULL CHECK (status IN ('ideia', 'briefing', 'redacao', 'design', 'revisao_interna', 'aprovacao_cliente', 'ajuste_solicitado', 'aprovado', 'agendado', 'publicado')),
+    platform TEXT NOT NULL CHECK (platform IN ('instagram', 'facebook', 'linkedin', 'tiktok', 'youtube', 'twitter')),
+    format TEXT NOT NULL CHECK (format IN ('feed', 'carousel', 'reel', 'story', 'video', 'article')),
+    status TEXT NOT NULL CHECK (status IN ('ideas', 'in_production', 'for_approval', 'in_adjustment', 'approved', 'scheduled', 'published')),
     publish_date DATE NOT NULL,
     publish_time TEXT DEFAULT '18:00',
     deadline TIMESTAMP WITH TIME ZONE,
-    priority TEXT NOT NULL DEFAULT 'media' CHECK (priority IN ('baixa', 'media', 'alta', 'urgente')),
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     media_urls JSONB DEFAULT '[]'::jsonb,
     current_version INTEGER DEFAULT 1,
     versions JSONB DEFAULT '[]'::jsonb,
@@ -122,13 +122,14 @@ CREATE TABLE IF NOT EXISTS public.client_materials (
     file_url TEXT NOT NULL,
     file_type TEXT,
     file_size TEXT,
-    status TEXT DEFAULT 'recebido' CHECK (status IN ('recebido', 'em_analise', 'utilizado', 'arquivado')),
+    status TEXT DEFAULT 'recebido' CHECK (status IN ('recebido', 'utilizado')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 8. Tabela de Apontamentos de Horas (Timesheet)
 CREATE TABLE IF NOT EXISTS public.timesheet_logs (
     id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
     job_id TEXT NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL,
@@ -144,7 +145,48 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_publish_date ON public.jobs(publish_date);
 CREATE INDEX IF NOT EXISTS idx_leads_stage ON public.leads(stage);
 
--- Políticas RLS (Row Level Security) básicas
+-- =======================================================
+-- Multi-tenant: associação usuário -> workspace
+-- =======================================================
+-- O isolamento depende desta tabela: ela diz a quais workspaces cada usuário
+-- autenticado (auth.users do Supabase) pertence.
+CREATE TABLE IF NOT EXISTS public.workspace_members (
+    workspace_id TEXT NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'owner'
+        CHECK (role IN ('owner','admin','manager','social_media','designer','copywriter','financial','client')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (workspace_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON public.workspace_members(user_id);
+
+-- SECURITY DEFINER + search_path fixo: a função precisa ler workspace_members
+-- ignorando a RLS da própria tabela, senão a política se referencia em loop.
+CREATE OR REPLACE FUNCTION public.current_workspace_ids()
+RETURNS SETOF TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT workspace_id
+    FROM public.workspace_members
+    WHERE user_id = auth.uid();
+$$;
+
+REVOKE ALL ON FUNCTION public.current_workspace_ids() FROM public;
+GRANT EXECUTE ON FUNCTION public.current_workspace_ids() TO authenticated;
+
+-- =======================================================
+-- Row Level Security
+-- =======================================================
+-- ATENÇÃO: a versão anterior deste arquivo habilitava RLS e em seguida criava
+-- políticas `USING (true)`, o que anula a proteção — qualquer portador da chave
+-- anônima lia e escrevia a base inteira. As políticas abaixo recortam todo
+-- acesso pelos workspaces do usuário autenticado.
+
+ALTER TABLE public.workspace_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
@@ -153,10 +195,40 @@ ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.client_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timesheet_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Acesso total autenticado para clients" ON public.clients FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para jobs" ON public.jobs FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para leads" ON public.leads FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para proposals" ON public.proposals FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para contracts" ON public.contracts FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para client_materials" ON public.client_materials FOR ALL USING (true);
-CREATE POLICY "Acesso total autenticado para timesheet_logs" ON public.timesheet_logs FOR ALL USING (true);
+-- Cada usuário enxerga apenas os próprios vínculos.
+DROP POLICY IF EXISTS "membros veem os proprios vinculos" ON public.workspace_members;
+CREATE POLICY "membros veem os proprios vinculos"
+    ON public.workspace_members FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid());
+
+-- Uma política por tabela, cobrindo leitura e escrita.
+-- USING controla o que pode ser lido/alterado; WITH CHECK impede gravar uma
+-- linha carimbada com o workspace de outra agência.
+DO $$
+DECLARE
+    tabela TEXT;
+BEGIN
+    FOREACH tabela IN ARRAY ARRAY[
+        'clients','jobs','leads','proposals','contracts','client_materials','timesheet_logs'
+    ]
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "isolamento por workspace" ON public.%I', tabela);
+        EXECUTE format($f$
+            CREATE POLICY "isolamento por workspace"
+                ON public.%I
+                FOR ALL
+                TO authenticated
+                USING (workspace_id IN (SELECT public.current_workspace_ids()))
+                WITH CHECK (workspace_id IN (SELECT public.current_workspace_ids()))
+        $f$, tabela);
+    END LOOP;
+END
+$$;
+
+-- A chave anônima não deve alcançar nenhuma tabela de negócio.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+
+CREATE INDEX IF NOT EXISTS idx_clients_workspace ON public.clients(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON public.jobs(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_leads_workspace ON public.leads(workspace_id);

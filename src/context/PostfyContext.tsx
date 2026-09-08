@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   Workspace, 
@@ -38,13 +38,14 @@ import {
   initialTimesheetLogs
 } from '../data/initialData';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { isFirebaseConfigured } from '../lib/firebase';
-import { 
-  saveItemToFirestore, 
-  deleteItemFromFirestore, 
-  fetchCollectionFromFirestore, 
-  seedInitialFirestoreData 
-} from '../lib/firebaseSync';
+import { authApi, dataApi, aiApi, ApiError } from '../lib/api';
+import {
+  readStorage,
+  writeStorage,
+  removeStorage,
+  onStorageQuotaExceeded,
+  formatBytes,
+} from '../lib/storage';
 
 interface PostfyContextType {
   // General
@@ -65,9 +66,10 @@ interface PostfyContextType {
   currentUser: User;
   setCurrentUser: (user: User) => void;
   isAuthenticated: boolean;
-  login: (email: string, password?: string, userToSet?: User) => Promise<{ success: boolean; message?: string }>;
-  logout: () => void;
-  switchUserRole: (role: Role) => void;
+  isAuthLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  register: (input: { name: string; email: string; password: string; agencyName?: string }) => Promise<{ success: boolean; message?: string }>;
+  logout: () => Promise<void>;
   
   // Navigation & Views
   activeTab: string;
@@ -157,7 +159,7 @@ interface PostfyContextType {
 
   // Client Uploaded Materials
   clientMaterials: ClientMaterial[];
-  addClientMaterial: (material: Omit<ClientMaterial, 'id' | 'uploadedAt'>) => void;
+  addClientMaterial: (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => void;
   deleteClientMaterial: (id: string) => void;
 
   // Timesheet
@@ -173,10 +175,17 @@ interface PostfyContextType {
   isSupabaseConnected: boolean;
   syncWithSupabase: () => Promise<{ success: boolean; message: string }>;
 
-  // Firebase
-  isFirebaseConnected: boolean;
-  syncWithFirebase: () => Promise<{ success: boolean; message: string }>;
+  // Sincronização com o servidor
+  syncState: SyncState;
+  syncError: string | null;
+  forceSync: () => Promise<{ success: boolean; message: string }>;
+
+  // Aviso de cota do armazenamento local
+  storageWarning: string | null;
+  dismissStorageWarning: () => void;
 }
+
+export type SyncState = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
 const PostfyContext = createContext<PostfyContextType | undefined>(undefined);
 
@@ -208,7 +217,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updatedList = prev.map(w => {
         if (w.id === workspaceId) {
           const updated = { ...w, ...updates };
-          saveItemToFirestore('workspaces', workspaceId, updated);
           return updated;
         }
         return w;
@@ -251,7 +259,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setWorkspaces(prev => [...prev, newWs]);
     setCurrentWorkspace(newWs);
-    saveItemToFirestore('workspaces', id, newWs);
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
     setIsCreateWorkspaceModalOpen(false);
     return newWs;
@@ -263,7 +270,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
-    deleteItemFromFirestore('workspaces', workspaceId);
     if (currentWorkspace?.id === workspaceId) {
       const remaining = workspaces.filter(w => w.id !== workspaceId);
       if (remaining.length > 0) {
@@ -274,67 +280,141 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const [users] = useState<User[]>(initialUsers);
   
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`);
-    return saved === 'true';
-  });
+  // ============================================================
+  // Autenticação
+  // ============================================================
+  // A sessão vive no servidor, num cookie httpOnly assinado, e é validada em
+  // /api/auth/me. O estado abaixo é apenas o reflexo dela na interface.
+  //
+  // A versão anterior aceitava qualquer e-mail com qualquer senha (o parâmetro
+  // password sequer era lido) e guardava "isAuthenticated" no localStorage:
+  // bastava editar essa chave pelo console do navegador para entrar como dono
+  // da agência.
 
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const savedUser = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`);
-    if (savedUser) {
-      try {
-        return JSON.parse(savedUser);
-      } catch (e) {
-        console.warn('Failed to parse saved user:', e);
-      }
-    }
-    return initialUsers[0];
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
-  const login = async (email: string, _password?: string, userToSet?: User): Promise<{ success: boolean; message?: string }> => {
-    let targetUser: User;
-    if (userToSet) {
-      targetUser = userToSet;
-    } else {
-      const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (found) {
-        targetUser = found;
-      } else {
-        targetUser = {
-          id: `u-${Date.now()}`,
-          name: email.split('@')[0] || 'Usuário Agência',
-          email,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          role: 'owner',
-          workspaceId: currentWorkspace?.id || 'ws-1'
-        };
-      }
-    }
+  const USUARIO_VAZIO: User = {
+    id: '',
+    name: '',
+    email: '',
+    avatar: '',
+    role: 'owner',
+    workspaceId: '',
+  };
 
-    setCurrentUser(targetUser);
+  const [currentUser, setCurrentUser] = useState<User>(USUARIO_VAZIO);
+
+  /** Garante que o workspace devolvido pelo servidor exista na lista local. */
+  const adotarWorkspaceDoServidor = (remoto: { id: string; name: string; slug: string } | null) => {
+    if (!remoto) return;
+
+    const montado: Workspace = {
+      id: remoto.id,
+      name: remoto.name,
+      slug: remoto.slug,
+      logo: '',
+      primaryColor: '#6366f1',
+      whiteLabel: false,
+      timezone: 'America/Sao_Paulo',
+    };
+
+    setWorkspaces((prev) => {
+      const existente = prev.find((w) => w.id === remoto.id);
+      if (existente) return prev;
+      return [...prev, montado];
+    });
+
+    setCurrentWorkspaceState((prev) => {
+      if (prev?.id === remoto.id) return prev;
+      return montado;
+    });
+
+    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, remoto.id);
+  };
+
+  const aplicarSessao = (payload: { user: any; workspace: any }) => {
+    setCurrentUser({
+      id: payload.user.id,
+      name: payload.user.name,
+      email: payload.user.email,
+      avatar: payload.user.avatar || '',
+      role: payload.user.role as Role,
+      workspaceId: payload.user.workspaceId,
+    });
     setIsAuthenticated(true);
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`, 'true');
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(targetUser));
-    return { success: true, message: 'Autenticado com sucesso!' };
+    adotarWorkspaceDoServidor(payload.workspace);
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`, 'false');
-  };
+  // Restaura a sessão ao abrir a aplicação.
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const sessao = await authApi.me();
+        if (!cancelado && sessao) aplicarSessao(sessao);
+      } catch {
+        /* servidor indisponível: segue deslogado */
+      } finally {
+        if (!cancelado) setIsAuthLoading(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const switchUserRole = (role: Role) => {
-    const match = users.find(u => u.role === role);
-    if (match) {
-      setCurrentUser(match);
-      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(match));
-    } else {
-      const updated = { ...currentUser, role };
-      setCurrentUser(updated);
-      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(updated));
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    try {
+      aplicarSessao(await authApi.login({ email, password }));
+      return { success: true, message: 'Autenticado com sucesso.' };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof ApiError ? err.message : 'Falha ao autenticar.',
+      };
     }
   };
-  
+
+  const register = async (input: {
+    name: string;
+    email: string;
+    password: string;
+    agencyName?: string;
+  }): Promise<{ success: boolean; message?: string }> => {
+    try {
+      aplicarSessao(await authApi.register(input));
+      return { success: true, message: 'Conta criada com sucesso.' };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof ApiError ? err.message : 'Falha ao criar a conta.',
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      /* mesmo se a chamada falhar, limpamos o estado local */
+    }
+    setIsAuthenticated(false);
+    setCurrentUser(USUARIO_VAZIO);
+
+    // Limpa o cache local para que os dados de uma agência não fiquem
+    // visíveis para quem logar em seguida no mesmo navegador.
+    [
+      'clients', 'jobs', 'leads', 'proposals', 'contracts', 'automations',
+      'notifications', 'activityLogs', 'clientMaterials', 'timesheetLogs',
+      'currentUser', 'isAuthenticated',
+    ].forEach((nome) => removeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${nome}`));
+  };
+
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('month');
   
@@ -384,155 +464,203 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
   
-  // Entity states (filtered strictly by currentWorkspace.id for multi-tenant isolation)
+  // Workspace ativo: recorta todas as views derivadas abaixo.
   const currentWsId = currentWorkspace?.id || 'ws-1';
 
-  const [clients, setClients] = useState<Client[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}clients`);
-    const all = saved ? JSON.parse(saved) : initialClients;
-    return all.filter((c: Client) => !c.workspaceId || c.workspaceId === currentWsId);
-  });
-  
-  const [jobs, setJobs] = useState<Job[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}jobs`);
-    const all = saved ? JSON.parse(saved) : initialJobs;
-    return all.filter((j: Job) => !j.workspaceId || j.workspaceId === currentWsId);
-  });
-  
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}leads`);
-    const all = saved ? JSON.parse(saved) : initialLeads;
-    return all.filter((l: Lead) => !l.workspaceId || l.workspaceId === currentWsId);
-  });
-  
-  const [proposals, setProposals] = useState<Proposal[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}proposals`);
-    const all = saved ? JSON.parse(saved) : initialProposals;
-    return all.filter((p: Proposal) => !p.workspaceId || p.workspaceId === currentWsId);
-  });
-  
-  const [contracts, setContracts] = useState<Contract[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}contracts`);
-    const all = saved ? JSON.parse(saved) : initialContracts;
-    return all.filter((ct: Contract) => !ct.workspaceId || ct.workspaceId === currentWsId);
-  });
-  
-  const [automations, setAutomations] = useState<Automation[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}automations`);
-    const all = saved ? JSON.parse(saved) : initialAutomations;
-    return all.filter((a: Automation) => !a.workspaceId || a.workspaceId === currentWsId);
-  });
-  
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}notifications`);
-    const all = saved ? JSON.parse(saved) : initialNotifications;
-    return all.filter((n: Notification) => !n.workspaceId || n.workspaceId === currentWsId);
-  });
-  
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`);
-    const all = saved ? JSON.parse(saved) : initialActivityLogs;
-    return all.filter((al: ActivityLog) => !al.workspaceId || al.workspaceId === currentWsId);
-  });
+  // ============================================================
+  // Estado das entidades
+  // ============================================================
+  // O estado guarda o dataset COMPLETO e as views por workspace são derivadas
+  // com useMemo.
+  //
+  // Antes o filtro era aplicado dentro do inicializador do useState e o efeito
+  // de persistência gravava esse array já filtrado por cima do conjunto
+  // completo: na primeira renderização os dados dos outros workspaces eram
+  // apagados do localStorage. E trocar de workspace não trocava os dados na
+  // tela, porque nada reexecutava o filtro.
 
-  const [clientMaterials, setClientMaterials] = useState<ClientMaterial[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`);
-    const all = saved ? JSON.parse(saved) : initialClientMaterials;
-    return all.filter((cm: ClientMaterial) => !cm.workspaceId || cm.workspaceId === currentWsId);
-  });
+  const [allClients, setAllClients] = useState<Client[]>(() =>
+    readStorage<Client[]>(`${LOCAL_STORAGE_KEY_PREFIX}clients`, initialClients));
 
-  const [timesheetLogs, setTimesheetLogs] = useState<TimesheetLog[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`);
-    const all = saved ? JSON.parse(saved) : initialTimesheetLogs;
-    return all.filter((tl: TimesheetLog) => !tl.workspaceId || tl.workspaceId === currentWsId);
-  });
-  
-  // Save changes to localStorage with try/catch to prevent quota exceeded errors
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clients`, JSON.stringify(clients)); } catch(e) {}
-  }, [clients]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, JSON.stringify(jobs)); } catch(e) {}
-  }, [jobs]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}leads`, JSON.stringify(leads)); } catch(e) {}
-  }, [leads]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, JSON.stringify(proposals)); } catch(e) {}
-  }, [proposals]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, JSON.stringify(contracts)); } catch(e) {}
-  }, [contracts]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}automations`, JSON.stringify(automations)); } catch(e) {}
-  }, [automations]);
+  const [allJobs, setAllJobs] = useState<Job[]>(() =>
+    readStorage<Job[]>(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, initialJobs));
+
+  const [allLeads, setAllLeads] = useState<Lead[]>(() =>
+    readStorage<Lead[]>(`${LOCAL_STORAGE_KEY_PREFIX}leads`, initialLeads));
+
+  const [allProposals, setAllProposals] = useState<Proposal[]>(() =>
+    readStorage<Proposal[]>(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, initialProposals));
+
+  const [allContracts, setAllContracts] = useState<Contract[]>(() =>
+    readStorage<Contract[]>(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, initialContracts));
+
+  const [allAutomations, setAllAutomations] = useState<Automation[]>(() =>
+    readStorage<Automation[]>(`${LOCAL_STORAGE_KEY_PREFIX}automations`, initialAutomations));
+
+  const [allNotifications, setAllNotifications] = useState<Notification[]>(() =>
+    readStorage<Notification[]>(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, initialNotifications));
+
+  const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>(() =>
+    readStorage<ActivityLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, initialActivityLogs));
+
+  const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>(() =>
+    readStorage<ClientMaterial[]>(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, initialClientMaterials));
+
+  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>(() =>
+    readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, initialTimesheetLogs));
+
+  // Registros legados sem workspaceId continuam visíveis no workspace atual
+  // para não sumirem da tela de quem já usava o sistema.
+  const belongsToWorkspace = (row: { workspaceId?: string }) =>
+    !row.workspaceId || row.workspaceId === currentWsId;
+
+  const clients = useMemo(() => allClients.filter(belongsToWorkspace), [allClients, currentWsId]);
+  const jobs = useMemo(() => allJobs.filter(belongsToWorkspace), [allJobs, currentWsId]);
+  const leads = useMemo(() => allLeads.filter(belongsToWorkspace), [allLeads, currentWsId]);
+  const proposals = useMemo(() => allProposals.filter(belongsToWorkspace), [allProposals, currentWsId]);
+  const contracts = useMemo(() => allContracts.filter(belongsToWorkspace), [allContracts, currentWsId]);
+  const automations = useMemo(() => allAutomations.filter(belongsToWorkspace), [allAutomations, currentWsId]);
+  const notifications = useMemo(() => allNotifications.filter(belongsToWorkspace), [allNotifications, currentWsId]);
+  const activityLogs = useMemo(() => allActivityLogs.filter(belongsToWorkspace), [allActivityLogs, currentWsId]);
+  const clientMaterials = useMemo(() => allClientMaterials.filter(belongsToWorkspace), [allClientMaterials, currentWsId]);
+  const timesheetLogs = useMemo(() => allTimesheetLogs.filter(belongsToWorkspace), [allTimesheetLogs, currentWsId]);
+
+  // ============================================================
+  // Persistência
+  // ============================================================
+  // Cache local (abre offline, não pisca tela vazia) + envio ao servidor, que
+  // é a fonte de verdade compartilhada pela equipe.
+
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const dismissStorageWarning = () => setStorageWarning(null);
+
+  const hydratedRef = useRef(false);
+  const pushTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => onStorageQuotaExceeded(({ key, bytes }) => {
+    setStorageWarning(
+      `O armazenamento do navegador encheu ao salvar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
+      `(~${formatBytes(bytes)}). Anexe mídias por URL em vez de subir o arquivo, ou remova as mais pesadas.`
+    );
+  }), []);
+
+  /** Envia a fatia do workspace atual, com debounce para não disparar a cada tecla. */
+  const schedulePush = (collection: string, rows: { workspaceId?: string }[]) => {
+    if (!hydratedRef.current || !isAuthenticated) return;
+
+    clearTimeout(pushTimers.current[collection]);
+    pushTimers.current[collection] = setTimeout(async () => {
+      try {
+        setSyncState('saving');
+        await dataApi.pushCollection(collection, rows.filter(belongsToWorkspace));
+        setSyncState('saved');
+        setSyncError(null);
+      } catch (err) {
+        setSyncState('error');
+        setSyncError(
+          err instanceof ApiError
+            ? err.message
+            : 'Não foi possível salvar no servidor. As alterações seguem neste navegador.'
+        );
+      }
+    }, 800);
+  };
+
+  const usePersistedCollection = (name: string, rows: { workspaceId?: string }[]) => {
+    useEffect(() => {
+      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${name}`, rows);
+      schedulePush(name, rows);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows]);
+  };
+
+  usePersistedCollection('clients', allClients);
+  usePersistedCollection('jobs', allJobs);
+  usePersistedCollection('leads', allLeads);
+  usePersistedCollection('proposals', allProposals);
+  usePersistedCollection('contracts', allContracts);
+  usePersistedCollection('automations', allAutomations);
+  usePersistedCollection('notifications', allNotifications);
+  usePersistedCollection('activityLogs', allActivityLogs);
+  usePersistedCollection('clientMaterials', allClientMaterials);
+  usePersistedCollection('timesheetLogs', allTimesheetLogs);
 
   useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, JSON.stringify(clientMaterials)); } catch(e) {}
-  }, [clientMaterials]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, JSON.stringify(timesheetLogs));
-    } catch (e) {}
-  }, [timesheetLogs]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, JSON.stringify(notifications)); } catch(e) {}
-  }, [notifications]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, JSON.stringify(activityLogs)); } catch(e) {}
-  }, [activityLogs]);
-  
-  useEffect(() => {
-    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, JSON.stringify(workspaces)); } catch(e) {}
+    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, workspaces);
   }, [workspaces]);
 
-  // Initial sync & auto-seed with Firebase Firestore
+  /**
+   * Hidratação a partir do servidor assim que existe sessão. Se o servidor
+   * ainda não tem nada deste workspace, sobe o que está no navegador — é a
+   * migração do estado local para o compartilhado.
+   */
   useEffect(() => {
-    if (!isFirebaseConfigured()) return;
+    if (!isAuthenticated) {
+      hydratedRef.current = false;
+      return;
+    }
 
-    const initFirebaseData = async () => {
+    let cancelado = false;
+
+    (async () => {
       try {
-        const firestoreWorkspaces = await fetchCollectionFromFirestore<Workspace>('workspaces');
-        if (firestoreWorkspaces && firestoreWorkspaces.length > 0) {
-          setWorkspaces(firestoreWorkspaces);
-          setCurrentWorkspaceState(prev => {
-            const match = firestoreWorkspaces.find(w => w.id === prev.id) || firestoreWorkspaces[0];
-            return match || prev;
-          });
-        }
+        setSyncState('loading');
+        const { workspaceId, collections } = await dataApi.fetchAll();
+        if (cancelado) return;
 
-        const firestoreClients = await fetchCollectionFromFirestore<Client>('clients');
-        if (firestoreClients && firestoreClients.length > 0) {
-          setClients(firestoreClients);
-          const firestoreJobs = await fetchCollectionFromFirestore<Job>('jobs');
-          if (firestoreJobs.length > 0) setJobs(firestoreJobs);
-          const firestoreLeads = await fetchCollectionFromFirestore<Lead>('leads');
-          if (firestoreLeads.length > 0) setLeads(firestoreLeads);
-          const firestoreProposals = await fetchCollectionFromFirestore<Proposal>('proposals');
-          if (firestoreProposals.length > 0) setProposals(firestoreProposals);
-          const firestoreMaterials = await fetchCollectionFromFirestore<ClientMaterial>('client_materials');
-          if (firestoreMaterials.length > 0) setClientMaterials(firestoreMaterials);
-          const firestoreTimesheet = await fetchCollectionFromFirestore<TimesheetLog>('timesheet_logs');
-          if (firestoreTimesheet.length > 0) setTimesheetLogs(firestoreTimesheet);
-        } else {
-          // First time connected: Seed initial records to Firebase Firestore
-          await seedInitialFirestoreData(clients, jobs, leads, proposals, clientMaterials, timesheetLogs, workspaces);
-        }
+        const aplicar = <T extends { workspaceId?: string }>(
+          nome: string,
+          setter: React.Dispatch<React.SetStateAction<T[]>>,
+          locais: T[]
+        ) => {
+          const remotas = (collections[nome] || []) as T[];
+          if (remotas.length > 0) {
+            // O servidor manda: troca as linhas deste workspace, preserva as demais.
+            setter([
+              ...locais.filter((r) => r.workspaceId && r.workspaceId !== workspaceId),
+              ...remotas,
+            ]);
+          } else {
+            const paraSubir = locais.filter(belongsToWorkspace);
+            if (paraSubir.length > 0) {
+              dataApi.pushCollection(nome, paraSubir).catch(() => {});
+            }
+          }
+        };
+
+        aplicar('clients', setAllClients, allClients);
+        aplicar('jobs', setAllJobs, allJobs);
+        aplicar('leads', setAllLeads, allLeads);
+        aplicar('proposals', setAllProposals, allProposals);
+        aplicar('contracts', setAllContracts, allContracts);
+        aplicar('automations', setAllAutomations, allAutomations);
+        aplicar('notifications', setAllNotifications, allNotifications);
+        aplicar('activityLogs', setAllActivityLogs, allActivityLogs);
+        aplicar('clientMaterials', setAllClientMaterials, allClientMaterials);
+        aplicar('timesheetLogs', setAllTimesheetLogs, allTimesheetLogs);
+
+        hydratedRef.current = true;
+        setSyncState('saved');
+        setSyncError(null);
       } catch (err) {
-        console.warn('Firebase Firestore initialization:', err);
+        if (cancelado) return;
+        hydratedRef.current = true;
+        setSyncState('error');
+        setSyncError(
+          err instanceof ApiError
+            ? err.message
+            : 'Servidor indisponível. Trabalhando com os dados salvos neste navegador.'
+        );
       }
-    };
+    })();
 
-    initFirebaseData();
-  }, []);
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, currentWsId]);
 
   // Modal handlers
   const openCreateJobModal = (date?: string) => {
@@ -565,7 +693,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       target,
       timestamp: new Date().toISOString()
     };
-    setActivityLogs(prev => [newLog, ...prev]);
+    setAllActivityLogs(prev => [newLog, ...prev]);
   };
   
   // Job Operations
@@ -613,8 +741,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       comments: []
     };
     
-    setJobs(prev => [newJob, ...prev]);
-    saveItemToFirestore('jobs', newJob.id, newJob);
+    setAllJobs(prev => [newJob, ...prev]);
     logActivity('Criou o conteúdo', `Job: ${newJob.title}`);
     
     // Check automation for job created
@@ -622,10 +749,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   const updateJob = (jobId: string, updates: Partial<Job>) => {
-    setJobs(prev => prev.map(job => {
+    setAllJobs(prev => prev.map(job => {
       if (job.id === jobId) {
         const updated = { ...job, ...updates };
-        saveItemToFirestore('jobs', jobId, updated);
         if (selectedJob?.id === jobId) {
           setSelectedJob(updated);
         }
@@ -640,8 +766,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (jobToDelete) {
       logActivity('Excluiu o conteúdo', `Job: ${jobToDelete.title}`);
     }
-    deleteItemFromFirestore('jobs', jobId);
-    setJobs(prev => prev.filter(j => j.id !== jobId));
+    setAllJobs(prev => prev.filter(j => j.id !== jobId));
     if (selectedJob?.id === jobId) {
       setSelectedJob(null);
     }
@@ -672,7 +797,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: new Date().toISOString(),
         linkContext: { tab: 'aprovacoes', jobId: job.id, clientId: job.clientId }
       };
-      setNotifications(prev => [newNotif, ...prev]);
+      setAllNotifications(prev => [newNotif, ...prev]);
     }
   };
   
@@ -715,7 +840,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       linkContext: { tab: 'publicacoes', jobId: job.id, clientId: job.clientId }
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setAllNotifications(prev => [newNotif, ...prev]);
   };
   
   const requestAdjustment = (jobId: string, feedback: string, requesterName: string = 'Cliente') => {
@@ -752,7 +877,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       linkContext: { tab: 'conteudos', jobId: job.id, clientId: job.clientId }
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setAllNotifications(prev => [newNotif, ...prev]);
   };
   
   const addNewJobVersion = (jobId: string, mediaUrls: string[], caption: string) => {
@@ -853,17 +978,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       portalToken: `token-${Math.random().toString(36).substring(2, 9)}`
     };
     
-    setClients(prev => [newClient, ...prev]);
-    saveItemToFirestore('clients', newClient.id, newClient);
+    setAllClients(prev => [newClient, ...prev]);
     logActivity('Cadastrou novo cliente', `Cliente: ${newClient.name}`);
     return newClient;
   };
   
   const updateClient = (clientId: string, updates: Partial<Client>) => {
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id === clientId) {
         const updated = { ...c, ...updates };
-        saveItemToFirestore('clients', clientId, updated);
         return updated;
       }
       return c;
@@ -871,8 +994,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteClient = (clientId: string) => {
-    deleteItemFromFirestore('clients', clientId);
-    setClients(prev => prev.filter(c => c.id !== clientId));
+    setAllClients(prev => prev.filter(c => c.id !== clientId));
   };
 
   const addClientPassword = (clientId: string, passwordData: Omit<ClientPassword, 'id' | 'updatedAt'>) => {
@@ -881,7 +1003,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: `pwd-${Date.now()}`,
       updatedAt: new Date().toISOString()
     };
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, passwords: [...(c.passwords || []), newPassword] };
     }));
@@ -889,7 +1011,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteClientPassword = (clientId: string, passwordId: string) => {
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, passwords: (c.passwords || []).filter(p => p.id !== passwordId) };
     }));
@@ -900,7 +1022,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...invoiceData,
       id: `inv-${Date.now()}`
     };
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, invoices: [newInvoice, ...(c.invoices || [])] };
     }));
@@ -908,7 +1030,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteClientInvoice = (clientId: string, invoiceId: string) => {
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, invoices: (c.invoices || []).filter(inv => inv.id !== invoiceId) };
     }));
@@ -920,7 +1042,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: `file-${Date.now()}`,
       uploadedAt: new Date().toISOString().split('T')[0]
     };
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, files: [newFile, ...(c.files || [])] };
     }));
@@ -928,14 +1050,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteClientFile = (clientId: string, fileId: string) => {
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, files: (c.files || []).filter(f => f.id !== fileId) };
     }));
   };
 
   const updateClientBriefing = (clientId: string, briefingData: Partial<ClientBriefing>) => {
-    setClients(prev => prev.map(c => {
+    setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       const current = c.briefing || {
         brandVoice: '',
@@ -970,13 +1092,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       endDate: contractData.endDate || new Date(Date.now() + 86400000 * 365).toISOString().split('T')[0],
       status: 'draft',
     };
-    setContracts(prev => [newContract, ...prev]);
+    setAllContracts(prev => [newContract, ...prev]);
     logActivity('Criou contrato', `Contrato: ${newContract.title}`);
     return newContract;
   };
 
   const signContract = (contractId: string, signatoryName: string) => {
-    setContracts(prev => prev.map(c => 
+    setAllContracts(prev => prev.map(c => 
       c.id === contractId ? { ...c, status: 'signed' as const, signedAt: new Date().toISOString() } : c
     ));
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
@@ -999,8 +1121,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       validUntil: proposalData.validUntil || new Date(Date.now() + 86400000 * 15).toISOString().split('T')[0],
       createdAt: new Date().toISOString()
     };
-    setProposals(prev => [newProp, ...prev]);
-    saveItemToFirestore('proposals', newProp.id, newProp);
+    setAllProposals(prev => [newProp, ...prev]);
     logActivity('Criou proposta comercial', `Proposta: ${newProp.title}`);
     return newProp;
   };
@@ -1021,17 +1142,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notes: leadData.notes || '',
       createdAt: new Date().toISOString()
     };
-    setLeads(prev => [newLead, ...prev]);
-    saveItemToFirestore('leads', newLead.id, newLead);
+    setAllLeads(prev => [newLead, ...prev]);
     logActivity('Cadastrou novo Lead comercial', `${newLead.company} (${newLead.name})`);
     return newLead;
   };
 
   const updateLeadStage = (leadId: string, stage: LeadStage) => {
-    setLeads(prev => prev.map(l => {
+    setAllLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const updated = { ...l, stage };
-        saveItemToFirestore('leads', leadId, updated);
         return updated;
       }
       return l;
@@ -1062,7 +1181,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     
     // 2. Mark lead as 'ganho'
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: 'ganho' as const } : l));
+    setAllLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: 'ganho' as const } : l));
     
     // 3. Generate contract automatically
     const newContract: Contract = {
@@ -1076,7 +1195,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       endDate: new Date(Date.now() + 86400000 * 365).toISOString().split('T')[0],
       status: 'sent'
     };
-    setContracts(prev => [newContract, ...prev]);
+    setAllContracts(prev => [newContract, ...prev]);
     
     logActivity('Converteu Lead em Cliente', `Lead: ${lead.name} -> Cliente: ${newClient.name}`);
     
@@ -1090,14 +1209,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       linkContext: { tab: 'clientes', clientId: newClient.id }
     };
-    setNotifications(prev => [notif, ...prev]);
+    setAllNotifications(prev => [notif, ...prev]);
   };
   
   const acceptProposal = (proposalId: string) => {
     const prop = proposals.find(p => p.id === proposalId);
     if (!prop) return;
     
-    setProposals(prev => prev.map(p => 
+    setAllProposals(prev => prev.map(p => 
       p.id === proposalId ? { ...p, status: 'accepted' as const, acceptedAt: new Date().toISOString() } : p
     ));
     
@@ -1124,34 +1243,34 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       endDate: new Date(Date.now() + 86400000 * 365).toISOString().split('T')[0],
       status: 'sent'
     };
-    setContracts(prev => [newContract, ...prev]);
+    setAllContracts(prev => [newContract, ...prev]);
     logActivity('Gerou Contrato', `Contrato para ${prop.clientName}`);
   };
   
   // Notifications & Automations
   const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setAllNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
   
   const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
   
   const toggleAutomation = (id: string) => {
-    setAutomations(prev => prev.map(a => 
+    setAllAutomations(prev => prev.map(a => 
       a.id === id ? { ...a, enabled: !a.enabled } : a
     ));
   };
 
   // Client Materials
-  const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'uploadedAt'>) => {
+  const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => {
     const newMaterial: ClientMaterial = {
       ...material,
       id: `mat-${Date.now()}`,
-      uploadedAt: new Date().toISOString()
+      workspaceId: currentWorkspace?.id,
+      createdAt: new Date().toISOString()
     };
-    setClientMaterials(prev => [newMaterial, ...prev]);
-    saveItemToFirestore('client_materials', newMaterial.id, newMaterial);
+    setAllClientMaterials(prev => [newMaterial, ...prev]);
     logActivity('Cliente enviou material', `${newMaterial.title} (${newMaterial.clientName})`);
     
     // Notification for agency team
@@ -1165,12 +1284,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       linkContext: { tab: 'clientes', clientId: newMaterial.clientId }
     };
-    setNotifications(prev => [notif, ...prev]);
+    setAllNotifications(prev => [notif, ...prev]);
   };
 
   const deleteClientMaterial = (id: string) => {
-    deleteItemFromFirestore('client_materials', id);
-    setClientMaterials(prev => prev.filter(m => m.id !== id));
+    setAllClientMaterials(prev => prev.filter(m => m.id !== id));
   };
 
   // Timesheet
@@ -1180,17 +1298,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: `ts-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
-    setTimesheetLogs(prev => [newLog, ...prev]);
-    saveItemToFirestore('timesheet_logs', newLog.id, newLog);
+    setAllTimesheetLogs(prev => [newLog, ...prev]);
 
     // Update job timesheetMinutes
-    setJobs(prev => prev.map(j => {
+    setAllJobs(prev => prev.map(j => {
       if (j.id === log.jobId) {
         const updated = {
           ...j,
           timesheetMinutes: (j.timesheetMinutes || 0) + log.minutes
         };
-        saveItemToFirestore('jobs', j.id, updated);
         return updated;
       }
       return j;
@@ -1199,135 +1315,114 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Apontou tempo em Job', `${log.minutes} min em "${log.jobTitle}" por ${log.userName}`);
   };
 
-  // AI Operations (Gemini)
-  const generateAiCopy = async (params: { theme: string; format?: string; platform?: string; clientId?: string; additionalNotes?: string }) => {
-    const client = clients.find(c => c.id === params.clientId);
-    try {
-      const res = await fetch('/api/gemini/generate-copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          theme: params.theme,
-          format: params.format,
-          platform: params.platform,
-          brandVoice: client?.briefing?.brandVoice,
-          targetAudience: client?.briefing?.targetAudience,
-          painPoints: client?.briefing?.painPoints,
-          monthlyGoals: client?.briefing?.monthlyGoals,
-          additionalNotes: params.additionalNotes
-        })
-      });
-      if (!res.ok) throw new Error('Falha na API');
-      return await res.json();
-    } catch {
-      return {
-        caption: `✨ [IA Estratégica Postfy] ${params.theme}\n\nVocê já parou para pensar em como isso impacta seus resultados diariamente? Acompanhe o passo a passo completo.\n\n👉 Compartilhe este post com alguém que precisa ver isso hoje!`,
-        hook: `O maior erro sobre ${params.theme} que ninguém te conta!`,
-        cta: `Comente "QUERO" ou clique no link da bio para conferir.`,
-        hashtags: ['#marketingdeconteudo', '#socialmedia', '#estrategiadigital', '#engajamento', '#postfy'],
-        reelsScript: `CENA 1 (0-3s): Expressão impactante. Texto: "Faça isso agora mesmo".\nCENA 2: Explicação visual rápida.\nCENA 3: Demonstração prática do benefício.`
-      };
-    }
+  // ============================================================
+  // IA (Gemini)
+  // ============================================================
+  // Estas funções propagam o erro em vez de devolver texto de exemplo. Antes
+  // qualquer falha — inclusive "chave não configurada" — era engolida e
+  // substituída por conteúdo fictício, dando a impressão de que a IA estava
+  // gerando de verdade.
+
+  const generateAiCopy = async (params: {
+    theme: string;
+    format?: string;
+    platform?: string;
+    clientId?: string;
+    additionalNotes?: string;
+  }) => {
+    const client = clients.find((c) => c.id === params.clientId);
+    return aiApi.generateCopy({
+      theme: params.theme,
+      format: params.format,
+      platform: params.platform,
+      brandVoice: client?.briefing?.brandVoice,
+      targetAudience: client?.briefing?.targetAudience,
+      painPoints: client?.briefing?.painPoints,
+      monthlyGoals: client?.briefing?.monthlyGoals,
+      additionalNotes: params.additionalNotes,
+    });
   };
 
-  const convertFeedbackToTasks = async (params: { clientFeedback: string; jobTitle: string; currentCopy?: string }) => {
-    try {
-      const res = await fetch('/api/gemini/convert-feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-      if (!res.ok) throw new Error('Falha na API');
-      return await res.json();
-    } catch {
-      return {
-        summary: `Ajuste solicitado pelo cliente em "${params.jobTitle}": ${params.clientFeedback}`,
-        checklist: [
-          { item: `Ajustar arte/diagramação conforme feedback do cliente: ${params.clientFeedback.slice(0, 60)}...`, role: 'designer' as const },
-          { item: 'Revisar ortografia, quebras de linha e CTA da legenda', role: 'copywriter' as const }
-        ]
-      };
-    }
-  };
+  const convertFeedbackToTasks = async (params: {
+    clientFeedback: string;
+    jobTitle: string;
+    currentCopy?: string;
+  }) => aiApi.convertFeedback(params);
 
   const generateEditorialIdeas = async (clientId: string) => {
-    const client = clients.find(c => c.id === clientId) || clients[0];
-    try {
-      const res = await fetch('/api/gemini/editorial-ideas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientSegment: client?.segment || 'Serviços',
-          clientName: client?.name || 'Cliente',
-          month: 'Março'
-        })
-      });
-      if (!res.ok) throw new Error('Falha na API');
-      return await res.json();
-    } catch {
-      return {
-        ideas: [
-          { title: 'Carrossel: 5 Erros mais comuns no segmento', format: 'Carrossel', hook: 'Pare de errar nisso agora!', rationale: 'Gera salvamentos e autoridade imediata' },
-          { title: 'Reels: Bastidores de um dia de atendimento', format: 'Reels', hook: 'Como funciona por trás das câmeras', rationale: 'Humaniza a marca e gera identificação' },
-          { title: 'Post de Prova Social: Estudo de Caso de Sucesso', format: 'Post Estático', hook: 'De 0 a 100 em 30 dias', rationale: 'Gera desejo e pedidos de orçamento' },
-          { title: 'Infográfico / Checklist com Dicas Práticas', format: 'Carrossel', hook: 'Salve para consultar depois!', rationale: 'Aumenta compartilhamentos orgânicos' }
-        ]
-      };
-    }
+    const client = clients.find((c) => c.id === clientId) || clients[0];
+    return aiApi.editorialIdeas({
+      clientSegment: client?.segment || 'Serviços',
+      clientName: client?.name || 'Cliente',
+      month: new Date().toLocaleDateString('pt-BR', { month: 'long' }),
+    });
   };
 
-  // Supabase
+  // ============================================================
+  // Sincronização
+  // ============================================================
+  // O Firebase foi removido: era um segundo banco, sem autenticação e com
+  // regras liberadas para qualquer origem. A persistência compartilhada passou
+  // a ser a API autenticada em /api/data.
+  //
+  // O Supabase continua disponível como caminho de migração documentado
+  // (supabase/schema.sql e README), mas não é a fonte de verdade hoje.
+
   const isSupabaseConnected = isSupabaseConfigured();
 
   const syncWithSupabase = async (): Promise<{ success: boolean; message: string }> => {
     if (!isSupabaseConfigured() || !supabase) {
       return {
         success: false,
-        message: 'Supabase ainda não configurado no .env. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo de ambiente.'
+        message: 'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
       };
     }
-
     try {
       const { error } = await supabase.from('clients').select('id').limit(1);
       if (error) throw error;
-
       return {
         success: true,
-        message: 'Conexão com Supabase verificada e ativa! Tabelas prontas.'
+        message: 'O Supabase respondeu. Nenhum dado foi migrado — a migração ainda é manual.',
       };
     } catch (err: any) {
       return {
         success: false,
-        message: `Erro ao conectar com Supabase: ${err.message || 'Verifique o schema.sql'}`
+        message: `Não foi possível consultar o Supabase: ${err?.message || 'verifique o schema e as políticas RLS.'}`,
       };
     }
   };
 
-  // Firebase
-  const isFirebaseConnected = isFirebaseConfigured();
-
-  const syncWithFirebase = async (): Promise<{ success: boolean; message: string }> => {
-    if (!isFirebaseConfigured()) {
-      return {
-        success: false,
-        message: 'Firebase ainda não inicializado no projeto.'
-      };
+  const forceSync = async (): Promise<{ success: boolean; message: string }> => {
+    if (!isAuthenticated) {
+      return { success: false, message: 'Faça login para sincronizar com o servidor.' };
     }
-
     try {
-      await seedInitialFirestoreData(clients, jobs, leads, proposals, clientMaterials, timesheetLogs);
-      return {
-        success: true,
-        message: 'Firebase Firestore conectado com sucesso e dados sincronizados!'
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: `Erro ao sincronizar com Firebase Firestore: ${err.message || 'Verifique a conexão'}`
-      };
+      setSyncState('saving');
+      await Promise.all(
+        ([
+          ['clients', allClients],
+          ['jobs', allJobs],
+          ['leads', allLeads],
+          ['proposals', allProposals],
+          ['contracts', allContracts],
+          ['automations', allAutomations],
+          ['clientMaterials', allClientMaterials],
+          ['timesheetLogs', allTimesheetLogs],
+        ] as const).map(([nome, linhas]) =>
+          dataApi.pushCollection(nome, (linhas as { workspaceId?: string }[]).filter(belongsToWorkspace))
+        )
+      );
+      setSyncState('saved');
+      setSyncError(null);
+      return { success: true, message: 'Dados enviados ao servidor com sucesso.' };
+    } catch (err) {
+      const mensagem = err instanceof ApiError ? err.message : 'Falha ao sincronizar com o servidor.';
+      setSyncState('error');
+      setSyncError(mensagem);
+      return { success: false, message: mensagem };
     }
   };
-  
+
   // Agency Health Score Calculator (0 - 100)
   const calculateAgencyHealth = () => {
     const totalJobs = jobs.length;
@@ -1390,9 +1485,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currentUser,
         setCurrentUser,
         isAuthenticated,
+        isAuthLoading,
         login,
+        register,
         logout,
-        switchUserRole,
         activeTab,
         setActiveTab,
         calendarView,
@@ -1465,8 +1561,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         generateEditorialIdeas,
         isSupabaseConnected,
         syncWithSupabase,
-        isFirebaseConnected,
-        syncWithFirebase,
+        syncState,
+        syncError,
+        forceSync,
+        storageWarning,
+        dismissStorageWarning,
       }}
     >
       {children}

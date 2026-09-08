@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# dados locais do store em arquivo
+data/

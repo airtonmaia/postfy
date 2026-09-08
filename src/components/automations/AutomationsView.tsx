@@ -28,7 +28,7 @@ export const AutomationsView: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-            {automations.filter(a => a.active).length} de {automations.length} ativas
+            {automations.filter(a => a.enabled).length} de {automations.length} ativas
           </span>
         </div>
       </div>
@@ -39,19 +39,19 @@ export const AutomationsView: React.FC = () => {
           <div
             key={auto.id}
             className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 shadow-xs transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-              auto.active ? 'border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-800 opacity-60 bg-slate-50 dark:bg-slate-950/50'
+              auto.enabled ? 'border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-800 opacity-60 bg-slate-50 dark:bg-slate-950/50'
             }`}
           >
             <div className="flex items-start gap-3.5">
-              <div className={`p-2.5 rounded-xl shrink-0 ${auto.active ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+              <div className={`p-2.5 rounded-xl shrink-0 ${auto.enabled ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
                 <Zap className="w-5 h-5" />
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{auto.name}</h4>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{auto.title}</h4>
                   <span className="text-[11px] font-mono text-slate-400">
-                    {auto.executionsCount} execuções registradas
+                    {auto.executionCount} execuções registradas
                   </span>
                 </div>
 
@@ -72,7 +72,7 @@ export const AutomationsView: React.FC = () => {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={auto.active}
+                  checked={auto.enabled}
                   onChange={() => toggleAutomation(auto.id)}
                   className="sr-only peer"
                 />

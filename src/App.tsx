@@ -447,7 +447,7 @@ const MainLayout: React.FC = () => {
                         <span className="font-bold text-slate-800 dark:text-slate-200 block">{n.title}</span>
                         <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5 leading-snug">{n.message}</p>
                         <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                          {safeTimeFormat(n.timestamp || (n as any).createdAt)}
+                          {safeTimeFormat(n.createdAt || (n as any).createdAt)}
                         </span>
                       </div>
                     ))}
