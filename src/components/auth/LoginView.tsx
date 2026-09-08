@@ -198,7 +198,8 @@ export const LoginView: React.FC = () => {
       </div>
 
       {/* Right Side: Full Screen Auth Form Container */}
-      <div className="lg:col-span-7 h-full overflow-y-auto p-6 sm:p-12 lg:p-16 flex flex-col justify-between space-y-6 max-w-2xl mx-auto w-full">
+      <div className="lg:col-span-7 h-full overflow-y-auto p-6 sm:p-12 lg:p-16 flex flex-col justify-between space-y-6 bg-white">
+        <div className="max-w-xl mx-auto w-full space-y-6 my-auto">
         
         {/* Brand Header */}
         <div className="flex items-center justify-between">
@@ -521,6 +522,7 @@ export const LoginView: React.FC = () => {
             </p>
           </div>
         </div>
+      </div>
 
     </div>
   );

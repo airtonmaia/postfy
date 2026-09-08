@@ -23,12 +23,16 @@ import {
   LogOut,
   ChevronDown,
   Menu,
-  X
+  X,
+  Crown,
+  DollarSign,
+  Building2
 } from 'lucide-react';
 
 // Modals
 import { JobDetailModal } from './components/modals/JobDetailModal';
 import { CreateJobModal } from './components/modals/CreateJobModal';
+import { CreateWorkspaceModal } from './components/modals/CreateWorkspaceModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoginView } from './components/auth/LoginView';
@@ -46,6 +50,9 @@ import { ReportsView } from './components/reports/ReportsView';
 import { AutomationsView } from './components/automations/AutomationsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
+import { SaasPlansView } from './components/saas/SaasPlansView';
+import { SaasFinancialView } from './components/saas/SaasFinancialView';
+import { SaasAgenciesView } from './components/saas/SaasAgenciesView';
 import { TabType } from './types';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
@@ -103,6 +110,8 @@ const MainLayout: React.FC = () => {
   const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
   const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
+  const isSuperAdmin = currentUser?.email === 'airtonmaiamt@gmail.com';
+
   const navItems: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
@@ -130,6 +139,7 @@ const MainLayout: React.FC = () => {
       {/* Global Modals */}
       <JobDetailModal />
       <CreateJobModal />
+      <CreateWorkspaceModal />
       <SearchModal />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
@@ -191,7 +201,7 @@ const MainLayout: React.FC = () => {
           </div>
 
           {/* Navigation Links */}
-          <nav className="px-2 space-y-1 mt-1">
+          <nav className="px-2 space-y-1 mt-1 overflow-y-auto max-h-[calc(100vh-320px)]">
             {navItems.map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -222,6 +232,44 @@ const MainLayout: React.FC = () => {
                 </button>
               );
             })}
+
+            {isSuperAdmin && (
+              <>
+                <div className="pt-4 pb-1 px-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                    👑 Gestão do SaaS
+                  </span>
+                </div>
+                {[
+                  { id: 'saas_planos', label: 'Planos do SaaS', icon: Crown },
+                  { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
+                  { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as TabType);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                        isActive
+                          ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
+                          : 'text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200/50 dark:border-purple-900/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`} />
+                        <span>{item.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </nav>
         </div>
 
@@ -422,6 +470,9 @@ const MainLayout: React.FC = () => {
           {activeTab === 'relatorios' && <ReportsView />}
           {activeTab === 'automacoes' && <AutomationsView />}
           {activeTab === 'configuracoes' && <SettingsView />}
+          {activeTab === 'saas_planos' && <SaasPlansView />}
+          {activeTab === 'saas_financeiro' && <SaasFinancialView />}
+          {activeTab === 'saas_agencias' && <SaasAgenciesView />}
         </main>
       </div>
     </div>

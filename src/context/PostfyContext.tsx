@@ -57,6 +57,9 @@ interface PostfyContextType {
   setCurrentWorkspace: (ws: Workspace) => void;
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
+  createWorkspace: (name: string, primaryColor?: string) => Workspace;
+  isCreateWorkspaceModalOpen: boolean;
+  setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
   currentUser: User;
   setCurrentUser: (user: User) => void;
@@ -224,6 +227,34 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateCurrentWorkspace = (updates: Partial<Workspace>) => {
     updateWorkspace(currentWorkspace.id, updates);
   };
+
+  const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
+
+  const createWorkspace = (name: string, primaryColor: string = '#6366f1'): Workspace => {
+    const id = `ws-${Date.now()}`;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 7);
+
+    const newWs: Workspace = {
+      id,
+      name,
+      slug,
+      logo: 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg',
+      primaryColor: '#6366f1',
+      whiteLabel: true,
+      timezone: 'America/Sao_Paulo',
+      isTrial: true,
+      trialEndsAt: trialEnd.toISOString(),
+    };
+
+    setWorkspaces(prev => [...prev, newWs]);
+    setCurrentWorkspace(newWs);
+    saveItemToFirestore('workspaces', id, newWs);
+    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    setIsCreateWorkspaceModalOpen(false);
+    return newWs;
+  };
   
   const [users] = useState<User[]>(initialUsers);
   
@@ -337,100 +368,114 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
   
-  // Entity states
+  // Entity states (filtered strictly by currentWorkspace.id for multi-tenant isolation)
+  const currentWsId = currentWorkspace?.id || 'ws-1';
+
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}clients`);
-    return saved ? JSON.parse(saved) : initialClients;
+    const all = saved ? JSON.parse(saved) : initialClients;
+    return all.filter((c: Client) => !c.workspaceId || c.workspaceId === currentWsId);
   });
   
   const [jobs, setJobs] = useState<Job[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}jobs`);
-    return saved ? JSON.parse(saved) : initialJobs;
+    const all = saved ? JSON.parse(saved) : initialJobs;
+    return all.filter((j: Job) => !j.workspaceId || j.workspaceId === currentWsId);
   });
   
   const [leads, setLeads] = useState<Lead[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}leads`);
-    return saved ? JSON.parse(saved) : initialLeads;
+    const all = saved ? JSON.parse(saved) : initialLeads;
+    return all.filter((l: Lead) => !l.workspaceId || l.workspaceId === currentWsId);
   });
   
   const [proposals, setProposals] = useState<Proposal[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}proposals`);
-    return saved ? JSON.parse(saved) : initialProposals;
+    const all = saved ? JSON.parse(saved) : initialProposals;
+    return all.filter((p: Proposal) => !p.workspaceId || p.workspaceId === currentWsId);
   });
   
   const [contracts, setContracts] = useState<Contract[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}contracts`);
-    return saved ? JSON.parse(saved) : initialContracts;
+    const all = saved ? JSON.parse(saved) : initialContracts;
+    return all.filter((ct: Contract) => !ct.workspaceId || ct.workspaceId === currentWsId);
   });
   
   const [automations, setAutomations] = useState<Automation[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}automations`);
-    return saved ? JSON.parse(saved) : initialAutomations;
+    const all = saved ? JSON.parse(saved) : initialAutomations;
+    return all.filter((a: Automation) => !a.workspaceId || a.workspaceId === currentWsId);
   });
   
   const [notifications, setNotifications] = useState<Notification[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}notifications`);
-    return saved ? JSON.parse(saved) : initialNotifications;
+    const all = saved ? JSON.parse(saved) : initialNotifications;
+    return all.filter((n: Notification) => !n.workspaceId || n.workspaceId === currentWsId);
   });
   
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`);
-    return saved ? JSON.parse(saved) : initialActivityLogs;
+    const all = saved ? JSON.parse(saved) : initialActivityLogs;
+    return all.filter((al: ActivityLog) => !al.workspaceId || al.workspaceId === currentWsId);
   });
 
   const [clientMaterials, setClientMaterials] = useState<ClientMaterial[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`);
-    return saved ? JSON.parse(saved) : initialClientMaterials;
+    const all = saved ? JSON.parse(saved) : initialClientMaterials;
+    return all.filter((cm: ClientMaterial) => !cm.workspaceId || cm.workspaceId === currentWsId);
   });
 
   const [timesheetLogs, setTimesheetLogs] = useState<TimesheetLog[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`);
-    return saved ? JSON.parse(saved) : initialTimesheetLogs;
+    const all = saved ? JSON.parse(saved) : initialTimesheetLogs;
+    return all.filter((tl: TimesheetLog) => !tl.workspaceId || tl.workspaceId === currentWsId);
   });
   
-  // Save changes to localStorage
+  // Save changes to localStorage with try/catch to prevent quota exceeded errors
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clients`, JSON.stringify(clients));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clients`, JSON.stringify(clients)); } catch(e) {}
   }, [clients]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, JSON.stringify(jobs));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, JSON.stringify(jobs)); } catch(e) {}
   }, [jobs]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}leads`, JSON.stringify(leads));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}leads`, JSON.stringify(leads)); } catch(e) {}
   }, [leads]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, JSON.stringify(proposals));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, JSON.stringify(proposals)); } catch(e) {}
   }, [proposals]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, JSON.stringify(contracts));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, JSON.stringify(contracts)); } catch(e) {}
   }, [contracts]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}automations`, JSON.stringify(automations));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}automations`, JSON.stringify(automations)); } catch(e) {}
   }, [automations]);
 
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, JSON.stringify(clientMaterials));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, JSON.stringify(clientMaterials)); } catch(e) {}
   }, [clientMaterials]);
 
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, JSON.stringify(timesheetLogs));
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, JSON.stringify(timesheetLogs));
+    } catch (e) {}
   }, [timesheetLogs]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, JSON.stringify(notifications));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, JSON.stringify(notifications)); } catch(e) {}
   }, [notifications]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, JSON.stringify(activityLogs));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, JSON.stringify(activityLogs)); } catch(e) {}
   }, [activityLogs]);
   
   useEffect(() => {
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, JSON.stringify(workspaces));
+    try { localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, JSON.stringify(workspaces)); } catch(e) {}
   }, [workspaces]);
 
   // Initial sync & auto-seed with Firebase Firestore
@@ -1321,6 +1366,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCurrentWorkspace,
         updateWorkspace,
         updateCurrentWorkspace,
+        createWorkspace,
+        isCreateWorkspaceModalOpen,
+        setIsCreateWorkspaceModalOpen,
         users,
         currentUser,
         setCurrentUser,

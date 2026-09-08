@@ -55,6 +55,8 @@ export interface Workspace {
   customDomain?: string;
   whiteLabel: boolean;
   timezone: string;
+  isTrial?: boolean;
+  trialEndsAt?: string;
 }
 
 export interface ClientContact {
@@ -320,7 +322,10 @@ export type TabType =
   | 'publicacoes' 
   | 'relatorios' 
   | 'automacoes' 
-  | 'configuracoes';
+  | 'configuracoes'
+  | 'saas_planos'
+  | 'saas_financeiro'
+  | 'saas_agencias';
 
 export type LeadStage = 'new_lead' | 'meeting_scheduled' | 'proposal_sent' | 'negotiating' | 'won' | 'lost';
 
