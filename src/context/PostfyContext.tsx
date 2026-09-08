@@ -58,6 +58,7 @@ interface PostfyContextType {
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
   createWorkspace: (name: string, primaryColor?: string) => Workspace;
+  deleteWorkspace: (workspaceId: string) => void;
   isCreateWorkspaceModalOpen: boolean;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
@@ -254,6 +255,21 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
     setIsCreateWorkspaceModalOpen(false);
     return newWs;
+  };
+
+  const deleteWorkspace = (workspaceId: string) => {
+    if (workspaces.length <= 1) {
+      alert('Você não pode excluir o único workspace restante.');
+      return;
+    }
+    setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
+    deleteItemFromFirestore('workspaces', workspaceId);
+    if (currentWorkspace?.id === workspaceId) {
+      const remaining = workspaces.filter(w => w.id !== workspaceId);
+      if (remaining.length > 0) {
+        setCurrentWorkspace(remaining[0]);
+      }
+    }
   };
   
   const [users] = useState<User[]>(initialUsers);
@@ -1367,6 +1383,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateWorkspace,
         updateCurrentWorkspace,
         createWorkspace,
+        deleteWorkspace,
         isCreateWorkspaceModalOpen,
         setIsCreateWorkspaceModalOpen,
         users,
