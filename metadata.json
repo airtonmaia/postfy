@@ -1,0 +1,6 @@
+{
+  "name": "Postfy - OS para Agências",
+  "description": "Sistema operacional completo para agências de conteúdo e social media: leads, clientes, produção, Kanban, calendário editorial shadcn, aprovações, publicações e relatórios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

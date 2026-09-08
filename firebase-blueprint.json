@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Postfy Database Schema",
+  "entities": {
+    "clients": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "segment": { "type": "string" },
+        "avatar": { "type": "string" },
+        "plan": { "type": "string" },
+        "monthlyValue": { "type": "number" },
+        "status": { "type": "string" },
+        "driveFolder": { "type": "string" },
+        "instagramHandle": { "type": "string" },
+        "whatsappGroup": { "type": "string" },
+        "contacts": { "type": "array" },
+        "briefing": { "type": "object" },
+        "files": { "type": "array" },
+        "passwords": { "type": "array" },
+        "invoices": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "jobs": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "title": { "type": "string" },
+        "platform": { "type": "string" },
+        "format": { "type": "string" },
+        "status": { "type": "string" },
+        "deadlineApproval": { "type": "string" },
+        "deadlinePublish": { "type": "string" },
+        "caption": { "type": "string" },
+        "cta": { "type": "string" },
+        "hashtags": { "type": "array" },
+        "mediaUrls": { "type": "array" },
+        "versions": { "type": "array" },
+        "checklist": { "type": "array" },
+        "comments": { "type": "array" },
+        "timesheetMinutes": { "type": "number" },
+        "lastFeedback": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "clientId", "title", "status"]
+    },
+    "timesheet_logs": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "jobId": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "minutes": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "jobId", "minutes"]
+    },
+    "client_materials": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "url": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "size": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "clientId", "title"]
+    },
+    "proposals": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leadId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "plan": { "type": "string" },
+        "monthlyValue": { "type": "number" },
+        "scope": { "type": "array" },
+        "validUntil": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "clientName", "plan"]
+    },
+    "leads": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "company": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "workspaces": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "logo": { "type": "string" },
+        "favicon": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "customDomain": { "type": "string" },
+        "whiteLabel": { "type": "boolean" },
+        "timezone": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}
