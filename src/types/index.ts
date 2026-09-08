@@ -271,8 +271,15 @@ export interface Contract {
   monthlyValue: number;
   startDate: string;
   endDate: string;
-  status: 'draft' | 'sent' | 'signed' | 'expired';
+  status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled';
   signedAt?: string;
+  /**
+   * Quem assinou. signContract() sempre recebeu este nome, mas o tipo não
+   * tinha onde guardá-lo, então ele era descartado: o contrato ficava
+   * "assinado" sem registro de por quem.
+   */
+  signatoryName?: string;
+  createdAt?: string;
 }
 
 export interface Automation {
