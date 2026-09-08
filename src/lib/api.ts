@@ -91,6 +91,44 @@ export const authApi = {
   },
 };
 
+export interface TeamInvite {
+  id: string;
+  workspaceId: string;
+  email: string;
+  name?: string;
+  role: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export const teamApi = {
+  listUsers: () => request<{ users: ApiUser[] }>('/api/auth/users'),
+
+  listInvites: () => request<{ invites: TeamInvite[] }>('/api/auth/invites'),
+
+  createInvite: (input: { email: string; name?: string; role: string }) =>
+    request<{ invite: TeamInvite; token: string }>('/api/auth/invites', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  revokeInvite: (id: string) =>
+    request<{ ok: boolean }>(`/api/auth/invites/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  lookupInvite: (token: string) =>
+    request<{ email: string; name: string | null; role: string; agencyName: string | null }>(
+      `/api/auth/invites/token/${encodeURIComponent(token)}`
+    ),
+
+  acceptInvite: (input: { token: string; name: string; password: string }) =>
+    request<SessionPayload>('/api/auth/accept-invite', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+};
+
 export const dataApi = {
   fetchAll: () =>
     request<{ workspaceId: string; collections: Record<string, any[]> }>('/api/data'),

@@ -1,53 +1,141 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
-import { 
-  Users, Plus, Mail, Shield, Check, Trash2, CheckCircle2, UserCheck, X 
+import {
+  Users, Plus, Mail, Trash2, CheckCircle2, X, Copy, Check, Clock, AlertCircle,
 } from 'lucide-react';
-import { User } from '../../../types';
+import { Role } from '../../../types';
+import { teamApi, ApiUser, TeamInvite, ApiError } from '../../../lib/api';
+import { pode } from '../../../lib/permissions';
+import { copyToClipboard } from '../../../lib/utils';
 
+const PAPEIS: { valor: Role; rotulo: string; classe: string }[] = [
+  { valor: 'admin', rotulo: 'Administrador', classe: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
+  { valor: 'manager', rotulo: 'Gestor', classe: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' },
+  { valor: 'social_media', rotulo: 'Social Media', classe: 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800' },
+  { valor: 'designer', rotulo: 'Designer', classe: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+  { valor: 'copywriter', rotulo: 'Copywriter', classe: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
+  { valor: 'financial', rotulo: 'Financeiro', classe: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+];
+
+const badgeDoPapel = (papel: string) => {
+  const achado = PAPEIS.find((p) => p.valor === papel);
+  if (papel === 'owner') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100">
+        Proprietário
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+        achado?.classe || 'bg-slate-100 text-slate-700 border-slate-200'
+      }`}
+    >
+      {achado?.rotulo || papel}
+    </span>
+  );
+};
+
+/**
+ * Equipe da agência.
+ *
+ * Antes esta tela mantinha a lista num useState local a partir do seed: o
+ * "convite" só empurrava um objeto para o array, sumia no recarregamento e a
+ * pessoa convidada nunca conseguia entrar. Agora os membros vêm do servidor e o
+ * convite gera um link real de aceite, com papel e validade.
+ */
 export const SettingsUsers: React.FC = () => {
-  const { users } = usePostfy();
-  const [userList, setUserList] = useState<User[]>(users);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [name, setName] = useState('');
+  const { currentUser } = usePostfy();
+  const podeGerenciar = pode(currentUser?.role, 'gerenciar_usuarios');
+
+  const [membros, setMembros] = useState<ApiUser[]>([]);
+  const [convites, setConvites] = useState<TeamInvite[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<User['role']>('designer');
+  const [papel, setPapel] = useState<Role>('designer');
+  const [enviando, setEnviando] = useState(false);
+  const [linkGerado, setLinkGerado] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const handleInvite = (e: React.FormEvent) => {
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const { users } = await teamApi.listUsers();
+      setMembros(users);
+      if (podeGerenciar) {
+        const { invites } = await teamApi.listInvites();
+        setConvites(invites);
+      }
+    } catch (err) {
+      setErro(
+        err instanceof ApiError ? err.message : 'Não foi possível carregar a equipe.'
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }, [podeGerenciar]);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  const convidar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    if (!email.trim()) return;
 
-    const newUser: User = {
-      id: `u-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
-      role,
-      workspaceId: 'ws-1'
-    };
+    setEnviando(true);
+    setErro(null);
+    try {
+      const { token } = await teamApi.createInvite({
+        email: email.trim(),
+        name: nome.trim() || undefined,
+        role: papel,
+      });
 
-    setUserList(prev => [...prev, newUser]);
-    setName('');
-    setEmail('');
-    setShowInviteModal(false);
-    setFeedback(`Convite enviado com sucesso para ${email}!`);
-    setTimeout(() => setFeedback(null), 3000);
+      const url = new URL(window.location.href);
+      url.search = '';
+      url.searchParams.set('invite', token);
+      setLinkGerado(url.toString());
+
+      setNome('');
+      setEmail('');
+      await carregar();
+    } catch (err) {
+      setErro(err instanceof ApiError ? err.message : 'Não foi possível criar o convite.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
-  const getRoleBadge = (r: User['role']) => {
-    switch (r) {
-      case 'admin':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Administrador</span>;
-      case 'designer':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Designer</span>;
-      case 'copywriter':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Copywriter</span>;
-      case 'social_media':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">Social Media</span>;
-      default:
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-700">Membro</span>;
+  const copiarLink = async () => {
+    if (!linkGerado) return;
+    await copyToClipboard(linkGerado);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
+  };
+
+  const revogar = async (id: string) => {
+    try {
+      await teamApi.revokeInvite(id);
+      setFeedback('Convite revogado.');
+      setTimeout(() => setFeedback(null), 3000);
+      await carregar();
+    } catch (err) {
+      setErro(err instanceof ApiError ? err.message : 'Não foi possível revogar o convite.');
     }
+  };
+
+  const fecharModal = () => {
+    setMostrarModal(false);
+    setLinkGerado(null);
+    setErro(null);
   };
 
   return (
@@ -59,147 +147,218 @@ export const SettingsUsers: React.FC = () => {
         </div>
       )}
 
-      {/* Header & Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-purple-600" />
-            Membros da Agência ({userList.length})
-          </h4>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Gerencie os acessos e permissões dos profissionais da sua equipe.
-          </p>
+      {erro && !mostrarModal && (
+        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {erro}
+        </div>
+      )}
+
+      {/* Membros */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Users className="w-5 h-5 text-purple-600" />
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Equipe da agência</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {carregando ? 'Carregando...' : `${membros.length} pessoa(s) com acesso`}
+              </p>
+            </div>
+          </div>
+
+          {podeGerenciar && (
+            <button
+              onClick={() => setMostrarModal(true)}
+              className="shrink-0 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Convidar
+            </button>
+          )}
         </div>
 
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          Convidar Membro
-        </button>
-      </div>
-
-      {/* Users List */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs divide-y divide-slate-100 dark:divide-slate-800">
-        {userList.map(user => (
-          <div key={user.id} className="p-4 sm:p-5 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <img 
-                src={user.avatar} 
-                alt="" 
-                className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shadow-xs" 
-              />
-              <div>
-                <span className="text-xs font-extrabold text-slate-900 dark:text-white block">
-                  {user.name}
-                </span>
-                <span className="text-[11px] text-slate-400 block mt-0.5 font-mono">
-                  {user.email}
-                </span>
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          {membros.map((membro) => (
+            <div key={membro.id} className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold shrink-0">
+                  {(membro.name || '?').substring(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {membro.name}
+                    {membro.id === currentUser?.id && (
+                      <span className="ml-1.5 text-[10px] font-medium text-slate-400">(você)</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{membro.email}</p>
+                </div>
               </div>
+              {badgeDoPapel(membro.role)}
             </div>
+          ))}
 
-            <div className="flex items-center gap-4">
-              {getRoleBadge(user.role)}
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hidden sm:inline-block">
-                Ativo
-              </span>
+          {!carregando && membros.length === 0 && (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Nenhum membro carregado.
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Permissions Matrix Info Card */}
-      <div className="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-2xl p-5 space-y-2">
-        <h5 className="text-xs font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider">
-          Hierarquia de Permissões
-        </h5>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-slate-600 dark:text-slate-400 pt-1">
-          <div>
-            <strong className="text-purple-700 dark:text-purple-400">Administrador:</strong> Acesso irrestrito a configurações, dados financeiros, cobranças e clientes.
-          </div>
-          <div>
-            <strong className="text-blue-700 dark:text-blue-400">Designer / Copywriter:</strong> Acesso à produção de conteúdo, upload de criativos e kanban da pauta.
-          </div>
-          <div>
-            <strong className="text-teal-700 dark:text-teal-400">Social Media:</strong> Criação de pautas, agendamento de posts e envio para aprovação.
-          </div>
-          <div>
-            <strong className="text-slate-700 dark:text-slate-300">Cliente (Portal):</strong> Visualização apenas dos próprios posts, aprovações, notas e briefing.
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Invite Modal */}
-      {showInviteModal && (
+      {/* Convites pendentes */}
+      {podeGerenciar && convites.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
+            <Clock className="w-5 h-5 text-amber-500" />
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Convites pendentes</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Válidos por 7 dias a partir da criação
+              </p>
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {convites.map((convite) => (
+              <div key={convite.id} className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {convite.email}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Expira em {new Date(convite.expiresAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  {badgeDoPapel(convite.role)}
+                  <button
+                    onClick={() => revogar(convite.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                    title="Revogar convite"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de convite */}
+      {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleInvite} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Convidar Novo Membro da Agência</h4>
-              <button 
-                type="button" 
-                onClick={() => setShowInviteModal(false)}
-                className="text-slate-400 hover:text-slate-700 dark:text-slate-200"
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Convidar para a agência
+              </h3>
+              <button
+                onClick={fecharModal}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                aria-label="Fechar"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Nome Completo</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Ex: Lucas Mendes"
-                className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl"
-              />
-            </div>
+            {linkGerado ? (
+              <div className="p-5 space-y-4">
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
+                  Convite criado. Envie o link abaixo para a pessoa — ela define a
+                  própria senha ao aceitar.
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">E-mail Profissional</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="lucas@agencia.com.br"
-                className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono"
-              />
-            </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={linkGerado}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono text-slate-700 dark:text-slate-300"
+                  />
+                  <button
+                    onClick={copiarLink}
+                    className="shrink-0 px-3 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiado ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Função / Perfil de Acesso</label>
-              <select
-                value={role}
-                onChange={e => setRole(e.target.value as any)}
-                className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl"
-              >
-                <option value="designer">Designer (Produção Visual)</option>
-                <option value="copywriter">Copywriter (Textos & Roteiros)</option>
-                <option value="social_media">Social Media (Pauta & Agendamento)</option>
-                <option value="admin">Administrador (Total)</option>
-              </select>
-            </div>
+                <button
+                  onClick={fecharModal}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  Concluir
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={convidar} className="p-5 space-y-3.5">
+                {erro && (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
+                    {erro}
+                  </div>
+                )}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowInviteModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs"
-              >
-                Enviar Convite
-              </button>
-            </div>
-          </form>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="pessoa@agencia.com.br"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nome (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: Lucas Mendes"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Papel
+                  </label>
+                  <select
+                    value={papel}
+                    onChange={(e) => setPapel(e.target.value as Role)}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    {PAPEIS.map((p) => (
+                      <option key={p.valor} value={p.valor}>
+                        {p.rotulo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={enviando}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                >
+                  {enviando ? 'Gerando convite...' : 'Gerar link de convite'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>

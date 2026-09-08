@@ -19,7 +19,7 @@ import { ClientDetail } from './ClientDetail';
 import { FileUpload } from '../ui/file-upload';
 
 export const ClientsView: React.FC = () => {
-  const { clients, jobs, openClientPortal, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
+  const { clients, jobs, openClientPortal, buildClientPortalUrl, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -282,12 +282,9 @@ export const ClientsView: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('portal', 'true');
-                    url.searchParams.set('clientId', client.id);
-                    window.open(url.toString(), '_blank');
-                  }}
+                  onClick={() =>
+                    window.open(buildClientPortalUrl(client.id), '_blank', 'noopener,noreferrer')
+                  }
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold transition cursor-pointer border border-purple-200 dark:border-purple-800"
                   title="Abrir Portal do Cliente em Nova Aba"
                 >

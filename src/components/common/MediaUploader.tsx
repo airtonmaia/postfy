@@ -32,24 +32,59 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
 
+  /**
+   * Limite por arquivo. O anexo vira uma data URL em base64 e cresce cerca de
+   * 33% ao ser codificado; o armazenamento do navegador fica na casa dos 5 MB
+   * no total. Sem esse teto, dois ou três anexos estouram a cota e o trabalho
+   * se perde no recarregamento — antes o erro era engolido em silêncio.
+   */
+  const TAMANHO_MAXIMO_BYTES = 1.5 * 1024 * 1024;
+
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    setUploadError(null);
 
-    const remainingSlots = maxFiles - mediaUrls.length;
-    const fileCount = Math.min(files.length, remainingSlots);
-
-    for (let i = 0; i < fileCount; i++) {
-      const file = files[i];
-      // Convert to persistent Data URL (Base64) so it saves directly to Firestore
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const resultStr = event.target.result as string;
-          onChange([...mediaUrls, resultStr]);
-        }
-      };
-      reader.readAsDataURL(file);
+    const vagas = maxFiles - mediaUrls.length;
+    if (vagas <= 0) {
+      setUploadError(`Limite de ${maxFiles} arquivos atingido.`);
+      return;
     }
+
+    const selecionados = Array.from(files).slice(0, vagas);
+    const grandes = selecionados.filter((f) => f.size > TAMANHO_MAXIMO_BYTES);
+    const aceitos = selecionados.filter((f) => f.size <= TAMANHO_MAXIMO_BYTES);
+
+    if (grandes.length > 0) {
+      setUploadError(
+        `${grandes.length === 1 ? 'O arquivo' : 'Alguns arquivos'} passa${grandes.length === 1 ? '' : 'm'} de ` +
+        `${(TAMANHO_MAXIMO_BYTES / (1024 * 1024)).toFixed(1)} MB e não ` +
+        `${grandes.length === 1 ? 'foi anexado' : 'foram anexados'}. ` +
+        'Para mídias pesadas, hospede o arquivo e cole a URL abaixo.'
+      );
+    }
+
+    // Acumula todos antes de um único onChange: chamar onChange dentro do
+    // onload de cada leitor descartava os anteriores, porque cada callback
+    // partia do mesmo mediaUrls capturado no fechamento.
+    Promise.all(
+      aceitos.map(
+        (file) =>
+          new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve((event.target?.result as string) || null);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+          })
+      )
+    ).then((resultados) => {
+      const novos = resultados.filter((r): r is string => Boolean(r));
+      if (novos.length > 0) onChange([...mediaUrls, ...novos]);
+      if (novos.length < aceitos.length) {
+        setUploadError('Não foi possível ler um dos arquivos selecionados.');
+      }
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -139,6 +174,12 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           >
             Adicionar
           </button>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-[11px] font-medium">
+          {uploadError}
         </div>
       )}
 

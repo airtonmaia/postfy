@@ -38,7 +38,7 @@ import {
   initialTimesheetLogs
 } from '../data/initialData';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { authApi, dataApi, aiApi, ApiError } from '../lib/api';
+import { authApi, dataApi, aiApi, teamApi, ApiError } from '../lib/api';
 import {
   readStorage,
   writeStorage,
@@ -69,6 +69,7 @@ interface PostfyContextType {
   isAuthLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   register: (input: { name: string; email: string; password: string; agencyName?: string }) => Promise<{ success: boolean; message?: string }>;
+  acceptInvite: (input: { token: string; name: string; password: string }) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   
   // Navigation & Views
@@ -97,9 +98,13 @@ interface PostfyContextType {
   
   // Client Portal Simulation Mode
   isClientPortalOpen: boolean;
+  /** Cliente resolvido no portal: por token (link externo) ou por prévia interna. */
   portalClientId: string | null;
+  /** Prévia interna do portal, para a equipe da agência. */
   openClientPortal: (clientId: string) => void;
   closeClientPortal: () => void;
+  /** Link externo do portal, com o token opaco do cliente. */
+  buildClientPortalUrl: (clientId: string) => string;
   
   // Data Entities
   clients: Client[];
@@ -397,6 +402,22 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const acceptInvite = async (input: {
+    token: string;
+    name: string;
+    password: string;
+  }): Promise<{ success: boolean; message?: string }> => {
+    try {
+      aplicarSessao(await teamApi.acceptInvite(input));
+      return { success: true, message: 'Convite aceito. Entrando...' };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof ApiError ? err.message : 'Não foi possível aceitar o convite.',
+      };
+    }
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -446,24 +467,36 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [theme]);
   
-  // Client portal mode
-  const [isClientPortalOpen, setIsClientPortalOpen] = useState<boolean>(() => {
+  // ============================================================
+  // Portal do cliente
+  // ============================================================
+  // O link externo carrega o portalToken do cliente, não o id.
+  //
+  // Antes a URL era ?portal=true&clientId=c-1: bastava trocar o id para abrir
+  // o portal de qualquer outro cliente da base, incluindo briefings e
+  // materiais. O token é opaco e não enumerável.
+
+  const [portalToken, setPortalToken] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return params.get('portal') === 'true' || params.has('portal');
-    } catch {
-      return false;
-    }
-  });
-  const [portalClientId, setPortalClientId] = useState<string | null>(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('clientId') || (params.get('portal') !== 'true' ? params.get('portal') : null);
+      const valor = params.get('portal');
+      // 'true' era o formato antigo e não identifica ninguém.
+      return valor && valor !== 'true' ? valor : null;
     } catch {
       return null;
     }
   });
-  
+
+  const [portalPreviewClientId, setPortalPreviewClientId] = useState<string | null>(null);
+  const [isClientPortalOpen, setIsClientPortalOpen] = useState<boolean>(() => {
+    try {
+      const valor = new URLSearchParams(window.location.search).get('portal');
+      return Boolean(valor && valor !== 'true');
+    } catch {
+      return false;
+    }
+  });
+
   // Workspace ativo: recorta todas as views derivadas abaixo.
   const currentWsId = currentWorkspace?.id || 'ws-1';
 
@@ -674,13 +707,34 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   const openClientPortal = (clientId: string) => {
-    setPortalClientId(clientId);
+    setPortalPreviewClientId(clientId);
     setIsClientPortalOpen(true);
   };
-  
+
   const closeClientPortal = () => {
     setIsClientPortalOpen(false);
-    setPortalClientId(null);
+    setPortalPreviewClientId(null);
+    setPortalToken(null);
+  };
+
+  /**
+   * Resolve quem o portal está exibindo. O token tem prioridade porque é o
+   * caminho do acesso externo; a prévia interna só vale para a equipe logada.
+   */
+  const portalClientId = useMemo(() => {
+    if (portalToken) {
+      const alvo = allClients.find((c) => c.portalToken === portalToken);
+      return alvo ? alvo.id : null;
+    }
+    return isAuthenticated ? portalPreviewClientId : null;
+  }, [portalToken, portalPreviewClientId, allClients, isAuthenticated]);
+
+  const buildClientPortalUrl = (clientId: string): string => {
+    const alvo = allClients.find((c) => c.id === clientId);
+    const url = new URL(window.location.href);
+    url.search = '';
+    if (alvo?.portalToken) url.searchParams.set('portal', alvo.portalToken);
+    return url.toString();
   };
   
   // Activity logger helper
@@ -1488,6 +1542,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isAuthLoading,
         login,
         register,
+        acceptInvite,
         logout,
         activeTab,
         setActiveTab,
@@ -1511,6 +1566,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         portalClientId,
         openClientPortal,
         closeClientPortal,
+        buildClientPortalUrl,
         clients,
         jobs,
         leads,

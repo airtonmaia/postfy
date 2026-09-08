@@ -90,6 +90,8 @@ export const createAccount = async (input: {
   password: string;
   agencyName?: string;
   role?: Role;
+  /** Quando informado, entra numa agência existente em vez de criar uma nova. */
+  joinWorkspaceId?: string;
 }): Promise<{ user: StoredUser; workspace: StoredWorkspace }> => {
   const users = await readUsers();
   const workspaces = await readWorkspaces();
@@ -101,16 +103,26 @@ export const createAccount = async (input: {
 
   const { hash, salt } = await hashPassword(input.password);
   const userId = `u-${randomToken(8)}`;
-  const workspaceId = `ws-${randomToken(8)}`;
-  const agencyName = (input.agencyName || `Agência de ${input.name}`).trim();
 
-  const workspace: StoredWorkspace = {
-    id: workspaceId,
-    name: agencyName,
-    slug: slugify(agencyName),
-    ownerId: userId,
-    createdAt: new Date().toISOString(),
-  };
+  let workspace: StoredWorkspace | undefined;
+  let workspacesAtualizados = workspaces;
+
+  if (input.joinWorkspaceId) {
+    workspace = workspaces.find((w) => w.id === input.joinWorkspaceId);
+    if (!workspace) {
+      throw Object.assign(new Error('Agência não encontrada'), { code: 'WORKSPACE_NOT_FOUND' });
+    }
+  } else {
+    const agencyName = (input.agencyName || `Agência de ${input.name}`).trim();
+    workspace = {
+      id: `ws-${randomToken(8)}`,
+      name: agencyName,
+      slug: slugify(agencyName),
+      ownerId: userId,
+      createdAt: new Date().toISOString(),
+    };
+    workspacesAtualizados = [...workspaces, workspace];
+  }
 
   const user: StoredUser = {
     id: userId,
@@ -118,16 +130,143 @@ export const createAccount = async (input: {
     email,
     avatar: '',
     role: input.role || 'owner',
-    workspaceId,
+    workspaceId: workspace.id,
     passwordHash: hash,
     passwordSalt: salt,
     createdAt: new Date().toISOString(),
   };
 
-  await writeJson('workspaces', [...workspaces, workspace]);
+  if (workspacesAtualizados !== workspaces) {
+    await writeJson('workspaces', workspacesAtualizados);
+  }
   await writeJson('users', [...users, user]);
 
   return { user, workspace };
+};
+
+// ============================================================
+// Convites de equipe
+// ============================================================
+// Convite por link: o dono gera o link e compartilha pelo canal que preferir.
+// Assim a equipe entra de verdade sem depender de um provedor de e-mail.
+
+export interface StoredInvite {
+  id: string;
+  token: string;
+  workspaceId: string;
+  email: string;
+  name?: string;
+  role: Role;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt?: string;
+}
+
+const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
+
+const readInvites = () => readJson<StoredInvite[]>('invites', []);
+
+export const listWorkspaceUsers = async (workspaceId: string): Promise<PublicUser[]> => {
+  const users = await readUsers();
+  return users.filter((u) => u.workspaceId === workspaceId).map(toPublicUser);
+};
+
+export const listInvites = async (workspaceId: string): Promise<StoredInvite[]> => {
+  const invites = await readInvites();
+  const agora = Date.now();
+  return invites.filter(
+    (i) => i.workspaceId === workspaceId && !i.acceptedAt && new Date(i.expiresAt).getTime() > agora
+  );
+};
+
+export const createInvite = async (input: {
+  workspaceId: string;
+  email: string;
+  name?: string;
+  role: Role;
+  createdBy: string;
+}): Promise<StoredInvite> => {
+  const email = input.email.trim().toLowerCase();
+
+  const users = await readUsers();
+  if (users.some((u) => u.email.toLowerCase() === email)) {
+    throw Object.assign(new Error('Este e-mail já tem conta'), { code: 'EMAIL_TAKEN' });
+  }
+
+  const invites = await readInvites();
+  const agora = Date.now();
+
+  // Substitui um convite pendente para o mesmo e-mail em vez de acumular.
+  const restantes = invites.filter(
+    (i) => !(i.workspaceId === input.workspaceId && i.email === email && !i.acceptedAt)
+  );
+
+  const invite: StoredInvite = {
+    id: `inv-${randomToken(6)}`,
+    token: randomToken(24),
+    workspaceId: input.workspaceId,
+    email,
+    name: input.name?.trim() || undefined,
+    role: input.role,
+    createdBy: input.createdBy,
+    createdAt: new Date(agora).toISOString(),
+    expiresAt: new Date(agora + INVITE_TTL_MS).toISOString(),
+  };
+
+  await writeJson('invites', [...restantes, invite]);
+  return invite;
+};
+
+export const revokeInvite = async (workspaceId: string, id: string): Promise<boolean> => {
+  const invites = await readInvites();
+  const restantes = invites.filter((i) => !(i.id === id && i.workspaceId === workspaceId));
+  if (restantes.length === invites.length) return false;
+  await writeJson('invites', restantes);
+  return true;
+};
+
+export const findValidInvite = async (token: string): Promise<StoredInvite | null> => {
+  if (!token) return null;
+  const invites = await readInvites();
+  const invite = invites.find((i) => i.token === token);
+  if (!invite || invite.acceptedAt) return null;
+  if (new Date(invite.expiresAt).getTime() < Date.now()) return null;
+  return invite;
+};
+
+export const acceptInvite = async (input: {
+  token: string;
+  name: string;
+  password: string;
+}): Promise<{ user: StoredUser; workspace: StoredWorkspace }> => {
+  const invite = await findValidInvite(input.token);
+  if (!invite) {
+    throw Object.assign(new Error('Convite inválido ou expirado'), { code: 'INVITE_INVALID' });
+  }
+
+  const resultado = await createAccount({
+    name: input.name,
+    email: invite.email,
+    password: input.password,
+    role: invite.role,
+    joinWorkspaceId: invite.workspaceId,
+  });
+
+  const invites = await readInvites();
+  await writeJson(
+    'invites',
+    invites.map((i) =>
+      i.id === invite.id ? { ...i, acceptedAt: new Date().toISOString() } : i
+    )
+  );
+
+  return resultado;
+};
+
+export const getWorkspace = async (id: string): Promise<StoredWorkspace | undefined> => {
+  const workspaces = await readWorkspaces();
+  return workspaces.find((w) => w.id === id);
 };
 
 export const authenticate = async (
