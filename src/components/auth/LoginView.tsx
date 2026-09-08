@@ -21,8 +21,8 @@ export const LoginView: React.FC = () => {
   const { login, users, currentWorkspace } = usePostfy();
 
   const [activeMode, setActiveMode] = useState<'login' | 'quick_team' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('airtonmaiamt@gmail.com');
+  const [password, setPassword] = useState('Sofia&Alice*1802');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -45,14 +45,14 @@ export const LoginView: React.FC = () => {
     {
       user: users[0] || {
         id: 'u-1',
-        name: 'Airton Maia (CEO)',
+        name: 'Airton Maia (Super Admin)',
         email: 'airtonmaiamt@gmail.com',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
         role: 'owner',
         workspaceId: 'ws-1'
       },
-      label: 'Diretoria / CEO',
-      desc: 'Acesso total, gestão financeira e aprovações'
+      label: 'Super Administrador / CEO',
+      desc: 'Acesso total a todas as funções, financeiro e aprovações do sistema'
     },
     {
       user: users[1] || {

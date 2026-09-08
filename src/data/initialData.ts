@@ -36,8 +36,8 @@ export const initialWorkspaces: Workspace[] = [
 export const initialUsers: User[] = [
   {
     id: 'u-1',
-    name: 'Arthur Prado',
-    email: 'arthur@vanguardasocial.com.br',
+    name: 'Airton Maia (Super Admin)',
+    email: 'airtonmaiamt@gmail.com',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
     role: 'owner',
     workspaceId: 'ws-1',
