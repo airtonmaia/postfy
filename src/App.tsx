@@ -346,21 +346,22 @@ const MainLayout: React.FC = () => {
           {/* Quick Client Portal link */}
           <button
             onClick={() => {
-              if (clientFilter === 'all') {
-                openClientPortal(clients[0]?.id || '');
-                return;
-              }
-              window.open(buildClientPortalUrl(clientFilter), '_blank', 'noopener,noreferrer');
+              // Prévia interna: o portal ainda depende do cache local do
+              // navegador da agência, então o link aberto num navegador novo
+              // não encontraria o cliente. Ver a thread do portal no PR.
+              openClientPortal(
+                clientFilter === 'all' ? clients[0]?.id || '' : clientFilter
+              );
             }}
             className="w-full flex items-center justify-between p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs text-purple-700 dark:text-purple-300 font-bold transition border border-purple-200 dark:border-purple-800 cursor-pointer shadow-xs"
-            title="Abrir Portal do Cliente em Nova Janela"
+            title="Ver como o cliente enxerga. O envio do link ao cliente ainda não está disponível."
           >
             <span className="flex items-center gap-2">
               <ExternalLink className="w-3.5 h-3.5" />
               Portal do Cliente
             </span>
-            <span className="text-[10px] bg-purple-600 text-white px-1.5 py-0.5 rounded font-bold">
-              Nova Janela ↗
+            <span className="text-[10px] bg-slate-500 text-white px-1.5 py-0.5 rounded font-bold">
+              Prévia
             </span>
           </button>
 
