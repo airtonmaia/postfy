@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { useServerCollection } from '../../lib/useServerCollection';
 import { Crown, Check, Plus, Edit2, Trash2, Shield, DollarSign, Users } from 'lucide-react';
 
 interface Plan {
@@ -17,7 +18,9 @@ interface Plan {
 
 export const SaasPlansView: React.FC = () => {
   const { currentWorkspace } = usePostfy();
-  const [plans, setPlans] = useState<Plan[]>([
+  // Planos persistidos no servidor. Antes viviam num useState local e
+  // qualquer edição sumia no recarregamento da página.
+  const PLANOS_PADRAO: Plan[] = [
     {
       id: 'plan-free',
       name: 'Teste Grátis (7 dias)',
@@ -54,7 +57,12 @@ export const SaasPlansView: React.FC = () => {
       activeAgenciesCount: 2,
       badge: 'VIP'
     }
-  ]);
+  ];
+
+  const { linhas: plans, salvar: setPlans, erro: erroPlanos } = useServerCollection<Plan>(
+    'plans',
+    PLANOS_PADRAO
+  );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -66,7 +74,7 @@ export const SaasPlansView: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingPlan) {
-      setPlans(plans.map(p => p.id === editingPlan.id ? { ...p, name, price, maxUsers, storage } : p));
+      setPlans(atual => atual.map(p => p.id === editingPlan.id ? { ...p, name, price, maxUsers, storage } : p));
     } else {
       const newPlan: Plan = {
         id: `plan-${Date.now()}`,
@@ -79,7 +87,7 @@ export const SaasPlansView: React.FC = () => {
         features: ['Recursos completos PRO', 'Suporte padrão'],
         activeAgenciesCount: 0
       };
-      setPlans([...plans, newPlan]);
+      setPlans(atual => [...atual, newPlan]);
     }
     setIsModalOpen(false);
     setEditingPlan(null);
@@ -87,6 +95,12 @@ export const SaasPlansView: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
+      {erroPlanos && (
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
+          {erroPlanos}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>

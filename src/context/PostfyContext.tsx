@@ -46,6 +46,7 @@ import {
   onStorageQuotaExceeded,
   formatBytes,
 } from '../lib/storage';
+import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
 
 interface PostfyContextType {
   // General
@@ -542,10 +543,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>(() =>
     readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, initialTimesheetLogs));
 
-  // Registros legados sem workspaceId continuam visíveis no workspace atual
-  // para não sumirem da tela de quem já usava o sistema.
+  // Regras de recorte ficam em src/lib/workspaceScope.ts, com testes próprios.
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
-    !row.workspaceId || row.workspaceId === currentWsId;
+    pertenceAoWorkspace(row, currentWsId);
 
   const clients = useMemo(() => allClients.filter(belongsToWorkspace), [allClients, currentWsId]);
   const jobs = useMemo(() => allJobs.filter(belongsToWorkspace), [allJobs, currentWsId]);

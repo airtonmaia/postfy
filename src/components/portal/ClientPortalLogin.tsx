@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { mesmoTelefone } from '../../lib/phone';
 import { 
   ShieldCheck, 
   Smartphone, 
@@ -75,24 +76,6 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
     }
   };
 
-  /**
-   * Formas equivalentes do mesmo número: com e sem o DDI 55, com e sem o nono
-   * dígito. Evita rejeitar um número correto só por causa da formatação.
-   */
-  const variacoesDoNumero = (digitos: string): string[] => {
-    if (!digitos) return [];
-    const saida = new Set<string>();
-    const semDdi = digitos.startsWith('55') && digitos.length > 11 ? digitos.slice(2) : digitos;
-    saida.add(semDdi);
-    if (semDdi.length === 11 && semDdi[2] === '9') {
-      saida.add(semDdi.slice(0, 2) + semDdi.slice(3));
-    }
-    if (semDdi.length === 10) {
-      saida.add(semDdi.slice(0, 2) + '9' + semDdi.slice(2));
-    }
-    return [...saida];
-  };
-
   const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg(null);
@@ -111,16 +94,10 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
     // Antes o casamento era por substring nos dois sentidos
     // (a.includes(b) || b.includes(a)): digitar "999" casava com praticamente
     // qualquer cliente da base e abria o portal dele.
-    const mesmoNumero = (armazenado: string): boolean => {
-      const a = variacoesDoNumero(armazenado);
-      const b = variacoesDoNumero(inputDigits);
-      return a.some((x) => x.length >= 10 && b.includes(x));
-    };
-
     const matchedClient = clients.find(c => {
-      if (c.phone && mesmoNumero(normalizePhone(c.phone))) return true;
+      if (c.phone && mesmoTelefone(c.phone, inputDigits)) return true;
       return (c.contacts || []).some(contact =>
-        contact.phone ? mesmoNumero(normalizePhone(contact.phone)) : false
+        contact.phone ? mesmoTelefone(contact.phone, inputDigits) : false
       );
     });
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
+import { useServerCollection } from '../../../lib/useServerCollection';
 import { 
   Shield, Users, Plus, Check, Trash2, CheckCircle2, Building2, Briefcase, X 
 } from 'lucide-react';
@@ -16,7 +17,9 @@ interface Squad {
 export const SettingsTeams: React.FC = () => {
   const { users, clients } = usePostfy();
 
-  const [squads, setSquads] = useState<Squad[]>([
+  // Squads persistidos no servidor. Antes viviam num useState local e
+  // desapareciam no recarregamento da página.
+  const SQUADS_PADRAO: Squad[] = [
     {
       id: 'sq-1',
       name: 'Squad Retail & Gastronomia',
@@ -33,7 +36,12 @@ export const SettingsTeams: React.FC = () => {
       clientIds: ['c-2'],
       color: 'blue'
     }
-  ]);
+  ];
+
+  const { linhas: squads, salvar: setSquads, erro: erroSquads } = useServerCollection<Squad>(
+    'squads',
+    SQUADS_PADRAO
+  );
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [squadName, setSquadName] = useState('');
@@ -62,6 +70,12 @@ export const SettingsTeams: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {erroSquads && (
+        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
+          {erroSquads}
+        </div>
+      )}
+
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />

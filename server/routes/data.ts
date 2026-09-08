@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../lib/auth';
 import { readJson, writeJson } from '../lib/store';
 import { createRateLimiter, failSafely } from '../lib/http';
+import { mergeWorkspaceRows } from '../../src/lib/workspaceScope';
 
 /**
  * API de dados da aplicação. Cada coleção guarda as linhas de TODOS os
@@ -54,6 +55,8 @@ dataRouter.get('/', async (req, res) => {
 
     for (const collection of DATA_COLLECTIONS) {
       const all = await readJson<any[]>(fileFor(collection), []);
+      // Aqui o recorte é estrito: no servidor não existe registro legado sem
+      // dono, então nada sem workspaceId pode vazar para outra agência.
       payload[collection] = all.filter((row) => row?.workspaceId === workspaceId);
     }
 
@@ -83,13 +86,13 @@ dataRouter.put('/:collection', writeLimiter, async (req, res) => {
     const workspaceId = req.user!.workspaceId;
     const all = await readJson<any[]>(fileFor(collection), []);
 
-    // Carimba o workspace da sessão em toda linha recebida: o cliente não
-    // decide em qual tenant escreve.
-    const incoming = rows.map((row: any) => ({ ...row, workspaceId }));
-    const untouched = all.filter((row) => row?.workspaceId !== workspaceId);
+    // mergeWorkspaceRows carimba o workspace da sessão em toda linha recebida
+    // (o cliente não decide em qual tenant escreve) e preserva as linhas das
+    // outras agências.
+    const atualizado = mergeWorkspaceRows(all, workspaceId, rows);
 
-    await writeJson(fileFor(collection), [...untouched, ...incoming]);
-    return res.json({ ok: true, count: incoming.length });
+    await writeJson(fileFor(collection), atualizado);
+    return res.json({ ok: true, count: rows.length });
   } catch (error) {
     return failSafely(res, 'data/write', error);
   }

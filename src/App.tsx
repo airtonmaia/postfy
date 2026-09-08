@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { PostfyProvider, usePostfy } from './context/PostfyContext';
 import { safeTimeFormat } from './lib/utils';
 import { 
@@ -40,21 +40,28 @@ import { LoginView } from './components/auth/LoginView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 
-// Views
-import { CalendarApp } from './components/calendar/CalendarApp';
-import { DashboardView } from './components/dashboard/DashboardView';
-import { KanbanBoard } from './components/kanban/KanbanBoard';
-import { ApprovalsView } from './components/approvals/ApprovalsView';
-import { ClientsView } from './components/clients/ClientsView';
-import { CommercialView } from './components/commercial/CommercialView';
-import { PublicationsView } from './components/publications/PublicationsView';
-import { ReportsView } from './components/reports/ReportsView';
-import { AutomationsView } from './components/automations/AutomationsView';
-import { SettingsView } from './components/settings/SettingsView';
-import { ClientPortalView } from './components/portal/ClientPortalView';
-import { SaasPlansView } from './components/saas/SaasPlansView';
-import { SaasFinancialView } from './components/saas/SaasFinancialView';
-import { SaasAgenciesView } from './components/saas/SaasAgenciesView';
+// Views carregadas sob demanda (code splitting): cada tela vira um chunk
+// próprio, então abrir o login não baixa mais relatórios, gráficos e PDF.
+const CalendarApp = lazy(() => import('./components/calendar/CalendarApp').then(m => ({ default: m.CalendarApp })));
+const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then(m => ({ default: m.DashboardView })));
+const KanbanBoard = lazy(() => import('./components/kanban/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
+const ApprovalsView = lazy(() => import('./components/approvals/ApprovalsView').then(m => ({ default: m.ApprovalsView })));
+const ClientsView = lazy(() => import('./components/clients/ClientsView').then(m => ({ default: m.ClientsView })));
+const CommercialView = lazy(() => import('./components/commercial/CommercialView').then(m => ({ default: m.CommercialView })));
+const PublicationsView = lazy(() => import('./components/publications/PublicationsView').then(m => ({ default: m.PublicationsView })));
+const ReportsView = lazy(() => import('./components/reports/ReportsView').then(m => ({ default: m.ReportsView })));
+const AutomationsView = lazy(() => import('./components/automations/AutomationsView').then(m => ({ default: m.AutomationsView })));
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })));
+const ClientPortalView = lazy(() => import('./components/portal/ClientPortalView').then(m => ({ default: m.ClientPortalView })));
+const SaasPlansView = lazy(() => import('./components/saas/SaasPlansView').then(m => ({ default: m.SaasPlansView })));
+const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView').then(m => ({ default: m.SaasFinancialView })));
+const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
+
+const CarregandoTela: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center p-8">
+    <div className="w-7 h-7 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+  </div>
+);
 import { TabType } from './types';
 import { pode, podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
@@ -167,9 +174,13 @@ const MainLayout: React.FC = () => {
   const navItems = todasAsAbas.filter((item) => podeAcessarAba(currentUser?.role, item.id));
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 select-none transition-colors duration-200">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 transition-colors duration-200">
       {/* Client Portal Fullscreen Override if active */}
-      {isClientPortalOpen && <ClientPortalView />}
+      {isClientPortalOpen && (
+        <Suspense fallback={<CarregandoTela />}>
+          <ClientPortalView />
+        </Suspense>
+      )}
 
       {/* Global Modals */}
       <JobDetailModal />
@@ -512,6 +523,7 @@ const MainLayout: React.FC = () => {
 
         {/* Active Module Viewport */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <Suspense fallback={<CarregandoTela />}>
           {!abaPermitida && (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="max-w-sm text-center space-y-2">
@@ -540,6 +552,7 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'saas_planos' && <SaasPlansView />}
           {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
           {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
+          </Suspense>
         </main>
       </div>
     </div>

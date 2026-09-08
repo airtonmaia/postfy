@@ -23,6 +23,21 @@ app.set('trust proxy', 1);
 app.use(securityHeaders);
 app.use(express.json({ limit: '2mb' }));
 
+/**
+ * Corpo inválido ou grande demais vira uma resposta JSON limpa. Sem isto o
+ * Express devolve a página de erro padrão, que em desenvolvimento carrega
+ * stack trace.
+ */
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Conteúdo grande demais para uma requisição.' });
+  }
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({ error: 'Corpo da requisição não é um JSON válido.' });
+  }
+  return next(err);
+});
+
 // ==========================================
 // Rotas de API
 // ==========================================
