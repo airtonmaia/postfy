@@ -14,6 +14,7 @@ import {
   Radio
 } from 'lucide-react';
 import { usePostfy } from '../../../context/PostfyContext';
+import { copyToClipboard } from '../../../lib/utils';
 
 export const SettingsIntegrations: React.FC = () => {
   const { isSupabaseConnected, syncWithSupabase, isFirebaseConnected, syncWithFirebase } = usePostfy();
@@ -69,8 +70,8 @@ export const SettingsIntegrations: React.FC = () => {
     }
   };
 
-  const copySqlSchema = () => {
-    navigator.clipboard.writeText(`-- Postfy Core Database Schema (PostgreSQL / Supabase)
+  const copySqlSchema = async () => {
+    await copyToClipboard(`-- Postfy Core Database Schema (PostgreSQL / Supabase)
 -- Consulte o arquivo supabase/schema.sql no repositório para o script completo`);
     setCopiedSql(true);
     setTimeout(() => setCopiedSql(false), 2500);

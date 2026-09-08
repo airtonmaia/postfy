@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateFormat, safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { 
   Search, 
@@ -74,9 +75,8 @@ export const ListView: React.FC = () => {
         ) : (
           filteredJobs.map(job => {
             const client = clientMap.get(job.clientId);
-            const dateObj = new Date(job.scheduledDate);
-            const dateStr = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-            const timeStr = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = safeDateFormat(job.scheduledDate, { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = safeTimeFormat(job.scheduledDate);
 
             return (
               <div

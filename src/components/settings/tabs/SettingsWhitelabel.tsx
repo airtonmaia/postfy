@@ -6,23 +6,25 @@ import { usePostfy } from '../../../context/PostfyContext';
 export const SettingsWhitelabel: React.FC = () => {
   const { currentWorkspace, updateCurrentWorkspace } = usePostfy();
 
-  const [agencyName, setAgencyName] = useState(currentWorkspace.name || '');
-  const [logoUrl, setLogoUrl] = useState(currentWorkspace.logo || '');
-  const [faviconUrl, setFaviconUrl] = useState(currentWorkspace.favicon || '');
-  const [primaryColor, setPrimaryColor] = useState(currentWorkspace.primaryColor || '#9333ea');
-  const [secondaryColor, setSecondaryColor] = useState(currentWorkspace.secondaryColor || '#ea580c');
-  const [customDomain, setCustomDomain] = useState(currentWorkspace.customDomain || 'portal.suaagencia.com.br');
+  const [agencyName, setAgencyName] = useState(currentWorkspace?.name || '');
+  const [logoUrl, setLogoUrl] = useState(currentWorkspace?.logo || '');
+  const [faviconUrl, setFaviconUrl] = useState(currentWorkspace?.favicon || '');
+  const [primaryColor, setPrimaryColor] = useState(currentWorkspace?.primaryColor || '#9333ea');
+  const [secondaryColor, setSecondaryColor] = useState(currentWorkspace?.secondaryColor || '#ea580c');
+  const [customDomain, setCustomDomain] = useState(currentWorkspace?.customDomain || 'portal.suaagencia.com.br');
   const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync state when currentWorkspace changes
   useEffect(() => {
-    setAgencyName(currentWorkspace.name || '');
-    setLogoUrl(currentWorkspace.logo || '');
-    setFaviconUrl(currentWorkspace.favicon || '');
-    setPrimaryColor(currentWorkspace.primaryColor || '#9333ea');
-    setSecondaryColor(currentWorkspace.secondaryColor || '#ea580c');
-    setCustomDomain(currentWorkspace.customDomain || 'portal.suaagencia.com.br');
+    if (currentWorkspace) {
+      setAgencyName(currentWorkspace.name || '');
+      setLogoUrl(currentWorkspace.logo || '');
+      setFaviconUrl(currentWorkspace.favicon || '');
+      setPrimaryColor(currentWorkspace.primaryColor || '#9333ea');
+      setSecondaryColor(currentWorkspace.secondaryColor || '#ea580c');
+      setCustomDomain(currentWorkspace.customDomain || 'portal.suaagencia.com.br');
+    }
   }, [currentWorkspace]);
 
   // Real-time CSS live update while picking colors
@@ -240,7 +242,7 @@ export const SettingsWhitelabel: React.FC = () => {
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    {agencyName || 'Postfy Ops'}
+                    {agencyName || 'Propofy Ops'}
                   </span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30">
                     PRO

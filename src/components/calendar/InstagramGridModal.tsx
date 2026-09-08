@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateFormat, safeTimeFormat } from '../../lib/utils';
 import { 
   X, 
   Instagram, 
@@ -193,7 +194,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                     {/* Status Pill Bottom */}
                     <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between text-[9px] text-white">
                       <span className="truncate max-w-[80%] font-medium">
-                        {new Date(job.scheduledDate).getDate()}/{new Date(job.scheduledDate).getMonth() + 1}
+                        {safeDateFormat(job.scheduledDate, { day: '2-digit', month: '2-digit' })}
                       </span>
                       {job.status === 'published' && <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />}
                       {job.status === 'scheduled' && <Clock className="w-2.5 h-2.5 text-blue-400" />}
@@ -223,7 +224,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                       {previewJob.title}
                     </h4>
                     <span className="text-xs text-slate-500 dark:text-slate-400">
-                      Data prevista: <strong>{new Date(previewJob.scheduledDate).toLocaleDateString('pt-BR')} às {new Date(previewJob.scheduledDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                      Data prevista: <strong>{safeDateFormat(previewJob.scheduledDate)} às {safeTimeFormat(previewJob.scheduledDate)}</strong>
                     </span>
                   </div>
 

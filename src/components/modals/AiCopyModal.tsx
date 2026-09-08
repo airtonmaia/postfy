@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { copyToClipboard as safeCopyToClipboard } from '../../lib/utils';
 import { 
   X, 
   Sparkles, 
@@ -69,8 +70,8 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
     }
   };
 
-  const copyToClipboard = (text: string, section: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string, section: string) => {
+    await safeCopyToClipboard(text);
     setCopiedSection(section);
     setTimeout(() => setCopiedSection(null), 2000);
   };

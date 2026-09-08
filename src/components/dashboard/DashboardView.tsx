@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeTimeFormat } from '../../lib/utils';
 import { 
   TrendingUp, 
   AlertTriangle, 
@@ -274,9 +275,7 @@ export const DashboardView: React.FC = () => {
               <div className="space-y-2.5">
                 {todayJobs.map(job => {
                   const client = clientMap.get(job.clientId);
-                  const time = job.scheduledDate 
-                    ? new Date(job.scheduledDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                    : '10:00';
+                  const time = safeTimeFormat(job.scheduledDate);
 
                   return (
                     <div
@@ -386,7 +385,7 @@ export const DashboardView: React.FC = () => {
                 </span>
               </div>
               <span className="text-slate-400 text-[11px] font-mono">
-                {new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                {safeTimeFormat(log.timestamp)}
               </span>
             </div>
           ))}

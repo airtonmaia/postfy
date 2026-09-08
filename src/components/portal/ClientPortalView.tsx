@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateTimeFormat, safeDateFormat, copyToClipboard } from '../../lib/utils';
 import { 
   CheckCircle2,
   Key,
@@ -122,8 +123,8 @@ export const ClientPortalView: React.FC = () => {
     setSelectedForReview(null);
   };
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string, id: string) => {
+    await copyToClipboard(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -371,7 +372,7 @@ export const ClientPortalView: React.FC = () => {
                       <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
                         <span>Previsão de postagem:</span>
                         <strong className="text-slate-700 dark:text-slate-300 font-mono">
-                          {new Date(job.scheduledDate).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                          {safeDateTimeFormat(job.scheduledDate)}
                         </strong>
                       </div>
                     </div>
@@ -426,7 +427,7 @@ export const ClientPortalView: React.FC = () => {
 
                   <div className="flex items-center gap-4">
                     <span className="text-slate-500 dark:text-slate-400 font-mono">
-                      {new Date(job.scheduledDate).toLocaleDateString('pt-BR')}
+                      {safeDateFormat(job.scheduledDate)}
                     </span>
                     <StatusBadge status={job.status} />
                   </div>
@@ -807,7 +808,7 @@ export const ClientPortalView: React.FC = () => {
                           </p>
                         )}
                         <span className="text-[10px] text-slate-400 block mt-2">
-                          Enviado em {new Date(mat.createdAt).toLocaleDateString('pt-BR')} • {mat.size}
+                          Enviado em {safeDateFormat(mat.createdAt)} • {mat.size}
                         </span>
                       </div>
 

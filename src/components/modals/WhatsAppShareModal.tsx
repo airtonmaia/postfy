@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { copyToClipboard } from '../../lib/utils';
 import { X, Send, Copy, Check, MessageCircle, ExternalLink } from 'lucide-react';
 import { Job } from '../../types';
 
@@ -37,8 +38,8 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
 
   const [message, setMessage] = useState(defaultMessage);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message);
+  const handleCopy = async () => {
+    await copyToClipboard(message);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

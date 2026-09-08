@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
 import { Plus, Clock, CheckCircle2, MessageSquare, AlertCircle, ArrowRight } from 'lucide-react';
 import { Job, Client } from '../../types';
@@ -94,9 +95,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
         <div className="space-y-4">
           {dayJobs.map(job => {
             const client = clientMap.get(job.clientId);
-            const timeStr = job.scheduledDate
-              ? new Date(job.scheduledDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-              : '10:00';
+            const timeStr = safeTimeFormat(job.scheduledDate);
 
             return (
               <div

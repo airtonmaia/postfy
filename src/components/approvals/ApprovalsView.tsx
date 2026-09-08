@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateTimeFormat, copyToClipboard } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { 
   CheckCircle2, 
@@ -39,10 +40,10 @@ export const ApprovalsView: React.FC = () => {
 
   const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
 
-  const handleCopyLink = (job: Job) => {
+  const handleCopyLink = async (job: Job) => {
     const client = clientMap.get(job.clientId);
     const link = `${window.location.origin}?portal=${client?.id}&job=${job.id}`;
-    navigator.clipboard.writeText(link);
+    await copyToClipboard(link);
     setCopiedId(job.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -265,7 +266,7 @@ export const ApprovalsView: React.FC = () => {
                       </div>
                       <span className="font-semibold text-slate-900 dark:text-white block">{job.title}</span>
                       <span className="text-[11px] text-slate-400">
-                        Agendado para: {new Date(job.scheduledDate).toLocaleString('pt-BR')}
+                        Agendado para: {safeDateTimeFormat(job.scheduledDate)}
                       </span>
                     </div>
                   </div>

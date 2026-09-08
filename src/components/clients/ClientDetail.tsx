@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Client, ClientPassword, ClientInvoice, ClientFile, ClientBriefing } from '../../types';
 import { usePostfy } from '../../context/PostfyContext';
+import { copyToClipboard } from '../../lib/utils';
 import { 
   User, FolderOpen, Key, Receipt, FileText, Upload, Plus, 
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
@@ -78,8 +79,8 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     updatedAt: new Date().toISOString()
   });
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string, id: string) => {
+    await copyToClipboard(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };

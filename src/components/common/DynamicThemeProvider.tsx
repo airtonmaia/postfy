@@ -37,8 +37,8 @@ function adjustHexBrightness(hex: string, percent: number): string {
 export const DynamicThemeProvider: React.FC = () => {
   const { currentWorkspace } = usePostfy();
 
-  const primary = currentWorkspace.primaryColor || '#9333ea';
-  const secondary = currentWorkspace.secondaryColor || '#ea580c';
+  const primary = currentWorkspace?.primaryColor || '#9333ea';
+  const secondary = currentWorkspace?.secondaryColor || '#ea580c';
 
   useEffect(() => {
     const hoverPrimary = adjustHexBrightness(primary, -12);

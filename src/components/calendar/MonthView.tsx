@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, MoreHorizontal, Clock, Sparkles } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeTimeFormat } from '../../lib/utils';
 import { Job, Client } from '../../types';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 
@@ -160,9 +161,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
               <div className="flex-1 space-y-1.5 overflow-y-auto pr-0.5">
                 {cell.jobs.slice(0, 3).map(job => {
                   const client = clientMap.get(job.clientId);
-                  const scheduledTime = job.scheduledDate 
-                    ? new Date(job.scheduledDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                    : '10:00';
+                  const scheduledTime = safeTimeFormat(job.scheduledDate);
 
                   return (
                     <div

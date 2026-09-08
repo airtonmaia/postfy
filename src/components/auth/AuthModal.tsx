@@ -21,7 +21,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, switchUserRole } = usePostfy();
+  const { currentUser, switchUserRole, logout } = usePostfy();
   const [email, setEmail] = useState(currentUser.email);
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'profile'>('profile');
@@ -185,6 +185,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               })}
             </div>
           </div>
+
+          {/* Logout Action */}
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              onClose();
+            }}
+            className="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs transition border border-rose-200 dark:border-rose-800 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Encerrar Sessão (Sair do Sistema)</span>
+          </button>
 
           {/* Firebase Credentials Info */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">

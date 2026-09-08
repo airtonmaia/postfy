@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { 
   Workspace, 
   User, 
+  Role,
   Client, 
   Job, 
   JobStatus, 
@@ -59,6 +60,10 @@ interface PostfyContextType {
   users: User[];
   currentUser: User;
   setCurrentUser: (user: User) => void;
+  isAuthenticated: boolean;
+  login: (email: string, password?: string, userToSet?: User) => Promise<{ success: boolean; message?: string }>;
+  logout: () => void;
+  switchUserRole: (role: Role) => void;
   
   // Navigation & Views
   activeTab: string;
@@ -221,7 +226,67 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   const [users] = useState<User[]>(initialUsers);
-  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
+  
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`);
+    return saved === 'true';
+  });
+
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const savedUser = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`);
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        console.warn('Failed to parse saved user:', e);
+      }
+    }
+    return initialUsers[0];
+  });
+
+  const login = async (email: string, _password?: string, userToSet?: User): Promise<{ success: boolean; message?: string }> => {
+    let targetUser: User;
+    if (userToSet) {
+      targetUser = userToSet;
+    } else {
+      const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (found) {
+        targetUser = found;
+      } else {
+        targetUser = {
+          id: `u-${Date.now()}`,
+          name: email.split('@')[0] || 'Usuário Agência',
+          email,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          role: 'owner',
+          workspaceId: currentWorkspace?.id || 'ws-1'
+        };
+      }
+    }
+
+    setCurrentUser(targetUser);
+    setIsAuthenticated(true);
+    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`, 'true');
+    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(targetUser));
+    return { success: true, message: 'Autenticado com sucesso!' };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}isAuthenticated`, 'false');
+  };
+
+  const switchUserRole = (role: Role) => {
+    const match = users.find(u => u.role === role);
+    if (match) {
+      setCurrentUser(match);
+      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(match));
+    } else {
+      const updated = { ...currentUser, role };
+      setCurrentUser(updated);
+      localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentUser`, JSON.stringify(updated));
+    }
+  };
   
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('month');
@@ -430,10 +495,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   // Activity logger helper
-  const logActivity = (action: string, target: string, userName: string = currentUser.name) => {
+  const logActivity = (action: string, target: string, userName: string = currentUser?.name || 'Usuário') => {
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
-      workspaceId: currentWorkspace.id,
+      workspaceId: currentWorkspace?.id || 'w-1',
       userName,
       action,
       target,
@@ -446,7 +511,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createJob = (jobData: Partial<Job>): Job => {
     const newJob: Job = {
       id: `job-${Date.now()}`,
-      workspaceId: currentWorkspace.id,
+      workspaceId: currentWorkspace?.id || 'w-1',
       clientId: jobData.clientId || clients[0]?.id || 'c-1',
       title: jobData.title || 'Novo Conteúdo Sem Título',
       campaign: jobData.campaign || 'Geral',
@@ -1259,6 +1324,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         users,
         currentUser,
         setCurrentUser,
+        isAuthenticated,
+        login,
+        logout,
+        switchUserRole,
         activeTab,
         setActiveTab,
         calendarView,

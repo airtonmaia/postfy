@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, PriorityBadge } from '../common/Badges';
 import { 
   Plus, 
@@ -179,7 +180,7 @@ export const KanbanBoard: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
-                            {new Date(job.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            {safeDateFormat(job.scheduledDate, { day: '2-digit', month: '2-digit' })}
                           </span>
                           {job.comments.length > 0 && (
                             <span className="flex items-center gap-1">

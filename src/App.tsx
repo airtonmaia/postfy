@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PostfyProvider, usePostfy } from './context/PostfyContext';
+import { safeTimeFormat } from './lib/utils';
 import { 
   Sun,
   Moon,
@@ -19,6 +20,7 @@ import {
   ExternalLink, 
   Sparkles, 
   ShieldCheck,
+  LogOut,
   ChevronDown,
   Menu,
   X
@@ -29,6 +31,7 @@ import { JobDetailModal } from './components/modals/JobDetailModal';
 import { CreateJobModal } from './components/modals/CreateJobModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { LoginView } from './components/auth/LoginView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 
 // Views
@@ -50,6 +53,8 @@ import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
 
 const MainLayout: React.FC = () => {
   const { 
+    isAuthenticated,
+    logout,
     activeTab, 
     setActiveTab, 
     workspaces,
@@ -75,6 +80,11 @@ const MainLayout: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
 
+  // Mandatory Authentication Gate
+  if (!isAuthenticated && !isClientPortalOpen) {
+    return <LoginView />;
+  }
+
   // Unread notifications & pending approvals count
   const unreadNotifs = notifications.filter(n => !n.read).length;
   const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
@@ -82,7 +92,7 @@ const MainLayout: React.FC = () => {
 
   // Sync dynamic favicon when whitelabel favicon is updated
   useEffect(() => {
-    if (currentWorkspace.favicon) {
+    if (currentWorkspace?.favicon) {
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (!link) {
         link = document.createElement('link');
@@ -91,7 +101,7 @@ const MainLayout: React.FC = () => {
       }
       link.href = currentWorkspace.favicon;
     }
-  }, [currentWorkspace.favicon]);
+  }, [currentWorkspace?.favicon]);
 
   const navItems: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -134,25 +144,25 @@ const MainLayout: React.FC = () => {
         <div>
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              {currentWorkspace.logo ? (
+              {currentWorkspace?.logo ? (
                 <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1 shrink-0 shadow-xs">
                   <img 
                     src={currentWorkspace.logo} 
-                    alt={currentWorkspace.name} 
+                    alt={currentWorkspace.name || 'Logo'} 
                     className="max-w-full max-h-full object-contain"
                   />
                 </div>
               ) : (
                 <div 
                   className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0"
-                  style={{ backgroundColor: currentWorkspace.primaryColor || '#9333ea' }}
+                  style={{ backgroundColor: currentWorkspace?.primaryColor || '#9333ea' }}
                 >
-                  {(currentWorkspace.name || 'P').substring(0, 1).toUpperCase()}
+                  {(currentWorkspace?.name || 'P').substring(0, 1).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
                 <h1 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                  <span className="truncate">{currentWorkspace.name || 'Postfy Ops'}</span>
+                  <span className="truncate">{currentWorkspace?.name || 'Propofy Ops'}</span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shrink-0">
                     PRO
                   </span>
@@ -261,23 +271,35 @@ const MainLayout: React.FC = () => {
             </span>
           </button>
 
-          {/* User Profile */}
-          <button 
-            type="button"
-            onClick={() => setIsAuthModalOpen(true)}
-            className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer border-t border-slate-200 dark:border-slate-800/80"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <img src={currentUser.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
-              <div className="min-w-0">
-                <span className="font-bold text-slate-800 dark:text-white block truncate">{currentUser.name}</span>
-                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono font-bold block truncate">
-                  Cargo: {currentUser.role}
-                </span>
+          {/* User Profile & Logout */}
+          <div className="flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2">
+            <button 
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex-1 flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer min-w-0"
+              title="Gerenciar Sessão & Alternar Usuário"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
+                <div className="min-w-0">
+                  <span className="font-bold text-slate-800 dark:text-white block truncate">{currentUser?.name || 'Usuário'}</span>
+                  <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono font-bold block truncate">
+                    Cargo: {currentUser?.role || 'owner'}
+                  </span>
+                </div>
               </div>
-            </div>
-            <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
-          </button>
+              <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer shrink-0"
+              title="Sair do Sistema"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -377,7 +399,7 @@ const MainLayout: React.FC = () => {
                         <span className="font-bold text-slate-800 dark:text-slate-200 block">{n.title}</span>
                         <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5 leading-snug">{n.message}</p>
                         <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                          {new Date(n.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {safeTimeFormat(n.timestamp || (n as any).createdAt)}
                         </span>
                       </div>
                     ))}

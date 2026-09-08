@@ -11,7 +11,7 @@ export const WorkspaceSwitcher: React.FC = () => {
         className="w-full sm:w-auto flex items-center justify-between gap-3 p-1.5 pr-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer group"
       >
         <div className="flex items-center gap-2.5">
-          {currentWorkspace.logo ? (
+          {currentWorkspace?.logo ? (
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1 shrink-0 shadow-xs">
               <img 
                 src={currentWorkspace.logo} 
@@ -22,14 +22,14 @@ export const WorkspaceSwitcher: React.FC = () => {
           ) : (
             <div 
               className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white shadow-sm text-xs shrink-0"
-              style={{ backgroundColor: currentWorkspace.primaryColor || '#9333ea' }}
+              style={{ backgroundColor: currentWorkspace?.primaryColor || '#9333ea' }}
             >
-              {currentWorkspace.name.substring(0, 2).toUpperCase()}
+              {(currentWorkspace?.name || 'Agência').substring(0, 2).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 text-left hidden sm:block">
             <h1 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight truncate w-32">
-              {currentWorkspace.name}
+              {currentWorkspace?.name || 'Minha Agência'}
             </h1>
             <span className="text-[9px] uppercase text-slate-500 dark:text-slate-400 block truncate">
               Workspace da agência
@@ -50,7 +50,7 @@ export const WorkspaceSwitcher: React.FC = () => {
               key={ws.id}
               onClick={() => setCurrentWorkspace(ws)}
               className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition cursor-pointer ${
-                ws.id === currentWorkspace.id ? 'bg-purple-50/50 dark:bg-purple-900/20' : ''
+                ws.id === currentWorkspace?.id ? 'bg-purple-50/50 dark:bg-purple-900/20' : ''
               }`}
             >
               {ws.logo ? (
@@ -66,11 +66,11 @@ export const WorkspaceSwitcher: React.FC = () => {
                 </div>
               )}
               <span className={`text-xs truncate flex-1 ${
-                ws.id === currentWorkspace.id ? 'font-bold text-purple-700 dark:text-purple-400' : 'font-medium text-slate-700 dark:text-slate-300'
+                ws.id === currentWorkspace?.id ? 'font-bold text-purple-700 dark:text-purple-400' : 'font-medium text-slate-700 dark:text-slate-300'
               }`}>
                 {ws.name}
               </span>
-              {ws.id === currentWorkspace.id && (
+              {ws.id === currentWorkspace?.id && (
                 <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
               )}
             </button>

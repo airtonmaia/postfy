@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { copyToClipboard } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
 import { 
   X, 
@@ -102,7 +103,7 @@ export const JobDetailModal: React.FC = () => {
 
   const handleCopyApprovalLink = () => {
     const url = `${window.location.origin}?portal=${client?.id}&job=${selectedJob.id}`;
-    navigator.clipboard.writeText(url);
+    copyToClipboard(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
@@ -473,8 +474,8 @@ export const JobDetailModal: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(selectedJob.caption);
+                        onClick={async () => {
+                          await copyToClipboard(selectedJob.caption);
                           alert('Legenda copiada para a área de transferência!');
                         }}
                         className="text-[11px] text-purple-600 hover:underline flex items-center gap-1"

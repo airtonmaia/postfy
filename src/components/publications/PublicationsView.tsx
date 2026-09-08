@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateTimeFormat, safeDateFormat } from '../../lib/utils';
 import { 
   Radio, 
   CheckCircle2, 
@@ -142,7 +143,7 @@ export const PublicationsView: React.FC = () => {
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
                       <span className="font-mono font-bold text-purple-600 block">
-                        {new Date(job.scheduledDate).toLocaleString('pt-BR')}
+                        {safeDateTimeFormat(job.scheduledDate)}
                       </span>
                       <span className="text-[10px] text-slate-400">Primeiro comentário incluso</span>
                     </div>
@@ -183,7 +184,7 @@ export const PublicationsView: React.FC = () => {
 
                 <div className="flex items-center gap-3">
                   <span className="text-slate-400 font-mono text-[11px]">
-                    Postado em {new Date(job.scheduledDate).toLocaleDateString('pt-BR')}
+                    Postado em {safeDateFormat(job.scheduledDate)}
                   </span>
                   <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-semibold border border-emerald-200">
                     200 OK

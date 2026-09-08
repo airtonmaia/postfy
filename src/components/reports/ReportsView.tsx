@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -922,7 +923,7 @@ export const ReportsView: React.FC = () => {
                   filteredJobs.map((j) => {
                     const client = clients.find(c => c.id === j.clientId);
                     const isAdjusted = Boolean(j.lastFeedback || (j.versions && j.versions.length > 1));
-                    const createdDateFormatted = new Date(j.createdAt).toLocaleDateString('pt-BR', {
+                    const createdDateFormatted = safeDateTimeFormat(j.createdAt, {
                       day: '2-digit',
                       month: '2-digit',
                       hour: '2-digit',
