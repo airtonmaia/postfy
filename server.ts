@@ -9,6 +9,7 @@ import { authRouter } from './server/routes/auth';
 import { dataRouter } from './server/routes/data';
 import { geminiRouter, isGeminiConfigured } from './server/routes/gemini';
 import { createRateLimiter, failSafely, securityHeaders, isNonEmptyString } from './server/lib/http';
+import { buscarComProtecao } from './server/lib/ssrf';
 
 dotenv.config();
 
@@ -72,16 +73,6 @@ app.post('/api/webhooks/test', requireAuth, webhookLimiter, async (req, res) => 
       return res.status(400).json({ error: 'Informe a URL do webhook.' });
     }
 
-    let target: URL;
-    try {
-      target = new URL(url);
-    } catch {
-      return res.status(400).json({ error: 'URL inválida.' });
-    }
-    if (!['http:', 'https:'].includes(target.protocol)) {
-      return res.status(400).json({ error: 'Use uma URL http ou https.' });
-    }
-
     const payload = {
       event: isNonEmptyString(event, 100) ? event : 'test.ping',
       workspaceId: req.user!.workspaceId,
@@ -93,7 +84,11 @@ app.post('/api/webhooks/test', requireAuth, webhookLimiter, async (req, res) => 
     const timeout = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch(target.toString(), {
+      // buscarComProtecao resolve o host e recusa faixas internas (loopback,
+      // RFC1918, link-local/metadados da nuvem), revalidando cada
+      // redirecionamento. Sem isso a rota vira um oráculo de SSRF: o status
+      // devolvido revela o que existe na rede interna.
+      const response = await buscarComProtecao(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'User-Agent': 'Orquesia-Webhook/1.0' },
         body: JSON.stringify(payload),
@@ -105,6 +100,9 @@ app.post('/api/webhooks/test', requireAuth, webhookLimiter, async (req, res) => 
         statusText: response.statusText,
       });
     } catch (err: any) {
+      if (err?.code === 'DESTINO_BLOQUEADO' || err?.code === 'MUITOS_REDIRECIONAMENTOS') {
+        return res.status(400).json({ ok: false, error: err.message });
+      }
       const aborted = err?.name === 'AbortError';
       return res.status(502).json({
         ok: false,

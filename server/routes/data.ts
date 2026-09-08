@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../lib/auth';
+import { requireAuth, Role } from '../lib/auth';
 import { readJson, writeJson } from '../lib/store';
 import { createRateLimiter, failSafely } from '../lib/http';
 import { mergeWorkspaceRows } from '../../src/lib/workspaceScope';
@@ -66,11 +66,42 @@ dataRouter.get('/', async (req, res) => {
   }
 });
 
+/**
+ * Papéis autorizados a gravar cada grupo de coleções.
+ *
+ * Antes a rota exigia só sessão: qualquer papel autenticado, inclusive
+ * `client`, podia mandar um PUT com array vazio e apagar toda a coleção da
+ * agência. O mapa de permissões da interface não protege a API — quem chama
+ * o endpoint direto passa por cima dele.
+ */
+const PAPEIS_DE_ESCRITA: Record<DataCollection, Role[]> = {
+  clients: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  jobs: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  automations: ['owner', 'admin', 'manager'],
+  notifications: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  activityLogs: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  clientMaterials: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  timesheetLogs: ['owner', 'admin', 'manager', 'social_media', 'designer', 'copywriter'],
+  squads: ['owner', 'admin', 'manager'],
+  leads: ['owner', 'admin', 'manager', 'financial'],
+  proposals: ['owner', 'admin', 'manager', 'financial'],
+  contracts: ['owner', 'admin', 'manager', 'financial'],
+  plans: ['owner'],
+  teamMembers: ['owner', 'admin'],
+};
+
 dataRouter.put('/:collection', writeLimiter, async (req, res) => {
   try {
     const { collection } = req.params;
     if (!isCollection(collection)) {
       return res.status(400).json({ error: 'Coleção desconhecida.' });
+    }
+
+    const papel = req.user!.role;
+    if (!PAPEIS_DE_ESCRITA[collection].includes(papel)) {
+      return res.status(403).json({
+        error: 'Seu perfil não tem permissão para alterar estes dados.',
+      });
     }
 
     const rows = req.body?.rows;

@@ -579,9 +579,23 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }), []);
 
+  /**
+   * O servidor mantém um workspace por sessão e carimba toda linha recebida
+   * com ele. O seletor de workspace da interface, porém, é local: existem
+   * agências na lista que não correspondem à sessão.
+   *
+   * Sincronizar nessa situação seria destrutivo — as linhas da agência
+   * selecionada localmente (ou um array vazio) sobrescreveriam os dados reais
+   * da agência da sessão. Então a sincronização só acontece quando as duas
+   * coincidem; nas demais, a interface opera apenas sobre o cache local.
+   */
+  const workspaceDaSessao = currentUser?.workspaceId || '';
+  const sincronizacaoPermitida =
+    isAuthenticated && Boolean(workspaceDaSessao) && currentWsId === workspaceDaSessao;
+
   /** Envia a fatia do workspace atual, com debounce para não disparar a cada tecla. */
   const schedulePush = (collection: string, rows: { workspaceId?: string }[]) => {
-    if (!hydratedRef.current || !isAuthenticated) return;
+    if (!hydratedRef.current || !sincronizacaoPermitida) return;
 
     clearTimeout(pushTimers.current[collection]);
     pushTimers.current[collection] = setTimeout(async () => {
@@ -630,7 +644,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * migração do estado local para o compartilhado.
    */
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Mesma trava do envio: hidratar com a agência da sessão enquanto a
+    // interface exibe outra misturaria dados de duas agências no mesmo estado.
+    if (!sincronizacaoPermitida) {
       hydratedRef.current = false;
       return;
     }
@@ -693,7 +709,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, currentWsId]);
+  }, [sincronizacaoPermitida, currentWsId]);
 
   // Modal handlers
   const openCreateJobModal = (date?: string) => {
