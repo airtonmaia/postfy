@@ -47,11 +47,52 @@ const requisicaoDoNode = (req: IncomingMessage): Request => {
 
   // Passar body em GET/HEAD é erro de construção do Request, não detalhe.
   if (!SEM_CORPO.has(metodo)) {
-    init.body = Readable.toWeb(req) as unknown as BodyInit;
-    init.duplex = 'half';
+    const corpo = corpoDaRequisicao(req);
+    if (corpo !== undefined) {
+      init.body = corpo;
+    } else {
+      init.body = Readable.toWeb(req) as unknown as BodyInit;
+      init.duplex = 'half';
+    }
   }
 
   return new Request(url, init as RequestInit);
+};
+
+/**
+ * O corpo, quando o runtime já o consumiu.
+ *
+ * A Vercel entrega handlers `(req, res)` com o corpo **já lido e parseado** em
+ * `req.body`. O stream, nesse ponto, está esgotado: montar o Request a partir
+ * dele produz um corpo que nunca termina, e `request.json()` fica esperando
+ * para sempre. A função não responde, não estoura, não gera erro — o
+ * navegador simplesmente segura a requisição.
+ *
+ * Foi assim que o upload ficou parado em 0%. As rotas GET funcionavam porque
+ * não têm corpo para ler, o que escondeu o problema.
+ *
+ * Devolve `undefined` quando não há nada pronto, para o chamador cair no
+ * stream — que é o caminho certo em runtimes que não pré-parseiam.
+ */
+const corpoDaRequisicao = (req: IncomingMessage): string | Buffer | undefined => {
+  const bruto = (req as IncomingMessage & { body?: unknown }).body;
+
+  if (bruto === undefined || bruto === null) {
+    // Sem corpo pronto e stream já encerrado: ler dele travaria. Corpo vazio
+    // faz a rota responder 400 "JSON inválido", que é ruim mas é uma
+    // resposta — melhor que pendurar a conexão.
+    return req.readableEnded ? '' : undefined;
+  }
+
+  if (typeof bruto === 'string' || Buffer.isBuffer(bruto)) return bruto;
+
+  // Objeto já parseado: volta para texto, porque quem lê do outro lado é
+  // `request.json()`.
+  try {
+    return JSON.stringify(bruto);
+  } catch {
+    return '';
+  }
 };
 
 /** Escreve a Response da Web no ServerResponse do Node. */

@@ -123,8 +123,17 @@ O sintoma, das duas vezes: `FUNCTION_INVOCATION_FAILED` na URL, e
 JSON. Todos os nossos erros são JSON, então esse texto significa **crash**,
 não erro tratado.
 
+O adaptador também precisa ler o corpo de `req.body`, e não do stream: a
+Vercel entrega handlers `(req, res)` com o corpo **já consumido e parseado**.
+Montar o Request a partir do stream esgotado produz um corpo que nunca
+termina — `request.json()` espera para sempre, a função não responde, não
+estoura e não gera log. O sintoma é a requisição pendurada: foi assim que o
+upload ficou parado em 0%, e as rotas GET esconderam o problema porque não
+têm corpo para ler.
+
 Protegido por `tests/rotas-api.test.ts`, que chama o default como a Vercel
-chama e exige que ele escreva uma resposta.
+chama — inclusive com corpo já parseado — e exige que ele escreva uma
+resposta.
 
 ### 2. Id gerado no cliente tem que ser uuid
 

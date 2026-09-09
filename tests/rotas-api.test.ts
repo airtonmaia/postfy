@@ -52,7 +52,8 @@ const rotas = {
 const chamarComoAVercel = async (
   modulo: Record<string, unknown>,
   metodo = 'POST',
-  cabecalhos: Record<string, string> = {}
+  cabecalhos: Record<string, string> = {},
+  corpoPronto?: unknown
 ) => {
   const req: any = {
     method: metodo,
@@ -61,6 +62,13 @@ const chamarComoAVercel = async (
     // O adaptador só lê o corpo fora de GET/HEAD.
     [Symbol.asyncIterator]: async function* () {},
   };
+
+  // A Vercel entrega o corpo já parseado em req.body e deixa o stream
+  // esgotado. É esse o cenário que travava a função.
+  if (corpoPronto !== undefined) {
+    req.body = corpoPronto;
+    req.readableEnded = true;
+  }
 
   const escrito: string[] = [];
   const res: any = {
@@ -211,5 +219,51 @@ describe('o publicador não pode ficar aberto', () => {
       if (anterior === undefined) delete process.env.CRON_SECRET;
       else process.env.CRON_SECRET = anterior;
     }
+  });
+});
+
+/**
+ * Corpo já consumido pelo runtime.
+ *
+ * A Vercel entrega handlers (req, res) com o corpo lido e parseado em
+ * `req.body`, e o stream esgotado. Montar o Request a partir do stream
+ * produzia um corpo que nunca terminava: `request.json()` esperava para
+ * sempre, a função não respondia, e o navegador segurava a requisição.
+ *
+ * Era isso que deixava o upload parado em 0%. As rotas GET escondiam o
+ * problema, porque não têm corpo para ler.
+ *
+ * O teste tem timeout curto de propósito: o modo de falha é pendurar, não
+ * lançar, então esperar é o próprio sintoma.
+ */
+describe('rota lê o corpo já parseado pelo runtime', () => {
+  it('não pendura quando o corpo vem em req.body', { timeout: 3000 }, async () => {
+    const { res } = await chamarComoAVercel(status, 'POST', {}, { qualquer: 'coisa' });
+    expect(res.finalizado).toBe(true);
+    // Sem Authorization, 401 — o que importa é ter respondido.
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('não pendura quando req.body é string', { timeout: 3000 }, async () => {
+    const { res } = await chamarComoAVercel(status, 'POST', {}, '{"a":1}');
+    expect(res.finalizado).toBe(true);
+  });
+
+  it('não pendura com stream esgotado e sem req.body', { timeout: 3000 }, async () => {
+    const req: any = {
+      method: 'POST',
+      url: '/api/teste',
+      headers: { host: 'app.orquesia.com.br' },
+      readableEnded: true,
+      [Symbol.asyncIterator]: async function* () {},
+    };
+    let finalizado = false;
+    const res: any = {
+      statusCode: 0, headersSent: false,
+      setHeader() {}, write() {},
+      end() { finalizado = true; },
+    };
+    await (status.default as (q: any, s: any) => Promise<void>)(req, res);
+    expect(finalizado).toBe(true);
   });
 });
