@@ -23,7 +23,7 @@ describe('permissões por papel', () => {
     ] as const;
 
     for (const papel of papeis) {
-      for (const aba of ['saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_emails'] as const) {
+      for (const aba of ['saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_emails', 'saas_integracoes'] as const) {
         expect(podeAcessarAba(papel, aba), `${papel} não pode abrir ${aba}`).toBe(false);
       }
     }

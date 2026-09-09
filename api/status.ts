@@ -1,4 +1,4 @@
-import { usuarioDaRequisicao, json, naoAutenticado } from './_lib/auth.js';
+import { usuarioDaRequisicao, clienteDoUsuario, json, naoAutenticado } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 
 
@@ -26,9 +26,23 @@ async function handler(request: Request): Promise<Response> {
     return json({ error: 'Método não permitido.' }, 405);
   }
 
-  // Exige sessão: a configuração do servidor não é informação pública.
   const usuario = await usuarioDaRequisicao(request);
   if (!usuario) return naoAutenticado();
+
+  // Só o dono do SaaS. A infraestrutura é do produto, não da agência: um
+  // membro ver "Resend requer configuração" gera dúvida sobre algo que ele
+  // não controla e não deveria enxergar.
+  //
+  // A RLS de platform_admins só deixa um admin enxergar a tabela, então para
+  // qualquer outro a consulta volta vazia — que é exatamente a resposta.
+  const supabase = clienteDoUsuario(request);
+  const { data: admin } = await supabase
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', usuario.id)
+    .maybeSingle();
+
+  if (!admin) return json({ error: 'Disponível apenas para o administrador da plataforma.' }, 403);
 
   const armazenamento = temTodas(
     'R2_ACCOUNT_ID',

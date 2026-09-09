@@ -123,8 +123,17 @@ O sintoma, das duas vezes: `FUNCTION_INVOCATION_FAILED` na URL, e
 JSON. Todos os nossos erros são JSON, então esse texto significa **crash**,
 não erro tratado.
 
+O adaptador também precisa ler o corpo de `req.body`, e não do stream: a
+Vercel entrega handlers `(req, res)` com o corpo **já consumido e parseado**.
+Montar o Request a partir do stream esgotado produz um corpo que nunca
+termina — `request.json()` espera para sempre, a função não responde, não
+estoura e não gera log. O sintoma é a requisição pendurada: foi assim que o
+upload ficou parado em 0%, e as rotas GET esconderam o problema porque não
+têm corpo para ler.
+
 Protegido por `tests/rotas-api.test.ts`, que chama o default como a Vercel
-chama e exige que ele escreva uma resposta.
+chama — inclusive com corpo já parseado — e exige que ele escreva uma
+resposta.
 
 ### 2. Id gerado no cliente tem que ser uuid
 
@@ -170,13 +179,19 @@ login entre reloads, e não é dado de agência.
 Protegido pelo teste de guarda em `tests/ids.test.ts`, com essa exceção
 escrita.
 
-### 5. Arquivo vai para o R2, nunca para dentro do registro
+### 5. Arquivo vai para o R2, nunca para dentro do registro — e o bucket precisa de CORS
 
 Sem `readAsDataURL`. Use `arquivosApi.enviar`, que pede URL pré-assinada e
 manda o binário do navegador direto para o R2.
 
 Sem armazenamento configurado, **não caia de volta no base64** — era ele o
 problema. A tela oferece colar a URL.
+
+O bucket precisa de **política de CORS**, e isso não é opcional: o PUT parte
+do navegador, então sem a origem liberada ele é bloqueado antes de sair e a
+barra trava em 0% — sem erro no console da função, porque a função nem é
+chamada. O bucket `orquesia-midia` estava sem nenhuma regra, e foi essa a
+causa da primeira falha de upload em produção. Ver `.env.example`.
 
 ### 6. `vercel.json` não é validado pelo CI
 

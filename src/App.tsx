@@ -28,6 +28,7 @@ import {
   DollarSign,
   Building2,
   Mail,
+  Plug,
   AlertTriangle
 } from 'lucide-react';
 
@@ -58,6 +59,7 @@ const SaasPlansView = lazy(() => import('./components/saas/SaasPlansView').then(
 const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView').then(m => ({ default: m.SaasFinancialView })));
 const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
 const SaasEmailsView = lazy(() => import('./components/saas/SaasEmailsView').then(m => ({ default: m.SaasEmailsView })));
+const SaasIntegrationsView = lazy(() => import('./components/saas/SaasIntegrationsView').then(m => ({ default: m.SaasIntegrationsView })));
 
 const CarregandoTela: React.FC = () => (
   <div className="flex-1 flex items-center justify-center p-8">
@@ -69,6 +71,7 @@ import { podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
+import { VersaoDoApp } from './components/common/VersaoDoApp';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -154,6 +157,7 @@ const MainLayout: React.FC = () => {
 
   const ABAS_SAAS: TabType[] = [
     'saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_emails',
+    'saas_integracoes',
   ];
   const abaPermitida = ABAS_SAAS.includes(activeTab as TabType)
     ? isSuperAdmin
@@ -298,6 +302,7 @@ const MainLayout: React.FC = () => {
                   { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
                   { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },
                   { id: 'saas_emails', label: 'E-mails do Sistema', icon: Mail },
+                  { id: 'saas_integracoes', label: 'Integrações do SaaS', icon: Plug },
                 ].map(item => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -555,9 +560,14 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
           {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
           {abaPermitida && activeTab === 'saas_emails' && <SaasEmailsView />}
+          {abaPermitida && activeTab === 'saas_integracoes' && <SaasIntegrationsView />}
           </Suspense>
         </main>
       </div>
+
+      {/* Fica por último para ficar por cima, e fora da barra lateral: a
+          pergunta que ele responde — "já subiu?" — vale em qualquer tela. */}
+      <VersaoDoApp />
     </div>
   );
 };

@@ -43,3 +43,35 @@ describe('ordem das coleções sincronizadas', () => {
     expect(fonte).toMatch(/filaDeGravacao\.current = filaDeGravacao\.current\.then/);
   });
 });
+
+/**
+ * O carregamento do banco não pode virar escrita.
+ *
+ * `hidratado` sozinho não bastava: ele é ligado dentro de carregarTudo, mas
+ * `setState` é assíncrono e os efeitos das coleções só rodam no render
+ * seguinte, com a bandeira já ligada. O estado anterior estava vazio e o novo
+ * cheio, então o carregamento inteiro era interpretado como inserção — a
+ * causa da multiplicação de linhas a cada recarga.
+ *
+ * A correção depende de ordem de declaração: o efeito que baixa a bandeira
+ * roda depois dos das coleções porque é declarado depois. Mover para cima
+ * reintroduz o bug sem nenhum sintoma no teste de unidade.
+ */
+describe('carregamento do banco não é gravado de volta', () => {
+  it('as coleções pulam o diff durante a carga', () => {
+    expect(fonte).toMatch(/if \(aplicandoCargaDoBanco\.current\) return;/);
+  });
+
+  it('a bandeira é levantada antes de aplicar os dados', () => {
+    const levanta = fonte.indexOf('aplicandoCargaDoBanco.current = true');
+    const aplica = fonte.indexOf('setAllClients(dados.clients)');
+    expect(levanta).toBeGreaterThan(-1);
+    expect(levanta).toBeLessThan(aplica);
+  });
+
+  it('a bandeira é baixada depois de todas as coleções', () => {
+    const ultimaColecao = fonte.lastIndexOf('useColecaoSincronizada(');
+    const baixa = fonte.indexOf('aplicandoCargaDoBanco.current = false');
+    expect(baixa).toBeGreaterThan(ultimaColecao);
+  });
+});
