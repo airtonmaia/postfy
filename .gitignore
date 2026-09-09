@@ -7,5 +7,10 @@ coverage/
 .env*
 !.env.example
 
-# dados locais do store em arquivo
-data/
+# Store em arquivo, que não existe mais desde a migração para o Supabase.
+#
+# A barra inicial não é detalhe: sem ela o padrão casa com **qualquer** pasta
+# chamada data, e engoliu `src/data/` inteira. O sintoma seria só em produção
+# — o arquivo existe aqui, o build passa aqui, e o deploy quebra num import de
+# um arquivo que nunca foi enviado.
+/data/

@@ -8,6 +8,8 @@ import {
   type DadosDoConvite,
 } from '../../lib/authSupabase';
 import { supabase } from '../../lib/supabase';
+import { salvarPreferencias } from '../../lib/preferencias';
+import { caminhoDaAba, ABA_INICIAL } from '../../lib/rotas';
 import { ShieldCheck, Building2, Mail, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -61,8 +63,9 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
         if (dados && emailDaSessao && emailDaSessao.toLowerCase() === dados.email.toLowerCase()) {
           const res = await aceitarConvite(token);
           if (res.sucesso) {
+            if (res.workspaceId) await salvarPreferencias({ lastWorkspaceId: res.workspaceId });
             await recarregarSessaoPublica();
-            window.history.replaceState({}, '', window.location.pathname);
+            window.history.replaceState({}, '', caminhoDaAba(ABA_INICIAL));
             return;
           }
           setErro(res.mensagem || null);
@@ -88,8 +91,11 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
       setEnviando(false);
       return;
     }
+    // Quem já participa de outras agências caía na de sempre depois de
+    // aceitar, e concluía que o convite não tinha funcionado.
+    if (res.workspaceId) await salvarPreferencias({ lastWorkspaceId: res.workspaceId });
     await recarregarSessaoPublica();
-    window.history.replaceState({}, '', window.location.pathname);
+    window.history.replaceState({}, '', caminhoDaAba(ABA_INICIAL));
   };
 
   const enviar = async (e: React.FormEvent) => {
@@ -119,7 +125,14 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
       return;
     }
 
-    const res = await cadastrar({ nome: nome.trim(), email: convite.email, senha });
+    // Sem agência própria: quem chega por convite tem agência, a de quem
+    // convidou. Criar uma aqui deixava a pessoa em duas — e caindo na errada.
+    const res = await cadastrar({
+      nome: nome.trim(),
+      email: convite.email,
+      senha,
+      criarAgenciaPropria: false,
+    });
     if (!res.sucesso) {
       setErro(res.mensagem || 'Não foi possível criar a conta.');
       setEnviando(false);
@@ -165,7 +178,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
             </p>
           </div>
           <a
-            href={window.location.pathname}
+            href="/"
             className="inline-block w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
           >
             Ir para o login

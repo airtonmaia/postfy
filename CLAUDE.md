@@ -66,7 +66,7 @@ a tela já mostrou o resultado antes de o banco responder.
 
 ## Armadilhas
 
-Sete regras. Todas vieram de bugs que chegaram a produção.
+Oito regras. Todas vieram de bugs que chegaram a produção.
 
 ### 0. Import relativo em `api/` precisa da extensão `.js`
 
@@ -203,6 +203,15 @@ aceitam cron diário, e isso derruba o deploy inteiro. Por isso o agendamento
 da fila de publicação vive em `.github/workflows/publicar.yml`, e não no
 `vercel.json`.
 
+O `rewrite` para `/index.html` também mora ali, e é **ele** que faz o F5
+funcionar fora da raiz: agora que cada menu tem URL própria, sem o rewrite
+recarregar em `/calendario` devolve 404 da Vercel antes de o app existir. O
+padrão exclui `/api/` de propósito — engolir esse prefixo faria toda função
+serverless devolver HTML.
+
+`tests/rotas.test.ts` lê o `vercel.json` e confere as duas coisas. É a única
+guarda que existe para esse arquivo.
+
 Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
 significa nada.
 
@@ -220,6 +229,34 @@ toda leitura da tabela protegida falhar com `42501`.
 
 Quem impede a chamada direta é o schema `private` não conceder `USAGE` — e o
 PostgREST só expõe `public`.
+
+---
+
+### 8. Quem chega por convite já tem agência
+
+`garantirAgencia()` cria a agência de quem não tem nenhuma. No fluxo de
+convite isso é errado: a agência é a de quem convidou.
+
+```ts
+cadastrar({ ..., criarAgenciaPropria: false });   // ✅ na tela de convite
+```
+
+O convidado ficava em duas agências e entrava na própria, vazia. **No banco a
+diferença entre as duas linhas foi de 129 ms** — a agência nasceu antes do
+vínculo, e a escolha da agência inicial era `membros[0]` de uma consulta sem
+`order`, que o Postgres não promete.
+
+O sintoma engana dos dois lados: para quem convidou, o convite parece não ter
+funcionado; para o convidado, o sistema parece vazio. As duas chamadas
+funcionam — só estão na ordem errada.
+
+Só a correção na tela não cobre tudo. Com confirmação de e-mail ligada o
+cadastro não abre sessão, e a criação automática dispara depois, no login
+normal. Por isso `garantirAgencia` também pergunta ao banco
+(`tenho_convite_pendente()`, `security definer` porque a RLS de `invites` só
+deixa owner/admin ler).
+
+Protegido por `tests/convite.test.ts`.
 
 ---
 
@@ -297,6 +334,17 @@ Comentário explica **por que**, não o que. Se o código já diz o que faz, o
 comentário só ganha espaço registrando a decisão — de preferência o custo de
 ter feito diferente.
 
+**Toda entrega atualiza `src/data/changelog.ts`.** A entrada do topo tem que
+casar com a `version` do `package.json` — `tests/changelog.test.ts` falha se
+divergirem, porque o rodapé passaria a mostrar uma versão que a tela de
+novidades não conhece.
+
+Só entra o que existe. A lista anterior vivia dentro do componente e
+anunciava "Portal do Cliente com Login via WhatsApp", "Componentes Shadcn/UI
+em todo o sistema" e "Exportação de relatório em PDF" — nenhum construído. Um
+changelog que descreve intenção é pior que não ter changelog: o cliente cobra
+o que leu. Correção conta como entrada; foi boa parte do valor entregue.
+
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
 `/api/status` e mostra o estado real do servidor em vez de uma lista fixa.
@@ -311,6 +359,7 @@ src/lib/db.ts              repositórios por entidade, operações por linha
 src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
+src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 

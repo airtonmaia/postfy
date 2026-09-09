@@ -13,6 +13,7 @@ import {
   ChevronLeft, 
   ChevronRight,
   ExternalLink,
+  ImageOff,
   Sparkles
 } from 'lucide-react';
 import { Job } from '../../types';
@@ -161,7 +162,10 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
             <div className="grid grid-cols-3 gap-1 mt-2 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900 p-0.5">
               {gridCells.map((job) => {
                 const isSelected = previewJob?.id === job.id;
-                const mediaUrl = job.mediaUrls[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80';
+                // Conteúdo sem arte é estado normal — pauta entra antes da
+                // imagem existir. Mostrar foto de banco aqui faria a prévia
+                // do feed exibir uma arte que ninguém aprovou.
+                const mediaUrl = job.mediaUrls[0];
 
                 return (
                   <div
@@ -171,11 +175,17 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                       isSelected ? 'ring-2 ring-purple-600' : ''
                     }`}
                   >
-                    <img
-                      src={mediaUrl}
-                      alt={job.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    />
+                    {mediaUrl ? (
+                      <img
+                        src={mediaUrl}
+                        alt={job.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <ImageOff className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                      </div>
+                    )}
 
                     {/* Format Badge Top Right */}
                     <div className="absolute top-1 right-1">
@@ -242,11 +252,20 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 aspect-square">
-                    <img
-                      src={previewJob.mediaUrls[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
+                    {previewJob.mediaUrls[0] ? (
+                      <img
+                        src={previewJob.mediaUrls[0]}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center gap-2">
+                        <ImageOff className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                          Sem arte ainda
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-3 text-xs">

@@ -103,9 +103,17 @@ const MainLayout: React.FC = () => {
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [saasAberto, setSaasAberto] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+
+  // Abre o submenu quando já se está numa tela do SaaS: recolhido, ele
+  // esconderia onde a pessoa está. Fica antes das saídas antecipadas porque
+  // hook não pode vir depois de return condicional.
+  useEffect(() => {
+    if (String(activeTab).startsWith('saas_')) setSaasAberto(true);
+  }, [activeTab]);
 
   // Sync dynamic favicon when whitelabel favicon is updated
   useEffect(() => {
@@ -292,12 +300,25 @@ const MainLayout: React.FC = () => {
 
             {isSuperAdmin && (
               <>
-                <div className="pt-4 pb-1 px-3">
+                {/* Recolhível: são cinco itens que o dono do SaaS usa de vez
+                    em quando, competindo por espaço com o menu do dia a dia.
+                    Abre sozinho quando já se está numa das telas, senão
+                    recolher esconderia onde a pessoa está. */}
+                <button
+                  type="button"
+                  onClick={() => setSaasAberto((v) => !v)}
+                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 cursor-pointer group"
+                >
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
                     👑 Super Admin
                   </span>
-                </div>
-                {[
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-purple-600 dark:text-purple-400 transition-transform ${
+                      saasAberto ? '' : '-rotate-90'
+                    }`}
+                  />
+                </button>
+                {saasAberto && [
                   { id: 'saas_planos', label: 'Planos do SaaS', icon: Crown },
                   { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
                   { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },

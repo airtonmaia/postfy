@@ -107,6 +107,10 @@ export const SettingsUsers: React.FC = () => {
 
       const url = new URL(window.location.href);
       url.search = '';
+      // Raiz, e não a tela onde o convite foi criado: agora que cada menu tem
+      // URL própria, o link herdaria `/configuracoes/usuarios` — uma tela que
+      // o convidado talvez nem possa abrir.
+      url.pathname = '/';
       url.searchParams.set('invite', token);
       const link = url.toString();
       setLinkGerado(link);

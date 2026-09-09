@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Building2, Users, Paintbrush, Globe, Check, Lock, Plus, Link, Settings2, Bell, Shield, MessageSquare
@@ -10,10 +10,40 @@ import { SettingsPreferences } from './tabs/SettingsPreferences';
 import { SettingsCommunication } from './tabs/SettingsCommunication';
 import { SettingsUsers } from './tabs/SettingsUsers';
 import { SettingsTeams } from './tabs/SettingsTeams';
+import { subAbaDeConfiguracoes, urlDaAba } from '../../lib/rotas';
 
 
 export const SettingsView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  // A sub-aba também vai para a URL: `/configuracoes/usuarios` abre em
+  // Usuários. Sem isso, mandar "olha lá em Equipes" exigia explicar o
+  // caminho, e o F5 voltava para Overview.
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    try {
+      return subAbaDeConfiguracoes(window.location.pathname);
+    } catch {
+      return 'overview';
+    }
+  });
+
+  const setActiveTab = (aba: string) => {
+    setActiveTabState(aba);
+    try {
+      window.history.pushState(
+        {},
+        '',
+        urlDaAba('configuracoes', aba, window.location.search)
+      );
+    } catch {
+      /* sem History API a aba troca do mesmo jeito, só sem URL */
+    }
+  };
+
+  // Voltar do navegador entre as sub-abas.
+  useEffect(() => {
+    const aoVoltar = () => setActiveTabState(subAbaDeConfiguracoes(window.location.pathname));
+    window.addEventListener('popstate', aoVoltar);
+    return () => window.removeEventListener('popstate', aoVoltar);
+  }, []);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Building2 },

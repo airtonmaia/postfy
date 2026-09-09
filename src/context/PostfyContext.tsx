@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   Workspace, 
@@ -21,7 +21,8 @@ import {
   ClientBriefing,
   ClientFile,
   ClientMaterial,
-  TimesheetLog
+  TimesheetLog,
+  TabType
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { aiApi, ApiError } from '../lib/api';
@@ -44,6 +45,7 @@ import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../lib/automacoes';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
+import { abaDoCaminho, urlDaAba, ABA_INICIAL } from '../lib/rotas';
 
 interface PostfyContextType {
   // General
@@ -474,7 +476,67 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     hidratado.current = false;
   };
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  // ============================================================
+  // Aba ativa: espelhada na URL
+  //
+  // Era só estado em memória, e a barra de endereço nunca mudava: um F5
+  // devolvia a pessoa para o Dashboard de onde quer que ela estivesse, e não
+  // havia como mandar link de tela para ninguém. Agora a URL é a fonte —
+  // abrir, recarregar e o voltar do navegador passam pelo mesmo caminho.
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    try {
+      return abaDoCaminho(window.location.pathname) ?? ABA_INICIAL;
+    } catch {
+      return ABA_INICIAL;
+    }
+  });
+
+  const setActiveTab = useCallback((aba: string) => {
+    setActiveTabState(aba);
+    try {
+      // A query fica: `?portal=` e `?invite=` são lidos noutros pontos, e
+      // perdê-los ao navegar fecharia o portal do cliente sozinho.
+      const destino = urlDaAba(aba as TabType, undefined, window.location.search);
+      if (destino !== window.location.pathname + window.location.search) {
+        window.history.pushState({ aba }, '', destino);
+      }
+    } catch {
+      /* sem History API a navegação continua funcionando, só sem URL */
+    }
+  }, []);
+
+  // Voltar e avançar do navegador.
+  useEffect(() => {
+    const aoVoltar = () => {
+      setActiveTabState(abaDoCaminho(window.location.pathname) ?? ABA_INICIAL);
+    };
+    window.addEventListener('popstate', aoVoltar);
+    return () => window.removeEventListener('popstate', aoVoltar);
+  }, []);
+
+  /**
+   * `/` e caminhos desconhecidos passam a mostrar a URL da tela que abriu.
+   *
+   * `replaceState` e não `pushState`: entrar pela raiz não deveria criar um
+   * passo no histórico, ou o voltar ficaria preso num redirecionamento.
+   */
+  useEffect(() => {
+    try {
+      const atual = window.location.pathname;
+      if (abaDoCaminho(atual) === null || atual === '/' || atual === '') {
+        window.history.replaceState(
+          {},
+          '',
+          urlDaAba(activeTab as TabType, undefined, window.location.search)
+        );
+      }
+    } catch {
+      /* idem */
+    }
+    // Só na abertura: depois disso quem escreve a URL é setActiveTab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('month');
   
   const [clientFilter, setClientFilter] = useState<string>('all');
@@ -841,16 +903,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       hashtags: jobData.hashtags || [],
       firstComment: jobData.firstComment || '',
       link: jobData.link || '',
-      mediaUrls: jobData.mediaUrls || [
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-      ],
+      // Sem imagem de banco como padrão: ela acabava virando a arte real do
+      // post de quem não reparasse.
+      mediaUrls: jobData.mediaUrls || [],
       currentVersion: 1,
       versions: [
         {
           versionNumber: 1,
-          mediaUrls: jobData.mediaUrls || [
-            'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-          ],
+          mediaUrls: jobData.mediaUrls || [],
           caption: jobData.caption || '',
           submittedBy: currentUser.name,
           submittedAt: new Date().toISOString(),
