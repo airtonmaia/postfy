@@ -293,6 +293,8 @@ export interface DadosDoConvite {
   name: string | null;
   role: string;
   agencia: string | null;
+  /** O e-mail convidado já tem conta: a tela pede senha, não cadastro. */
+  temConta: boolean;
 }
 
 export const listarConvites = async (): Promise<ConvitePendente[]> => {
