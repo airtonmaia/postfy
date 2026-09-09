@@ -70,3 +70,33 @@ describe('nada de dado da aplicação no navegador', () => {
     expect(culpados).toEqual([]);
   });
 });
+
+/**
+ * Guarda contra o base64 voltar.
+ *
+ * `readAsDataURL` transforma o arquivo numa string dentro do próprio
+ * registro. Um logo de cliente ocupou 4,8 MB assim: estourou a cota do
+ * navegador e ainda foi para uma coluna de texto no Postgres, acompanhando o
+ * registro em toda leitura.
+ *
+ * O upload correto manda o binário direto para o R2 e guarda só a URL.
+ */
+describe('arquivo não vira string no registro', () => {
+  it('nenhum componente usa readAsDataURL', () => {
+    const culpados = varrer('src')
+      .map((arquivo) => ({ arquivo, texto: readFileSync(arquivo, 'utf-8') }))
+      .filter(({ texto }) => /\breadAsDataURL\s*\(/.test(texto))
+      .map(({ arquivo }) => arquivo);
+
+    expect(culpados).toEqual([]);
+  });
+
+  it('os dois componentes de envio passam pelo R2', () => {
+    for (const arquivo of [
+      'src/components/ui/file-upload.tsx',
+      'src/components/common/MediaUploader.tsx',
+    ]) {
+      expect(readFileSync(arquivo, 'utf-8'), arquivo).toContain('arquivosApi.enviar');
+    }
+  });
+});

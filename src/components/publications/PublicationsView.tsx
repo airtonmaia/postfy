@@ -1,8 +1,9 @@
 import React from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { ConexoesSociais } from './ConexoesSociais';
 import { safeDateTimeFormat, safeDateFormat } from '../../lib/utils';
 import { 
-  Radio, 
+
   CheckCircle2, 
   AlertTriangle, 
   Clock, 
@@ -52,34 +53,7 @@ export const PublicationsView: React.FC = () => {
         Nada disso existia: era marcação estática. Publicar de verdade exige
         OAuth com cada rede e uma fila de disparo no servidor.
       */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 shadow-xs">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-            <Radio className="w-4 h-4" />
-          </div>
-          <div className="space-y-1.5">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Conexões com as redes sociais
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-              Nenhuma rede está conectada. Para publicar automaticamente é preciso
-              autorizar cada conta via OAuth (Meta, LinkedIn, TikTok, YouTube) e
-              habilitar a fila de disparo no servidor. Enquanto isso, use a fila
-              abaixo como cronograma e publique manualmente na data marcada.
-            </p>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {['Instagram', 'Facebook', 'LinkedIn', 'TikTok', 'YouTube'].map((rede) => (
-                <span
-                  key={rede}
-                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
-                >
-                  {rede}: não conectado
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ConexoesSociais />
 
       {/* Scheduled Queue */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">

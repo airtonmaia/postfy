@@ -1,0 +1,150 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { Radio, Plus, Trash2, AlertCircle, CheckCircle2, Instagram } from 'lucide-react';
+import { usePostfy } from '../../context/PostfyContext';
+import { listarContas, conectarConta, desconectarConta, type ContaConectada } from '../../lib/redes';
+import { ApiError } from '../../lib/api';
+
+/**
+ * Contas de rede social da agência.
+ *
+ * O bloco que ficava aqui era um aviso fixo dizendo que nada estava
+ * conectado, com uma fileira de rótulos "não conectado" para cinco redes.
+ * Agora ele mostra o que existe de fato, e conecta.
+ *
+ * Só Instagram por enquanto, e a tela diz isso: cada rede exige revisão de
+ * app própria, e prometer LinkedIn e TikTok num rótulo seria o mesmo tipo de
+ * promessa vazia que o aviso antigo fazia.
+ */
+
+export const ConexoesSociais: React.FC = () => {
+  const { currentWorkspace } = usePostfy();
+
+  const [contas, setContas] = useState<ContaConectada[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [conectando, setConectando] = useState(false);
+
+  const recarregar = useCallback(() => {
+    listarContas()
+      .then(setContas)
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Falha ao carregar as contas.'))
+      .finally(() => setCarregando(false));
+  }, []);
+
+  useEffect(recarregar, [recarregar]);
+
+  // A janela do OAuth avisa quando termina. Sem isto, a lista só atualizaria
+  // no próximo carregamento da página e pareceria que a conexão falhou.
+  useEffect(() => {
+    const aoReceber = (evento: MessageEvent) => {
+      if (evento.data?.origem !== 'orquesia-social') return;
+      setConectando(false);
+      if (evento.data.ok) recarregar();
+    };
+    window.addEventListener('message', aoReceber);
+    return () => window.removeEventListener('message', aoReceber);
+  }, [recarregar]);
+
+  const conectar = async () => {
+    setErro(null);
+    setConectando(true);
+    try {
+      await conectarConta(currentWorkspace.id);
+    } catch (e) {
+      setConectando(false);
+      setErro(
+        e instanceof ApiError && e.code === 'SOCIAL_NOT_CONFIGURED'
+          ? 'Conexão com redes sociais ainda não configurada no servidor.'
+          : e instanceof Error
+          ? e.message
+          : 'Falha ao iniciar a conexão.'
+      );
+    }
+  };
+
+  const desconectar = async (id: string, nome: string) => {
+    if (!window.confirm(`Desconectar @${nome}? As publicações agendadas para ela serão canceladas.`)) {
+      return;
+    }
+    try {
+      await desconectarConta(id);
+      setContas((atuais) => atuais.filter((c) => c.id !== id));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Falha ao desconectar.');
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+            <Radio className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+              Contas conectadas
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
+              Conteúdo aprovado e agendado é publicado sozinho na conta conectada.
+              Por enquanto só Instagram: cada rede exige uma revisão de app própria.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={conectar}
+          disabled={conectando}
+          className="shrink-0 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {conectando ? 'Aguardando autorização...' : 'Conectar Instagram'}
+        </button>
+      </div>
+
+      {erro && (
+        <div className="flex items-start gap-2 mt-4 text-xs p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{erro}</span>
+        </div>
+      )}
+
+      {!carregando && contas.length === 0 && !erro && (
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
+          Nenhuma conta conectada. A conta precisa ser Profissional no Instagram e
+          estar ligada a uma página do Facebook.
+        </p>
+      )}
+
+      {contas.length > 0 && (
+        <div className="space-y-2 mt-4">
+          {contas.map((conta) => (
+            <div
+              key={conta.id}
+              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Instagram className="w-4 h-4 text-pink-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  @{conta.accountName}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Conectada
+                </span>
+              </div>
+
+              <button
+                onClick={() => desconectar(conta.id, conta.accountName)}
+                title="Desconectar"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
