@@ -40,14 +40,8 @@ import {
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
+import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
-import {
-  readStorage,
-  writeStorage,
-  removeStorage,
-  onStorageQuotaExceeded,
-  formatBytes,
-} from '../lib/storage';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
 
 interface PostfyContextType {
@@ -183,6 +177,7 @@ interface PostfyContextType {
   generateEditorialIdeas: (clientId: string) => Promise<{ ideas: { title: string; format: string; hook: string; rationale: string }[] }>;
 
   // Supabase
+  isPlatformAdmin: boolean;
   isSupabaseConnected: boolean;
   syncWithSupabase: () => Promise<{ success: boolean; message: string }>;
 
@@ -192,15 +187,12 @@ interface PostfyContextType {
   forceSync: () => Promise<{ success: boolean; message: string }>;
 
   // Aviso de cota do armazenamento local
-  storageWarning: string | null;
-  dismissStorageWarning: () => void;
 }
 
 export type SyncState = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
 const PostfyContext = createContext<PostfyContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PREFIX = 'postfy_v1_';
 
 export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // As agências vêm do banco. O cache local só evita a tela piscar vazia
@@ -216,18 +208,18 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     timezone: 'America/Sao_Paulo',
   };
 
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
-    readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []));
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
-  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(() => {
-    const salvas = readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []);
-    const idSalvo = readStorage<string | null>(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null);
-    return salvas.find((w) => w.id === idSalvo) || salvas[0] || AGENCIA_VAZIA;
-  });
+  // Nasce vazia e é preenchida pelo banco. Não há cópia local para ler antes:
+  // a agência é dado de verdade, e mostrar uma versão velha dela — nome,
+  // cor, plano — é pior do que mostrar o esqueleto por um instante.
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(AGENCIA_VAZIA);
 
   const setCurrentWorkspace = (ws: Workspace) => {
     setCurrentWorkspaceState(ws);
-    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, ws.id);
+    // A última agência aberta é preferência do usuário, não do navegador:
+    // quem abre no celular continua de onde parou.
+    void salvarPreferencias({ lastWorkspaceId: ws.id });
   };
 
   const updateWorkspace = (workspaceId: string, updates: Partial<Workspace>) => {
@@ -337,10 +329,20 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   const [currentUser, setCurrentUser] = useState<User>(USUARIO_VAZIO);
 
+  /**
+   * Dono do SaaS. Vem da tabela platform_admins, não do papel na agência.
+   *
+   * Esconder o menu aqui é conveniência; quem impede o acesso ao dado é a
+   * RLS, que consulta a mesma tabela. Se esta flag fosse forjada no
+   * navegador, as telas abririam vazias em vez de vazar.
+   */
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
   const aplicarSessao = (sessao: SessaoDoApp | null) => {
     if (!sessao) {
       setIsAuthenticated(false);
       setCurrentUser(USUARIO_VAZIO);
+      setIsPlatformAdmin(false);
       return;
     }
     setCurrentUser({
@@ -351,6 +353,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       role: sessao.role,
       workspaceId: sessao.workspaceId,
     });
+    setIsPlatformAdmin(sessao.ehAdminDaPlataforma);
     setIsAuthenticated(true);
     // Identifica pelo id e pelo papel. E-mail e nome ficam de fora.
     identificar(sessao.userId, sessao.role);
@@ -358,10 +361,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /** Recarrega a sessão a partir do Supabase e reflete no estado. */
   const recarregarSessao = async (): Promise<SessaoDoApp | null> => {
-    const preferido = readStorage<string | null>(
-      `${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null
-    );
-    const sessao = await carregarSessao(preferido);
+    // A preferência mora no Postgres. Sem sessão a consulta volta no padrão,
+    // que é o mesmo caminho de quem entra pela primeira vez.
+    const { lastWorkspaceId, theme: temaSalvo } = await carregarPreferencias();
+    setThemeState(temaSalvo);
+    const sessao = await carregarSessao(lastWorkspaceId);
     aplicarSessao(sessao);
     return sessao;
   };
@@ -451,13 +455,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await authSair();
     aplicarSessao(null);
     encerrarIdentificacao();
-    // O cache local é do usuário que saiu; deixá-lo exposto para o próximo
-    // que logar neste navegador seria vazamento entre contas.
-    [
-      'clients', 'jobs', 'leads', 'proposals', 'contracts', 'automations',
-      'notifications', 'activityLogs', 'clientMaterials', 'timesheetLogs',
-      'workspaces', 'currentWorkspaceId',
-    ].forEach((nome) => removeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${nome}`));
+    // Não há cache local para limpar: nada de dado de agência toca o
+    // navegador. O estado em memória morre com a página, e o próximo login
+    // busca tudo de novo — não existe resto do usuário anterior.
+    setWorkspaces([]);
+    setCurrentWorkspaceState(AGENCIA_VAZIA);
+    setAllClients([]); setAllJobs([]); setAllLeads([]); setAllProposals([]);
+    setAllContracts([]); setAllAutomations([]); setAllNotifications([]);
+    setAllActivityLogs([]); setAllClientMaterials([]); setAllTimesheetLogs([]);
+    hidratado.current = false;
   };
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -472,14 +478,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [createJobPreselectedDate, setCreateJobPreselectedDate] = useState<string | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
   
-  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}theme`);
-    return (saved as 'light' | 'dark') || 'light';
-  });
+  // O tema é preferência do usuário, então mora no Postgres junto das
+  // outras. Começa no claro e é corrigido assim que a sessão responde —
+  // trocar de máquina não reseta mais a escolha.
+  const [theme, setThemeState] = useState<'light' | 'dark'>('light');
 
   const setTheme = (newTheme: 'light' | 'dark') => {
     setThemeState(newTheme);
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}theme`, newTheme);
+    void salvarPreferencias({ theme: newTheme });
   };
 
   // Sync theme with document class
@@ -533,26 +539,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // O cache local serve só para a tela não nascer vazia enquanto o banco
   // responde. A fonte de verdade é o Postgres.
 
-  const [allClients, setAllClients] = useState<Client[]>(() =>
-    readStorage<Client[]>(`${LOCAL_STORAGE_KEY_PREFIX}clients`, []));
-  const [allJobs, setAllJobs] = useState<Job[]>(() =>
-    readStorage<Job[]>(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, []));
-  const [allLeads, setAllLeads] = useState<Lead[]>(() =>
-    readStorage<Lead[]>(`${LOCAL_STORAGE_KEY_PREFIX}leads`, []));
-  const [allProposals, setAllProposals] = useState<Proposal[]>(() =>
-    readStorage<Proposal[]>(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, []));
-  const [allContracts, setAllContracts] = useState<Contract[]>(() =>
-    readStorage<Contract[]>(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, []));
-  const [allAutomations, setAllAutomations] = useState<Automation[]>(() =>
-    readStorage<Automation[]>(`${LOCAL_STORAGE_KEY_PREFIX}automations`, []));
-  const [allNotifications, setAllNotifications] = useState<Notification[]>(() =>
-    readStorage<Notification[]>(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, []));
-  const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>(() =>
-    readStorage<ActivityLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, []));
-  const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>(() =>
-    readStorage<ClientMaterial[]>(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, []));
-  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>(() =>
-    readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, []));
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [allProposals, setAllProposals] = useState<Proposal[]>([]);
+  const [allContracts, setAllContracts] = useState<Contract[]>([]);
+  const [allAutomations, setAllAutomations] = useState<Automation[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>([]);
+  const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>([]);
+  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>([]);
 
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
     pertenceAoWorkspace(row, currentWsId);
@@ -574,17 +570,17 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [storageWarning, setStorageWarning] = useState<string | null>(null);
-  const dismissStorageWarning = () => setStorageWarning(null);
 
   const hidratado = useRef(false);
 
-  useEffect(() => onStorageQuotaExceeded(({ key, bytes }) => {
-    setStorageWarning(
-      `O cache local do navegador encheu ao guardar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
-      `(~${formatBytes(bytes)}). Seus dados estão salvos no servidor; o cache serve só para abrir mais rápido.`
-    );
-  }), []);
+  /**
+   * Fila única de gravação, compartilhada por todas as coleções.
+   *
+   * Serializa as escritas para respeitar as chaves estrangeiras entre
+   * tabelas. É mais lento que disparar tudo em paralelo, e é o preço de não
+   * gravar um filho antes do pai.
+   */
+  const filaDeGravacao = useRef<Promise<void>>(Promise.resolve());
 
   const relatarErro = (erro: unknown, acao: string) => {
     const mensagem =
@@ -607,14 +603,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    */
   const useColecaoSincronizada = <T extends { id: string; workspaceId?: string }>(
     nome: keyof typeof db,
-    chaveLocal: string,
     linhas: T[]
   ) => {
     const anterior = useRef<T[]>(linhas);
 
     useEffect(() => {
-      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${chaveLocal}`, linhas);
-
       const antes = anterior.current;
       anterior.current = linhas;
 
@@ -623,10 +616,23 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const d = diferenciar(antes, linhas);
       if (!temMudanca(d)) return;
 
-      (async () => {
+      // Entra na fila em vez de sair gravando.
+      //
+      // Uma ação pode tocar duas coleções ligadas por chave estrangeira:
+      // converter lead em cliente cria o cliente e o contrato dele no mesmo
+      // render. Como cada coleção tem seu próprio efeito, os dois inserts
+      // saíam em paralelo e o contrato podia chegar ao Postgres antes do
+      // cliente existir — 23503, sem repetição, com a tela mostrando um
+      // contrato que sumia no reload.
+      //
+      // A fila é global e os efeitos entram nela na ordem em que os hooks
+      // são declarados, que é a ordem de dependência: clients antes de jobs,
+      // contracts e materials; leads antes de proposals.
+      filaDeGravacao.current = filaDeGravacao.current.then(async () => {
         try {
           setSyncState('saving');
           const repositorio = db[nome] as any;
+          // Dentro da mesma tabela a ordem não importa; entre tabelas, sim.
           await Promise.all([
             ...d.inseridos.map((linha) => repositorio.criar(linha)),
             ...d.atualizados.map((linha) => repositorio.atualizar(linha.id, linha)),
@@ -635,27 +641,25 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setSyncState('saved');
           setSyncError(null);
         } catch (erro) {
+          // A fila nunca rejeita: uma falha numa coleção não pode impedir a
+          // gravação das seguintes.
           relatarErro(erro, 'salvar as alterações');
         }
-      })();
+      });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [linhas]);
   };
 
-  useColecaoSincronizada('clients', 'clients', allClients);
-  useColecaoSincronizada('jobs', 'jobs', allJobs);
-  useColecaoSincronizada('leads', 'leads', allLeads);
-  useColecaoSincronizada('proposals', 'proposals', allProposals);
-  useColecaoSincronizada('contracts', 'contracts', allContracts);
-  useColecaoSincronizada('automations', 'automations', allAutomations);
-  useColecaoSincronizada('notifications', 'notifications', allNotifications);
-  useColecaoSincronizada('activityLogs', 'activityLogs', allActivityLogs);
-  useColecaoSincronizada('clientMaterials', 'clientMaterials', allClientMaterials);
-  useColecaoSincronizada('timesheetLogs', 'timesheetLogs', allTimesheetLogs);
-
-  useEffect(() => {
-    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, workspaces);
-  }, [workspaces]);
+  useColecaoSincronizada('clients', allClients);
+  useColecaoSincronizada('jobs', allJobs);
+  useColecaoSincronizada('leads', allLeads);
+  useColecaoSincronizada('proposals', allProposals);
+  useColecaoSincronizada('contracts', allContracts);
+  useColecaoSincronizada('automations', allAutomations);
+  useColecaoSincronizada('notifications', allNotifications);
+  useColecaoSincronizada('activityLogs', allActivityLogs);
+  useColecaoSincronizada('clientMaterials', allClientMaterials);
+  useColecaoSincronizada('timesheetLogs', allTimesheetLogs);
 
   /** Carrega tudo do banco assim que existe sessão. */
   const carregarDoBanco = async () => {
@@ -690,7 +694,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       dados.workspaces.find((w) => w.id === currentUser.workspaceId) || dados.workspaces[0];
     if (alvo) {
       setCurrentWorkspaceState(alvo);
-      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, alvo.id);
+      void salvarPreferencias({ lastWorkspaceId: alvo.id });
     }
 
     // Só liga a sincronização depois de aplicar os dados, senão o próprio
@@ -762,8 +766,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Activity logger helper
   const logActivity = (action: string, target: string, userName: string = currentUser?.name || 'Usuário') => {
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'w-1',
+      id: novoId(),
+      workspaceId: currentWorkspace.id,
       userName,
       action,
       target,
@@ -775,9 +779,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Job Operations
   const createJob = (jobData: Partial<Job>): Job => {
     const newJob: Job = {
-      id: `job-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'w-1',
-      clientId: jobData.clientId || clients[0]?.id || 'c-1',
+      id: novoId(),
+      workspaceId: currentWorkspace.id,
+      clientId: jobData.clientId || clients[0]?.id || '',
       title: jobData.title || 'Novo Conteúdo Sem Título',
       campaign: jobData.campaign || 'Geral',
       platform: jobData.platform || 'instagram',
@@ -810,9 +814,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deadlineApproval: jobData.deadlineApproval || new Date(Date.now() + 86400000 * 4).toISOString(),
       scheduledDate: jobData.scheduledDate || new Date(Date.now() + 86400000 * 5).toISOString(),
       checklist: jobData.checklist || [
-        { id: `chk-${Date.now()}-1`, title: 'Redação da copy e chamada', completed: false },
-        { id: `chk-${Date.now()}-2`, title: 'Design / Edição do criativo', completed: false },
-        { id: `chk-${Date.now()}-3`, title: 'Revisão ortográfica e aprovação', completed: false }
+        { id: novoId(), title: 'Redação da copy e chamada', completed: false },
+        { id: novoId(), title: 'Design / Edição do criativo', completed: false },
+        { id: novoId(), title: 'Revisão ortográfica e aprovação', completed: false }
       ],
       comments: []
     };
@@ -864,7 +868,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (newStatus === 'for_approval') {
       const client = clients.find(c => c.id === job.clientId);
       const newNotif: Notification = {
-        id: `notif-${Date.now()}`,
+        id: novoId(),
         workspaceId: currentWorkspace.id,
         title: `Conteúdo enviado para aprovação: ${job.title}`,
         message: `O conteúdo está aguardando revisão de ${client?.name || 'Cliente'}.`,
@@ -908,7 +912,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Aprovou o conteúdo', `Job: ${job.title}`, approverName);
     
     const newNotif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Conteúdo Aprovado! 🎉`,
       message: `${approverName} aprovou "${job.title}". Pronto para agendamento.`,
@@ -946,7 +950,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     const newNotif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Pedido de Ajuste Solicitado`,
       message: `${requesterName} solicitou ajuste em "${job.title}": ${feedback.slice(0, 60)}...`,
@@ -988,7 +992,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!job) return;
     
     const newComment = {
-      id: `cm-${Date.now()}`,
+      id: novoId(),
       authorName: isClient ? 'Cliente' : currentUser.name,
       authorRole: isClient ? 'client' as const : currentUser.role,
       authorAvatar: isClient 
@@ -1033,7 +1037,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Client Operations
   const addClient = (clientData: Partial<Client>): Client => {
     const newClient: Client = {
-      id: `c-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       name: clientData.name || 'Novo Cliente',
       legalName: clientData.legalName || clientData.name,
@@ -1046,10 +1050,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       internalResponsibleId: currentUser.id,
       healthScore: 'green',
       services: clientData.services || [
-        { id: `s-${Date.now()}`, name: 'Gestão Social Media', monthlyValue: 4000, startDate: new Date().toISOString().split('T')[0], recurrence: 'monthly' }
+        { id: novoId(), name: 'Gestão Social Media', monthlyValue: 4000, startDate: new Date().toISOString().split('T')[0], recurrence: 'monthly' }
       ],
       contacts: clientData.contacts || [
-        { id: `ct-${Date.now()}`, name: clientData.name || 'Contato Principal', email: clientData.email || '', phone: clientData.phone || '', role: 'Gestor', isPrimary: true }
+        { id: novoId(), name: clientData.name || 'Contato Principal', email: clientData.email || '', phone: clientData.phone || '', role: 'Gestor', isPrimary: true }
       ],
       notes: clientData.notes || '',
       createdAt: new Date().toISOString(),
@@ -1079,7 +1083,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientPassword = (clientId: string, passwordData: Omit<ClientPassword, 'id' | 'updatedAt'>) => {
     const newPassword: ClientPassword = {
       ...passwordData,
-      id: `pwd-${Date.now()}`,
+      id: novoId(),
       updatedAt: new Date().toISOString()
     };
     setAllClients(prev => prev.map(c => {
@@ -1099,7 +1103,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientInvoice = (clientId: string, invoiceData: Omit<ClientInvoice, 'id'>) => {
     const newInvoice: ClientInvoice = {
       ...invoiceData,
-      id: `inv-${Date.now()}`
+      id: novoId()
     };
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
@@ -1118,7 +1122,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientFile = (clientId: string, fileData: Omit<ClientFile, 'id' | 'uploadedAt'>) => {
     const newFile: ClientFile = {
       ...fileData,
-      id: `file-${Date.now()}`,
+      id: novoId(),
       uploadedAt: new Date().toISOString().split('T')[0]
     };
     setAllClients(prev => prev.map(c => {
@@ -1161,7 +1165,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const createContract = (contractData: Partial<Contract>): Contract => {
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: contractData.clientId || 'c-1',
       clientName: contractData.clientName || 'Cliente',
@@ -1186,14 +1190,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addProposal = (proposalData: Partial<Proposal>): Proposal => {
     const newProp: Proposal = {
-      id: `prop-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       leadId: proposalData.leadId,
       clientId: proposalData.clientId,
       clientName: proposalData.clientName || 'Cliente Prospect',
       title: proposalData.title || 'Proposta de Marketing Digital',
       items: proposalData.items || [
-        { id: `pi-${Date.now()}`, service: 'Gestão Social Media', description: '12 posts mensais + stories', quantity: 1, monthlyValue: 3500 }
+        { id: novoId(), service: 'Gestão Social Media', description: '12 posts mensais + stories', quantity: 1, monthlyValue: 3500 }
       ],
       totalMonthlyValue: proposalData.totalMonthlyValue || 3500,
       status: 'sent',
@@ -1207,7 +1211,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addLead = (leadData: Partial<Lead>): Lead => {
     const newLead: Lead = {
-      id: `lead-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       name: leadData.name || 'Novo Contato',
       company: leadData.company || 'Nova Empresa',
@@ -1250,7 +1254,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       segment: lead.serviceInterest,
       services: [
         {
-          id: `s-${Date.now()}`,
+          id: novoId(),
           name: lead.serviceInterest,
           monthlyValue: lead.estimatedValue,
           startDate: new Date().toISOString().split('T')[0],
@@ -1264,7 +1268,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // 3. Generate contract automatically
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: newClient.id,
       clientName: newClient.name,
@@ -1279,7 +1283,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Converteu Lead em Cliente', `Lead: ${lead.name} -> Cliente: ${newClient.name}`);
     
     const notif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Lead Convertido em Cliente! 🚀`,
       message: `${lead.company || lead.name} agora é um cliente ativo. Contrato gerado automaticamente.`,
@@ -1312,7 +1316,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!prop) return;
     
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: prop.clientId || 'c-1',
       clientName: prop.clientName,
@@ -1345,7 +1349,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => {
     const newMaterial: ClientMaterial = {
       ...material,
-      id: `mat-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace?.id,
       createdAt: new Date().toISOString()
     };
@@ -1354,7 +1358,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Notification for agency team
     const notif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Novo Material Recebido do Cliente 📸`,
       message: `${newMaterial.clientName} enviou "${newMaterial.title}" para uso na criação de conteúdo.`,
@@ -1374,7 +1378,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addTimesheetLog = (log: Omit<TimesheetLog, 'id' | 'createdAt'>) => {
     const newLog: TimesheetLog = {
       ...log,
-      id: `ts-${Date.now()}`,
+      id: novoId(),
       createdAt: new Date().toISOString()
     };
     setAllTimesheetLogs(prev => [newLog, ...prev]);
@@ -1607,13 +1611,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         generateAiCopy,
         convertFeedbackToTasks,
         generateEditorialIdeas,
+        isPlatformAdmin,
         isSupabaseConnected,
         syncWithSupabase,
         syncState,
         syncError,
         forceSync,
-        storageWarning,
-        dismissStorageWarning,
       }}
     >
       {children}

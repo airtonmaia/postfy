@@ -38,7 +38,6 @@ const ABAS_POR_PAPEL: Record<Role, TabType[]> = {
 };
 
 export type Permissao =
-  | 'gerenciar_saas'
   | 'gerenciar_workspace'
   | 'gerenciar_usuarios'
   | 'gerenciar_clientes'
@@ -50,8 +49,12 @@ export type Permissao =
   | 'publicar';
 
 const PERMISSOES_POR_PAPEL: Record<Role, Permissao[]> = {
+  // 'gerenciar_saas' saiu daqui: administrar o produto não é um papel dentro
+  // da agência. Como criar_agencia dá 'owner' a todo mundo que se cadastra,
+  // manter a permissão aqui abria o menu de gestão do SaaS para cada cliente
+  // novo. Quem administra a plataforma está na tabela platform_admins.
   owner: [
-    'gerenciar_saas', 'gerenciar_workspace', 'gerenciar_usuarios', 'gerenciar_clientes',
+    'gerenciar_workspace', 'gerenciar_usuarios', 'gerenciar_clientes',
     'gerenciar_comercial', 'ver_financeiro', 'criar_conteudo', 'excluir_conteudo',
     'aprovar_conteudo', 'publicar',
   ],

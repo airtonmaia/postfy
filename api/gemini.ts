@@ -68,7 +68,7 @@ O campo "format" aceita: "Carrossel", "Reels", "Post Estático" ou "Stories".`,
 
 type Acao = keyof typeof PROMPTS;
 
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== 'POST') {
     return json({ error: 'Método não permitido.' }, 405);
   }
@@ -123,3 +123,18 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'Não foi possível gerar o conteúdo.' }, 502);
   }
 }
+
+/**
+ * Export nomeado, e sem `export default`, de propósito.
+ *
+ * O builder da Vercel (@vercel/node) decide a assinatura pelo formato do
+ * export: só reconhece handler no padrão Web (Request/Response) quando existe
+ * um export nomeado de método (POST/GET/fetch). Com `export default` ele
+ * assume o handler clássico do Node e entrega (req, res) — aí
+ * `request.headers.get(...)` estoura num IncomingMessage e a função morre
+ * antes de responder, devolvendo um 500 sem corpo.
+ *
+ * Era esse o motivo de nenhuma rota /api ter funcionado em produção.
+ * Não troque por default sem reler `unwrapDefaults` no builder.
+ */
+export const POST = handler;

@@ -136,6 +136,23 @@ export const arquivosApi = {
   },
 };
 
+export interface StatusDoServidor {
+  ia: boolean;
+  armazenamento: boolean;
+  armazenamentoPublico: boolean;
+  email: boolean;
+}
+
+/**
+ * Estado real das integrações do servidor.
+ *
+ * A tela lia de uma lista fixa no código, que envelheceu sem ninguém notar.
+ * Agora pergunta.
+ */
+export const statusApi = {
+  consultar: () => chamar<StatusDoServidor>('/api/status', {}),
+};
+
 export const conviteApi = {
   enviarPorEmail: (input: {
     email: string;

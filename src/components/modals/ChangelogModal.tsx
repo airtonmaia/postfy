@@ -80,9 +80,9 @@ const CHANGELOG_DATA: ChangelogItem[] = [
     tag: 'Mídias & Criativos',
     icon: Upload,
     color: 'from-blue-500 to-cyan-600',
-    description: 'Suporte a envio de imagens e criativos direto do computador via drag-and-drop, com persistência automática no Google Firestore e suporte a múltiplos criativos (carrossel).',
+    description: 'Envio de imagens e criativos direto do computador via drag-and-drop, com upload para o Cloudflare R2 e suporte a múltiplos criativos (carrossel).',
     highlights: [
-      'Conversão e salvamento de imagens em alta fidelidade no banco de dados da nuvem.',
+      'O arquivo vai do navegador direto para o armazenamento, sem passar pelo servidor.',
       'Galeria com thumbnails expansíveis, reordenação e exclusão instantânea.',
       'Suporte a links externos de alta resolução (Google Drive, Canva e Figma).'
     ]
@@ -90,14 +90,14 @@ const CHANGELOG_DATA: ChangelogItem[] = [
   {
     version: 'v2.1.0',
     date: 'Hoje (Recente)',
-    title: 'Integração Google Firebase Firestore em Tempo Real',
+    title: 'Banco de dados Supabase com isolamento por agência',
     tag: 'Infraestrutura',
     icon: ShieldCheck,
     color: 'from-amber-500 to-orange-600',
-    description: 'Persistência instantânea na nuvem do Google com regras de segurança e sincronização reativa para todos os membros da equipe.',
+    description: 'Postgres gerenciado com Row Level Security: o recorte por agência é aplicado pelo banco, não pela interface.',
     highlights: [
-      'Sincronização bidirecional de cards Kanban, briefings, notas fiscais e senhas.',
-      'Plano Gratuito com 5 GB de arquivos e suporte a mais de 100.000 posts e registros.',
+      'Cards do Kanban, briefings, faturas e cofre de senhas gravados linha a linha.',
+      'Cada agência só enxerga o que é dela, mesmo que a requisição peça o resto.',
       'Histórico de alterações e auditoria de aprovações com registro de data/hora.'
     ]
   },

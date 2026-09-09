@@ -14,7 +14,7 @@ export const CreateJobModal: React.FC = () => {
     setSelectedJob
   } = usePostfy();
 
-  const [clientId, setClientId] = useState(clients[0]?.id || 'c-1');
+  const [clientId, setClientId] = useState(clients[0]?.id || '');
   const [title, setTitle] = useState('');
   const [campaign, setCampaign] = useState('Conteúdo Institucional');
   const [platform, setPlatform] = useState<JobPlatform>('instagram');
@@ -29,6 +29,7 @@ export const CreateJobModal: React.FC = () => {
     'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
   ]);
   const [scheduledDate, setScheduledDate] = useState('');
+  const [erro, setErro] = useState('');
 
   // Keep clientId valid if clients list changes
   useEffect(() => {
@@ -67,6 +68,7 @@ export const CreateJobModal: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErro('');
     if (!title.trim()) {
       alert('Por favor informe o título do conteúdo.');
       return;
@@ -94,9 +96,16 @@ export const CreateJobModal: React.FC = () => {
         ? filteredMedia 
         : ['https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'];
 
-      const selectedClientId = clientId && clients.some(c => c.id === clientId) 
-        ? clientId 
-        : (clients[0]?.id || 'c-1');
+      // Sem cliente cadastrado não há job possível: 'c-1' era um id inventado
+      // que o Postgres recusa, e o conteúdo sumia sem aviso.
+      const selectedClientId = clientId && clients.some(c => c.id === clientId)
+        ? clientId
+        : clients[0]?.id;
+
+      if (!selectedClientId) {
+        setErro('Cadastre um cliente antes de criar conteúdo.');
+        return;
+      }
 
       const newJob = createJob({
         clientId: selectedClientId,
@@ -321,6 +330,12 @@ export const CreateJobModal: React.FC = () => {
               />
             </div>
           </div>
+
+          {erro && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
+              {erro}
+            </p>
+          )}
 
           {/* Buttons */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">

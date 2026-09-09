@@ -22,8 +22,7 @@ const ROTULO_PAPEL: Record<string, string> = {
  * Painel da conta.
  *
  * Antes esta modal permitia trocar o próprio papel ("Acesso Total", "Cliente",
- * etc.) com um clique e exibia "Login realizado com sucesso via Firebase" sem
- * autenticar nada. Trocar o próprio papel no cliente é escalonamento de
+ * etc.) com um clique e anunciava login bem-sucedido sem autenticar nada. Trocar o próprio papel no cliente é escalonamento de
  * privilégio, então a função saiu: o papel vem da sessão do servidor.
  */
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {

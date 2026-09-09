@@ -3,14 +3,21 @@ import { ChevronDown, CheckCircle2, Plus } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 
 export const WorkspaceSwitcher: React.FC = () => {
-  const { currentWorkspace, setCurrentWorkspace, workspaces, setIsCreateWorkspaceModalOpen, currentUser } = usePostfy();
+  const { currentWorkspace, setCurrentWorkspace, workspaces, setIsCreateWorkspaceModalOpen, currentUser, isPlatformAdmin } = usePostfy();
   const [isOpen, setIsOpen] = useState(false);
 
-  const isSuperAdmin = currentUser?.role === 'owner' || currentUser?.email?.includes('airtonmaiamt');
+  // Vinha de `role === 'owner' || email.includes('airtonmaiamt')`. As duas
+  // metades estavam erradas: `owner` é o papel de quem cria qualquer agência,
+  // e a checagem de e-mail casava por substring — airtonmaiamt@outrodominio
+  // virava super admin. Agora vem da tabela platform_admins.
+  const isSuperAdmin = isPlatformAdmin;
 
-  // Filter workspaces: Super Admin sees all, regular users see only their assigned workspace
-  const visibleWorkspaces = isSuperAdmin 
-    ? workspaces 
+  // A lista já chega recortada pela RLS: para quem não é admin da plataforma,
+  // `workspaces` só contém as agências das quais a pessoa é membro. O filtro
+  // aqui é de apresentação, para o seletor não mostrar agências onde ela é
+  // membro mas não está atuando.
+  const visibleWorkspaces = isSuperAdmin
+    ? workspaces
     : workspaces.filter(ws => ws.id === (currentUser?.workspaceId || currentWorkspace?.id));
 
   return (
