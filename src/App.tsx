@@ -41,6 +41,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { LoginView } from './components/auth/LoginView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
+import { BotaoDoPortal } from './components/common/BotaoDoPortal';
 
 /**
  * Views carregadas sob demanda (code splitting): cada tela vira um chunk
@@ -390,29 +391,22 @@ const MainLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Client Portal link */}
-          <button
-            onClick={() => {
-              // Prévia interna, em aba nova: a sessão do Supabase Auth vive
-              // no localStorage, compartilhado entre abas do mesmo
-              // navegador, então a aba nova já abre autenticada. Não serve
-              // como link para mandar ao cliente de verdade — isso continua
-              // sendo o link com token, de buildClientPortalUrl.
-              visualizarPortalDoCliente(
-                clientFilter === 'all' ? clients[0]?.id || '' : clientFilter
-              );
-            }}
-            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs text-purple-700 dark:text-purple-300 font-bold transition border border-purple-200 dark:border-purple-800 cursor-pointer shadow-xs"
-            title="Ver como o cliente enxerga, numa aba nova. O envio do link ao cliente ainda não está disponível."
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="w-3.5 h-3.5" />
-              Portal do Cliente
-            </span>
-            <span className="text-[10px] bg-slate-500 text-white px-1.5 py-0.5 rounded font-bold">
-              Prévia
-            </span>
-          </button>
+          {/*
+            Prévia do portal, e o link para mandar ao cliente.
+
+            Eram duas coisas faltando aqui. O botão abria a prévia mas não
+            oferecia o link — a barra lateral era o único lugar do app que
+            ficou de fora quando o par virou componente. E, com o filtro em
+            "todos os clientes", ele abria o portal de `clients[0]`: um
+            cliente arbitrário, sem dizer qual. Agora só abre quando há um
+            cliente escolhido; sem isso, sobra o copiar, que não depende de
+            cliente nenhum.
+          */}
+          <BotaoDoPortal
+            clientId={clientFilter === 'all' ? undefined : clientFilter}
+            variante="lateral"
+            rotulo="Portal do Cliente"
+          />
 
           {/* User Profile & Logout */}
           <div className="flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2">

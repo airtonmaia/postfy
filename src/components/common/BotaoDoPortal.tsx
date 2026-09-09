@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ExternalLink, Copy, Check } from 'lucide-react';
 
+import { Button } from '../ui/button';
 import { usePostfy } from '../../context/PostfyContext';
 import { urlDoPortalDaAgencia } from '../../lib/rotas';
 
@@ -24,8 +25,12 @@ import { urlDoPortalDaAgencia } from '../../lib/rotas';
 interface Props {
   /** Cliente da prévia. Sem ele, só o copiar aparece. */
   clientId?: string;
-  /** `discreto` para barra de ações; `destaque` para o topo de uma tela. */
-  variante?: 'discreto' | 'destaque';
+  /**
+   * `discreto` para barra de ações, `destaque` para o topo de uma tela,
+   * `lateral` para a coluna estreita da barra lateral — ali o par ocupa a
+   * largura toda e divide o espaço, senão os dois rótulos não cabem.
+   */
+  variante?: 'discreto' | 'destaque' | 'lateral';
   rotulo?: string;
 }
 
@@ -67,32 +72,50 @@ export const BotaoDoPortal: React.FC<Props> = ({
   };
 
   const destaque = variante === 'destaque';
+  const lateral = variante === 'lateral';
 
-  const classeAbrir = destaque
-    ? 'flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-l-xl shadow-xs transition cursor-pointer'
-    : 'flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-l-lg transition cursor-pointer';
+  /**
+   * A variante do `Button` carrega cor, tipografia e foco. O que sobra aqui é
+   * só o que é deste par e o primitivo não tem como saber: o canto reto do
+   * lado que encosta no vizinho, e a divisão de largura na barra lateral.
+   */
+  const variantePrimitivo = destaque ? 'primary' : ('soft' as const);
+  const tamanho = destaque ? ('md' as const) : ('sm' as const);
 
-  const classeCopiar = destaque
-    ? 'flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-r-xl shadow-xs transition cursor-pointer border-l border-purple-500'
-    : 'flex items-center px-2.5 py-1 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-r-lg transition cursor-pointer border-l border-purple-200 dark:border-purple-800';
+  const juntarEsquerda = destaque ? 'rounded-r-none' : 'rounded-r-none';
+  const juntarDireita = 'rounded-l-none border-l';
 
   return (
-    <div className="inline-flex items-center">
+    <div
+      className={
+        lateral
+          ? 'flex items-stretch w-full rounded-xl overflow-hidden'
+          : 'inline-flex items-stretch'
+      }
+    >
       {clientId && (
-        <button
+        <Button
+          variant={variantePrimitivo}
+          size={tamanho}
           onClick={() => visualizarPortalDoCliente(clientId)}
-          className={classeAbrir}
+          className={`${juntarEsquerda} ${lateral ? 'flex-1 min-w-0 justify-start py-2' : ''}`}
           title="Abrir a prévia numa aba nova, com a marca da agência"
         >
           <ExternalLink className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
-          <span>{rotulo}</span>
-        </button>
+          <span className={lateral ? 'truncate' : undefined}>{rotulo}</span>
+        </Button>
       )}
 
-      <button
+      <Button
+        variant={variantePrimitivo}
+        size={tamanho}
         onClick={copiar}
         disabled={!slug}
-        className={`${classeCopiar} ${clientId ? '' : 'rounded-l-lg border-l-0'} disabled:opacity-40 disabled:cursor-not-allowed`}
+        className={`${lateral ? 'py-2' : ''} ${
+          clientId
+            ? `${juntarDireita} ${destaque ? 'border-purple-500' : 'border-purple-200 dark:border-purple-800'}`
+            : ''
+        }`}
         /* O title diz o que o link É, não o que o botão faz: o risco aqui é
            alguém achar que copiou o endereço da prévia que está vendo. */
         title={
@@ -107,16 +130,10 @@ export const BotaoDoPortal: React.FC<Props> = ({
         ) : (
           <Copy className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
         )}
-        {/* O rótulo aparece nas duas variantes.
-            
-            Era só o ícone no discreto, e ninguém o encontrou: um <Copy>
-            grudado num botão que abre o portal lê como parte do mesmo botão,
-            não como uma segunda ação. Custou o pedido "faltou o botão de
-            copiar o link" para algo que já estava na tela. */}
-        <span className={`ml-1.5 font-bold ${destaque ? 'text-xs' : 'text-[11px]'}`}>
-          {copiado ? 'Copiado!' : 'Copiar link'}
-        </span>
-      </button>
+        {/* Na barra lateral o rótulo encurta: "Copiar link" ao lado de
+            "Portal do Cliente" não cabe nos 232px úteis da coluna. */}
+        <span>{copiado ? 'Copiado!' : lateral ? 'Copiar' : 'Copiar link'}</span>
+      </Button>
     </div>
   );
 };
