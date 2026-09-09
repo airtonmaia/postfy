@@ -189,3 +189,44 @@ export const webhookApi = {
       event,
     }),
 };
+
+/**
+ * Chamada sem sessão.
+ *
+ * `chamar` exige o token do Supabase e é isso que queremos em toda rota da
+ * agência. O portal é o oposto: quem bate nele ainda não provou ser ninguém —
+ * é justamente o que a rota vai decidir.
+ */
+const chamarAnonimo = async <T>(caminho: string, corpo: unknown): Promise<T> => {
+  let resposta: Response;
+  try {
+    resposta = await fetch(caminho, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    });
+  } catch {
+    throw new ApiError('Não foi possível falar com o servidor. Verifique sua conexão.', 0);
+  }
+
+  const ehJson = resposta.headers.get('content-type')?.includes('application/json');
+  const payload = ehJson ? await resposta.json().catch(() => ({})) : {};
+
+  if (!resposta.ok) {
+    throw new ApiError(
+      (payload as any)?.error || `Falha na requisição (${resposta.status}).`,
+      resposta.status
+    );
+  }
+
+  return payload as T;
+};
+
+/** Entrada do Portal do Cliente: e-mail, código, token. */
+export const portalApi = {
+  enviarCodigo: (email: string) =>
+    chamarAnonimo<{ enviado: boolean }>('/api/portal-login', { acao: 'enviar', email }),
+
+  conferirCodigo: (email: string, codigo: string) =>
+    chamarAnonimo<{ token: string }>('/api/portal-login', { acao: 'conferir', email, codigo }),
+};

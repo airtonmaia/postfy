@@ -386,10 +386,22 @@ export interface MembroDaEquipe {
   role: Role;
   name?: string;
   avatar?: string;
+  ativo: boolean;
 }
 
-export const listarEquipe = async (): Promise<MembroDaEquipe[]> => {
-  const { data, error } = await supabase.from('workspace_members').select('*');
+/**
+ * Equipe de UMA agência.
+ *
+ * O filtro por `workspaceId` não é redundante com a RLS: ela deixa ler os
+ * membros de todas as agências às quais a pessoa pertence, então sem o
+ * recorte a tela de Usuários misturava as equipes de agências diferentes na
+ * mesma lista.
+ */
+export const listarEquipe = async (workspaceId: string): Promise<MembroDaEquipe[]> => {
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select('*')
+    .eq('workspace_id', workspaceId);
   if (error) throw new Error(error.message);
   return (data || []).map((l: any) => ({
     userId: l.user_id,
@@ -397,7 +409,34 @@ export const listarEquipe = async (): Promise<MembroDaEquipe[]> => {
     role: l.role as Role,
     name: l.name ?? undefined,
     avatar: l.avatar ?? undefined,
+    ativo: l.ativo ?? true,
   }));
+};
+
+/**
+ * Papel, nome e acesso de um membro.
+ *
+ * Quem pode o quê é decidido no banco: a política deixa só owner/admin
+ * escrever, e o trigger `membro_editado` recusa auto-promoção, rebaixar o
+ * dono sem ser dono, e deixar a agência sem nenhum dono ativo.
+ */
+export const atualizarMembro = async (
+  workspaceId: string,
+  userId: string,
+  mudancas: { role?: Role; ativo?: boolean; name?: string }
+): Promise<void> => {
+  const linha: Record<string, unknown> = {};
+  if (mudancas.role !== undefined) linha.role = mudancas.role;
+  if (mudancas.ativo !== undefined) linha.ativo = mudancas.ativo;
+  if (mudancas.name !== undefined) linha.name = mudancas.name;
+  if (Object.keys(linha).length === 0) return;
+
+  const { error } = await supabase
+    .from('workspace_members')
+    .update(linha)
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
 };
 
 export const removerMembro = async (workspaceId: string, userId: string): Promise<void> => {

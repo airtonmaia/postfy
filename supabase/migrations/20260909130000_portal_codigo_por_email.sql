@@ -115,10 +115,16 @@ begin
         now() + interval '10 minutes'
     );
 
+    -- O nome da agência vai junto para o e-mail do código poder dizer de onde
+    -- ele veio: "seu código de acesso", sem remetente reconhecível, parece
+    -- phishing e é o tipo de mensagem que ninguém abre.
     return jsonb_build_object(
         'client_id', cliente.id,
         'nome', cliente.name,
-        'workspace_id', cliente.workspace_id
+        'workspace_id', cliente.workspace_id,
+        'nome_agencia', (
+            select w.name from public.workspaces w where w.id = cliente.workspace_id
+        )
     );
 end;
 $$;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { mesmoTelefone } from '../../lib/phone';
+import { portalApi } from '../../lib/api';
 import { 
   ShieldCheck, 
   Smartphone, 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
 import {
   Users, Plus, Mail, Trash2, CheckCircle2, X, Copy, Check, Clock, AlertCircle,
+  UserX, UserCheck,
 } from 'lucide-react';
 import { Role } from '../../../types';
 import { conviteApi } from '../../../lib/api';
@@ -10,6 +11,8 @@ import {
   listarConvites,
   criarConvite,
   revogarConvite,
+  atualizarMembro,
+  removerMembro,
   type MembroDaEquipe,
   type ConvitePendente,
 } from '../../../lib/authSupabase';
@@ -71,12 +74,14 @@ export const SettingsUsers: React.FC = () => {
   const [copiado, setCopiado] = useState(false);
   const [emailEnviado, setEmailEnviado] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [salvandoMembro, setSalvandoMembro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
+    if (!currentWorkspace?.id) return;
     setCarregando(true);
     setErro(null);
     try {
-      setMembros(await listarEquipe());
+      setMembros(await listarEquipe(currentWorkspace.id));
       if (podeGerenciar) {
         setConvites(await listarConvites());
       }
@@ -85,7 +90,7 @@ export const SettingsUsers: React.FC = () => {
     } finally {
       setCarregando(false);
     }
-  }, [podeGerenciar]);
+  }, [podeGerenciar, currentWorkspace?.id]);
 
   useEffect(() => {
     carregar();
@@ -98,8 +103,12 @@ export const SettingsUsers: React.FC = () => {
     setEnviando(true);
     setErro(null);
     try {
+      // A agência é a que está aberta agora, não a do login.
+      // `currentUser.workspaceId` é fixado quando a sessão começa: depois de
+      // trocar de agência, todo convite continuava nascendo na anterior — a
+      // pessoa convidada entrava numa agência que ninguém pediu.
       const { token } = await criarConvite({
-        workspaceId: currentUser.workspaceId,
+        workspaceId: currentWorkspace.id,
         email: email.trim(),
         nome: nome.trim() || undefined,
         role: papel,
@@ -122,7 +131,7 @@ export const SettingsUsers: React.FC = () => {
         await conviteApi.enviarPorEmail({
           email: email.trim(),
           link,
-          workspaceId: currentUser.workspaceId,
+          workspaceId: currentWorkspace.id,
           agencyName: currentWorkspace?.name,
           inviterName: currentUser.name,
         });
@@ -146,6 +155,51 @@ export const SettingsUsers: React.FC = () => {
     await copyToClipboard(linkGerado);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
+  };
+
+  /**
+   * As três ações sobre um membro.
+   *
+   * O que pode e o que não pode é decidido no banco (política + trigger
+   * `membro_editado`), não aqui: a mensagem de erro que aparece na tela é a
+   * que o Postgres devolveu. Esconder o botão sem a regra no banco daria a
+   * impressão de proteção que a API não teria.
+   */
+  const aplicarNoMembro = async (
+    membro: MembroDaEquipe,
+    mudancas: { role?: Role; ativo?: boolean },
+    mensagem: string
+  ) => {
+    setErro(null);
+    setSalvandoMembro(membro.userId);
+    try {
+      await atualizarMembro(membro.workspaceId, membro.userId, mudancas);
+      setFeedback(mensagem);
+      setTimeout(() => setFeedback(null), 3000);
+      await carregar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível alterar o membro.');
+    } finally {
+      setSalvandoMembro(null);
+    }
+  };
+
+  const excluirMembro = async (membro: MembroDaEquipe) => {
+    const nome = membro.name || 'este membro';
+    if (!window.confirm(`Remover ${nome} da agência? Ela perde o acesso imediatamente.`)) return;
+
+    setErro(null);
+    setSalvandoMembro(membro.userId);
+    try {
+      await removerMembro(membro.workspaceId, membro.userId);
+      setFeedback('Membro removido da agência.');
+      setTimeout(() => setFeedback(null), 3000);
+      await carregar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível remover o membro.');
+    } finally {
+      setSalvandoMembro(null);
+    }
   };
 
   const revogar = async (id: string) => {
@@ -206,34 +260,109 @@ export const SettingsUsers: React.FC = () => {
         </div>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {membros.map((membro) => (
-            <div key={membro.userId} className="p-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold shrink-0">
-                  {(membro.name || '?').substring(0, 2).toUpperCase()}
+          {membros.map((membro) => {
+            const souEu = membro.userId === currentUser?.id;
+            // Ninguém mexe no próprio papel nem no próprio acesso — a regra
+            // vale no banco, e o botão desabilitado só evita o erro à toa.
+            const podeMexer = podeGerenciar && !souEu;
+            const ocupado = salvandoMembro === membro.userId;
+
+            return (
+              <div
+                key={membro.userId}
+                className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  membro.ativo ? '' : 'bg-slate-50/70 dark:bg-slate-950/40'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    membro.ativo
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      : 'bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600'
+                  }`}>
+                    {(membro.name || '?').substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                      <span className={membro.ativo ? '' : 'line-through text-slate-400'}>
+                        {membro.name || 'Sem nome'}
+                      </span>
+                      {souEu && (
+                        <span className="text-[10px] font-medium text-slate-400">(você)</span>
+                      )}
+                      {!membro.ativo && (
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                          Inativo
+                        </span>
+                      )}
+                    </p>
+                    {/*
+                      O e-mail dos colegas não aparece de propósito: ele vive em
+                      auth.users, que a RLS não expõe entre membros. Mostramos o
+                      do próprio usuário, que ele já conhece.
+                    */}
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {souEu ? currentUser.email : 'Membro da agência'}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {membro.name || 'Sem nome'}
-                    {membro.userId === currentUser?.id && (
-                      <span className="ml-1.5 text-[10px] font-medium text-slate-400">(você)</span>
-                    )}
-                  </p>
-                  {/*
-                    O e-mail dos colegas não aparece de propósito: ele vive em
-                    auth.users, que a RLS não expõe entre membros. Mostramos o
-                    do próprio usuário, que ele já conhece.
-                  */}
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {membro.userId === currentUser?.id
-                      ? currentUser.email
-                      : 'Membro da agência'}
-                  </p>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                  {podeMexer ? (
+                    <select
+                      value={membro.role}
+                      disabled={ocupado}
+                      onChange={(e) =>
+                        aplicarNoMembro(membro, { role: e.target.value as Role }, 'Papel atualizado.')
+                      }
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer disabled:opacity-50"
+                    >
+                      {membro.role === 'owner' && <option value="owner">Proprietário</option>}
+                      {PAPEIS.map((p) => (
+                        <option key={p.valor} value={p.valor}>
+                          {p.rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    badgeDoPapel(membro.role)
+                  )}
+
+                  {podeMexer && (
+                    <>
+                      <button
+                        onClick={() =>
+                          aplicarNoMembro(
+                            membro,
+                            { ativo: !membro.ativo },
+                            membro.ativo ? 'Acesso suspenso.' : 'Acesso reativado.'
+                          )
+                        }
+                        disabled={ocupado}
+                        className={`p-1.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
+                          membro.ativo
+                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                            : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                        }`}
+                        title={membro.ativo ? 'Suspender o acesso' : 'Reativar o acesso'}
+                      >
+                        {membro.ativo ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                      </button>
+
+                      <button
+                        onClick={() => excluirMembro(membro)}
+                        disabled={ocupado}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-50"
+                        title="Remover da agência"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-              {badgeDoPapel(membro.role)}
-            </div>
-          ))}
+            );
+          })}
 
           {!carregando && membros.length === 0 && (
             <div className="p-8 text-center text-xs text-slate-400">

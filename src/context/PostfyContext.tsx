@@ -227,11 +227,32 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // cor, plano — é pior do que mostrar o esqueleto por um instante.
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(AGENCIA_VAZIA);
 
+  /**
+   * Troca de agência recarregando a página.
+   *
+   * Só trocar o estado deixava rastro da agência anterior na tela: a marca
+   * (cor e logo) é aplicada uma vez na montagem, e telas com estado próprio —
+   * filtros, aba de configurações, modais abertos — continuavam apontando
+   * para dados que já não eram os daquela agência.
+   *
+   * O recarregamento espera duas coisas antes de acontecer: a preferência
+   * gravada, senão a página voltaria na agência antiga; e a fila de gravação
+   * drenada, senão uma escrita otimista ainda em trânsito morreria no meio —
+   * a tela mostra o resultado antes de o banco confirmar.
+   */
   const setCurrentWorkspace = (ws: Workspace) => {
+    if (!ws?.id || ws.id === currentWorkspace.id) return;
     setCurrentWorkspaceState(ws);
-    // A última agência aberta é preferência do usuário, não do navegador:
-    // quem abre no celular continua de onde parou.
-    void salvarPreferencias({ lastWorkspaceId: ws.id });
+
+    void (async () => {
+      try {
+        await salvarPreferencias({ lastWorkspaceId: ws.id });
+        await filaDeGravacao.current;
+      } catch {
+        /* Recarrega mesmo assim: a tela precisa sair do estado misturado. */
+      }
+      window.location.reload();
+    })();
   };
 
   const updateWorkspace = (workspaceId: string, updates: Partial<Workspace>) => {
@@ -965,7 +986,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAllJobs(prev => [newJob, ...prev]);
     logActivity('Criou o conteúdo', `Job: ${newJob.title}`);
     
-    // Check automation for job created
+    // Conteúdo que já nasce aguardando aprovação (a tela de criação oferece
+    // esse status inicial) avisa o cliente na hora, como se tivesse sido
+    // movido para lá.
+    if (newJob.status === 'for_approval') {
+      void dispararAutomacoes('conteudo_aguardando_aprovacao', {
+        jobId: newJob.id, jobTitle: newJob.title,
+      });
+    }
+
     return newJob;
   };
   
@@ -1007,6 +1036,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Check automations:
     if (newStatus === 'for_approval') {
+      // O e-mail para o cliente saía só quando uma versão nova era enviada
+      // (`addNewJobVersion`). Arrastar o card para "Para Aprovação" no Kanban
+      // — que é como a maior parte do conteúdo chega lá — criava a
+      // notificação interna e não avisava ninguém fora da agência.
+      void dispararAutomacoes('conteudo_aguardando_aprovacao', {
+        jobId, jobTitle: job.title,
+      });
+
       const client = clients.find(c => c.id === job.clientId);
       const newNotif: Notification = {
         id: novoId(),

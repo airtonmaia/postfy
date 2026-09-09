@@ -217,38 +217,16 @@ const MainLayout: React.FC = () => {
       >
         {/* Top: Agency / Workspace Header */}
         <div>
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              {currentWorkspace?.logo ? (
-                <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1 shrink-0 shadow-xs">
-                  <img 
-                    src={currentWorkspace.logo} 
-                    alt={currentWorkspace.name || 'Logo'} 
-                    className="max-w-full max-h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div 
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0"
-                  style={{ backgroundColor: currentWorkspace?.primaryColor || '#9333ea' }}
-                >
-                  {(currentWorkspace?.name || 'P').substring(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div className="min-w-0">
-                <h1 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                  <span className="truncate">{currentWorkspace?.name || 'Orquesia Ops'}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shrink-0">
-                    PRO
-                  </span>
-                </h1>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">OS para Agências</span>
-              </div>
+          {/* A logo é o próprio seletor de agência: eram dois lugares
+              mostrando a mesma marca, e só um deles trocava de agência. */}
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <WorkspaceSwitcher />
             </div>
 
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white md:hidden"
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white md:hidden shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -445,10 +423,7 @@ const MainLayout: React.FC = () => {
               <Menu className="w-5 h-5" />
             </button>
             
-            {/* Workspace / Agency Switcher */}
-            <WorkspaceSwitcher />
-
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block mx-0.5"></div>
+            {/* O seletor de agência mora na barra lateral, no lugar da logo. */}
 
             {/* Client Filter Switcher */}
             <ClientSwitcher />
