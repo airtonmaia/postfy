@@ -68,25 +68,39 @@ a tela já mostrou o resultado antes de o banco responder.
 
 Sete regras. Todas vieram de bugs que chegaram a produção.
 
-### 1. Rota `/api` usa export nomeado, nunca `export default`
+### 1. Rota `/api` exporta um handler `(req, res)` pelo adaptador
 
 ```ts
 async function handler(request: Request): Promise<Response> { ... }
-export const POST = handler;   // ✅
-// export default handler;     // ❌ derruba a rota inteira
+export const POST = handler;      // para os testes chamarem direto
+export default rota(handler);     // ✅ o que a Vercel executa
 ```
 
-O builder da Vercel decide a assinatura pelo **formato do export**. Com
-`default`, ele assume o handler clássico do Node e chama a função com
-`(req, res)`; aí `request.headers.get(...)` estoura num `IncomingMessage`, a
-função morre antes de responder e a Vercel devolve **500 sem corpo**.
+Escrevemos as rotas com `Request`/`Response`, que é o formato bom de testar.
+Mas **a Vercel decide a assinatura inspecionando o formato do export, e essa
+regra muda entre versões do builder** — e a versão que roda na nuvem não é a
+do `package.json`, então não dá para fixá-la.
 
-As quatro rotas originais ficaram assim por semanas. O sintoma no cliente é
-`"Falha na requisição (500)"`, que só aparece quando a resposta não é JSON —
-todos os nossos erros são JSON, então esse texto significa crash, não erro
-tratado.
+Isso quebrou duas vezes, com o mesmo sintoma:
 
-Protegido por `tests/rotas-api.test.ts`, que reproduz a detecção do builder.
+1. `export default` com assinatura Web → tratado como handler do Node, chamado
+   com `(req, res)`; `request.headers.get(...)` estoura num `IncomingMessage`
+   e a função morre antes de responder.
+2. `export const POST` sem default → reconhecido pelos builders novos,
+   ignorado pelos antigos, que procuram só o default. Sem handler, crash de
+   novo.
+
+O adaptador em `api/_lib/rota.ts` sai desse jogo: exporta o formato que
+**toda** versão entende e converte para Web por dentro. A detecção deixa de
+importar.
+
+O sintoma, das duas vezes: `FUNCTION_INVOCATION_FAILED` na URL, e
+`"Falha na requisição (500)"` no app — que só aparece quando a resposta não é
+JSON. Todos os nossos erros são JSON, então esse texto significa **crash**,
+não erro tratado.
+
+Protegido por `tests/rotas-api.test.ts`, que chama o default como a Vercel
+chama e exige que ele escreva uma resposta.
 
 ### 2. Id gerado no cliente tem que ser uuid
 

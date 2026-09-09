@@ -5,6 +5,7 @@ import {
   textoValido,
   excedeuLimite,
 } from './_lib/auth';
+import { rota } from './_lib/rota';
 import { configuracaoDaIA, gerarJson, ErroDeIA } from './_lib/ia';
 
 export const config = { runtime: 'nodejs' };
@@ -137,4 +138,15 @@ async function handler(request: Request): Promise<Response> {
  * Era esse o motivo de nenhuma rota /api ter funcionado em produção.
  * Não troque por default sem reler `unwrapDefaults` no builder.
  */
+
+/**
+ * Handler no formato Web, exportado para os testes chamarem direto.
+ * O que a Vercel executa é o default abaixo.
+ */
 export const POST = handler;
+
+/**
+ * Default no formato (req, res), que toda versão do builder da Vercel
+ * entende. Ver o porquê em api/_lib/rota.ts.
+ */
+export default rota(handler);

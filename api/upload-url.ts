@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { rota } from './_lib/rota';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   usuarioDaRequisicao,
@@ -162,4 +163,15 @@ async function handler(request: Request): Promise<Response> {
  * Era esse o motivo de nenhuma rota /api ter funcionado em produção.
  * Não troque por default sem reler `unwrapDefaults` no builder.
  */
+
+/**
+ * Handler no formato Web, exportado para os testes chamarem direto.
+ * O que a Vercel executa é o default abaixo.
+ */
 export const POST = handler;
+
+/**
+ * Default no formato (req, res), que toda versão do builder da Vercel
+ * entende. Ver o porquê em api/_lib/rota.ts.
+ */
+export default rota(handler);
