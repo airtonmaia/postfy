@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
 import { X, Send, Copy, Check, MessageCircle, ExternalLink } from 'lucide-react';
@@ -15,7 +16,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { clients } = usePostfy();
+  const { clients, currentWorkspace } = usePostfy();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !job) return null;
@@ -25,7 +26,9 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   const phone = contact?.phone || client?.phone || '';
   const cleanPhone = phone.replace(/\D/g, '');
 
-  const portalLink = `${window.location.origin}/#portal-${client?.id || 'c-1'}`;
+  // Era `/#portal-<id>`, um formato que nada no app lê — e com um 'c-1'
+  // sobrando dos dados de exemplo. O link nunca abriu portal nenhum.
+  const portalLink = urlDoPortalDaAgencia(currentWorkspace.slug, window.location.origin);
 
   const defaultMessage = `Olá, ${contact?.name || client?.name || 'Cliente'}! Tudo bem? 👋
 
