@@ -13,6 +13,8 @@ import {
   Eye
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { arquivosApi, ApiError } from '../../lib/api';
+import { usePostfy } from '../../context/PostfyContext';
 
 export interface UploadedFileInfo {
   name: string;
@@ -65,6 +67,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       : `Suporta PNG, JPG, SVG, MP4, PDF, ZIP (até ${maxSizeMB}MB)`
   );
 
+  const { currentWorkspace } = usePostfy();
+  const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [currentFile, setCurrentFile] = useState<UploadedFileInfo | null>(
@@ -123,33 +128,49 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      let dataUrl = e.target?.result as string;
+    // O arquivo vai para o R2 e o que fica guardado é a URL.
+    //
+    // Antes isto virava base64 dentro do próprio registro: um cliente com
+    // logo ocupou 4,8 MB, estourou a cota do navegador e ainda foi parar
+    // numa coluna de texto no Postgres. A string acompanhava o registro em
+    // toda leitura, deixando lenta uma tela que só queria o nome do cliente.
+    void enviarParaOArmazenamento(file, isSvg);
+  };
 
-      // Ensure proper mime type for SVGs if necessary
-      if (isSvg && typeof dataUrl === 'string' && !dataUrl.startsWith('data:image/svg+xml')) {
-        if (dataUrl.startsWith('data:application/octet-stream') || dataUrl.startsWith('data:text/xml')) {
-          dataUrl = dataUrl.replace(/^data:[^;]+;/, 'data:image/svg+xml;');
-        }
-      }
+  const enviarParaOArmazenamento = async (file: File, isSvg: boolean) => {
+    if (!currentWorkspace?.id) {
+      setError('Agência não identificada. Recarregue a página.');
+      return;
+    }
+
+    setEnviando(true);
+    setProgresso(0);
+    try {
+      const url = await arquivosApi.enviar(file, currentWorkspace.id, setProgresso);
 
       const fileInfo: UploadedFileInfo = {
         name: file.name,
         size: formatBytes(file.size),
         type: isSvg ? 'image/svg+xml' : file.type || 'image',
-        url: dataUrl,
+        url,
         rawFile: file
       };
       setCurrentFile(fileInfo);
       onFileSelect(fileInfo);
-    };
-
-    reader.onerror = () => {
-      setError('Erro ao ler o arquivo. Tente novamente.');
-    };
-
-    reader.readAsDataURL(file);
+    } catch (err) {
+      // Sem armazenamento configurado não caímos de volta no base64: era ele
+      // o problema. A tela oferece colar a URL, que continua funcionando.
+      setError(
+        err instanceof ApiError && err.naoConfigurado
+          ? 'Armazenamento de arquivos ainda não configurado. Cole a URL da imagem abaixo.'
+          : err instanceof Error
+          ? err.message
+          : 'Falha ao enviar o arquivo.'
+      );
+    } finally {
+      setEnviando(false);
+      setProgresso(0);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -343,6 +364,23 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           >
             Vincular
           </button>
+        </div>
+      ) : enviando ? (
+        /* Envio em andamento. Sem isto o clique parece não ter feito nada e a
+           pessoa tenta de novo, disparando um segundo upload. */
+        <div className="flex items-center gap-3 p-4 rounded-2xl border border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20">
+          <CloudUpload className="w-5 h-5 text-purple-600 shrink-0 animate-pulse" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-900 dark:text-white">
+              Enviando... {progresso}%
+            </p>
+            <div className="mt-1.5 h-1.5 w-full rounded-full bg-purple-100 dark:bg-purple-900/40 overflow-hidden">
+              <div
+                className="h-full bg-purple-600 transition-all duration-200"
+                style={{ width: `${progresso}%` }}
+              />
+            </div>
+          </div>
         </div>
       ) : (
         /* State 3: Shadcn-Styled Drag & Drop Upload Zone */

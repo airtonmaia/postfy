@@ -41,6 +41,7 @@ import {
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
 import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
+import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../lib/automacoes';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
 
@@ -152,6 +153,13 @@ interface PostfyContextType {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   toggleAutomation: (id: string) => void;
+  createAutomation: (dados: {
+    title: string;
+    triggerEvent: NonNullable<Automation['triggerEvent']>;
+    actionType: NonNullable<Automation['actionType']>;
+    actionConfig?: Record<string, unknown>;
+  }) => Automation;
+  deleteAutomation: (id: string) => void;
   
   // Calculated Agency Health
   agencyHealthScore: {
@@ -922,6 +930,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       linkContext: { tab: 'publicacoes', jobId: job.id, clientId: job.clientId }
     };
     setAllNotifications(prev => [newNotif, ...prev]);
+
+    // Efeito colateral de uma ação que já deu certo: nunca lança, e não
+    // segura a interface. Se falhar, o conteúdo continua aprovado.
+    void dispararAutomacoes('conteudo_aprovado', { jobId, jobTitle: job.title });
   };
   
   const requestAdjustment = (jobId: string, feedback: string, requesterName: string = 'Cliente') => {
@@ -960,6 +972,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       linkContext: { tab: 'conteudos', jobId: job.id, clientId: job.clientId }
     };
     setAllNotifications(prev => [newNotif, ...prev]);
+
+    void dispararAutomacoes('pedido_de_ajuste', {
+      jobId, jobTitle: job.title, feedback,
+    });
   };
   
   const addNewJobVersion = (jobId: string, mediaUrls: string[], caption: string) => {
@@ -985,6 +1001,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     
     logActivity(`Enviou nova versão v${newVerNum}`, `Job: ${job.title}`);
+
+    // A nova versão coloca o conteúdo de volta em aprovação: é o momento em
+    // que o cliente precisa ser avisado.
+    void dispararAutomacoes('conteudo_aguardando_aprovacao', {
+      jobId, jobTitle: job.title,
+    });
   };
   
   const addJobComment = (jobId: string, text: string, isClient: boolean = false) => {
@@ -1345,6 +1367,39 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ));
   };
 
+  const createAutomation = (dados: {
+    title: string;
+    triggerEvent: NonNullable<Automation['triggerEvent']>;
+    actionType: NonNullable<Automation['actionType']>;
+    actionConfig?: Record<string, unknown>;
+  }): Automation => {
+    const evento = EVENTOS_DISPONIVEIS.find((e) => e.valor === dados.triggerEvent);
+    const acao = ACOES_DISPONIVEIS.find((a) => a.valor === dados.actionType);
+
+    const nova: Automation = {
+      id: novoId(),
+      workspaceId: currentWorkspace.id,
+      title: dados.title,
+      // As duas descrições legíveis são derivadas das opções tipadas, para
+      // não existir regra cuja descrição diga uma coisa e o motor faça outra.
+      trigger: evento?.rotulo || dados.triggerEvent,
+      action: acao?.rotulo || dados.actionType,
+      triggerEvent: dados.triggerEvent,
+      actionType: dados.actionType,
+      actionConfig: dados.actionConfig || {},
+      enabled: true,
+      executionCount: 0,
+    };
+
+    setAllAutomations((prev) => [nova, ...prev]);
+    logActivity('Criou automação', nova.title);
+    return nova;
+  };
+
+  const deleteAutomation = (id: string) => {
+    setAllAutomations((prev) => prev.filter((a) => a.id !== id));
+  };
+
   // Client Materials
   const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => {
     const newMaterial: ClientMaterial = {
@@ -1602,6 +1657,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         markNotificationRead,
         markAllNotificationsRead,
         toggleAutomation,
+        createAutomation,
+        deleteAutomation,
         agencyHealthScore,
         clientMaterials,
         addClientMaterial,

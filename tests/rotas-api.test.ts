@@ -4,6 +4,10 @@ import * as gemini from '../api/gemini';
 import * as uploadUrl from '../api/upload-url';
 import * as sendInvite from '../api/send-invite';
 import * as webhookTest from '../api/webhook-test';
+import * as status from '../api/status';
+import * as sendEmail from '../api/send-email';
+import * as socialConnect from '../api/social-connect';
+import * as publicar from '../api/publicar';
 
 /**
  * Formato do export das funções serverless.
@@ -40,7 +44,16 @@ const rotas = {
   'api/upload-url.ts': uploadUrl,
   'api/send-invite.ts': sendInvite,
   'api/webhook-test.ts': webhookTest,
+  'api/status.ts': status,
+  'api/send-email.ts': sendEmail,
+  'api/social-connect.ts': socialConnect,
 } as Record<string, Record<string, unknown>>;
+
+/**
+ * O publicador não exige sessão: quem o chama é o agendador da Vercel, que
+ * não tem usuário. Ele fica fora da checagem de 401 e ganha a sua, abaixo.
+ */
+const rotasSemSessao = { 'api/publicar.ts': publicar } as Record<string, Record<string, unknown>>;
 
 describe('formato do export das rotas serverless', () => {
   for (const [nome, modulo] of Object.entries(rotas)) {
@@ -72,6 +85,46 @@ describe('handler responde a Request de verdade', () => {
       expect(resposta.status).toBe(401);
       expect(resposta.headers.get('content-type')).toContain('application/json');
       await expect(resposta.json()).resolves.toHaveProperty('error');
+    });
+  }
+});
+
+describe('o publicador não pode ficar aberto', () => {
+  for (const [nome, modulo] of Object.entries(rotasSemSessao)) {
+    it(`${nome} é reconhecida como handler Web`, () => {
+      expect(detectar(modulo)).toBe('web');
+      expect(modulo.default).toBeUndefined();
+    });
+
+    // Sem CRON_SECRET no ambiente, a rota tem que se recusar a rodar. Aberta,
+    // ela publicaria no perfil dos clientes a pedido de qualquer um.
+    it(`${nome} recusa chamada sem o segredo do cron`, async () => {
+      const anterior = process.env.CRON_SECRET;
+      delete process.env.CRON_SECRET;
+      try {
+        const resposta = await (modulo.GET as (r: Request) => Promise<Response>)(
+          new Request('https://app.orquesia.com.br/api/publicar')
+        );
+        expect(resposta.status).toBe(401);
+      } finally {
+        if (anterior !== undefined) process.env.CRON_SECRET = anterior;
+      }
+    });
+
+    it(`${nome} recusa segredo errado`, async () => {
+      const anterior = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = 'o-certo';
+      try {
+        const resposta = await (modulo.GET as (r: Request) => Promise<Response>)(
+          new Request('https://app.orquesia.com.br/api/publicar', {
+            headers: { authorization: 'Bearer o-errado' },
+          })
+        );
+        expect(resposta.status).toBe(401);
+      } finally {
+        if (anterior === undefined) delete process.env.CRON_SECRET;
+        else process.env.CRON_SECRET = anterior;
+      }
     });
   }
 });

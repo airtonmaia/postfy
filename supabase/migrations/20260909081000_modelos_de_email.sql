@@ -24,10 +24,17 @@ create table if not exists public.email_templates (
 
 alter table public.email_templates enable row level security;
 
-drop policy if exists "admin da plataforma le os modelos" on public.email_templates;
-create policy "admin da plataforma le os modelos"
+-- Leitura para qualquer sessão autenticada, escrita só para o admin da
+-- plataforma.
+--
+-- O texto do e-mail não é segredo, e quem dispara é um membro comum da
+-- agência: se só o admin pudesse ler, o gatilho não encontraria o modelo e o
+-- e-mail simplesmente não sairia. Editar é que precisa ser restrito.
+drop policy if exists "autenticado le os modelos" on public.email_templates;
+create policy "autenticado le os modelos"
     on public.email_templates for select
-    using (private.eh_admin_da_plataforma());
+    to authenticated
+    using (true);
 
 drop policy if exists "admin da plataforma edita os modelos" on public.email_templates;
 create policy "admin da plataforma edita os modelos"

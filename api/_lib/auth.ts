@@ -56,6 +56,30 @@ export const clienteDoUsuario = (request: Request) => {
   });
 };
 
+/**
+ * Cliente com a chave de serviço, que ignora a RLS.
+ *
+ * Existe por um motivo só: `social_tokens` tem RLS ligada e nenhuma política,
+ * então é inalcançável por qualquer sessão autenticada — inclusive a do dono
+ * da agência. É assim de propósito: um membro que lesse o token poderia
+ * publicar em nome do cliente por fora do sistema, sem rastro nenhum aqui.
+ *
+ * A contrapartida é que este cliente enxerga tudo. Use só para o token, e
+ * sempre depois de já ter confirmado a permissão com `clienteDoUsuario`, que
+ * passa pela RLS. Nunca com dado vindo do navegador sem essa checagem antes.
+ *
+ * Devolve null quando a chave não está configurada, para a rota poder
+ * responder 503 em vez de estourar.
+ */
+export const clienteDeServico = () => {
+  const chave = process.env.SUPABASE_SECRET_KEY;
+  if (!chave) return null;
+
+  return createClient(SUPABASE_URL, chave, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+};
+
 export const json = (corpo: unknown, status = 200): Response =>
   new Response(JSON.stringify(corpo), {
     status,
