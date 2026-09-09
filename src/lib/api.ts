@@ -160,6 +160,16 @@ export interface StatusDoServidor {
   armazenamento: boolean;
   armazenamentoPublico: boolean;
   email: boolean;
+  /** A variável existe. */
+  chaveDeServico: boolean;
+  /**
+   * O banco aceitou a variável.
+   *
+   * Separado de `chaveDeServico` porque os dois estados se resolvem de
+   * formas diferentes, e confundi-los custou caro: uma chave preenchida com
+   * valor inválido derrubou o Portal do Cliente e esta tela seguiu verde.
+   */
+  chaveDeServicoValida: boolean;
 }
 
 /**
