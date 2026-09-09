@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { rota } from './_lib/rota';
+import { rota } from './_lib/rota.js';
 import {
   usuarioDaRequisicao,
   clienteDoUsuario,
@@ -7,8 +7,8 @@ import {
   naoAutenticado,
   falharComSeguranca,
   textoValido,
-} from './_lib/auth';
-import { ESCOPOS_META } from './_lib/meta';
+} from './_lib/auth.js';
+import { ESCOPOS_META } from './_lib/meta.js';
 
 
 /**

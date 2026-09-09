@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { rota } from './_lib/rota';
+import { rota } from './_lib/rota.js';
 import {
   usuarioDaRequisicao,
   clienteDoUsuario,
@@ -8,7 +8,7 @@ import {
   falharComSeguranca,
   textoValido,
   excedeuLimite,
-} from './_lib/auth';
+} from './_lib/auth.js';
 
 
 /**

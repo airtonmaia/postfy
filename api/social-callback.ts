@@ -1,7 +1,7 @@
-import { clienteDeServico } from './_lib/auth';
-import { rota } from './_lib/rota';
-import { conferirEstado } from './social-connect';
-import { trocarCodigoPorToken, contasDoUsuario } from './_lib/meta';
+import { clienteDeServico } from './_lib/auth.js';
+import { rota } from './_lib/rota.js';
+import { conferirEstado } from './social-connect.js';
+import { trocarCodigoPorToken, contasDoUsuario } from './_lib/meta.js';
 
 
 /**

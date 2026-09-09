@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import * as gemini from '../api/gemini';
 import * as uploadUrl from '../api/upload-url';
@@ -84,6 +84,37 @@ const chamarComoAVercel = async (
   await handler(req, res);
   return { res, corpo: escrito.join('') };
 };
+
+/**
+ * Import relativo dentro de `api/` precisa da extensão `.js`.
+ *
+ * O package.json tem `"type": "module"`, então o Node carrega as funções como
+ * ESM — e em ESM a extensão é obrigatória no import relativo. Sem ela o
+ * carregamento do módulo falha com ERR_MODULE_NOT_FOUND e a função morre
+ * antes de a primeira linha rodar: FUNCTION_INVOCATION_FAILED, 500 sem corpo.
+ *
+ * Foi isso que derrubou todas as rotas /api desde o início. O TypeScript não
+ * reclama (resolve `./x.js` para `./x.ts`), o vitest não reclama (usa a
+ * resolução do Vite) e o `vite build` nem olha para `api/`. Nenhuma
+ * ferramenta local pega — por isso este teste existe.
+ */
+describe('imports relativos das rotas têm extensão', () => {
+  const arquivos = [
+    ...readdirSync('api').filter((f) => f.endsWith('.ts')).map((f) => `api/${f}`),
+    ...readdirSync('api/_lib').filter((f) => f.endsWith('.ts')).map((f) => `api/_lib/${f}`),
+  ];
+
+  for (const arquivo of arquivos) {
+    it(`${arquivo}`, () => {
+      const texto = readFileSync(arquivo, 'utf-8');
+      // `import type` é apagado na compilação e não chega ao runtime.
+      const semExtensao = (texto.match(/^import (?!type ).*from '\.[^']*'/gm) || []).filter(
+        (linha) => !/\.js';?$/.test(linha)
+      );
+      expect(semExtensao).toEqual([]);
+    });
+  }
+});
 
 describe('a Vercel consegue invocar cada rota', () => {
   for (const [nome, modulo] of Object.entries(rotas)) {

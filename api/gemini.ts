@@ -4,9 +4,9 @@ import {
   naoAutenticado,
   textoValido,
   excedeuLimite,
-} from './_lib/auth';
-import { rota } from './_lib/rota';
-import { configuracaoDaIA, gerarJson, ErroDeIA } from './_lib/ia';
+} from './_lib/auth.js';
+import { rota } from './_lib/rota.js';
+import { configuracaoDaIA, gerarJson, ErroDeIA } from './_lib/ia.js';
 
 
 /**
