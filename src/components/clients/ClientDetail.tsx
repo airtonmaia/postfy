@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Client, ClientPassword, ClientInvoice, ClientFile, ClientBriefing } from '../../types';
+import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
 import { 
@@ -207,13 +208,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => visualizarPortalDoCliente(client.id)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Visualizar como Cliente (Portal)
-            </button>
+            <BotaoDoPortal
+              clientId={client.id}
+              variante="destaque"
+              rotulo="Visualizar como Cliente"
+            />
           </div>
         </div>
 

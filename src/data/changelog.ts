@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.5.0',
+    data: '2026-09-09',
+    resumo: 'O portal abre com a marca da sua agência, e o link para o cliente volta a funcionar.',
+    novidades: [
+      'O portal abre com o nome, a logo e as cores da sua agência, e não com as do Orquesia. O cliente reconhece de quem é a página antes de digitar qualquer coisa.',
+      'Botão para copiar o link do portal, ao lado da prévia, nas telas de Clientes e de conteúdo.',
+    ],
+    melhorias: [
+      'A foto da tela de entrada do portal ficou 11x mais leve.',
+    ],
+    corrigido: [
+      'O link de aprovação levava o identificador interno do cliente no lugar da credencial do portal: quem recebia caía numa tela vazia. Agora o link leva a agência, e quem entra prova quem é pelo código do e-mail.',
+      'O botão de compartilhar por WhatsApp montava um endereço num formato que o sistema não lê. Nunca abriu portal nenhum.',
+      'Quando a credencial do servidor é recusada pelo banco, a tela passa a dizer isso e o que fazer, em vez de "tente novamente em instantes". A aba Integrações também deixa de mostrar o banco como saudável nesse caso.',
+    ],
+  },
+  {
     versao: '2.4.0',
     data: '2026-09-09',
     resumo: 'O Portal do Cliente passa a funcionar de verdade, com entrada por código no e-mail.',

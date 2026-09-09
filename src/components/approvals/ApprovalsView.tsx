@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeDateTimeFormat, copyToClipboard } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
@@ -24,7 +25,8 @@ export const ApprovalsView: React.FC = () => {
     requestAdjustment, 
     setSelectedJob, 
     openClientPortal,
-    clientFilter
+    clientFilter,
+    currentWorkspace,
   } = usePostfy();
 
   const [activeTab, setActiveTab] = useState<'pending' | 'adjustments' | 'approved'>('pending');
@@ -41,8 +43,9 @@ export const ApprovalsView: React.FC = () => {
   const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
 
   const handleCopyLink = async (job: Job) => {
-    const client = clientMap.get(job.clientId);
-    const link = `${window.location.origin}?portal=${client?.id}&job=${job.id}`;
+    // Mesmo conserto do JobDetailModal: o id do cliente não é o token do
+    // portal, e o link antigo abria numa tela vazia.
+    const link = urlDoPortalDaAgencia(currentWorkspace.slug, window.location.origin);
     await copyToClipboard(link);
     setCopiedId(job.id);
     setTimeout(() => setCopiedId(null), 2000);
