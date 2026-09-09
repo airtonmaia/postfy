@@ -14,7 +14,7 @@ agendamento e relatórios.
 | Arquivos | Cloudflare R2, por URL pré-assinada |
 | E-mail | Resend |
 | Analytics | PostHog |
-| IA | Google Gemini |
+| IA | Qualquer endpoint compatível com a API da OpenAI |
 
 **Não há servidor de aplicação.** Autenticação e dados vão do navegador direto
 para o Supabase, protegidos pela RLS. As funções em `api/` existem só para o
@@ -91,7 +91,7 @@ Schema e verificações: **[`supabase/README.md`](./supabase/README.md)**.
 
 | Rota | Para quê |
 | --- | --- |
-| `POST /api/gemini` | Geração de copy, pautas e conversão de feedback |
+| `POST /api/gemini` | Geração de copy e conversão de feedback em checklist |
 | `POST /api/upload-url` | URL pré-assinada do R2 (o binário não passa pela função) |
 | `POST /api/send-invite` | E-mail de convite pelo Resend |
 | `POST /api/webhook-test` | Disparo de teste, com proteção contra SSRF |
@@ -100,6 +100,26 @@ Todas exigem o token do Supabase no header `Authorization` e **revalidam a
 permissão pelo banco** — nenhuma confia no que o navegador afirma. Cada uma
 degrada com `503` e aviso claro quando o serviço não está configurado, em vez
 de fingir que funcionou.
+
+## IA
+
+Dois pontos usam IA, ambos no modal de detalhe do conteúdo:
+
+- **Gerar copy** — legenda, gancho, CTA, hashtags e roteiro de Reels, a partir
+  do briefing do cliente
+- **Gerar checklist do feedback** — transforma o texto solto do pedido de
+  ajuste em tarefas separadas por designer e copywriter
+
+Não há acoplamento a um fornecedor. A camada em `api/_lib/ia.ts` fala o
+dialeto de chat completions da OpenAI, que Gemini, Groq, Cerebras, OpenRouter,
+Mistral e modelos locais (Ollama, LM Studio) entendem. Trocar de fornecedor é
+mudar `IA_PROVEDOR` e `IA_API_KEY` — sem release.
+
+A extração do JSON tolera cerca de markdown e texto em volta da resposta,
+porque modelos gratuitos costumam ser menos disciplinados no formato.
+
+Sem chave configurada, os dois botões avisam que a IA não está disponível em
+vez de fingir que geraram algo.
 
 ## Configuração
 
