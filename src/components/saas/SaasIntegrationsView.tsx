@@ -124,9 +124,19 @@ export const SaasIntegrationsView: React.FC = () => {
    */
   const integracoes: { nome: string; status: StatusIntegracao | null; desc: string }[] = [
     {
+      // Estava fixo em 'ativa' — a lista escrita à mão que o comentário no
+      // topo deste arquivo condena, sobrevivendo bem no meio dele. Ficou
+      // verde enquanto o Portal do Cliente estava fora do ar por causa da
+      // chave de serviço.
       nome: 'Banco de dados e login (Supabase)',
-      status: 'ativa',
-      desc: 'Postgres com Row Level Security: o recorte por agência é aplicado pelo banco, não pela interface.',
+      status: status ? (status.chaveDeServicoValida ? 'ativa' : 'opcional') : null,
+      desc: !status
+        ? 'Postgres com Row Level Security: o recorte por agência é aplicado pelo banco.'
+        : status.chaveDeServicoValida
+          ? 'Postgres com Row Level Security, e a chave de serviço responde. Portal do cliente, publicação nas redes e conexão social funcionam.'
+          : status.chaveDeServico
+            ? 'O banco RECUSOU a SUPABASE_SECRET_KEY. Confira o valor e refaça o deploy — a Vercel congela o ambiente no deploy, então salvar a variável não alcança o que já está no ar. Sem isso, o portal do cliente, a fila de publicação e a conexão de contas sociais não funcionam.'
+            : 'Falta SUPABASE_SECRET_KEY no servidor. Sem ela, o portal do cliente, a fila de publicação e a conexão de contas sociais não funcionam.',
     },
     {
       nome: 'Geração de texto por IA',

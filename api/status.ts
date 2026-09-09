@@ -1,4 +1,10 @@
-import { usuarioDaRequisicao, clienteDoUsuario, json, naoAutenticado } from './_lib/auth.js';
+import {
+  usuarioDaRequisicao,
+  clienteDoUsuario,
+  clienteDeServico,
+  json,
+  naoAutenticado,
+} from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 
 
@@ -20,6 +26,36 @@ import { rota } from './_lib/rota.js';
 
 const temTodas = (...nomes: string[]): boolean =>
   nomes.every((nome) => Boolean(process.env[nome]?.trim()));
+
+/**
+ * A chave de serviço é a única que precisa ser **usada** para se saber que
+ * está boa.
+ *
+ * Todo o resto aqui responde "a variável existe", e para o resto isso basta.
+ * Para esta não bastou: uma SUPABASE_SECRET_KEY preenchida com valor inválido
+ * derrubou o Portal do Cliente inteiro em produção, e a tela de Integrações
+ * seguiu verde o tempo todo — porque a variável estava lá. O Supabase
+ * respondia 401 e o cliente lia "Tente novamente em instantes".
+ *
+ * Custa uma consulta que não devolve linha nenhuma; `head` nem traz corpo.
+ * Repare que é a chave que autentica, não a consulta que importa: qualquer
+ * tabela serviria, e portal_codigos é inalcançável por qualquer outra
+ * credencial — o que a torna a prova exata de que esta é de serviço.
+ */
+const chaveDeServicoFunciona = async (): Promise<boolean> => {
+  const supabase = clienteDeServico();
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('portal_codigos')
+      .select('id', { count: 'exact', head: true })
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+};
 
 async function handler(request: Request): Promise<Response> {
   if (request.method !== 'POST') {
@@ -53,6 +89,12 @@ async function handler(request: Request): Promise<Response> {
 
   return json({
     ia: temTodas('IA_API_KEY') || temTodas('GEMINI_API_KEY'),
+    // Duas respostas, porque os dois problemas se resolvem de formas
+    // diferentes: faltando, é preencher a variável; presente e recusada, é
+    // conferir o valor e **redeployar** — a Vercel congela o ambiente no
+    // deploy, então salvar a variável não alcança o que já está no ar.
+    chaveDeServico: temTodas('SUPABASE_SECRET_KEY'),
+    chaveDeServicoValida: await chaveDeServicoFunciona(),
     // O upload assina com estas quatro; a URL pública é o que falta para o
     // arquivo abrir depois de enviado, e vale distinguir os dois casos.
     armazenamento,

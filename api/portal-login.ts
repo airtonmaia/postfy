@@ -59,6 +59,38 @@ const corpoDoEmail = (codigo: string, agencia: string): string => `
 const normalizarEmail = (valor: unknown): string =>
   typeof valor === 'string' ? valor.trim().toLowerCase() : '';
 
+/**
+ * Separa "a credencial do servidor não vale" de "deu errado".
+ *
+ * Custou duas rodadas de diagnóstico: a SUPABASE_SECRET_KEY da Vercel estava
+ * preenchida com um valor que o Supabase recusava. Toda chamada voltava 401,
+ * o `falharComSeguranca` engolia o motivo — como deve mesmo fazer com erro de
+ * banco — e o cliente lia "Tente novamente em instantes". A informação que
+ * resolvia estava só no log do Supabase.
+ *
+ * Não é vazamento: 401 aqui é o servidor falando do **próprio** crachá com o
+ * banco, não do que o visitante mandou. Quem está do outro lado não muda nada
+ * sabendo disso — e quem opera o sistema economiza a caçada.
+ */
+const credencialOuFalha = (onde: string, erro: unknown): Response => {
+  const status = (erro as { status?: number } | null)?.status;
+  const codigo = (erro as { code?: string } | null)?.code;
+
+  if (status === 401 || codigo === 'PGRST301' || codigo === '42501') {
+    return json(
+      {
+        error:
+          'Portal indisponível: a credencial do servidor foi recusada pelo banco. ' +
+          'Confira SUPABASE_SECRET_KEY e refaça o deploy — o ambiente é congelado no deploy.',
+        code: 'SERVICE_KEY_INVALID',
+      },
+      503
+    );
+  }
+
+  return falharComSeguranca(onde, erro, 500);
+};
+
 async function handler(request: Request): Promise<Response> {
   let corpo: any;
   try {
@@ -108,7 +140,7 @@ async function handler(request: Request): Promise<Response> {
       p_codigo: codigoNovo,
     });
 
-    if (error) return falharComSeguranca('portal/emitir', error, 500);
+    if (error) return credencialOuFalha('portal/emitir', error);
 
     // Sem cliente para este e-mail: a resposta é a mesma do caso feliz.
     if (!data) return json({ enviado: true });
@@ -150,7 +182,7 @@ async function handler(request: Request): Promise<Response> {
       p_codigo: String(codigo).trim(),
     });
 
-    if (error) return falharComSeguranca('portal/conferir', error, 500);
+    if (error) return credencialOuFalha('portal/conferir', error);
     if (!data) return json({ error: 'Código inválido ou expirado.' }, 401);
 
     return json({ token: data });
