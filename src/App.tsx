@@ -42,25 +42,43 @@ import { LoginView } from './components/auth/LoginView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 
-// Views carregadas sob demanda (code splitting): cada tela vira um chunk
-// próprio, então abrir o login não baixa mais relatórios, gráficos e PDF.
-const CalendarApp = lazy(() => import('./components/calendar/CalendarApp').then(m => ({ default: m.CalendarApp })));
-const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then(m => ({ default: m.DashboardView })));
-const KanbanBoard = lazy(() => import('./components/kanban/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
-const ApprovalsView = lazy(() => import('./components/approvals/ApprovalsView').then(m => ({ default: m.ApprovalsView })));
-const ClientsView = lazy(() => import('./components/clients/ClientsView').then(m => ({ default: m.ClientsView })));
-const CommercialView = lazy(() => import('./components/commercial/CommercialView').then(m => ({ default: m.CommercialView })));
-const PublicationsView = lazy(() => import('./components/publications/PublicationsView').then(m => ({ default: m.PublicationsView })));
-const ReportsView = lazy(() => import('./components/reports/ReportsView').then(m => ({ default: m.ReportsView })));
-const AutomationsView = lazy(() => import('./components/automations/AutomationsView').then(m => ({ default: m.AutomationsView })));
-const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })));
-const ClientPortalView = lazy(() => import('./components/portal/ClientPortalView').then(m => ({ default: m.ClientPortalView })));
-const SaasPlansView = lazy(() => import('./components/saas/SaasPlansView').then(m => ({ default: m.SaasPlansView })));
-const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView').then(m => ({ default: m.SaasFinancialView })));
-const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
-const SaasEmailsView = lazy(() => import('./components/saas/SaasEmailsView').then(m => ({ default: m.SaasEmailsView })));
-const SaasIntegrationsView = lazy(() => import('./components/saas/SaasIntegrationsView').then(m => ({ default: m.SaasIntegrationsView })));
-const SaasUsersView = lazy(() => import('./components/saas/SaasUsersView').then(m => ({ default: m.SaasUsersView })));
+/**
+ * Views carregadas sob demanda (code splitting): cada tela vira um chunk
+ * próprio, então abrir o login não baixa mais relatórios, gráficos e PDF.
+ *
+ * `comRetentativaDeDeploy` cobre o chunk que some no meio do caminho: quando
+ * sai um deploy, os arquivos ganham hash novo e os antigos deixam de existir,
+ * mas a aba aberta continua pedindo os de antes. Sem isso a aplicação caía
+ * inteira em "Failed to fetch dynamically imported module" na primeira tela
+ * que ainda não tinha sido aberta.
+ */
+const tela = <T extends Record<string, unknown>>(
+  carregar: () => Promise<T>,
+  nome: keyof T
+) =>
+  lazy(() =>
+    comRetentativaDeDeploy(carregar).then((m) => ({
+      default: m[nome] as React.ComponentType<Record<string, never>>,
+    }))
+  );
+
+const CalendarApp = tela(() => import('./components/calendar/CalendarApp'), 'CalendarApp');
+const DashboardView = tela(() => import('./components/dashboard/DashboardView'), 'DashboardView');
+const KanbanBoard = tela(() => import('./components/kanban/KanbanBoard'), 'KanbanBoard');
+const ApprovalsView = tela(() => import('./components/approvals/ApprovalsView'), 'ApprovalsView');
+const ClientsView = tela(() => import('./components/clients/ClientsView'), 'ClientsView');
+const CommercialView = tela(() => import('./components/commercial/CommercialView'), 'CommercialView');
+const PublicationsView = tela(() => import('./components/publications/PublicationsView'), 'PublicationsView');
+const ReportsView = tela(() => import('./components/reports/ReportsView'), 'ReportsView');
+const AutomationsView = tela(() => import('./components/automations/AutomationsView'), 'AutomationsView');
+const SettingsView = tela(() => import('./components/settings/SettingsView'), 'SettingsView');
+const ClientPortalView = tela(() => import('./components/portal/ClientPortalView'), 'ClientPortalView');
+const SaasPlansView = tela(() => import('./components/saas/SaasPlansView'), 'SaasPlansView');
+const SaasFinancialView = tela(() => import('./components/saas/SaasFinancialView'), 'SaasFinancialView');
+const SaasAgenciesView = tela(() => import('./components/saas/SaasAgenciesView'), 'SaasAgenciesView');
+const SaasEmailsView = tela(() => import('./components/saas/SaasEmailsView'), 'SaasEmailsView');
+const SaasIntegrationsView = tela(() => import('./components/saas/SaasIntegrationsView'), 'SaasIntegrationsView');
+const SaasUsersView = tela(() => import('./components/saas/SaasUsersView'), 'SaasUsersView');
 
 const CarregandoTela: React.FC = () => (
   <div className="flex-1 flex items-center justify-center p-8">
@@ -74,6 +92,7 @@ import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
 import { VersaoDoApp } from './components/common/VersaoDoApp';
 import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
+import { comRetentativaDeDeploy, marcarCargaBemSucedida } from './lib/atualizacao';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -194,15 +213,28 @@ const MainLayout: React.FC = () => {
 
   const navItems = todasAsAbas.filter((item) => podeAcessarAba(currentUser?.role, item.id));
 
-  return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 transition-colors duration-200">
-      {/* Client Portal Fullscreen Override if active */}
-      {isClientPortalOpen && (
+  /**
+   * O portal ocupa a tela sozinho.
+   *
+   * Ele era uma sobreposição por cima do app inteiro: a barra lateral, os
+   * modais e a tela da aba ativa continuavam montando por baixo. Isso
+   * significava baixar e executar a interface da agência no navegador de um
+   * cliente que nunca pode vê-la — e foi assim que abrir `/portal-do-cliente`
+   * quebrou por causa de um chunk do Dashboard, que não tem nada a ver com o
+   * portal.
+   */
+  if (isClientPortalOpen) {
+    return (
+      <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200">
         <Suspense fallback={<CarregandoTela />}>
           <ClientPortalView />
         </Suspense>
-      )}
+      </div>
+    );
+  }
 
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200 transition-colors duration-200">
       {/* Global Modals */}
       <JobDetailModal />
       <CreateJobModal />
