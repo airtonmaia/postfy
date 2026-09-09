@@ -40,14 +40,8 @@ import {
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
+import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
-import {
-  readStorage,
-  writeStorage,
-  removeStorage,
-  onStorageQuotaExceeded,
-  formatBytes,
-} from '../lib/storage';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
 
 interface PostfyContextType {
@@ -192,15 +186,12 @@ interface PostfyContextType {
   forceSync: () => Promise<{ success: boolean; message: string }>;
 
   // Aviso de cota do armazenamento local
-  storageWarning: string | null;
-  dismissStorageWarning: () => void;
 }
 
 export type SyncState = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
 const PostfyContext = createContext<PostfyContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PREFIX = 'postfy_v1_';
 
 export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // As agências vêm do banco. O cache local só evita a tela piscar vazia
@@ -216,18 +207,18 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     timezone: 'America/Sao_Paulo',
   };
 
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
-    readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []));
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
-  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(() => {
-    const salvas = readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []);
-    const idSalvo = readStorage<string | null>(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null);
-    return salvas.find((w) => w.id === idSalvo) || salvas[0] || AGENCIA_VAZIA;
-  });
+  // Nasce vazia e é preenchida pelo banco. Não há cópia local para ler antes:
+  // a agência é dado de verdade, e mostrar uma versão velha dela — nome,
+  // cor, plano — é pior do que mostrar o esqueleto por um instante.
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(AGENCIA_VAZIA);
 
   const setCurrentWorkspace = (ws: Workspace) => {
     setCurrentWorkspaceState(ws);
-    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, ws.id);
+    // A última agência aberta é preferência do usuário, não do navegador:
+    // quem abre no celular continua de onde parou.
+    void salvarPreferencias({ lastWorkspaceId: ws.id });
   };
 
   const updateWorkspace = (workspaceId: string, updates: Partial<Workspace>) => {
@@ -358,10 +349,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /** Recarrega a sessão a partir do Supabase e reflete no estado. */
   const recarregarSessao = async (): Promise<SessaoDoApp | null> => {
-    const preferido = readStorage<string | null>(
-      `${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null
-    );
-    const sessao = await carregarSessao(preferido);
+    // A preferência mora no Postgres. Sem sessão a consulta volta no padrão,
+    // que é o mesmo caminho de quem entra pela primeira vez.
+    const { lastWorkspaceId, theme: temaSalvo } = await carregarPreferencias();
+    setThemeState(temaSalvo);
+    const sessao = await carregarSessao(lastWorkspaceId);
     aplicarSessao(sessao);
     return sessao;
   };
@@ -451,13 +443,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await authSair();
     aplicarSessao(null);
     encerrarIdentificacao();
-    // O cache local é do usuário que saiu; deixá-lo exposto para o próximo
-    // que logar neste navegador seria vazamento entre contas.
-    [
-      'clients', 'jobs', 'leads', 'proposals', 'contracts', 'automations',
-      'notifications', 'activityLogs', 'clientMaterials', 'timesheetLogs',
-      'workspaces', 'currentWorkspaceId',
-    ].forEach((nome) => removeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${nome}`));
+    // Não há cache local para limpar: nada de dado de agência toca o
+    // navegador. O estado em memória morre com a página, e o próximo login
+    // busca tudo de novo — não existe resto do usuário anterior.
+    setWorkspaces([]);
+    setCurrentWorkspaceState(AGENCIA_VAZIA);
+    setAllClients([]); setAllJobs([]); setAllLeads([]); setAllProposals([]);
+    setAllContracts([]); setAllAutomations([]); setAllNotifications([]);
+    setAllActivityLogs([]); setAllClientMaterials([]); setAllTimesheetLogs([]);
+    hidratado.current = false;
   };
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -472,14 +466,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [createJobPreselectedDate, setCreateJobPreselectedDate] = useState<string | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
   
-  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}theme`);
-    return (saved as 'light' | 'dark') || 'light';
-  });
+  // O tema é preferência do usuário, então mora no Postgres junto das
+  // outras. Começa no claro e é corrigido assim que a sessão responde —
+  // trocar de máquina não reseta mais a escolha.
+  const [theme, setThemeState] = useState<'light' | 'dark'>('light');
 
   const setTheme = (newTheme: 'light' | 'dark') => {
     setThemeState(newTheme);
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}theme`, newTheme);
+    void salvarPreferencias({ theme: newTheme });
   };
 
   // Sync theme with document class
@@ -533,26 +527,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // O cache local serve só para a tela não nascer vazia enquanto o banco
   // responde. A fonte de verdade é o Postgres.
 
-  const [allClients, setAllClients] = useState<Client[]>(() =>
-    readStorage<Client[]>(`${LOCAL_STORAGE_KEY_PREFIX}clients`, []));
-  const [allJobs, setAllJobs] = useState<Job[]>(() =>
-    readStorage<Job[]>(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, []));
-  const [allLeads, setAllLeads] = useState<Lead[]>(() =>
-    readStorage<Lead[]>(`${LOCAL_STORAGE_KEY_PREFIX}leads`, []));
-  const [allProposals, setAllProposals] = useState<Proposal[]>(() =>
-    readStorage<Proposal[]>(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, []));
-  const [allContracts, setAllContracts] = useState<Contract[]>(() =>
-    readStorage<Contract[]>(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, []));
-  const [allAutomations, setAllAutomations] = useState<Automation[]>(() =>
-    readStorage<Automation[]>(`${LOCAL_STORAGE_KEY_PREFIX}automations`, []));
-  const [allNotifications, setAllNotifications] = useState<Notification[]>(() =>
-    readStorage<Notification[]>(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, []));
-  const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>(() =>
-    readStorage<ActivityLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, []));
-  const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>(() =>
-    readStorage<ClientMaterial[]>(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, []));
-  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>(() =>
-    readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, []));
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [allProposals, setAllProposals] = useState<Proposal[]>([]);
+  const [allContracts, setAllContracts] = useState<Contract[]>([]);
+  const [allAutomations, setAllAutomations] = useState<Automation[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>([]);
+  const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>([]);
+  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>([]);
 
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
     pertenceAoWorkspace(row, currentWsId);
@@ -574,8 +558,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [storageWarning, setStorageWarning] = useState<string | null>(null);
-  const dismissStorageWarning = () => setStorageWarning(null);
 
   const hidratado = useRef(false);
 
@@ -587,13 +569,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * gravar um filho antes do pai.
    */
   const filaDeGravacao = useRef<Promise<void>>(Promise.resolve());
-
-  useEffect(() => onStorageQuotaExceeded(({ key, bytes }) => {
-    setStorageWarning(
-      `O cache local do navegador encheu ao guardar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
-      `(~${formatBytes(bytes)}). Seus dados estão salvos no servidor; o cache serve só para abrir mais rápido.`
-    );
-  }), []);
 
   const relatarErro = (erro: unknown, acao: string) => {
     const mensagem =
@@ -616,14 +591,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    */
   const useColecaoSincronizada = <T extends { id: string; workspaceId?: string }>(
     nome: keyof typeof db,
-    chaveLocal: string,
     linhas: T[]
   ) => {
     const anterior = useRef<T[]>(linhas);
 
     useEffect(() => {
-      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${chaveLocal}`, linhas);
-
       const antes = anterior.current;
       anterior.current = linhas;
 
@@ -666,20 +638,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [linhas]);
   };
 
-  useColecaoSincronizada('clients', 'clients', allClients);
-  useColecaoSincronizada('jobs', 'jobs', allJobs);
-  useColecaoSincronizada('leads', 'leads', allLeads);
-  useColecaoSincronizada('proposals', 'proposals', allProposals);
-  useColecaoSincronizada('contracts', 'contracts', allContracts);
-  useColecaoSincronizada('automations', 'automations', allAutomations);
-  useColecaoSincronizada('notifications', 'notifications', allNotifications);
-  useColecaoSincronizada('activityLogs', 'activityLogs', allActivityLogs);
-  useColecaoSincronizada('clientMaterials', 'clientMaterials', allClientMaterials);
-  useColecaoSincronizada('timesheetLogs', 'timesheetLogs', allTimesheetLogs);
-
-  useEffect(() => {
-    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, workspaces);
-  }, [workspaces]);
+  useColecaoSincronizada('clients', allClients);
+  useColecaoSincronizada('jobs', allJobs);
+  useColecaoSincronizada('leads', allLeads);
+  useColecaoSincronizada('proposals', allProposals);
+  useColecaoSincronizada('contracts', allContracts);
+  useColecaoSincronizada('automations', allAutomations);
+  useColecaoSincronizada('notifications', allNotifications);
+  useColecaoSincronizada('activityLogs', allActivityLogs);
+  useColecaoSincronizada('clientMaterials', allClientMaterials);
+  useColecaoSincronizada('timesheetLogs', allTimesheetLogs);
 
   /** Carrega tudo do banco assim que existe sessão. */
   const carregarDoBanco = async () => {
@@ -714,7 +682,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       dados.workspaces.find((w) => w.id === currentUser.workspaceId) || dados.workspaces[0];
     if (alvo) {
       setCurrentWorkspaceState(alvo);
-      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, alvo.id);
+      void salvarPreferencias({ lastWorkspaceId: alvo.id });
     }
 
     // Só liga a sincronização depois de aplicar os dados, senão o próprio
@@ -1636,8 +1604,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         syncState,
         syncError,
         forceSync,
-        storageWarning,
-        dismissStorageWarning,
       }}
     >
       {children}

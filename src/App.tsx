@@ -92,8 +92,6 @@ const MainLayout: React.FC = () => {
     setClientFilter,
     theme,
     setTheme,
-    storageWarning,
-    dismissStorageWarning,
     syncState,
     syncError
   } = usePostfy();
@@ -504,21 +502,14 @@ const MainLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Avisos de sincronização e de armazenamento */}
-        {(storageWarning || syncState === 'error') && (
+        {/* Falha ao gravar no banco. Não existe mais aviso de cache: nada de
+            dado de agência passa pelo navegador. */}
+        {syncState === 'error' && (
           <div className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed flex-1">
-              {storageWarning || syncError}
+              {syncError}
             </p>
-            {storageWarning && (
-              <button
-                onClick={dismissStorageWarning}
-                className="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
-              >
-                Dispensar
-              </button>
-            )}
           </div>
         )}
 

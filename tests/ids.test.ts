@@ -40,3 +40,33 @@ describe('geração de identificador', () => {
     expect(db).toMatch(/if \(entidade\.id\) linha\.id = entidade\.id;/);
   });
 });
+
+/**
+ * Guarda contra o dado da agência voltar para o navegador.
+ *
+ * O cache local existia para a tela não nascer vazia, e cobrou caro: um
+ * cliente com logo em base64 ocupou 4,8 MB e estourou a cota do navegador.
+ * Pior que o aviso era o efeito silencioso — parte do estado ficava só ali,
+ * e o que a tela mostrava dependia de qual máquina abriu.
+ *
+ * A sessão do Supabase Auth continua no localStorage: é o que mantém o login
+ * entre reloads, e não é dado de agência.
+ */
+describe('nada de dado da aplicação no navegador', () => {
+  const PERMITIDOS = [
+    'src/lib/analytics.ts', // persistência do id anônimo do PostHog
+  ];
+
+  it('nenhum módulo grava no localStorage', () => {
+    const culpados = varrer('src')
+      .filter((arquivo) => !PERMITIDOS.includes(arquivo.replace(/\\/g, '/')))
+      .map((arquivo) => ({ arquivo, texto: readFileSync(arquivo, 'utf-8') }))
+      // Só chamada de verdade; menção em comentário não conta.
+      .filter(({ texto }) =>
+        /(localStorage|sessionStorage)\s*\.\s*(setItem|getItem|removeItem)/.test(texto)
+      )
+      .map(({ arquivo }) => arquivo);
+
+    expect(culpados).toEqual([]);
+  });
+});
