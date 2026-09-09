@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.3.0',
+    data: '2026-09-09',
+    resumo: 'Cada tela ganha endereço próprio: recarregar não joga mais você no Dashboard.',
+    novidades: [
+      'Endereço próprio para cada menu — /calendario, /kanban, /clientes. Dá para mandar link de tela para alguém da equipe, e o favoritar do navegador passa a funcionar.',
+      'As abas de Configurações também têm endereço: /configuracoes/usuarios abre direto em Usuários.',
+    ],
+    melhorias: [
+      'Voltar e avançar do navegador navegam entre as telas.',
+    ],
+    corrigido: [
+      'Recarregar a página devolvia você para o Dashboard, de qualquer tela onde estivesse.',
+    ],
+  },
+  {
     versao: '2.2.0',
     data: '2026-09-09',
     resumo: 'Quem entra por convite passa a cair na agência certa.',

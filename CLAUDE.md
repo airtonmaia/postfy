@@ -203,6 +203,15 @@ aceitam cron diário, e isso derruba o deploy inteiro. Por isso o agendamento
 da fila de publicação vive em `.github/workflows/publicar.yml`, e não no
 `vercel.json`.
 
+O `rewrite` para `/index.html` também mora ali, e é **ele** que faz o F5
+funcionar fora da raiz: agora que cada menu tem URL própria, sem o rewrite
+recarregar em `/calendario` devolve 404 da Vercel antes de o app existir. O
+padrão exclui `/api/` de propósito — engolir esse prefixo faria toda função
+serverless devolver HTML.
+
+`tests/rotas.test.ts` lê o `vercel.json` e confere as duas coisas. É a única
+guarda que existe para esse arquivo.
+
 Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
 significa nada.
 
@@ -350,6 +359,7 @@ src/lib/db.ts              repositórios por entidade, operações por linha
 src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
+src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 

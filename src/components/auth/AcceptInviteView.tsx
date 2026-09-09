@@ -9,6 +9,7 @@ import {
 } from '../../lib/authSupabase';
 import { supabase } from '../../lib/supabase';
 import { salvarPreferencias } from '../../lib/preferencias';
+import { caminhoDaAba, ABA_INICIAL } from '../../lib/rotas';
 import { ShieldCheck, Building2, Mail, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -64,7 +65,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           if (res.sucesso) {
             if (res.workspaceId) await salvarPreferencias({ lastWorkspaceId: res.workspaceId });
             await recarregarSessaoPublica();
-            window.history.replaceState({}, '', window.location.pathname);
+            window.history.replaceState({}, '', caminhoDaAba(ABA_INICIAL));
             return;
           }
           setErro(res.mensagem || null);
@@ -94,7 +95,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
     // aceitar, e concluía que o convite não tinha funcionado.
     if (res.workspaceId) await salvarPreferencias({ lastWorkspaceId: res.workspaceId });
     await recarregarSessaoPublica();
-    window.history.replaceState({}, '', window.location.pathname);
+    window.history.replaceState({}, '', caminhoDaAba(ABA_INICIAL));
   };
 
   const enviar = async (e: React.FormEvent) => {
@@ -177,7 +178,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
             </p>
           </div>
           <a
-            href={window.location.pathname}
+            href="/"
             className="inline-block w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
           >
             Ir para o login
