@@ -61,6 +61,9 @@ describe('nada de dado da aplicação no navegador', () => {
     // módulo — e não no contexto — para a guarda continuar valendo sobre o
     // arquivo que guarda o estado do app.
     'src/lib/portal.ts',
+    // Marca de "já recarreguei por chunk que sumiu no deploy". Não é dado
+    // nenhum: é o que impede a recarga automática de virar laço infinito.
+    'src/lib/atualizacao.ts',
   ];
 
   it('nenhum módulo grava no localStorage', () => {
