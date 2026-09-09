@@ -159,16 +159,17 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
 };
 
 export const ClientPortalView: React.FC = () => {
-  const { 
-    clients, 
-    portalClientId, 
-    openClientPortal,
-    closeClientPortal, 
-    jobs, 
-    approveJob, 
-    requestAdjustment, 
+  const {
+    clients,
+    portalClientId,
+    closeClientPortal,
+    entrarNoPortal,
+    carregandoPortal,
+    erroDoPortal,
+    jobs,
+    approveJob,
+    requestAdjustment,
     currentWorkspace,
-    setSelectedJob,
     clientMaterials,
     addClientMaterial,
     deleteClientMaterial
