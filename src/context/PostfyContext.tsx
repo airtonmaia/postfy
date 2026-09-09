@@ -65,6 +65,8 @@ interface PostfyContextType {
   workspaces: Workspace[];
   currentWorkspace: Workspace;
   setCurrentWorkspace: (ws: Workspace) => void;
+  /** Recarrega esperando a fila de gravação drenar. */
+  recarregarComSeguranca: () => Promise<void>;
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
   createWorkspace: (name: string, primaryColor?: string) => Promise<Workspace | null>;
@@ -262,12 +264,28 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     void (async () => {
       try {
         await salvarPreferencias({ lastWorkspaceId: ws.id });
-        await filaDeGravacao.current;
       } catch {
         /* Recarrega mesmo assim: a tela precisa sair do estado misturado. */
       }
-      window.location.reload();
+      await recarregarComSeguranca();
     })();
+  };
+
+  /**
+   * Recarrega a página sem perder o que ainda não foi gravado.
+   *
+   * A tela mostra o resultado antes de o banco confirmar, então recarregar no
+   * meio de uma escrita a mataria em silêncio — o usuário veria a alteração
+   * sumir no reload sem nunca ter visto um erro. Esperar a fila drenar custa
+   * milissegundos e fecha esse buraco.
+   */
+  const recarregarComSeguranca = async () => {
+    try {
+      await filaDeGravacao.current;
+    } catch {
+      /* Se a gravação falhou, o aviso de erro já apareceu na faixa. */
+    }
+    window.location.reload();
   };
 
   const updateWorkspace = (workspaceId: string, updates: Partial<Workspace>) => {
@@ -1883,6 +1901,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workspaces,
         currentWorkspace,
         setCurrentWorkspace,
+        recarregarComSeguranca,
         updateWorkspace,
         updateCurrentWorkspace,
         createWorkspace,

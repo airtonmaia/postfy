@@ -1,11 +1,38 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
 
 import { readFileSync } from 'fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
+
+const identidadeDaBuild = {
+  versao: version as string,
+  build: new Date().toISOString(),
+  commit: (process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 7),
+};
+
+/**
+ * `version.json` ao lado do bundle.
+ *
+ * A aba aberta só sabe a versão com que ela mesma foi carregada — está
+ * embutida no JS. Para descobrir que subiu outra, precisa perguntar a algo
+ * que não seja o próprio bundle. Este arquivo é esse algo: minúsculo, sem
+ * hash no nome (senão a aba antiga não saberia o endereço do novo) e sem
+ * depender de `/api`, que não sobe no `vite dev`.
+ */
+const publicarIdentidadeDaBuild = (): Plugin => ({
+  name: 'orquesia:version-json',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'version.json',
+      source: JSON.stringify(identidadeDaBuild),
+    });
+  },
+});
 
 export default defineConfig(() => {
   return {
@@ -20,13 +47,11 @@ export default defineConfig(() => {
      * O commit vem da Vercel; em desenvolvimento não existe e vira 'local'.
      */
     define: {
-      __APP_VERSION__: JSON.stringify(version),
-      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-      __COMMIT__: JSON.stringify(
-        (process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 7)
-      ),
+      __APP_VERSION__: JSON.stringify(identidadeDaBuild.versao),
+      __BUILD_TIME__: JSON.stringify(identidadeDaBuild.build),
+      __COMMIT__: JSON.stringify(identidadeDaBuild.commit),
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), publicarIdentidadeDaBuild()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

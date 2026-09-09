@@ -73,6 +73,7 @@ import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
 import { VersaoDoApp } from './components/common/VersaoDoApp';
+import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -516,6 +517,9 @@ const MainLayout: React.FC = () => {
             </div>
           </div>
         </header>
+
+        {/* Deploy que saiu com esta aba aberta. */}
+        <AvisoDeAtualizacao />
 
         {/* Falha ao gravar no banco. Não existe mais aviso de cache: nada de
             dado de agência passa pelo navegador. */}

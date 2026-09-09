@@ -31,6 +31,32 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.4.0',
+    data: '2026-09-09',
+    resumo: 'O Portal do Cliente passa a funcionar de verdade, com entrada por código no e-mail.',
+    novidades: [
+      'O cliente entra no portal pelo próprio e-mail: recebe um código de 6 dígitos e só acessa depois de provar que abriu a caixa. Antes bastava saber o telefone — que costuma estar no rodapé do site da empresa.',
+      'Cronograma do portal virou calendário mensal, com miniatura da arte, prévia grande ao passar o mouse e aprovação direto do card.',
+      'Super Admin ganhou a tela de Usuários: todas as contas do produto e as agências de cada uma, com destaque para quem ficou sem nenhuma.',
+      'Convidar quem já tem conta deixou de pedir link: a pessoa recebe um e-mail e aceita o cargo com a senha que já usa.',
+      'Papel, suspensão de acesso e remoção de membros agora se resolvem na tela de Usuários da agência.',
+      'Quando sai uma versão nova, quem está com o sistema aberto recebe o aviso em vez de continuar na versão antiga sem saber.',
+    ],
+    melhorias: [
+      'O seletor de agência virou a própria logo, na barra lateral — eram dois lugares mostrando a mesma marca, e só um trocava de agência.',
+      'Trocar de agência recarrega o sistema, esperando o que estava sendo gravado terminar. Cor e dados deixam de vir misturados da agência anterior.',
+      'As artes do portal aparecem na proporção real da rede: 4:5 no feed, 9:16 em Reels e Stories.',
+    ],
+    corrigido: [
+      'Quem participava de mais de uma agência enxergava só uma no seletor, sem caminho para as outras.',
+      'O convite ia sempre para a agência do login, não para a que estava aberta: convidar alguém depois de trocar de agência criava o vínculo no lugar errado.',
+      'Mover um conteúdo para "Para Aprovação" no Kanban não avisava o cliente por e-mail — o disparo só existia ao enviar uma versão nova.',
+      'Qualquer membro podia se promover a proprietário editando o próprio vínculo.',
+      'O portal só abria com alguém da agência logado no mesmo navegador: para o cliente de verdade, ele carregava vazio.',
+      'A tela de Usuários misturava, numa lista só, as equipes de todas as agências da pessoa.',
+    ],
+  },
+  {
     versao: '2.3.0',
     data: '2026-09-09',
     resumo: 'Cada tela ganha endereço próprio: recarregar não joga mais você no Dashboard.',

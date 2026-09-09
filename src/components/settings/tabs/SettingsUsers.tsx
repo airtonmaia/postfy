@@ -75,6 +75,7 @@ export const SettingsUsers: React.FC = () => {
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [emailEnviado, setEmailEnviado] = useState(false);
+  const [motivoDoEmail, setMotivoDoEmail] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [salvandoMembro, setSalvandoMembro] = useState<string | null>(null);
   const [situacao, setSituacao] = useState<SituacaoDoConvidado | null>(null);
@@ -172,8 +173,13 @@ export const SettingsUsers: React.FC = () => {
           inviterName: currentUser.name,
         });
         setEmailEnviado(true);
-      } catch {
+        setMotivoDoEmail(null);
+      } catch (err) {
+        // Guarda o motivo que o servidor deu. "Não pôde ser enviado" sozinho
+        // manda procurar defeito onde não tem: o caso mais comum é o limite
+        // por hora da rota, que passa em uma hora e não é erro de ninguém.
         setEmailEnviado(false);
+        setMotivoDoEmail(err instanceof Error ? err.message : null);
       }
 
       setNome('');
@@ -473,13 +479,22 @@ export const SettingsUsers: React.FC = () => {
 
             {linkGerado ? (
               <div className="p-5 space-y-4">
-                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
-                  {!emailEnviado
-                    ? 'Convite criado, mas o e-mail não pôde ser enviado. Compartilhe o link abaixo manualmente.'
-                    : situacao?.temConta
-                    ? 'Pronto. A pessoa já tem conta no Orquesia: basta aceitar o cargo pelo e-mail, com a senha que ela já usa.'
-                    : 'Convite enviado por e-mail. O link abaixo é o mesmo, caso queira compartilhar por outro canal.'}
-                </div>
+                {emailEnviado ? (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
+                    {situacao?.temConta
+                      ? 'Pronto. A pessoa já tem conta no Orquesia: basta aceitar o cargo pelo e-mail, com a senha que ela já usa.'
+                      : 'Convite enviado por e-mail. O link abaixo é o mesmo, caso queira compartilhar por outro canal.'}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs space-y-1">
+                    <p className="font-bold">O convite está criado e válido.</p>
+                    <p>
+                      O que não saiu foi o e-mail
+                      {motivoDoEmail ? `: ${motivoDoEmail}` : '.'} Enquanto isso, o link abaixo
+                      funciona igual — pode mandar por onde preferir.
+                    </p>
+                  </div>
+                )}
 
                 {/*
                   Para quem já tem conta o link só aparece se o e-mail falhou.
