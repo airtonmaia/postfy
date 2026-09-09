@@ -68,6 +68,30 @@ a tela já mostrou o resultado antes de o banco responder.
 
 Sete regras. Todas vieram de bugs que chegaram a produção.
 
+### 0. Import relativo em `api/` precisa da extensão `.js`
+
+```ts
+import { json } from './_lib/auth.js';   // ✅
+// import { json } from './_lib/auth';   // ❌ derruba a função inteira
+```
+
+O `package.json` tem `"type": "module"`, então o Node carrega as funções como
+ESM — e **em ESM a extensão é obrigatória no import relativo**. Sem ela o
+módulo nem carrega: `ERR_MODULE_NOT_FOUND`, a função morre antes da primeira
+linha, e a Vercel devolve `FUNCTION_INVOCATION_FAILED` — 500 sem corpo, sem
+stack.
+
+Foi isto que derrubou **todas** as rotas `/api` desde o primeiro dia, e custou
+quatro rodadas de diagnóstico. O que torna a armadilha cara é que nenhuma
+ferramenta local reclama: o TypeScript resolve `./x.js` para `./x.ts`, o
+vitest usa a resolução do Vite, e o `vite build` nem olha para `api/`. Tudo
+verde, produção morta.
+
+O TypeScript aceita a extensão `.js` apontando para um arquivo `.ts` — é a
+convenção do NodeNext e funciona nos dois lados.
+
+Protegido por `tests/rotas-api.test.ts`.
+
 ### 1. Rota `/api` exporta um handler `(req, res)` pelo adaptador
 
 ```ts

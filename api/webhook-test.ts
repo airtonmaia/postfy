@@ -5,11 +5,10 @@ import {
   falharComSeguranca,
   textoValido,
   excedeuLimite,
-} from './_lib/auth';
-import { rota } from './_lib/rota';
-import { buscarComProtecao } from './_lib/ssrf';
+} from './_lib/auth.js';
+import { rota } from './_lib/rota.js';
+import { buscarComProtecao } from './_lib/ssrf.js';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Disparo de teste de webhook.

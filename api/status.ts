@@ -1,7 +1,6 @@
-import { usuarioDaRequisicao, json, naoAutenticado } from './_lib/auth';
-import { rota } from './_lib/rota';
+import { usuarioDaRequisicao, json, naoAutenticado } from './_lib/auth.js';
+import { rota } from './_lib/rota.js';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * O que está de fato configurado no servidor.

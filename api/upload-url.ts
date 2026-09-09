@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { rota } from './_lib/rota';
+import { rota } from './_lib/rota.js';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   usuarioDaRequisicao,
@@ -9,9 +9,8 @@ import {
   falharComSeguranca,
   textoValido,
   excedeuLimite,
-} from './_lib/auth';
+} from './_lib/auth.js';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * URL pré-assinada para upload no Cloudflare R2.

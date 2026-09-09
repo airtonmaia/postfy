@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import * as gemini from '../api/gemini';
 import * as uploadUrl from '../api/upload-url';
@@ -8,6 +9,7 @@ import * as status from '../api/status';
 import * as sendEmail from '../api/send-email';
 import * as socialConnect from '../api/social-connect';
 import * as publicar from '../api/publicar';
+import * as ping from '../api/ping';
 
 /**
  * Formato do export das funções serverless.
@@ -83,6 +85,37 @@ const chamarComoAVercel = async (
   return { res, corpo: escrito.join('') };
 };
 
+/**
+ * Import relativo dentro de `api/` precisa da extensão `.js`.
+ *
+ * O package.json tem `"type": "module"`, então o Node carrega as funções como
+ * ESM — e em ESM a extensão é obrigatória no import relativo. Sem ela o
+ * carregamento do módulo falha com ERR_MODULE_NOT_FOUND e a função morre
+ * antes de a primeira linha rodar: FUNCTION_INVOCATION_FAILED, 500 sem corpo.
+ *
+ * Foi isso que derrubou todas as rotas /api desde o início. O TypeScript não
+ * reclama (resolve `./x.js` para `./x.ts`), o vitest não reclama (usa a
+ * resolução do Vite) e o `vite build` nem olha para `api/`. Nenhuma
+ * ferramenta local pega — por isso este teste existe.
+ */
+describe('imports relativos das rotas têm extensão', () => {
+  const arquivos = [
+    ...readdirSync('api').filter((f) => f.endsWith('.ts')).map((f) => `api/${f}`),
+    ...readdirSync('api/_lib').filter((f) => f.endsWith('.ts')).map((f) => `api/_lib/${f}`),
+  ];
+
+  for (const arquivo of arquivos) {
+    it(`${arquivo}`, () => {
+      const texto = readFileSync(arquivo, 'utf-8');
+      // `import type` é apagado na compilação e não chega ao runtime.
+      const semExtensao = (texto.match(/^import (?!type ).*from '\.[^']*'/gm) || []).filter(
+        (linha) => !/\.js';?$/.test(linha)
+      );
+      expect(semExtensao).toEqual([]);
+    });
+  }
+});
+
 describe('a Vercel consegue invocar cada rota', () => {
   for (const [nome, modulo] of Object.entries(rotas)) {
     it(`${nome} exporta um handler (req, res)`, () => {
@@ -107,6 +140,27 @@ describe('a Vercel consegue invocar cada rota', () => {
       expect(res.finalizado).toBe(true);
     });
   }
+});
+
+/**
+ * A sonda existe para dividir o problema quando tudo falha em produção.
+ * Se ela deixar de responder aqui, deixou de servir para isso.
+ */
+describe('sonda /api/ping', () => {
+  it('responde 200 sem depender de nada', async () => {
+    const { res, corpo } = await chamarComoAVercel(ping, 'GET');
+    expect(res.finalizado).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(corpo)).toHaveProperty('ok', true);
+  });
+
+  it('não importa nada em tempo de execução', () => {
+    // Um import aqui derrota o propósito: a sonda passaria a poder falhar
+    // pelo mesmo motivo que as rotas de verdade.
+    const fonte = readFileSync('api/ping.ts', 'utf-8');
+    const imports: string[] = fonte.match(/^import .*/gm) ?? [];
+    expect(imports.every((l) => l.startsWith('import type'))).toBe(true);
+  });
 });
 
 describe('sem sessão, resposta é 401 em JSON', () => {
