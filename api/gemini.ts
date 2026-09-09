@@ -1,32 +1,26 @@
-import { GoogleGenAI } from '@google/genai';
 import {
   usuarioDaRequisicao,
   json,
   naoAutenticado,
-  falharComSeguranca,
   textoValido,
   excedeuLimite,
 } from './_lib/auth';
+import { configuracaoDaIA, gerarJson, ErroDeIA } from './_lib/ia';
 
 export const config = { runtime: 'nodejs' };
 
 /**
- * Rotas de IA. Exigem sessão: sem isso, qualquer pessoa na internet queimaria
- * a cota da chave do Gemini, que fica só aqui no servidor e nunca no bundle.
+ * Rotas de IA.
+ *
+ * Exigem sessão: sem isso qualquer pessoa na internet queimaria a cota, e a
+ * chave fica só aqui no servidor, nunca no bundle.
+ *
+ * O fornecedor é escolhido por variável de ambiente (ver _lib/ia). O nome do
+ * arquivo continua "gemini" para não quebrar a URL que o cliente já chama.
  */
 
-const MODELO = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-
-let cliente: GoogleGenAI | null = null;
-const obterCliente = (): GoogleGenAI | null => {
-  if (!process.env.GEMINI_API_KEY) return null;
-  if (!cliente) cliente = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  return cliente;
-};
-
 const PROMPTS = {
-  'generate-copy': (c: any) => `Você é o copywriter sênior e estrategista de conteúdo de uma agência.
-Crie o conteúdo de alta conversão para uma postagem com os seguintes dados:
+  'generate-copy': (c: any) => `Crie o conteúdo de alta conversão para uma postagem com os seguintes dados:
 - Tema / Assunto: "${c.theme}"
 - Formato: "${c.format || 'Carrossel'}"
 - Plataforma: "${c.platform || 'Instagram'}"
@@ -36,9 +30,9 @@ Crie o conteúdo de alta conversão para uma postagem com os seguintes dados:
 - Objetivo do Mês: "${c.monthlyGoals || 'Engajamento e geração de leads'}"
 - Observações adicionais: "${c.additionalNotes || 'Nenhuma'}"
 
-Retorne estritamente em JSON:
+Responda com este JSON:
 {
-  "caption": "Texto completo da legenda com emojis, quebras de linha e chamada para ação",
+  "caption": "Legenda completa com emojis, quebras de linha e chamada para ação",
   "hook": "Gancho magnético para os primeiros 3 segundos ou primeira linha",
   "cta": "Chamada para ação direta",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
@@ -50,22 +44,26 @@ Feedback bruto: "${c.clientFeedback}"
 Legenda atual: "${c.currentCopy || 'Não informada'}"
 
 Como Diretor de Operações de agência, transforme esse feedback numa lista acionável e técnica de tarefas separadas por responsável.
-Retorne estritamente em JSON:
+
+Responda com este JSON:
 {
   "summary": "Resumo objetivo do que precisa ser alterado",
-  "checklist": [{ "item": "Tarefa técnica a executar", "role": "designer" | "copywriter" }]
-}`,
+  "checklist": [{ "item": "Tarefa técnica a executar", "role": "designer" }]
+}
+O campo "role" aceita apenas "designer" ou "copywriter".`,
 
   'editorial-ideas': (c: any) => `Gere 4 ideias criativas de conteúdo estratégico para o cliente "${c.clientName || 'Cliente'}", do segmento "${c.clientSegment || 'Negócios e Serviços'}", para o mês de "${c.month || 'próximo mês'}".
-Retorne estritamente em JSON:
+
+Responda com este JSON:
 {
   "ideas": [{
     "title": "Título sugerido",
-    "format": "Carrossel" | "Reels" | "Post Estático" | "Stories",
+    "format": "Carrossel",
     "hook": "Gancho de atração imediata",
     "rationale": "Por que essa pauta funciona"
   }]
-}`,
+}
+O campo "format" aceita: "Carrossel", "Reels", "Post Estático" ou "Stories".`,
 } as const;
 
 type Acao = keyof typeof PROMPTS;
@@ -101,13 +99,14 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'Informe o feedback do cliente.' }, 400);
   }
 
-  const ai = obterCliente();
-  if (!ai) {
+  const configIA = configuracaoDaIA();
+  if (!configIA) {
     // Sem chave respondemos 503 e a interface avisa. Devolver texto de exemplo
     // daria a impressão de que a IA está gerando de verdade.
     return json(
       {
-        error: 'IA não configurada. Defina GEMINI_API_KEY no ambiente para habilitar a geração.',
+        error:
+          'IA não configurada. Defina IA_API_KEY (e opcionalmente IA_PROVEDOR) no ambiente.',
         code: 'AI_NOT_CONFIGURED',
       },
       503
@@ -115,18 +114,12 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    const resposta = await ai.models.generateContent({
-      model: MODELO,
-      contents: PROMPTS[acao](corpo),
-      config: { responseMimeType: 'application/json' },
-    });
-
-    try {
-      return json(JSON.parse(resposta.text || '{}'));
-    } catch {
-      return json({ error: 'O modelo devolveu uma resposta fora do formato esperado.' }, 502);
-    }
+    return json(await gerarJson(PROMPTS[acao](corpo), configIA));
   } catch (erro) {
-    return falharComSeguranca(`gemini/${acao}`, erro, 502);
+    if (erro instanceof ErroDeIA) {
+      return json({ error: erro.message }, erro.status);
+    }
+    console.error(`[gemini/${acao}]`, erro);
+    return json({ error: 'Não foi possível gerar o conteúdo.' }, 502);
   }
 }
