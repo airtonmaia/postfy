@@ -370,6 +370,26 @@ em todo o sistema" e "Exportação de relatório em PDF" — nenhum construído.
 changelog que descreve intenção é pior que não ter changelog: o cliente cobra
 o que leu. Correção conta como entrada; foi boa parte do valor entregue.
 
+### Interface: shadcn/ui na estrutura, cores do projeto
+
+`src/components/ui/button.tsx` segue o formato do shadcn — cva + Slot +
+forwardRef, mesma API de `variant`, `size` e `asChild` — para `npx shadcn add`
+gerar peças que conversam com o que já existe.
+
+**As variantes não são as do shadcn, e isso é decisão, não descuido.** O
+padrão dele pinta tudo com variáveis de tema (`--primary`, `--ring`,
+`--background`) e assume a paleta neutra que o `init` instala. Este projeto
+nunca teve essas variáveis: usa cor direta do Tailwind, e o roxo é substituído
+pela cor da agência em tempo de execução — o portal é whitelabel.
+
+Por isso `components.json` tem **`cssVariables: false`**. Rodar
+`npx shadcn init` reescreveria o `src/index.css` com o tema dele e trocaria o
+visual do produto inteiro.
+
+As variantes saíram do que já estava em tela, levantado por contagem: a
+`primary` é a combinação repetida em 13 botões do app. Ao adicionar variante
+nova, faça o mesmo — não invente cor.
+
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
 `/api/status` e mostra o estado real do servidor em vez de uma lista fixa.
@@ -384,6 +404,7 @@ src/lib/db.ts              repositórios por entidade, operações por linha
 src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
+src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)

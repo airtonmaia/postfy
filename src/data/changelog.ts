@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.7.0',
+    data: '2026-09-09',
+    resumo: 'O copiar link chegou à barra lateral, e os botões passam a sair de uma peça só.',
+    melhorias: [
+      'Os botões do sistema passam a vir de um componente único, no formato shadcn/ui, com as cores que o Orquesia já usava. Muda como o código é escrito, não a aparência.',
+    ],
+    corrigido: [
+      'A barra lateral era o único lugar do sistema com o botão do Portal do Cliente sem o copiar link ao lado.',
+      'Com o filtro em "todos os clientes", esse botão abria a prévia de um cliente qualquer, sem dizer qual. Agora ele só abre com um cliente escolhido — e o copiar link continua ali, porque não depende de cliente nenhum.',
+    ],
+  },
+  {
     versao: '2.6.0',
     data: '2026-09-09',
     resumo: 'O Financeiro do SaaS para de inventar receita, e o link da prévia fica legível.',
