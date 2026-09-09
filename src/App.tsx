@@ -407,8 +407,6 @@ const MainLayout: React.FC = () => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-
-          <VersaoDoApp />
         </div>
       </aside>
 
@@ -566,6 +564,10 @@ const MainLayout: React.FC = () => {
           </Suspense>
         </main>
       </div>
+
+      {/* Fica por último para ficar por cima, e fora da barra lateral: a
+          pergunta que ele responde — "já subiu?" — vale em qualquer tela. */}
+      <VersaoDoApp />
     </div>
   );
 };

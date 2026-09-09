@@ -40,12 +40,23 @@ export const descreverBuild = (iso: string, agora = new Date()): string => {
   return `atualizado em ${dia} às ${hora}`;
 };
 
+/**
+ * Fixo no canto inferior direito, acima de qualquer tela.
+ *
+ * `pointer-events-none` no contêiner para não roubar clique de nada que
+ * esteja embaixo; só o texto volta a receber ponteiro, para o title do
+ * commit funcionar no hover.
+ */
 export const VersaoDoApp: React.FC = () => (
-  <p
-    className="text-[10px] text-slate-400 dark:text-slate-600 text-center leading-relaxed"
-    // O commit fica no title: útil para depurar, e ruído na tela do dia a dia.
-    title={`commit ${__COMMIT__}`}
-  >
-    v{__APP_VERSION__} · {descreverBuild(__BUILD_TIME__)}
-  </p>
+  <div className="fixed bottom-2 right-3 z-40 pointer-events-none select-none">
+    <p
+      className="pointer-events-auto text-[10px] font-mono text-slate-400/70 dark:text-slate-600
+                 bg-white/70 dark:bg-slate-950/70 backdrop-blur-sm rounded-md px-2 py-0.5
+                 border border-slate-200/60 dark:border-slate-800/60"
+      // O commit fica no title: útil para depurar, e ruído na tela do dia a dia.
+      title={`commit ${__COMMIT__}`}
+    >
+      v{__APP_VERSION__} · {descreverBuild(__BUILD_TIME__)}
+    </p>
+  </div>
 );
