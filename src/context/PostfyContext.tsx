@@ -177,6 +177,7 @@ interface PostfyContextType {
   generateEditorialIdeas: (clientId: string) => Promise<{ ideas: { title: string; format: string; hook: string; rationale: string }[] }>;
 
   // Supabase
+  isPlatformAdmin: boolean;
   isSupabaseConnected: boolean;
   syncWithSupabase: () => Promise<{ success: boolean; message: string }>;
 
@@ -328,10 +329,20 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   const [currentUser, setCurrentUser] = useState<User>(USUARIO_VAZIO);
 
+  /**
+   * Dono do SaaS. Vem da tabela platform_admins, não do papel na agência.
+   *
+   * Esconder o menu aqui é conveniência; quem impede o acesso ao dado é a
+   * RLS, que consulta a mesma tabela. Se esta flag fosse forjada no
+   * navegador, as telas abririam vazias em vez de vazar.
+   */
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
   const aplicarSessao = (sessao: SessaoDoApp | null) => {
     if (!sessao) {
       setIsAuthenticated(false);
       setCurrentUser(USUARIO_VAZIO);
+      setIsPlatformAdmin(false);
       return;
     }
     setCurrentUser({
@@ -342,6 +353,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       role: sessao.role,
       workspaceId: sessao.workspaceId,
     });
+    setIsPlatformAdmin(sessao.ehAdminDaPlataforma);
     setIsAuthenticated(true);
     // Identifica pelo id e pelo papel. E-mail e nome ficam de fora.
     identificar(sessao.userId, sessao.role);
@@ -1599,6 +1611,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         generateAiCopy,
         convertFeedbackToTasks,
         generateEditorialIdeas,
+        isPlatformAdmin,
         isSupabaseConnected,
         syncWithSupabase,
         syncState,

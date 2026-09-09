@@ -159,7 +159,37 @@ export interface SessaoDoApp {
   avatar: string;
   role: Role;
   workspaceId: string;
+  /**
+   * Dono do SaaS, não dono de agência.
+   *
+   * São eixos diferentes e estavam confundidos: `role` diz o que a pessoa faz
+   * dentro de uma agência, e todo mundo que se cadastra vira `owner` da sua.
+   * Isto aqui vem da tabela platform_admins, que a RLS também consulta —
+   * então esconder o menu e proteger o dado usam a mesma fonte.
+   */
+  ehAdminDaPlataforma: boolean;
 }
+
+/**
+ * Pergunta ao banco se o usuário administra a plataforma.
+ *
+ * A RLS de platform_admins só deixa um admin enxergar a tabela, então para
+ * quem não é a consulta volta vazia — que é exatamente a resposta certa.
+ */
+const consultarAdminDaPlataforma = async (userId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    // Na dúvida, não é admin. Um erro de rede não pode abrir o menu.
+    console.warn('[auth] não foi possível verificar admin da plataforma:', error.message);
+    return false;
+  }
+  return Boolean(data);
+};
 
 /**
  * Sessão do ponto de vista do app: identidade do Supabase Auth + o vínculo
@@ -183,6 +213,7 @@ export const carregarSessao = async (
     membros.find((m: any) => m.workspace_id === workspacePreferido) || membros[0];
 
   const metadados = usuario.user_metadata || {};
+  const ehAdminDaPlataforma = await consultarAdminDaPlataforma(usuario.id);
 
   return {
     userId: usuario.id,
@@ -193,6 +224,7 @@ export const carregarSessao = async (
     // editáveis pelo próprio usuário e não servem para autorização.
     role: (escolhido.role || 'owner') as Role,
     workspaceId: escolhido.workspace_id,
+    ehAdminDaPlataforma,
   };
 };
 

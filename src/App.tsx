@@ -27,6 +27,7 @@ import {
   Crown,
   DollarSign,
   Building2,
+  Mail,
   AlertTriangle
 } from 'lucide-react';
 
@@ -56,6 +57,7 @@ const ClientPortalView = lazy(() => import('./components/portal/ClientPortalView
 const SaasPlansView = lazy(() => import('./components/saas/SaasPlansView').then(m => ({ default: m.SaasPlansView })));
 const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView').then(m => ({ default: m.SaasFinancialView })));
 const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
+const SaasEmailsView = lazy(() => import('./components/saas/SaasEmailsView').then(m => ({ default: m.SaasEmailsView })));
 
 const CarregandoTela: React.FC = () => (
   <div className="flex-1 flex items-center justify-center p-8">
@@ -63,7 +65,7 @@ const CarregandoTela: React.FC = () => (
   </div>
 );
 import { TabType } from './types';
-import { pode, podeAcessarAba } from './lib/permissions';
+import { podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
@@ -93,7 +95,8 @@ const MainLayout: React.FC = () => {
     theme,
     setTheme,
     syncState,
-    syncError
+    syncError,
+    isPlatformAdmin,
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -141,11 +144,17 @@ const MainLayout: React.FC = () => {
   const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
   const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
-  // O acesso administrativo vem do papel na sessão do servidor.
-  // Antes era uma comparação de e-mail fixa no código do cliente.
-  const isSuperAdmin = pode(currentUser?.role, 'gerenciar_saas');
+  // Dono do SaaS, e não dono de agência.
+  //
+  // Vinha de `pode(role, 'gerenciar_saas')`, mas `owner` é o papel que a RPC
+  // criar_agencia dá a todo mundo que se cadastra: na prática, qualquer
+  // cliente novo enxergava o menu de gestão do produto. Agora vem da tabela
+  // platform_admins, que é a mesma fonte consultada pela RLS.
+  const isSuperAdmin = isPlatformAdmin;
 
-  const ABAS_SAAS: TabType[] = ['saas_planos', 'saas_financeiro', 'saas_agencias'];
+  const ABAS_SAAS: TabType[] = [
+    'saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_emails',
+  ];
   const abaPermitida = ABAS_SAAS.includes(activeTab as TabType)
     ? isSuperAdmin
     : podeAcessarAba(currentUser?.role, activeTab as TabType);
@@ -281,13 +290,14 @@ const MainLayout: React.FC = () => {
               <>
                 <div className="pt-4 pb-1 px-3">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                    👑 Gestão do SaaS
+                    👑 Super Admin
                   </span>
                 </div>
                 {[
                   { id: 'saas_planos', label: 'Planos do SaaS', icon: Crown },
                   { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
                   { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },
+                  { id: 'saas_emails', label: 'E-mails do Sistema', icon: Mail },
                 ].map(item => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -544,6 +554,7 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'saas_planos' && <SaasPlansView />}
           {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
           {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
+          {abaPermitida && activeTab === 'saas_emails' && <SaasEmailsView />}
           </Suspense>
         </main>
       </div>
