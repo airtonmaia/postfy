@@ -71,6 +71,7 @@ import { podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
+import { VersaoDoApp } from './components/common/VersaoDoApp';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -406,6 +407,8 @@ const MainLayout: React.FC = () => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+
+          <VersaoDoApp />
         </div>
       </aside>
 
