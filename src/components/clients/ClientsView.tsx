@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { novoId } from '../../lib/sincronizacao';
+import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Users, 
@@ -291,14 +292,7 @@ export const ClientsView: React.FC = () => {
                   não for feita no servidor, oferecer isto como link de
                   compartilhamento seria enganoso.
                 */}
-                <button
-                  onClick={() => visualizarPortalDoCliente(client.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold transition cursor-pointer border border-purple-200 dark:border-purple-800"
-                  title="Ver como o cliente enxerga, numa aba nova. O envio do link ao cliente ainda não está disponível."
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Prévia do portal
-                </button>
+                <BotaoDoPortal clientId={client.id} rotulo="Prévia do portal" />
               </div>
             </div>
           );

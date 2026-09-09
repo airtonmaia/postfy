@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { novoId } from '../../lib/sincronizacao';
+import { urlDoPortalDaAgencia } from '../../lib/rotas';
+import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
@@ -63,7 +65,8 @@ export const JobDetailModal: React.FC = () => {
     timesheetLogs,
     addTimesheetLog,
     currentUser,
-    convertFeedbackToTasks
+    convertFeedbackToTasks,
+    currentWorkspace,
   } = usePostfy();
 
   const [activeTab, setActiveTab] = useState<'content' | 'versions' | 'comments' | 'checklist' | 'timesheet'>('content');
@@ -105,7 +108,10 @@ export const JobDetailModal: React.FC = () => {
   const client = clients.find(c => c.id === selectedJob.clientId);
 
   const handleCopyApprovalLink = () => {
-    const url = `${window.location.origin}?portal=${client?.id}&job=${selectedJob.id}`;
+    // Levava `?portal=<id do cliente>`, e o portal espera o token opaco: o
+    // cliente abria numa tela vazia. Agora leva a agência, e quem chega prova
+    // quem é pelo código no e-mail — que é o que decide o que ele enxerga.
+    const url = urlDoPortalDaAgencia(currentWorkspace.slug, window.location.origin);
     copyToClipboard(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -364,15 +370,7 @@ export const JobDetailModal: React.FC = () => {
               <span>{copiedLink ? 'Copiado!' : 'Link de Aprovação'}</span>
             </button>
 
-            {client && (
-              <button
-                onClick={() => visualizarPortalDoCliente(client.id)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-lg transition"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Portal do Cliente</span>
-              </button>
-            )}
+            {client && <BotaoDoPortal clientId={client.id} />}
           </div>
         </div>
 

@@ -141,5 +141,32 @@ export const urlDaAba = (aba: TabType, subAba?: string, busca = ''): string =>
  */
 export const CAMINHO_PORTAL_PREVIEW = '/portal-do-cliente';
 
-export const urlDaPreviaDoPortal = (clienteId: string): string =>
-  `${CAMINHO_PORTAL_PREVIEW}?cliente=${encodeURIComponent(clienteId)}`;
+export const urlDaPreviaDoPortal = (clienteId: string, slugDaAgencia?: string): string => {
+  const params = new URLSearchParams({ cliente: clienteId });
+  if (slugDaAgencia) params.set('agencia', slugDaAgencia);
+  return `${CAMINHO_PORTAL_PREVIEW}?${params}`;
+};
+
+/**
+ * Link do portal para mandar ao cliente.
+ *
+ * Leva a agência, e não o cliente: quem chega prova quem é pelo código no
+ * e-mail, e é esse código que decide o que ele vê. O parâmetro serve só para
+ * a porta abrir com a marca certa — sem ele o cliente da "Pulmin" chega numa
+ * página do Orquesia e conclui que errou o endereço.
+ *
+ * Vai o `slug`, não o nome. O nome tem acento, espaço e repete entre
+ * agências; o slug é único no banco e já nasce com formato de URL. E ele
+ * sobrevive à agência ser renomeada, que é quando um link antigo quebraria.
+ */
+export const urlDoPortalDaAgencia = (slugDaAgencia: string, origem = ''): string =>
+  `${origem}${CAMINHO_PORTAL_PREVIEW}?agencia=${encodeURIComponent(slugDaAgencia)}`;
+
+/** Slug na URL, para a porta do portal saber de quem é a marca. */
+export const agenciaDoCaminho = (busca: string): string | null => {
+  try {
+    return new URLSearchParams(busca).get('agencia');
+  } catch {
+    return null;
+  }
+};

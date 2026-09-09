@@ -51,6 +51,38 @@ export const esquecerToken = (): void => {
   }
 };
 
+/**
+ * Marca da agência na porta do portal, antes de haver sessão.
+ *
+ * O portal é whitelabel: quem chega foi convidado pela agência, não pelo
+ * Orquesia. Sem isto a tela abre com a nossa marca, e o cliente conclui que
+ * errou o endereço.
+ *
+ * Devolve `null` quando o slug não existe ou a rede falha — a tela cai na
+ * marca padrão em vez de não abrir. Ninguém deixa de aprovar conteúdo porque
+ * o logo não carregou.
+ */
+export const carregarMarcaDaAgencia = async (
+  slug: string
+): Promise<Pick<Workspace, 'name' | 'slug' | 'logo' | 'favicon' | 'primaryColor' | 'secondaryColor'> | null> => {
+  try {
+    const { data, error } = await supabase.rpc('marca_da_agencia', { p_slug: slug });
+    if (error || !data) return null;
+
+    const b = data as any;
+    return {
+      name: b.name,
+      slug: b.slug,
+      logo: b.logo ?? '',
+      favicon: b.favicon ?? null,
+      primaryColor: b.primary_color ?? '#6366f1',
+      secondaryColor: b.secondary_color ?? null,
+    };
+  } catch {
+    return null;
+  }
+};
+
 export interface DadosDoPortal {
   cliente: Client;
   workspace: Workspace;

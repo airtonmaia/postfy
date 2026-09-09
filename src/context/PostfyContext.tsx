@@ -45,7 +45,14 @@ import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../lib/automacoes';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
-import { abaDoCaminho, urlDaAba, ABA_INICIAL, CAMINHO_PORTAL_PREVIEW, urlDaPreviaDoPortal } from '../lib/rotas';
+import {
+  abaDoCaminho,
+  urlDaAba,
+  ABA_INICIAL,
+  CAMINHO_PORTAL_PREVIEW,
+  urlDaPreviaDoPortal,
+  agenciaDoCaminho,
+} from '../lib/rotas';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -54,6 +61,7 @@ import {
   guardarToken,
   esquecerToken,
   type DadosDoPortal,
+  carregarMarcaDaAgencia,
 } from '../lib/portal';
 
 interface PostfyContextType {
@@ -752,6 +760,35 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * A agência também é definida aqui porque as views acima recortam por
    * `currentWsId` — sem isso o cliente carregaria e a tela filtraria tudo.
    */
+  /**
+   * Marca da agência na porta do portal.
+   *
+   * O portal é whitelabel, e sem isto ele abria com a marca do Orquesia para
+   * todo mundo: o cliente da "Pulmin" recebe um link, chega numa página de
+   * outra empresa e conclui que errou o endereço.
+   *
+   * Roda antes de qualquer código ser digitado, e por isso não pode depender
+   * de sessão — a marca vem de uma função que devolve só nome, logo e cores.
+   *
+   * Não roda com sessão de equipe: ali a agência da vez já é a certa, e
+   * sobrescrevê-la trocaria a marca do app inteiro pelo que estiver na URL.
+   */
+  useEffect(() => {
+    const slug = agenciaDoCaminho(window.location.search);
+    if (!slug || isAuthenticated) return;
+
+    let cancelado = false;
+    void (async () => {
+      const marca = await carregarMarcaDaAgencia(slug);
+      if (cancelado || !marca) return;
+      setCurrentWorkspaceState((atual) => ({ ...atual, ...marca }));
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!portalToken || isAuthenticated) return;
 
@@ -1012,7 +1049,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * localStorage, compartilhado entre abas do mesmo navegador.
    */
   const visualizarPortalDoCliente = (clientId: string) => {
-    window.open(urlDaPreviaDoPortal(clientId), '_blank', 'noopener,noreferrer');
+    // O slug vai junto para a prévia abrir com a marca da agência — é o que
+    // o cliente vai ver, e uma prévia com a marca errada não serve de prévia.
+    window.open(
+      urlDaPreviaDoPortal(clientId, currentWorkspace.slug),
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   const closeClientPortal = () => {
