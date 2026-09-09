@@ -81,9 +81,19 @@ const criarRepositorio = <T extends { id: string }>(
   },
 
   criar: async (entidade: Partial<T>): Promise<T> => {
+    // O id vai junto de propósito. Os mapeadores só traduzem campos de
+    // negócio — mandar o id num update sobrescreveria a chave —, então ele é
+    // acrescentado só aqui, na inserção.
+    //
+    // Sem isso o Postgres gera um id próprio e o estado da tela fica com
+    // outro: a linha existe nos dois lados com chaves diferentes, e a
+    // primeira edição tenta atualizar um id que não existe no banco.
+    const linha = paraLinha(entidade);
+    if (entidade.id) linha.id = entidade.id;
+
     const { data, error } = await supabase
       .from(tabela)
-      .insert(paraLinha(entidade))
+      .insert(linha)
       .select()
       .single();
     if (error) throw traduzirErro(error);

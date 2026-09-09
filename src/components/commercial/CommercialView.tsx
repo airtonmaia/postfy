@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { novoId } from '../../lib/sincronizacao';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Briefcase, 
@@ -111,7 +112,7 @@ export const CommercialView: React.FC = () => {
       title: proposalTitle.trim() || `Proposta Comercial - ${proposalClientName}`,
       items: [
         {
-          id: `pi-${Date.now()}`,
+          id: novoId(),
           service: proposalService,
           description: proposalScope,
           quantity: 1,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { novoId } from '../../lib/sincronizacao';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Users, 
@@ -55,7 +56,7 @@ export const ClientsView: React.FC = () => {
       segment: segment.trim() || 'Serviços & Varejo',
       services: [
         {
-          id: `s-${Date.now()}`,
+          id: novoId(),
           name: 'Gestão de Conteúdo e Social Media',
           monthlyValue,
           startDate: new Date().toISOString().split('T')[0],

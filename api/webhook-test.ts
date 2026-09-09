@@ -18,7 +18,7 @@ export const config = { runtime: 'nodejs' };
  * qualquer usuário autenticado usaria esta rota como sonda da rede interna e
  * do endpoint de metadados da nuvem.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== 'POST') {
     return json({ error: 'Método não permitido.' }, 405);
   }
@@ -69,3 +69,18 @@ export default async function handler(request: Request): Promise<Response> {
     clearTimeout(prazo);
   }
 }
+
+/**
+ * Export nomeado, e sem `export default`, de propósito.
+ *
+ * O builder da Vercel (@vercel/node) decide a assinatura pelo formato do
+ * export: só reconhece handler no padrão Web (Request/Response) quando existe
+ * um export nomeado de método (POST/GET/fetch). Com `export default` ele
+ * assume o handler clássico do Node e entrega (req, res) — aí
+ * `request.headers.get(...)` estoura num IncomingMessage e a função morre
+ * antes de responder, devolvendo um 500 sem corpo.
+ *
+ * Era esse o motivo de nenhuma rota /api ter funcionado em produção.
+ * Não troque por default sem reler `unwrapDefaults` no builder.
+ */
+export const POST = handler;

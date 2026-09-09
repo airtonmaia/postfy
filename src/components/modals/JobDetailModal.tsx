@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { novoId } from '../../lib/sincronizacao';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
@@ -147,7 +148,7 @@ export const JobDetailModal: React.FC = () => {
 
       if (res && res.checklist && res.checklist.length > 0) {
         const newItems = res.checklist.map((c: any, idx: number) => ({
-          id: `chk-ai-${Date.now()}-${idx}`,
+          id: novoId(),
           title: `[${c.role.toUpperCase()}] ${c.item}`,
           completed: false
         }));

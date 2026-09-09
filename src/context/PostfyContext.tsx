@@ -762,8 +762,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Activity logger helper
   const logActivity = (action: string, target: string, userName: string = currentUser?.name || 'Usuário') => {
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'w-1',
+      id: novoId(),
+      workspaceId: currentWorkspace.id,
       userName,
       action,
       target,
@@ -775,9 +775,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Job Operations
   const createJob = (jobData: Partial<Job>): Job => {
     const newJob: Job = {
-      id: `job-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'w-1',
-      clientId: jobData.clientId || clients[0]?.id || 'c-1',
+      id: novoId(),
+      workspaceId: currentWorkspace.id,
+      clientId: jobData.clientId || clients[0]?.id || '',
       title: jobData.title || 'Novo Conteúdo Sem Título',
       campaign: jobData.campaign || 'Geral',
       platform: jobData.platform || 'instagram',
@@ -810,9 +810,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deadlineApproval: jobData.deadlineApproval || new Date(Date.now() + 86400000 * 4).toISOString(),
       scheduledDate: jobData.scheduledDate || new Date(Date.now() + 86400000 * 5).toISOString(),
       checklist: jobData.checklist || [
-        { id: `chk-${Date.now()}-1`, title: 'Redação da copy e chamada', completed: false },
-        { id: `chk-${Date.now()}-2`, title: 'Design / Edição do criativo', completed: false },
-        { id: `chk-${Date.now()}-3`, title: 'Revisão ortográfica e aprovação', completed: false }
+        { id: novoId(), title: 'Redação da copy e chamada', completed: false },
+        { id: novoId(), title: 'Design / Edição do criativo', completed: false },
+        { id: novoId(), title: 'Revisão ortográfica e aprovação', completed: false }
       ],
       comments: []
     };
@@ -864,7 +864,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (newStatus === 'for_approval') {
       const client = clients.find(c => c.id === job.clientId);
       const newNotif: Notification = {
-        id: `notif-${Date.now()}`,
+        id: novoId(),
         workspaceId: currentWorkspace.id,
         title: `Conteúdo enviado para aprovação: ${job.title}`,
         message: `O conteúdo está aguardando revisão de ${client?.name || 'Cliente'}.`,
@@ -908,7 +908,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Aprovou o conteúdo', `Job: ${job.title}`, approverName);
     
     const newNotif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Conteúdo Aprovado! 🎉`,
       message: `${approverName} aprovou "${job.title}". Pronto para agendamento.`,
@@ -946,7 +946,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     const newNotif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Pedido de Ajuste Solicitado`,
       message: `${requesterName} solicitou ajuste em "${job.title}": ${feedback.slice(0, 60)}...`,
@@ -988,7 +988,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!job) return;
     
     const newComment = {
-      id: `cm-${Date.now()}`,
+      id: novoId(),
       authorName: isClient ? 'Cliente' : currentUser.name,
       authorRole: isClient ? 'client' as const : currentUser.role,
       authorAvatar: isClient 
@@ -1033,7 +1033,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Client Operations
   const addClient = (clientData: Partial<Client>): Client => {
     const newClient: Client = {
-      id: `c-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       name: clientData.name || 'Novo Cliente',
       legalName: clientData.legalName || clientData.name,
@@ -1046,10 +1046,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       internalResponsibleId: currentUser.id,
       healthScore: 'green',
       services: clientData.services || [
-        { id: `s-${Date.now()}`, name: 'Gestão Social Media', monthlyValue: 4000, startDate: new Date().toISOString().split('T')[0], recurrence: 'monthly' }
+        { id: novoId(), name: 'Gestão Social Media', monthlyValue: 4000, startDate: new Date().toISOString().split('T')[0], recurrence: 'monthly' }
       ],
       contacts: clientData.contacts || [
-        { id: `ct-${Date.now()}`, name: clientData.name || 'Contato Principal', email: clientData.email || '', phone: clientData.phone || '', role: 'Gestor', isPrimary: true }
+        { id: novoId(), name: clientData.name || 'Contato Principal', email: clientData.email || '', phone: clientData.phone || '', role: 'Gestor', isPrimary: true }
       ],
       notes: clientData.notes || '',
       createdAt: new Date().toISOString(),
@@ -1079,7 +1079,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientPassword = (clientId: string, passwordData: Omit<ClientPassword, 'id' | 'updatedAt'>) => {
     const newPassword: ClientPassword = {
       ...passwordData,
-      id: `pwd-${Date.now()}`,
+      id: novoId(),
       updatedAt: new Date().toISOString()
     };
     setAllClients(prev => prev.map(c => {
@@ -1099,7 +1099,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientInvoice = (clientId: string, invoiceData: Omit<ClientInvoice, 'id'>) => {
     const newInvoice: ClientInvoice = {
       ...invoiceData,
-      id: `inv-${Date.now()}`
+      id: novoId()
     };
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
@@ -1118,7 +1118,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientFile = (clientId: string, fileData: Omit<ClientFile, 'id' | 'uploadedAt'>) => {
     const newFile: ClientFile = {
       ...fileData,
-      id: `file-${Date.now()}`,
+      id: novoId(),
       uploadedAt: new Date().toISOString().split('T')[0]
     };
     setAllClients(prev => prev.map(c => {
@@ -1161,7 +1161,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const createContract = (contractData: Partial<Contract>): Contract => {
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: contractData.clientId || 'c-1',
       clientName: contractData.clientName || 'Cliente',
@@ -1186,14 +1186,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addProposal = (proposalData: Partial<Proposal>): Proposal => {
     const newProp: Proposal = {
-      id: `prop-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       leadId: proposalData.leadId,
       clientId: proposalData.clientId,
       clientName: proposalData.clientName || 'Cliente Prospect',
       title: proposalData.title || 'Proposta de Marketing Digital',
       items: proposalData.items || [
-        { id: `pi-${Date.now()}`, service: 'Gestão Social Media', description: '12 posts mensais + stories', quantity: 1, monthlyValue: 3500 }
+        { id: novoId(), service: 'Gestão Social Media', description: '12 posts mensais + stories', quantity: 1, monthlyValue: 3500 }
       ],
       totalMonthlyValue: proposalData.totalMonthlyValue || 3500,
       status: 'sent',
@@ -1207,7 +1207,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addLead = (leadData: Partial<Lead>): Lead => {
     const newLead: Lead = {
-      id: `lead-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       name: leadData.name || 'Novo Contato',
       company: leadData.company || 'Nova Empresa',
@@ -1250,7 +1250,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       segment: lead.serviceInterest,
       services: [
         {
-          id: `s-${Date.now()}`,
+          id: novoId(),
           name: lead.serviceInterest,
           monthlyValue: lead.estimatedValue,
           startDate: new Date().toISOString().split('T')[0],
@@ -1264,7 +1264,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // 3. Generate contract automatically
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: newClient.id,
       clientName: newClient.name,
@@ -1279,7 +1279,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Converteu Lead em Cliente', `Lead: ${lead.name} -> Cliente: ${newClient.name}`);
     
     const notif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Lead Convertido em Cliente! 🚀`,
       message: `${lead.company || lead.name} agora é um cliente ativo. Contrato gerado automaticamente.`,
@@ -1312,7 +1312,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!prop) return;
     
     const newContract: Contract = {
-      id: `cont-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       clientId: prop.clientId || 'c-1',
       clientName: prop.clientName,
@@ -1345,7 +1345,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => {
     const newMaterial: ClientMaterial = {
       ...material,
-      id: `mat-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace?.id,
       createdAt: new Date().toISOString()
     };
@@ -1354,7 +1354,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Notification for agency team
     const notif: Notification = {
-      id: `notif-${Date.now()}`,
+      id: novoId(),
       workspaceId: currentWorkspace.id,
       title: `Novo Material Recebido do Cliente 📸`,
       message: `${newMaterial.clientName} enviou "${newMaterial.title}" para uso na criação de conteúdo.`,
@@ -1374,7 +1374,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addTimesheetLog = (log: Omit<TimesheetLog, 'id' | 'createdAt'>) => {
     const newLog: TimesheetLog = {
       ...log,
-      id: `ts-${Date.now()}`,
+      id: novoId(),
       createdAt: new Date().toISOString()
     };
     setAllTimesheetLogs(prev => [newLog, ...prev]);
