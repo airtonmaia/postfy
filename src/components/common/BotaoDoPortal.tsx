@@ -82,15 +82,22 @@ export const BotaoDoPortal: React.FC<Props> = ({
   const variantePrimitivo = destaque ? 'primary' : ('soft' as const);
   const tamanho = destaque ? ('md' as const) : ('sm' as const);
 
-  const juntarEsquerda = destaque ? 'rounded-r-none' : 'rounded-r-none';
-  const juntarDireita = 'rounded-l-none border-l';
+  /**
+   * Na barra lateral os dois ficam soltos, com respiro entre eles. Nas outras
+   * variantes eles são um par colado, com o canto reto do lado que encosta.
+   *
+   * Colado é melhor quando os dois cabem com rótulo: lê como uma coisa só com
+   * duas ações. Na coluna estreita não cabem, o da direita fica só com ícone,
+   * e aí colado ele some dentro do vizinho — foi o que fez o copiar passar
+   * despercebido antes.
+   */
+  const juntarEsquerda = lateral ? '' : 'rounded-r-none';
+  const juntarDireita = lateral ? '' : 'rounded-l-none border-l';
 
   return (
     <div
       className={
-        lateral
-          ? 'flex items-stretch w-full rounded-xl overflow-hidden'
-          : 'inline-flex items-stretch'
+        lateral ? 'flex items-center gap-1.5 w-full' : 'inline-flex items-stretch'
       }
     >
       {clientId && (
@@ -98,8 +105,10 @@ export const BotaoDoPortal: React.FC<Props> = ({
           variant={variantePrimitivo}
           size={tamanho}
           onClick={() => visualizarPortalDoCliente(clientId)}
-          className={`${juntarEsquerda} ${lateral ? 'flex-1 min-w-0 justify-start py-2' : ''}`}
-          title="Abrir a prévia numa aba nova, com a marca da agência"
+          className={`${juntarEsquerda} ${lateral ? 'flex-1 min-w-0 justify-start p-2.5' : ''}`}
+          // O texto diz "prévia" porque o botão perdeu o badge que dizia isso:
+          // na coluna estreita ele não cabia ao lado do copiar.
+          title="Abrir a prévia do portal numa aba nova, com a marca da agência"
         >
           <ExternalLink className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
           <span className={lateral ? 'truncate' : undefined}>{rotulo}</span>
@@ -111,8 +120,8 @@ export const BotaoDoPortal: React.FC<Props> = ({
         size={tamanho}
         onClick={copiar}
         disabled={!slug}
-        className={`${lateral ? 'py-2' : ''} ${
-          clientId
+        className={`${lateral ? 'p-2.5' : ''} ${
+          clientId && !lateral
             ? `${juntarDireita} ${destaque ? 'border-purple-500' : 'border-purple-200 dark:border-purple-800'}`
             : ''
         }`}
@@ -130,9 +139,10 @@ export const BotaoDoPortal: React.FC<Props> = ({
         ) : (
           <Copy className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
         )}
-        {/* Na barra lateral o rótulo encurta: "Copiar link" ao lado de
-            "Portal do Cliente" não cabe nos 232px úteis da coluna. */}
-        <span>{copiado ? 'Copiado!' : lateral ? 'Copiar' : 'Copiar link'}</span>
+        {/* Na barra lateral fica só o ícone: "Copiar link" ao lado de "Portal
+            do Cliente" não cabe nos 232px úteis da coluna. O `title` e o
+            `aria-label` seguram o significado. */}
+        {!lateral && <span>{copiado ? 'Copiado!' : 'Copiar link'}</span>}
       </Button>
     </div>
   );

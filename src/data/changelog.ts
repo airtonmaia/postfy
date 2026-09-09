@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.7.1',
+    data: '2026-09-09',
+    resumo: 'Na barra lateral, o botão do portal e o copiar link ficam lado a lado.',
+    corrigido: [
+      'A versão anterior trocou o botão do Portal do Cliente pelo par com o copiar, em vez de manter os dois. Agora o botão está de volta, com o copiar ao lado.',
+    ],
+  },
+  {
     versao: '2.7.0',
     data: '2026-09-09',
     resumo: 'O copiar link chegou à barra lateral, e os botões passam a sair de uma peça só.',
