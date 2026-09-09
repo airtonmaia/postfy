@@ -136,6 +136,25 @@ export const arquivosApi = {
   },
 };
 
+export interface RespostaDeEmail {
+  enviado: boolean;
+  para?: string;
+  motivo?: string;
+}
+
+/**
+ * Disparo de e-mail do sistema.
+ *
+ * Manda só o evento e o conteúdo: assunto, corpo e destinatário são
+ * resolvidos no servidor a partir do banco. Se viessem daqui, qualquer
+ * sessão autenticada teria um remetente @orquesia.com.br para escrever o que
+ * quisesse.
+ */
+export const emailApi = {
+  disparar: (evento: string, jobId: string) =>
+    chamar<RespostaDeEmail>('/api/send-email', { evento, jobId }),
+};
+
 export interface StatusDoServidor {
   ia: boolean;
   armazenamento: boolean;

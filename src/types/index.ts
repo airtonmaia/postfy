@@ -286,8 +286,18 @@ export interface Automation {
   id: string;
   workspaceId: string;
   title: string;
+  /** Descrição legível da condição, exibida na tela. */
   trigger: string;
+  /** Descrição legível da ação, exibida na tela. */
   action: string;
+  /**
+   * Versões tipadas do par acima. São o que o motor casa e executa; as
+   * strings existem para a interface. Opcionais porque regras criadas antes
+   * disso não têm — elas simplesmente não disparam.
+   */
+  triggerEvent?: 'conteudo_aguardando_aprovacao' | 'conteudo_aprovado' | 'pedido_de_ajuste';
+  actionType?: 'email' | 'webhook';
+  actionConfig?: Record<string, unknown>;
   enabled: boolean;
   lastRunAt?: string;
   executionCount: number;

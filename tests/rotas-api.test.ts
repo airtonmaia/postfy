@@ -4,6 +4,8 @@ import * as gemini from '../api/gemini';
 import * as uploadUrl from '../api/upload-url';
 import * as sendInvite from '../api/send-invite';
 import * as webhookTest from '../api/webhook-test';
+import * as status from '../api/status';
+import * as sendEmail from '../api/send-email';
 
 /**
  * Formato do export das funções serverless.
@@ -40,6 +42,8 @@ const rotas = {
   'api/upload-url.ts': uploadUrl,
   'api/send-invite.ts': sendInvite,
   'api/webhook-test.ts': webhookTest,
+  'api/status.ts': status,
+  'api/send-email.ts': sendEmail,
 } as Record<string, Record<string, unknown>>;
 
 describe('formato do export das rotas serverless', () => {
