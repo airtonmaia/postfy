@@ -107,6 +107,25 @@ describe('link do portal', () => {
     expect(culpados).toEqual([]);
   });
 
+  /**
+   * Os dois botões aparecem sempre.
+   *
+   * Uma tentativa de impedir que a prévia abrisse um cliente arbitrário
+   * escondeu o botão quando nenhum estava escolhido — e o filtro em "todos" é
+   * o padrão, então na prática o botão sumiu da barra lateral para a maioria
+   * das pessoas. O problema nunca foi abrir o primeiro cliente: era não dizer
+   * qual. Isso vive no `title` agora.
+   */
+  it('o botão de abrir não some quando nenhum cliente está escolhido', () => {
+    const comp = readFileSync('src/components/common/BotaoDoPortal.tsx', 'utf-8');
+    // Nada de renderização condicionada ao clientId.
+    expect(comp).not.toMatch(/\{clientId && \(/);
+    // Sem cliente escolhido, cai no primeiro.
+    expect(comp).toMatch(/clients\[0\]/);
+    // E o title diz de quem é a prévia.
+    expect(comp).toMatch(/prévia do portal de \$\{alvo\.name\}/);
+  });
+
   it('a marca da agência sai de uma função que não expõe a tabela', () => {
     const sql = readFileSync(
       'supabase/migrations/20260909190000_marca_publica_da_agencia.sql',

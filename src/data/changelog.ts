@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.7.2',
+    data: '2026-09-09',
+    resumo: 'O botão do Portal do Cliente some da barra lateral: corrigido.',
+    corrigido: [
+      'Com o filtro em "todos os clientes" — que é o padrão — o botão do Portal do Cliente não aparecia na barra lateral, sobrando só o de copiar. Agora os dois estão sempre lá, e o botão diz de qual cliente é a prévia ao passar o mouse.',
+    ],
+  },
+  {
     versao: '2.7.1',
     data: '2026-09-09',
     resumo: 'Na barra lateral, o botão do portal e o copiar link ficam lado a lado.',

@@ -23,7 +23,11 @@ import { urlDoPortalDaAgencia } from '../../lib/rotas';
  */
 
 interface Props {
-  /** Cliente da prévia. Sem ele, só o copiar aparece. */
+  /**
+   * Cliente da prévia. Sem ele, cai no primeiro da lista — os dois botões
+   * aparecem sempre. Escondê-los quando não há cliente escolhido já foi
+   * tentado, e some com o botão no caso mais comum: o filtro em "todos".
+   */
   clientId?: string;
   /**
    * `discreto` para barra de ações, `destaque` para o topo de uma tela,
@@ -39,10 +43,25 @@ export const BotaoDoPortal: React.FC<Props> = ({
   variante = 'discreto',
   rotulo = 'Portal do Cliente',
 }) => {
-  const { visualizarPortalDoCliente, currentWorkspace } = usePostfy();
+  const { visualizarPortalDoCliente, currentWorkspace, clients } = usePostfy();
   const [copiado, setCopiado] = useState(false);
 
   const slug = currentWorkspace?.slug;
+
+  /**
+   * Qual cliente a prévia abre.
+   *
+   * Sem `clientId` — a barra lateral com o filtro em "todos", que é o padrão —
+   * cai no primeiro da lista. A primeira tentativa de consertar isso escondeu
+   * o botão nesse caso, e o resultado foi pior: para a maioria das pessoas, na
+   * maior parte do tempo, o botão simplesmente não existia.
+   *
+   * O problema nunca foi abrir o primeiro: era não dizer qual. O `title`
+   * abaixo diz o nome, então deixa de ser surpresa.
+   */
+  const alvo = clientId
+    ? clients.find((c) => c.id === clientId) ?? null
+    : clients[0] ?? null;
 
   const copiar = async () => {
     if (!slug) return;
@@ -100,20 +119,24 @@ export const BotaoDoPortal: React.FC<Props> = ({
         lateral ? 'flex items-center gap-1.5 w-full' : 'inline-flex items-stretch'
       }
     >
-      {clientId && (
-        <Button
-          variant={variantePrimitivo}
-          size={tamanho}
-          onClick={() => visualizarPortalDoCliente(clientId)}
-          className={`${juntarEsquerda} ${lateral ? 'flex-1 min-w-0 justify-start p-2.5' : ''}`}
-          // O texto diz "prévia" porque o botão perdeu o badge que dizia isso:
-          // na coluna estreita ele não cabia ao lado do copiar.
-          title="Abrir a prévia do portal numa aba nova, com a marca da agência"
-        >
-          <ExternalLink className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
-          <span className={lateral ? 'truncate' : undefined}>{rotulo}</span>
-        </Button>
-      )}
+      <Button
+        variant={variantePrimitivo}
+        size={tamanho}
+        onClick={() => alvo && visualizarPortalDoCliente(alvo.id)}
+        disabled={!alvo}
+        className={`${juntarEsquerda} ${lateral ? 'flex-1 min-w-0 justify-start p-2.5' : ''}`}
+        /* O nome do cliente vai no title porque o botão perdeu o badge
+           "Prévia" — na coluna estreita ele não cabia ao lado do copiar — e
+           porque com o filtro em "todos" o alvo não é óbvio olhando a tela. */
+        title={
+          alvo
+            ? `Abrir a prévia do portal de ${alvo.name} numa aba nova, com a marca da agência`
+            : 'Cadastre um cliente para ver a prévia do portal'
+        }
+      >
+        <ExternalLink className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
+        <span className={lateral ? 'truncate' : undefined}>{rotulo}</span>
+      </Button>
 
       <Button
         variant={variantePrimitivo}
@@ -121,7 +144,7 @@ export const BotaoDoPortal: React.FC<Props> = ({
         onClick={copiar}
         disabled={!slug}
         className={`${lateral ? 'p-2.5' : ''} ${
-          clientId && !lateral
+          !lateral
             ? `${juntarDireita} ${destaque ? 'border-purple-500' : 'border-purple-200 dark:border-purple-800'}`
             : ''
         }`}

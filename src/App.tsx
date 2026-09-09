@@ -402,10 +402,6 @@ const MainLayout: React.FC = () => {
             O badge "Prévia" que ficava aqui saiu por espaço, não por gosto:
             com ele o par pede 240px e a coluna tem 232 (w-64 menos o p-3),
             com o padding já apertado. O que ele dizia foi para o `title`.
-
-            Antes este ponto chamava `visualizarPortalDoCliente` direto, sem
-            passar pelo componente, e por isso era o único lugar do sistema
-            com o botão do portal sem o copiar do lado.
           */}
           <BotaoDoPortal
             clientId={clientFilter === 'all' ? undefined : clientFilter}
