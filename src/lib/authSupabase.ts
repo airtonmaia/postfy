@@ -358,6 +358,27 @@ export const criarConvite = async (input: {
   };
 };
 
+/**
+ * Adiciona à agência quem já tem conta, sem passar por convite.
+ *
+ * O convite resolve um problema que essa pessoa não tem — criar a conta — e
+ * cobra três pontos de falha em troca: o e-mail pode não chegar, o link
+ * expira, e o aceite exige estar logado com a conta certa no navegador certo.
+ */
+export const adicionarMembroExistente = async (
+  workspaceId: string,
+  email: string,
+  role: Role
+): Promise<{ jaEraMembro: boolean }> => {
+  const { data, error } = await supabase.rpc('adicionar_membro_existente', {
+    agencia: workspaceId,
+    email_do_membro: email,
+    papel: role,
+  });
+  if (error) throw new Error(error.message);
+  return { jaEraMembro: Boolean((data as any)?.ja_era_membro) };
+};
+
 export interface SituacaoDoConvidado {
   temConta: boolean;
   jaEMembro: boolean;

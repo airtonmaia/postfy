@@ -14,6 +14,7 @@ import {
   atualizarMembro,
   removerMembro,
   situacaoDoConvidado,
+  adicionarMembroExistente,
   type MembroDaEquipe,
   type ConvitePendente,
   type SituacaoDoConvidado,
@@ -136,6 +137,26 @@ export const SettingsUsers: React.FC = () => {
     setEnviando(true);
     setErro(null);
     try {
+      // Quem já tem conta entra agora. O convite servia para criar conta, que
+      // essa pessoa já tem — e o aceite era onde o fluxo morria: e-mail que
+      // não chega, link que expira, aceite feito no navegador de outra conta.
+      if (situacao?.temConta) {
+        const { jaEraMembro } = await adicionarMembroExistente(
+          currentWorkspace.id,
+          email.trim(),
+          papel
+        );
+        setFeedback(
+          jaEraMembro
+            ? 'Esta pessoa já fazia parte da agência.'
+            : `${email.trim()} agora faz parte da agência.`
+        );
+        setTimeout(() => setFeedback(null), 5000);
+        fecharModal();
+        await carregar();
+        return;
+      }
+
       // A agência é a que está aberta agora, não a do login.
       // `currentUser.workspaceId` é fixado quando a sessão começa: depois de
       // trocar de agência, todo convite continuava nascendo na anterior — a
@@ -602,8 +623,8 @@ export const SettingsUsers: React.FC = () => {
                   {situacao?.temConta && !situacao.jaEMembro && (
                     <p className="mt-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-start gap-1.5">
                       <UserCheck className="w-3.5 h-3.5 shrink-0 mt-px" />
-                      Já tem conta no Orquesia. Não precisa de link: vai receber um e-mail
-                      para aceitar o cargo com a senha que já usa.
+                      Já tem conta no Orquesia. Entra na agência agora, sem convite nem
+                      link — a agência aparece para ela no próximo acesso.
                     </p>
                   )}
 
