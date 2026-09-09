@@ -1,25 +1,6 @@
 import React, { useState } from 'react';
 import { portalApi } from '../../lib/api';
-import { 
-  ShieldCheck, 
-  Smartphone, 
-  CheckCircle2, 
-  Sparkles, 
-  ArrowRight, 
-  Lock, 
-  Globe, 
-  Layers, 
-  FileCheck2, 
-  Send,
-  X,
-  Check,
-  Building2,
-  FileText,
-  ThumbsUp,
-  Mail,
-  Search,
-  MessageSquare
-} from 'lucide-react';
+import { ShieldCheck, X, FileText } from 'lucide-react';
 import { Workspace } from '../../types';
 
 interface ClientPortalLoginProps {
@@ -41,6 +22,16 @@ interface ClientPortalLoginProps {
  * mesmo jeito nos dois casos. Contar a diferença transformaria o portal num
  * verificador de "fulano é cliente de alguma agência daqui?".
  */
+/**
+ * Arte do painel direito.
+ *
+ * Fica em `public/`, e não importada pelo bundler, de propósito: é conteúdo
+ * de marca que muda sem envolver deploy de código — trocar o arquivo basta.
+ * O caminho é absoluto porque o portal também abre em `/portal-do-cliente`,
+ * e um caminho relativo procuraria a imagem dentro dessa pasta.
+ */
+const IMAGEM_DO_PORTAL = '/portal-hero.jpg';
+
 export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
   workspace,
   onLoginSuccess,
@@ -250,132 +241,37 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
         </div>
       </div>
 
-      {/* Right Column: Full-Height Graphic Illustration (Exact visual of image.png reference) */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-sky-50 via-indigo-50/50 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 items-center justify-center p-8 lg:p-12 relative overflow-hidden border-l border-slate-200/60 dark:border-slate-800">
-        
-        {/* Background ambient elements */}
-        <div className="absolute top-10 left-10 w-72 h-72 bg-sky-200/40 dark:bg-sky-900/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 right-10 w-72 h-72 bg-purple-200/40 dark:bg-purple-900/10 rounded-full blur-3xl" />
+      {/* Coluna direita: a foto ocupa o painel inteiro.
 
-        {/* Floating Chat Bubbles & Reactions (Like Reference Graphic) */}
-        <div className="absolute top-24 right-16 bg-white dark:bg-slate-800 rounded-2xl p-3 shadow-lg border border-slate-200/80 dark:border-slate-700 flex items-center gap-2.5 animate-bounce duration-1000">
-          <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600">
-            <Mail className="w-4 h-4" />
-          </div>
-          <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600">
-            <ThumbsUp className="w-4 h-4" />
-          </div>
-        </div>
+          Antes havia aqui um monitor desenhado em CSS, com balões de conversa
+          flutuando em volta. A foto já traz a conversa composta dentro dela —
+          manter os balões repetiria o mesmo assunto duas vezes na mesma tela.
 
-        <div className="absolute top-44 left-14 bg-sky-500 text-white rounded-2xl py-2 px-3.5 shadow-md flex items-center gap-1.5 text-xs font-bold">
-          <MessageSquare className="w-3.5 h-3.5" />
-          <span>Aprovação rápida via WhatsApp</span>
-        </div>
+          Só aparece a partir de `lg`: numa tela estreita ela empurraria o
+          formulário para baixo da dobra, e quem abre este endereço veio
+          entrar, não ver a imagem. */}
+      <div className="hidden lg:block relative flex-1 overflow-hidden border-l border-slate-200/60 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+        <img
+          src={IMAGEM_DO_PORTAL}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            // Sem o arquivo, o painel fica no fundo liso. O ícone de imagem
+            // quebrada ao lado da tela de entrar diria "site mal feito" para
+            // quem é cliente da agência, não nosso.
+            e.currentTarget.style.display = 'none';
+          }}
+        />
 
-        <div className="absolute bottom-32 right-20 bg-teal-500 text-white rounded-2xl py-2 px-4 shadow-lg text-xs font-extrabold flex items-center gap-1.5">
-          <span>Great work!</span>
-          <ThumbsUp className="w-3.5 h-3.5" />
-        </div>
+        {/* A foto é clara embaixo, e a assinatura da agência se perderia
+            dentro dela sem este escurecimento. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent" />
 
-        {/* Main Center Stage: Illustrated Monitor */}
-        <div className="relative w-full max-w-xl flex flex-col items-center">
-          
-          {/* Monitor Screen Frame */}
-          <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border-4 border-sky-400 dark:border-sky-600 shadow-2xl p-6 sm:p-8 relative">
-            
-            {/* Monitor Top Dots */}
-            <div className="flex items-center gap-1.5 mb-4">
-              <div className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-            </div>
-
-            {/* Interior Post Canvas */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-              
-              {/* Post Author / Header */}
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600" />
-                <div className="space-y-1">
-                  <div className="w-24 h-2.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
-                  <div className="w-14 h-2 bg-slate-200 dark:bg-slate-700 rounded-full" />
-                </div>
-              </div>
-
-              {/* Central Creative Area */}
-              <div className="aspect-16/9 bg-slate-200 dark:bg-slate-700 rounded-xl flex items-center justify-center relative overflow-hidden">
-                <div className="w-16 h-12 rounded-lg border-2 border-dashed border-slate-400 dark:border-slate-500 flex items-center justify-center text-slate-400">
-                  <Layers className="w-6 h-6" />
-                </div>
-
-                {/* APPROVED Stamp / Badge (Just like the reference image) */}
-                <div className="absolute right-4 bottom-4 bg-teal-500 text-white font-black text-sm px-4 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 transform rotate-[-2deg] tracking-wide">
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>APPROVED</span>
-                </div>
-
-                {/* Check Floating Circle */}
-                <div className="absolute top-4 right-4 w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
-                  <Check className="w-5 h-5 stroke-[3]" />
-                </div>
-              </div>
-
-              {/* Text Lines */}
-              <div className="space-y-2 pt-1">
-                <div className="w-full h-2.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
-                <div className="w-4/5 h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full" />
-              </div>
-
-            </div>
-
-            {/* Floating Left Check Icon */}
-            <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
-              <Check className="w-6 h-6 stroke-[3]" />
-            </div>
-
-            {/* 3 Steps Pipeline at Bottom (UPLOAD -> REVIEW -> PUBLISH) */}
-            <div className="mt-8 grid grid-cols-3 gap-4 text-center items-center">
-              
-              {/* Step 1: Upload */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-2xl bg-sky-500 text-white flex items-center justify-center shadow-md shadow-sky-500/30">
-                  <Layers className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-black tracking-wider text-slate-800 dark:text-slate-200 mt-1 uppercase">
-                  UPLOAD
-                </span>
-              </div>
-
-              {/* Arrow + Step 2: Review */}
-              <div className="flex flex-col items-center gap-1 relative">
-                <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md shadow-sky-600/30">
-                  <Search className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-black tracking-wider text-slate-800 dark:text-slate-200 mt-1 uppercase">
-                  REVIEW
-                </span>
-              </div>
-
-              {/* Arrow + Step 3: Publish */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500 text-white flex items-center justify-center shadow-md shadow-teal-500/30">
-                  <Send className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-black tracking-wider text-slate-800 dark:text-slate-200 mt-1 uppercase">
-                  PUBLISH
-                </span>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Monitor Stand Base */}
-          <div className="w-16 h-8 bg-slate-300 dark:bg-slate-700 -mt-1 rounded-b-md" />
-          <div className="w-40 h-3 bg-slate-400 dark:bg-slate-600 rounded-full shadow-md" />
-
-        </div>
-
+        <p className="absolute bottom-8 left-10 right-10 text-sm font-semibold text-white/95 drop-shadow-sm">
+          Aprove o conteúdo da sua agência sem trocar uma mensagem sequer.
+        </p>
       </div>
 
       {/* Privacy Policy Modal */}
