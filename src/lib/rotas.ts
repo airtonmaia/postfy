@@ -125,3 +125,20 @@ export const subAbaDeConfiguracoes = (caminho: string): AbaDeConfiguracoes => {
  */
 export const urlDaAba = (aba: TabType, subAba?: string, busca = ''): string =>
   `${caminhoDaAba(aba, subAba)}${busca || ''}`;
+
+/**
+ * Prévia interna do Portal do Cliente, para a equipe da agência.
+ *
+ * Não é uma aba (`TabType`): é uma sobreposição independente da tela de
+ * fundo, então fica fora do mapa `CAMINHOS` de propósito — igual ao link
+ * externo `?portal=<token>`, que também não passa por `abaDoCaminho`.
+ *
+ * O id vai cru na query porque só vale para quem já está logado como equipe
+ * (`portalClientId` em PostfyContext só resolve com `isAuthenticated`); não é
+ * o mesmo caso do token opaco do link externo, que precisa ser não-enumerável
+ * porque abre para qualquer um.
+ */
+export const CAMINHO_PORTAL_PREVIEW = '/portal-do-cliente';
+
+export const urlDaPreviaDoPortal = (clienteId: string): string =>
+  `${CAMINHO_PORTAL_PREVIEW}?cliente=${encodeURIComponent(clienteId)}`;

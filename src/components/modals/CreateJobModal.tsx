@@ -39,6 +39,28 @@ export const CreateJobModal: React.FC = () => {
     }
   }, [clients, clientId, isCreateJobModalOpen]);
 
+  // O modal não desmonta ao fechar (só retorna null), então o estado de um
+  // job sobrevivia para o próximo — a mídia enviada era o caso mais visível,
+  // por ficar fora do reset parcial que só limpava título/legenda/cta.
+  // Reseta no momento de abrir, não só depois de criar: cobre "cancelei e
+  // abri de novo" também.
+  useEffect(() => {
+    if (isCreateJobModalOpen) {
+      setTitle('');
+      setCampaign('Conteúdo Institucional');
+      setPlatform('instagram');
+      setFormat('feed');
+      setPriority('medium');
+      setStatus('ideas');
+      setCaption('');
+      setCta('');
+      setHashtagsStr('#Novidade #Marketing');
+      setFirstComment('');
+      setMediaUrls([]);
+      setErro('');
+    }
+  }, [isCreateJobModalOpen]);
+
   useEffect(() => {
     if (createJobPreselectedDate) {
       try {
@@ -123,12 +145,6 @@ export const CreateJobModal: React.FC = () => {
         deadlineProduction: deadlineProdIso,
         deadlineApproval: deadlineApprIso,
       });
-
-      // Reset form fields
-      setTitle('');
-      setCaption('');
-      setCta('');
-      setFirstComment('');
 
       closeCreateJobModal();
       if (newJob) {

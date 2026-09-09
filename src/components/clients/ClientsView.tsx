@@ -21,7 +21,7 @@ import { ClientDetail } from './ClientDetail';
 import { FileUpload } from '../ui/file-upload';
 
 export const ClientsView: React.FC = () => {
-  const { clients, jobs, openClientPortal, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
+  const { clients, jobs, visualizarPortalDoCliente, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -292,9 +292,9 @@ export const ClientsView: React.FC = () => {
                   compartilhamento seria enganoso.
                 */}
                 <button
-                  onClick={() => openClientPortal(client.id)}
+                  onClick={() => visualizarPortalDoCliente(client.id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold transition cursor-pointer border border-purple-200 dark:border-purple-800"
-                  title="Ver como o cliente enxerga. O envio do link ao cliente ainda não está disponível."
+                  title="Ver como o cliente enxerga, numa aba nova. O envio do link ao cliente ainda não está disponível."
                 >
                   <Eye className="w-3.5 h-3.5" />
                   Prévia do portal

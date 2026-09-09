@@ -45,7 +45,7 @@ import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../lib/automacoes';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
-import { abaDoCaminho, urlDaAba, ABA_INICIAL } from '../lib/rotas';
+import { abaDoCaminho, urlDaAba, ABA_INICIAL, CAMINHO_PORTAL_PREVIEW, urlDaPreviaDoPortal } from '../lib/rotas';
 
 interface PostfyContextType {
   // General
@@ -105,6 +105,8 @@ interface PostfyContextType {
   portalClientId: string | null;
   /** Prévia interna do portal, para a equipe da agência. */
   openClientPortal: (clientId: string) => void;
+  /** Abre a prévia numa aba nova, com URL amigável própria (não `/calendario`). */
+  visualizarPortalDoCliente: (clientId: string) => void;
   closeClientPortal: () => void;
   /** Link externo do portal, com o token opaco do cliente. */
   buildClientPortalUrl: (clientId: string) => string;
@@ -523,7 +525,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     try {
       const atual = window.location.pathname;
-      if (abaDoCaminho(atual) === null || atual === '/' || atual === '') {
+      // A prévia do portal tem URL própria, fora do mapa de abas de
+      // propósito (ver CAMINHO_PORTAL_PREVIEW em lib/rotas) — sem esta
+      // exceção, esse efeito a reconhece como "caminho desconhecido" e a
+      // substitui pela URL da aba de fundo antes de a pessoa ver o endereço.
+      if (
+        atual !== CAMINHO_PORTAL_PREVIEW &&
+        (abaDoCaminho(atual) === null || atual === '/' || atual === '')
+      ) {
         window.history.replaceState(
           {},
           '',
@@ -587,11 +596,25 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [portalPreviewClientId, setPortalPreviewClientId] = useState<string | null>(null);
+  // Prévia interna aberta direto por URL (aba nova) — só resolve de verdade
+  // com `isAuthenticated` (ver `portalClientId` abaixo); sem sessão de
+  // equipe, o id na query não abre nada.
+  const previaDaUrl = (): string | null => {
+    try {
+      if (window.location.pathname !== CAMINHO_PORTAL_PREVIEW) return null;
+      return new URLSearchParams(window.location.search).get('cliente');
+    } catch {
+      return null;
+    }
+  };
+
+  const [portalPreviewClientId, setPortalPreviewClientId] = useState<string | null>(
+    () => previaDaUrl()
+  );
   const [isClientPortalOpen, setIsClientPortalOpen] = useState<boolean>(() => {
     try {
       const valor = new URLSearchParams(window.location.search).get('portal');
-      return Boolean(valor && valor !== 'true');
+      return Boolean(valor && valor !== 'true') || Boolean(previaDaUrl());
     } catch {
       return false;
     }
@@ -845,6 +868,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const openClientPortal = (clientId: string) => {
     setPortalPreviewClientId(clientId);
     setIsClientPortalOpen(true);
+  };
+
+  /**
+   * Abre a prévia em aba nova, com URL própria — não mais dependente da aba
+   * de fundo (`/calendario`, `/kanban`...) que estava aberta ao clicar.
+   * A aba nova já chega autenticada: a sessão do Supabase Auth vive no
+   * localStorage, compartilhado entre abas do mesmo navegador.
+   */
+  const visualizarPortalDoCliente = (clientId: string) => {
+    window.open(urlDaPreviaDoPortal(clientId), '_blank', 'noopener,noreferrer');
   };
 
   const closeClientPortal = () => {
@@ -1716,6 +1749,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isClientPortalOpen,
         portalClientId,
         openClientPortal,
+        visualizarPortalDoCliente,
         closeClientPortal,
         buildClientPortalUrl,
         clients,

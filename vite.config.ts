@@ -38,6 +38,17 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // `vercel dev` aplica o rewrite de SPA do vercel.json até nos módulos
+      // internos do Vite (/src/main.tsx, /@vite/client) e devolve HTML no
+      // lugar do JS — página em branco. Por isso as rotas /api rodam numa
+      // instância separada de `vercel dev` (porta 3001, sem browser
+      // acessando direto) e o Vite só encaminha a chamada.
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

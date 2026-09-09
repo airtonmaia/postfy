@@ -90,7 +90,7 @@ const MainLayout: React.FC = () => {
     openCreateJobModal, 
     setIsSearchModalOpen,
     isClientPortalOpen,
-    openClientPortal,
+    visualizarPortalDoCliente,
     buildClientPortalUrl,
     clients,
     clientFilter,
@@ -380,15 +380,17 @@ const MainLayout: React.FC = () => {
           {/* Quick Client Portal link */}
           <button
             onClick={() => {
-              // Prévia interna: o portal ainda depende do cache local do
-              // navegador da agência, então o link aberto num navegador novo
-              // não encontraria o cliente. Ver a thread do portal no PR.
-              openClientPortal(
+              // Prévia interna, em aba nova: a sessão do Supabase Auth vive
+              // no localStorage, compartilhado entre abas do mesmo
+              // navegador, então a aba nova já abre autenticada. Não serve
+              // como link para mandar ao cliente de verdade — isso continua
+              // sendo o link com token, de buildClientPortalUrl.
+              visualizarPortalDoCliente(
                 clientFilter === 'all' ? clients[0]?.id || '' : clientFilter
               );
             }}
             className="w-full flex items-center justify-between p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs text-purple-700 dark:text-purple-300 font-bold transition border border-purple-200 dark:border-purple-800 cursor-pointer shadow-xs"
-            title="Ver como o cliente enxerga. O envio do link ao cliente ainda não está disponível."
+            title="Ver como o cliente enxerga, numa aba nova. O envio do link ao cliente ainda não está disponível."
           >
             <span className="flex items-center gap-2">
               <ExternalLink className="w-3.5 h-3.5" />

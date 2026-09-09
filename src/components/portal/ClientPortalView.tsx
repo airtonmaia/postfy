@@ -31,9 +31,24 @@ import {
   Smartphone
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
-import { Job, Client } from '../../types';
+import { Job, Client, JobPlatform, JobFormat } from '../../types';
 import { ClientPortalLogin } from './ClientPortalLogin';
 import { FileUpload } from '../ui/file-upload';
+
+/**
+ * Proporção do preview de mídia, pela rede/formato reais do job — não um
+ * quadrado ou 16:9 genérico. Vertical (Reels/Stories) vem antes da rede,
+ * porque manda mais na proporção do que a plataforma em si.
+ */
+const proporcaoDoCriativo = (platform: JobPlatform, format: JobFormat): string => {
+  if (format === 'story' || format === 'reel') return 'aspect-[9/16]';
+  if (format === 'video') return 'aspect-video';
+  if (platform === 'tiktok') return 'aspect-[9/16]';
+  if (platform === 'youtube') return 'aspect-video';
+  // Feed/carrossel: 4:5 é o formato de maior área útil no Instagram e
+  // Facebook, e serve como referência razoável para LinkedIn/X também.
+  return 'aspect-[4/5]';
+};
 
 export const ClientPortalView: React.FC = () => {
   const { 
@@ -140,7 +155,7 @@ export const ClientPortalView: React.FC = () => {
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 dark:bg-slate-950 overflow-y-auto animate-in fade-in duration-200">
       {/* Client Portal Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 px-4 sm:px-6 py-3.5 shadow-xs">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {currentWorkspace.logo ? (
               <div className="w-8 h-8 rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-0.5 shadow-xs shrink-0">
@@ -196,7 +211,7 @@ export const ClientPortalView: React.FC = () => {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <div className="flex-1 max-w-[1400px] w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* Welcome Banner */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -322,14 +337,14 @@ export const ClientPortalView: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {pendingApprovals.map(job => (
                   <div 
                     key={job.id} 
                     className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between"
                   >
-                    {/* Media Preview */}
-                    <div className="relative aspect-square sm:aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
+                    {/* Media Preview — proporção real da rede/formato do post */}
+                    <div className={`relative ${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900 flex items-center justify-center overflow-hidden`}>
                       {job.mediaUrls && job.mediaUrls.length > 0 ? (
                         <img 
                           src={job.mediaUrls[0]} 

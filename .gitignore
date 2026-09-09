@@ -14,3 +14,4 @@ coverage/
 # — o arquivo existe aqui, o build passa aqui, e o deploy quebra num import de
 # um arquivo que nunca foi enviado.
 /data/
+.vercel

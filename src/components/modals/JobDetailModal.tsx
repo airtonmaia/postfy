@@ -58,7 +58,7 @@ export const JobDetailModal: React.FC = () => {
     toggleChecklistItem,
     duplicateJob,
     deleteJob,
-    openClientPortal,
+    visualizarPortalDoCliente,
     updateJob,
     timesheetLogs,
     addTimesheetLog,
@@ -366,10 +366,7 @@ export const JobDetailModal: React.FC = () => {
 
             {client && (
               <button
-                onClick={() => {
-                  setSelectedJob(null);
-                  openClientPortal(client.id);
-                }}
+                onClick={() => visualizarPortalDoCliente(client.id)}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-lg transition"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
