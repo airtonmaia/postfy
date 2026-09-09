@@ -394,13 +394,18 @@ const MainLayout: React.FC = () => {
           {/*
             Prévia do portal, e o link para mandar ao cliente.
 
-            Eram duas coisas faltando aqui. O botão abria a prévia mas não
-            oferecia o link — a barra lateral era o único lugar do app que
-            ficou de fora quando o par virou componente. E, com o filtro em
-            "todos os clientes", ele abria o portal de `clients[0]`: um
-            cliente arbitrário, sem dizer qual. Agora só abre quando há um
-            cliente escolhido; sem isso, sobra o copiar, que não depende de
-            cliente nenhum.
+            São duas ações diferentes: a esquerda abre o portal de um cliente
+            para conferir, a direita copia o endereço que a agência manda ao
+            cliente — esse não leva cliente nenhum, quem chega prova quem é
+            pelo código no e-mail.
+
+            O badge "Prévia" que ficava aqui saiu por espaço, não por gosto:
+            com ele o par pede 240px e a coluna tem 232 (w-64 menos o p-3),
+            com o padding já apertado. O que ele dizia foi para o `title`.
+
+            Antes este ponto chamava `visualizarPortalDoCliente` direto, sem
+            passar pelo componente, e por isso era o único lugar do sistema
+            com o botão do portal sem o copiar do lado.
           */}
           <BotaoDoPortal
             clientId={clientFilter === 'all' ? undefined : clientFilter}
