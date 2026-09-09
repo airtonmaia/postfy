@@ -35,7 +35,7 @@ const ROTULO_PAPEL: Record<string, string> = {
  * a RPC no banco confere isso de novo. Ter o link não basta.
  */
 export const AcceptInviteView: React.FC<Props> = ({ token }) => {
-  const { recarregarSessaoPublica } = usePostfy();
+  const { recarregarSessaoPublica, recuperarSenha } = usePostfy();
 
   const [convite, setConvite] = useState<DadosDoConvite | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -47,6 +47,8 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
   const [senha, setSenha] = useState('');
   const [confirmacao, setConfirmacao] = useState('');
   const [enviando, setEnviando] = useState(false);
+  /** Sessão aberta neste navegador com OUTRO e-mail que não o do convite. */
+  const [sessaoDeOutraPessoa, setSessaoDeOutraPessoa] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -56,6 +58,11 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
         if (cancelado) return;
         setConvite(dados);
         setNome(dados?.name || '');
+
+        // Quem já tem conta não cria outra: a tela abre pedindo a senha que a
+        // pessoa já usa. Abrir em "Defina sua senha" fazia o cadastro recusar
+        // o e-mail repetido, e o convite parecia quebrado.
+        if (dados?.temConta) setModo('entrar');
 
         // Se já houver sessão com o e-mail convidado, aceita direto.
         const { data } = await supabase.auth.getSession();
@@ -69,6 +76,11 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
             return;
           }
           setErro(res.mensagem || null);
+        } else if (dados && emailDaSessao) {
+          // O caso de quem convida abrindo o próprio link para conferir: a
+          // tela pedia senha sem explicar que a sessão aberta é de outra
+          // pessoa, e o convite não seria aceito de jeito nenhum assim.
+          setSessaoDeOutraPessoa(emailDaSessao);
         }
       } catch (err) {
         if (!cancelado) {
@@ -200,9 +212,17 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           <p className="text-xs text-slate-500 leading-relaxed">
             {modo === 'cadastrar'
               ? 'Defina sua senha para entrar. O e-mail e o papel já vêm do convite.'
-              : 'Entre com a senha da sua conta para aceitar o convite.'}
+              : 'Você já tem conta com este e-mail. Confirme a senha para entrar na agência — nada de cadastro novo.'}
           </p>
         </div>
+
+        {sessaoDeOutraPessoa && (
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+            Este navegador está com a conta <strong>{sessaoDeOutraPessoa}</strong> aberta, e o
+            convite é para <strong>{convite.email}</strong>. Entrar abaixo troca de conta nesta
+            aba.
+          </div>
+        )}
 
         <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
           <div className="flex items-center gap-2 text-xs text-slate-700">
@@ -281,20 +301,50 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => {
-            setModo(modo === 'cadastrar' ? 'entrar' : 'cadastrar');
-            setErro(null);
-            setSenha('');
-            setConfirmacao('');
-          }}
-          className="w-full text-[11px] text-slate-500 hover:text-slate-800 transition cursor-pointer"
-        >
-          {modo === 'cadastrar'
-            ? 'Já tenho conta com este e-mail'
-            : 'Ainda não tenho conta'}
-        </button>
+        {/*
+          Some quando o banco já confirmou que o e-mail tem conta: oferecer
+          "ainda não tenho conta" ali seria oferecer um caminho que o cadastro
+          recusa, por e-mail repetido.
+        */}
+        {!convite.temConta && (
+          <button
+            type="button"
+            onClick={() => {
+              setModo(modo === 'cadastrar' ? 'entrar' : 'cadastrar');
+              setErro(null);
+              setSenha('');
+              setConfirmacao('');
+            }}
+            className="w-full text-[11px] text-slate-500 hover:text-slate-800 transition cursor-pointer"
+          >
+            {modo === 'cadastrar'
+              ? 'Já tenho conta com este e-mail'
+              : 'Ainda não tenho conta'}
+          </button>
+        )}
+
+        {/*
+          Sem isto, quem esqueceu a senha ficava preso: sair daqui para
+          recuperar significaria perder o link do convite.
+        */}
+        {convite.temConta && (
+          <button
+            type="button"
+            disabled={enviando}
+            onClick={async () => {
+              setErro(null);
+              const res = await recuperarSenha(convite.email);
+              setAviso(
+                res.success
+                  ? `Enviamos um link de redefinição para ${convite.email}. Depois de trocar a senha, abra este convite de novo.`
+                  : res.message || 'Não foi possível enviar o link de redefinição.'
+              );
+            }}
+            className="w-full text-[11px] text-slate-500 hover:text-slate-800 transition cursor-pointer disabled:opacity-50"
+          >
+            Esqueci minha senha
+          </button>
+        )}
       </div>
     </div>
   );
