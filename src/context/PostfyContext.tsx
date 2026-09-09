@@ -50,6 +50,9 @@ import {
   carregarPortal,
   aprovarPeloPortal,
   pedirAjustePeloPortal,
+  tokenGuardado,
+  guardarToken,
+  esquecerToken,
   type DadosDoPortal,
 } from '../lib/portal';
 
@@ -618,27 +621,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // o portal de qualquer outro cliente da base, incluindo briefings e
   // materiais. O token é opaco e não enumerável.
 
-  /**
-   * O token fica no `sessionStorage`, e não no `localStorage`.
-   *
-   * Sem guardar em lugar nenhum, um F5 no portal jogava o cliente de volta
-   * para a tela de código. Guardar no `localStorage` deixaria a sessão aberta
-   * para sempre no computador — que pode ser compartilhado, já que o portal
-   * não é máquina de funcionário. `sessionStorage` morre com a aba, que é o
-   * comportamento certo para uma credencial dessas.
-   *
-   * Não é dado de agência: a regra do CLAUDE.md é sobre o estado do app, e
-   * esta é a credencial da sessão, como a do Supabase Auth.
-   */
-  const CHAVE_TOKEN_PORTAL = 'orquesia:portal';
-
   const [portalToken, setPortalToken] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const valor = params.get('portal');
       // 'true' era o formato antigo e não identifica ninguém.
       if (valor && valor !== 'true') return valor;
-      return window.sessionStorage.getItem(CHAVE_TOKEN_PORTAL);
+      // Guardado na aba: sem isto, um F5 no portal devolvia o cliente para a
+      // tela do código.
+      return tokenGuardado();
     } catch {
       return null;
     }
@@ -646,21 +637,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /** Entrada concluída: o código já foi conferido pela rota serverless. */
   const entrarNoPortal = (token: string) => {
-    try {
-      window.sessionStorage.setItem(CHAVE_TOKEN_PORTAL, token);
-    } catch {
-      /* Sem sessionStorage a sessão dura até o F5, e só. */
-    }
+    guardarToken(token);
     setPortalToken(token);
     setIsClientPortalOpen(true);
   };
 
   const sairDoPortal = () => {
-    try {
-      window.sessionStorage.removeItem(CHAVE_TOKEN_PORTAL);
-    } catch {
-      /* idem */
-    }
+    esquecerToken();
     setPortalToken(null);
     setDadosDoPortal(null);
   };
@@ -682,8 +665,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
   const [isClientPortalOpen, setIsClientPortalOpen] = useState<boolean>(() => {
     try {
+      // `/portal-do-cliente` é a porta do cliente: abrir a URL já é pedir o
+      // portal, com ou sem token. Sem esta linha o endereço caía na tela de
+      // login da agência, que é de quem trabalha nela — não de quem aprova.
+      if (window.location.pathname === CAMINHO_PORTAL_PREVIEW) return true;
+
       const valor = new URLSearchParams(window.location.search).get('portal');
-      return Boolean(valor && valor !== 'true') || Boolean(previaDaUrl());
+      return Boolean(valor && valor !== 'true');
     } catch {
       return false;
     }

@@ -14,6 +14,43 @@ import type { Client, Job, ClientMaterial, Workspace } from '../types';
  * destrava. Fora daqui, nenhuma tabela é alcançável por sessão anônima.
  */
 
+/**
+ * Onde o token fica entre um F5 e outro.
+ *
+ * `sessionStorage`, não `localStorage`: o portal roda na máquina do cliente,
+ * que pode ser compartilhada, e a credencial deve morrer junto com a aba.
+ * Sem guardar em lugar nenhum, recarregar a página jogava a pessoa de volta
+ * para a tela do código a cada vez.
+ *
+ * Isolado neste módulo para o teste de guarda em `tests/ids.test.ts`
+ * continuar valendo sobre o contexto, onde mora o estado da agência.
+ */
+const CHAVE_TOKEN = 'orquesia:portal';
+
+export const tokenGuardado = (): string | null => {
+  try {
+    return window.sessionStorage.getItem(CHAVE_TOKEN);
+  } catch {
+    return null;
+  }
+};
+
+export const guardarToken = (token: string): void => {
+  try {
+    window.sessionStorage.setItem(CHAVE_TOKEN, token);
+  } catch {
+    /* Sem sessionStorage a sessão dura até o F5, e só. */
+  }
+};
+
+export const esquecerToken = (): void => {
+  try {
+    window.sessionStorage.removeItem(CHAVE_TOKEN);
+  } catch {
+    /* idem */
+  }
+};
+
 export interface DadosDoPortal {
   cliente: Client;
   workspace: Workspace;

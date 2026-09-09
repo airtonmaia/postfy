@@ -56,6 +56,11 @@ describe('geração de identificador', () => {
 describe('nada de dado da aplicação no navegador', () => {
   const PERMITIDOS = [
     'src/lib/analytics.ts', // persistência do id anônimo do PostHog
+    // Token do Portal do Cliente, em sessionStorage: é credencial de sessão,
+    // como a do Supabase Auth, e não dado de agência. Fica isolado neste
+    // módulo — e não no contexto — para a guarda continuar valendo sobre o
+    // arquivo que guarda o estado do app.
+    'src/lib/portal.ts',
   ];
 
   it('nenhum módulo grava no localStorage', () => {

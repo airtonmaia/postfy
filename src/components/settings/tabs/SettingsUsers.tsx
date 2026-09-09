@@ -13,8 +13,10 @@ import {
   revogarConvite,
   atualizarMembro,
   removerMembro,
+  situacaoDoConvidado,
   type MembroDaEquipe,
   type ConvitePendente,
+  type SituacaoDoConvidado,
 } from '../../../lib/authSupabase';
 import { pode } from '../../../lib/permissions';
 import { copyToClipboard } from '../../../lib/utils';
@@ -75,6 +77,35 @@ export const SettingsUsers: React.FC = () => {
   const [emailEnviado, setEmailEnviado] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [salvandoMembro, setSalvandoMembro] = useState<string | null>(null);
+  const [situacao, setSituacao] = useState<SituacaoDoConvidado | null>(null);
+
+  /**
+   * Quem já tem conta não precisa de link.
+   *
+   * A tela tratava todo mundo como visitante novo: gerava o link e pedia para
+   * compartilhar. Para quem já usa a plataforma o link é um passo a mais sem
+   * função — a senha já existe, falta só aceitar o cargo.
+   *
+   * A consulta espera a digitação parar. Sem isso ela sairia a cada tecla, e
+   * `pessoa@` chegaria ao banco antes de o e-mail existir.
+   */
+  useEffect(() => {
+    const alvo = email.trim().toLowerCase();
+    if (!mostrarModal || !currentWorkspace?.id || !alvo.includes('@')) {
+      setSituacao(null);
+      return;
+    }
+
+    const relogio = setTimeout(() => {
+      situacaoDoConvidado(currentWorkspace.id, alvo)
+        .then(setSituacao)
+        // Silencioso de propósito: isto só decide o texto do botão. Falhar
+        // aqui não pode impedir o convite, que o banco valida de novo.
+        .catch(() => setSituacao(null));
+    }, 400);
+
+    return () => clearTimeout(relogio);
+  }, [email, mostrarModal, currentWorkspace?.id]);
 
   const carregar = useCallback(async () => {
     if (!currentWorkspace?.id) return;
@@ -107,10 +138,15 @@ export const SettingsUsers: React.FC = () => {
       // `currentUser.workspaceId` é fixado quando a sessão começa: depois de
       // trocar de agência, todo convite continuava nascendo na anterior — a
       // pessoa convidada entrava numa agência que ninguém pediu.
+      // O nome não vai para quem já tem conta: o campo está escondido nesse
+      // caso, e mandar o que ficou digitado antes da checagem gravaria um
+      // nome que ninguém escolheu.
+      const nomeDoConvite = situacao?.temConta ? undefined : nome.trim() || undefined;
+
       const { token } = await criarConvite({
         workspaceId: currentWorkspace.id,
         email: email.trim(),
-        nome: nome.trim() || undefined,
+        nome: nomeDoConvite,
         role: papel,
       });
 
@@ -217,6 +253,9 @@ export const SettingsUsers: React.FC = () => {
     setMostrarModal(false);
     setLinkGerado(null);
     setErro(null);
+    setSituacao(null);
+    setEmail('');
+    setNome('');
   };
 
   return (
@@ -435,12 +474,23 @@ export const SettingsUsers: React.FC = () => {
             {linkGerado ? (
               <div className="p-5 space-y-4">
                 <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
-                  {emailEnviado
-                    ? 'Convite enviado por e-mail. O link abaixo é o mesmo, caso queira compartilhar por outro canal.'
-                    : 'Convite criado, mas o e-mail não pôde ser enviado. Compartilhe o link abaixo manualmente.'}
+                  {!emailEnviado
+                    ? 'Convite criado, mas o e-mail não pôde ser enviado. Compartilhe o link abaixo manualmente.'
+                    : situacao?.temConta
+                    ? 'Pronto. A pessoa já tem conta no Orquesia: basta aceitar o cargo pelo e-mail, com a senha que ela já usa.'
+                    : 'Convite enviado por e-mail. O link abaixo é o mesmo, caso queira compartilhar por outro canal.'}
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/*
+                  Para quem já tem conta o link só aparece se o e-mail falhou.
+                  Mostrar sempre transformava um passo que não existe — copiar
+                  e mandar o link — no caminho mais visível da tela.
+                */}
+                <div
+                  className={`flex items-center gap-2 ${
+                    emailEnviado && situacao?.temConta ? 'hidden' : ''
+                  }`}
+                >
                   <input
                     readOnly
                     value={linkGerado}
@@ -483,20 +533,48 @@ export const SettingsUsers: React.FC = () => {
                     placeholder="pessoa@agencia.com.br"
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
+
+                  {situacao?.jaEMembro && (
+                    <p className="mt-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                      Esta pessoa já faz parte desta agência. Para mudar o papel dela, use a
+                      lista de membros.
+                    </p>
+                  )}
+
+                  {situacao?.temConta && !situacao.jaEMembro && (
+                    <p className="mt-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-start gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 shrink-0 mt-px" />
+                      Já tem conta no Orquesia. Não precisa de link: vai receber um e-mail
+                      para aceitar o cargo com a senha que já usa.
+                    </p>
+                  )}
+
+                  {situacao?.convitePendente && !situacao.jaEMembro && (
+                    <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      Já existe um convite pendente para este e-mail. Enviar de novo substitui
+                      o anterior.
+                    </p>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nome (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Ex: Lucas Mendes"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
+                {/* Quem já tem conta já preencheu o próprio nome no perfil.
+                    Pedir de novo abriria espaço para o vínculo nascer com um
+                    nome diferente do que a pessoa usa no resto do sistema. */}
+                {!situacao?.temConta && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Nome (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Ex: Lucas Mendes"
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -517,10 +595,14 @@ export const SettingsUsers: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={enviando}
-                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                  disabled={enviando || situacao?.jaEMembro}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {enviando ? 'Gerando convite...' : 'Gerar link de convite'}
+                  {enviando
+                    ? 'Enviando...'
+                    : situacao?.temConta
+                    ? 'Adicionar à agência'
+                    : 'Gerar link de convite'}
                 </button>
               </form>
             )}

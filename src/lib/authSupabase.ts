@@ -344,6 +344,36 @@ export const criarConvite = async (input: {
   };
 };
 
+export interface SituacaoDoConvidado {
+  temConta: boolean;
+  jaEMembro: boolean;
+  convitePendente: boolean;
+}
+
+/**
+ * O que a tela precisa saber antes de convidar.
+ *
+ * Quem já tem conta não precisa de link: entra com a senha que já tem e só
+ * aceita o cargo. Quem já é membro não precisa de convite nenhum.
+ */
+export const situacaoDoConvidado = async (
+  workspaceId: string,
+  email: string
+): Promise<SituacaoDoConvidado> => {
+  const { data, error } = await supabase.rpc('situacao_do_convidado', {
+    agencia: workspaceId,
+    email_convidado: email,
+  });
+  if (error) throw new Error(error.message);
+
+  const bruto = (data as any) || {};
+  return {
+    temConta: Boolean(bruto.tem_conta),
+    jaEMembro: Boolean(bruto.ja_e_membro),
+    convitePendente: Boolean(bruto.convite_pendente),
+  };
+};
+
 export const revogarConvite = async (id: string): Promise<void> => {
   const { error } = await supabase.from('invites').delete().eq('id', id);
   if (error) throw new Error(error.message);
@@ -437,6 +467,56 @@ export const atualizarMembro = async (
     .eq('workspace_id', workspaceId)
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
+};
+
+export interface VinculoDeAgencia {
+  workspaceId: string;
+  nome: string;
+  papel: Role;
+  ativo: boolean;
+}
+
+export interface UsuarioDoSaas {
+  userId: string;
+  email: string;
+  nome?: string;
+  criadoEm: string;
+  ultimoAcesso?: string;
+  emailConfirmado: boolean;
+  adminDaPlataforma: boolean;
+  agencias: VinculoDeAgencia[];
+}
+
+/**
+ * Todos os usuários do produto, com os vínculos de cada um.
+ *
+ * Passa por RPC porque nem `auth.users` nem os vínculos de agências alheias
+ * são alcançáveis por consulta direta: a primeira não é exposta ao PostgREST,
+ * e a segunda é recortada por `private.e_membro`. Quem administra o produto
+ * não é membro das agências dos clientes.
+ *
+ * A RPC recusa quem não está em `platform_admins` — com 42501, não com uma
+ * lista vazia.
+ */
+export const listarUsuariosDoSaas = async (): Promise<UsuarioDoSaas[]> => {
+  const { data, error } = await supabase.rpc('admin_usuarios_do_saas');
+  if (error) throw new Error(error.message);
+
+  return ((data as any[]) || []).map((u) => ({
+    userId: u.user_id,
+    email: u.email ?? '',
+    nome: u.nome ?? undefined,
+    criadoEm: u.criado_em,
+    ultimoAcesso: u.ultimo_acesso ?? undefined,
+    emailConfirmado: Boolean(u.email_confirmado),
+    adminDaPlataforma: Boolean(u.admin_da_plataforma),
+    agencias: (u.agencias || []).map((a: any) => ({
+      workspaceId: a.workspace_id,
+      nome: a.nome,
+      papel: a.papel as Role,
+      ativo: a.ativo ?? true,
+    })),
+  }));
 };
 
 export const removerMembro = async (workspaceId: string, userId: string): Promise<void> => {

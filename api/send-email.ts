@@ -131,7 +131,7 @@ async function handler(request: Request): Promise<Response> {
 
     const { data: cliente } = await supabase
       .from('clients')
-      .select('name, email, portal_token')
+      .select('name, email')
       .eq('id', job.client_id)
       .maybeSingle();
 
@@ -151,9 +151,13 @@ async function handler(request: Request): Promise<Response> {
     }
 
     const base = process.env.APP_URL || 'https://app.orquesia.com.br';
+    // O link para o cliente leva à entrada do portal, não ao portal já
+    // aberto: o token no e-mail dispensaria o código de verificação, e a
+    // entrada por código existe justamente para o acesso não depender de
+    // quem tem o link. A caixa de e-mail continua sendo a prova.
     const link =
-      modelo.destinatario === 'cliente' && cliente?.portal_token
-        ? `${base}/?portal=${cliente.portal_token}`
+      modelo.destinatario === 'cliente'
+        ? `${base}/portal-do-cliente`
         : `${base}/?job=${job.id}`;
 
     const valores: Record<string, string> = {

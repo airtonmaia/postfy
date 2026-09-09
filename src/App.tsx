@@ -60,6 +60,7 @@ const SaasFinancialView = lazy(() => import('./components/saas/SaasFinancialView
 const SaasAgenciesView = lazy(() => import('./components/saas/SaasAgenciesView').then(m => ({ default: m.SaasAgenciesView })));
 const SaasEmailsView = lazy(() => import('./components/saas/SaasEmailsView').then(m => ({ default: m.SaasEmailsView })));
 const SaasIntegrationsView = lazy(() => import('./components/saas/SaasIntegrationsView').then(m => ({ default: m.SaasIntegrationsView })));
+const SaasUsersView = lazy(() => import('./components/saas/SaasUsersView').then(m => ({ default: m.SaasUsersView })));
 
 const CarregandoTela: React.FC = () => (
   <div className="flex-1 flex items-center justify-center p-8">
@@ -164,8 +165,8 @@ const MainLayout: React.FC = () => {
   const isSuperAdmin = isPlatformAdmin;
 
   const ABAS_SAAS: TabType[] = [
-    'saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_emails',
-    'saas_integracoes',
+    'saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_usuarios',
+    'saas_emails', 'saas_integracoes',
   ];
   const abaPermitida = ABAS_SAAS.includes(activeTab as TabType)
     ? isSuperAdmin
@@ -300,6 +301,7 @@ const MainLayout: React.FC = () => {
                   { id: 'saas_planos', label: 'Planos do SaaS', icon: Crown },
                   { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
                   { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },
+                  { id: 'saas_usuarios', label: 'Usuários', icon: Users },
                   { id: 'saas_emails', label: 'E-mails do Sistema', icon: Mail },
                   { id: 'saas_integracoes', label: 'Integrações do SaaS', icon: Plug },
                 ].map(item => {
@@ -558,6 +560,7 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
           {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
           {abaPermitida && activeTab === 'saas_emails' && <SaasEmailsView />}
+          {abaPermitida && activeTab === 'saas_usuarios' && <SaasUsersView />}
           {abaPermitida && activeTab === 'saas_integracoes' && <SaasIntegrationsView />}
           </Suspense>
         </main>

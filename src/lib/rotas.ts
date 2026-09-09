@@ -41,6 +41,7 @@ export const CAMINHOS: Record<TabType, string> = {
   saas_agencias: '/super-admin/agencias',
   saas_emails: '/super-admin/emails',
   saas_integracoes: '/super-admin/integracoes',
+  saas_usuarios: '/super-admin/usuarios',
 };
 
 export const ABA_INICIAL: TabType = 'dashboard';

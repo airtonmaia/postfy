@@ -344,7 +344,8 @@ export type TabType =
   | 'saas_financeiro'
   | 'saas_agencias'
   | 'saas_emails'
-  | 'saas_integracoes';
+  | 'saas_integracoes'
+  | 'saas_usuarios';
 
 export type LeadStage = 'new_lead' | 'meeting_scheduled' | 'proposal_sent' | 'negotiating' | 'won' | 'lost';
 
