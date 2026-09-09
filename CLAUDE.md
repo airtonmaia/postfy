@@ -1,0 +1,287 @@
+# Orquesia
+
+SaaS de gestão para agências de conteúdo. React 19 + TypeScript + Vite, dados
+no Supabase, funções serverless na Vercel.
+
+Este arquivo registra as decisões e as armadilhas que já custaram caro. Cada
+item aqui existe porque um bug real passou por ele.
+
+---
+
+## Como rodar
+
+```bash
+bun install          # o lockfile é bun.lock; npm install também funciona
+bun run dev          # http://localhost:5173 — só o front
+bun run lint         # tsc --noEmit
+bun run test         # vitest
+bun run build
+```
+
+**As rotas `/api` não sobem com o Vite.** São funções serverless; o Vite serve
+só o front, então upload, IA e e-mail falham com erro de rede em
+`bun run dev`. Para testá-las:
+
+```bash
+vercel dev           # sobe front e /api juntos, lendo .env
+```
+
+A URL e a chave publicável do Supabase têm padrão embutido em
+`src/lib/supabase.ts`, apontando para o projeto de produção. O app sobe sem
+`.env` — e isso significa que **o banco local é o de produção**. Cliente
+criado em desenvolvimento aparece no app publicado.
+
+---
+
+## Arquitetura
+
+O navegador fala **direto** com o Supabase. Não há servidor de aplicação.
+
+```
+navegador ──► Supabase (Postgres + Auth)   ← RLS recorta por agência
+    │
+    └──────► /api/*  ← só o que precisa de segredo
+```
+
+Em `/api` fica exclusivamente o que não pode ir para o bundle: chave da IA,
+credenciais do R2, chave do Resend, segredo do OAuth. Toda rota valida o JWT
+do Supabase e **reconfere a permissão no banco** — nenhuma confia no que o
+navegador afirma.
+
+**As consultas não filtram por `workspace_id` de propósito.** Quem recorta é a
+RLS. Filtrar no cliente daria a impressão de que a segurança mora lá.
+
+### Persistência derivada de diff
+
+`src/context/PostfyContext.tsx` tem dezenas de mutações no formato
+`setAllX(prev => ...)`. Em vez de reescrever cada uma para chamar o banco,
+`useColecaoSincronizada` compara o estado anterior com o novo e deriva os
+inserts, updates e deletes.
+
+Consequência: **qualquer mutação nova é persistida sem precisar lembrar de
+nada** — e qualquer erro na camada de diff some com o dado em silêncio, porque
+a tela já mostrou o resultado antes de o banco responder.
+
+---
+
+## Armadilhas
+
+Sete regras. Todas vieram de bugs que chegaram a produção.
+
+### 1. Rota `/api` usa export nomeado, nunca `export default`
+
+```ts
+async function handler(request: Request): Promise<Response> { ... }
+export const POST = handler;   // ✅
+// export default handler;     // ❌ derruba a rota inteira
+```
+
+O builder da Vercel decide a assinatura pelo **formato do export**. Com
+`default`, ele assume o handler clássico do Node e chama a função com
+`(req, res)`; aí `request.headers.get(...)` estoura num `IncomingMessage`, a
+função morre antes de responder e a Vercel devolve **500 sem corpo**.
+
+As quatro rotas originais ficaram assim por semanas. O sintoma no cliente é
+`"Falha na requisição (500)"`, que só aparece quando a resposta não é JSON —
+todos os nossos erros são JSON, então esse texto significa crash, não erro
+tratado.
+
+Protegido por `tests/rotas-api.test.ts`, que reproduz a detecção do builder.
+
+### 2. Id gerado no cliente tem que ser uuid
+
+```ts
+import { novoId } from './lib/sincronizacao';
+id: novoId(),              // ✅
+// id: `job-${Date.now()}`  // ❌ o Postgres recusa a linha inteira
+```
+
+Toda tabela usa `id uuid primary key`. Um id fora desse formato faz o insert
+falhar com `invalid input syntax for type uuid` — e como a persistência roda
+em segundo plano, **a tela segue mostrando o item que nunca foi salvo**.
+
+`criarRepositorio.criar` manda o `id` junto no insert. Sem isso o Postgres
+gera outro, a tela guarda o antigo, e a cada recarga o app não reconhece as
+linhas e insere tudo de novo: um cliente virou 76 assim.
+
+Protegido por `tests/ids.test.ts`, que varre o `src` atrás do padrão antigo.
+
+### 3. Gravação entre tabelas segue a ordem de dependência
+
+Uma ação pode tocar duas coleções ligadas por chave estrangeira — converter
+lead em cliente cria o cliente e o contrato no mesmo render. As gravações
+passam por uma fila única (`filaDeGravacao`), na ordem em que os hooks
+`useColecaoSincronizada` são declarados.
+
+**Reordenar esses hooks quebra isso sem nenhum sintoma imediato**: o filho é
+gravado antes do pai, o Postgres recusa com `23503` e ninguém repete.
+
+Protegido por `tests/ordem-de-gravacao.test.ts`.
+
+### 4. Nada de dado da aplicação no navegador
+
+Sem `localStorage` para dado de agência. Ele existia como cache e cobrou caro:
+um cliente com logo em base64 ocupou 4,8 MB e estourou a cota. Pior que o
+aviso era o efeito silencioso — parte do estado ficava só ali, e o que a tela
+mostrava dependia de qual máquina abriu.
+
+Preferências (tema, última agência) ficam em `user_settings`, com RLS por
+linha. A sessão do Supabase Auth continua no `localStorage`: é o que mantém o
+login entre reloads, e não é dado de agência.
+
+Protegido pelo teste de guarda em `tests/ids.test.ts`, com essa exceção
+escrita.
+
+### 5. Arquivo vai para o R2, nunca para dentro do registro
+
+Sem `readAsDataURL`. Use `arquivosApi.enviar`, que pede URL pré-assinada e
+manda o binário do navegador direto para o R2.
+
+Sem armazenamento configurado, **não caia de volta no base64** — era ele o
+problema. A tela oferece colar a URL.
+
+### 6. `vercel.json` não é validado pelo CI
+
+O CI roda `tsc`, testes e `vite build`. **Nenhum deles olha o `vercel.json`**,
+que só é validado no deploy de verdade.
+
+Já passou um cron de 5 minutos com o CI verde: contas Hobby da Vercel só
+aceitam cron diário, e isso derruba o deploy inteiro. Por isso o agendamento
+da fila de publicação vive em `.github/workflows/publicar.yml`, e não no
+`vercel.json`.
+
+Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
+significa nada.
+
+### 7. Helper de RLS no schema `private` mantém o EXECUTE padrão
+
+```sql
+create function private.eh_admin_da_plataforma() ... security definer;
+grant execute on function private.eh_admin_da_plataforma() to public;  -- ✅
+-- revoke all on function ... from authenticated;                       -- ❌
+```
+
+A policy resolve a função pelo OID, mas o privilégio de execução é conferido
+**em tempo de execução, como o usuário da sessão**. Revogar o `EXECUTE` faz
+toda leitura da tabela protegida falhar com `42501`.
+
+Quem impede a chamada direta é o schema `private` não conceder `USAGE` — e o
+PostgREST só expõe `public`.
+
+---
+
+## Segurança
+
+### Papel na agência ≠ administrador da plataforma
+
+São eixos diferentes, e já foram confundidos: `gerenciar_saas` vivia no papel
+`owner`, que a RPC `criar_agencia` dá a **todo mundo que se cadastra**. Cada
+cliente novo enxergava o menu de gestão do SaaS.
+
+- `workspace_members.role` → o que a pessoa faz **dentro** de uma agência
+- `platform_admins` → quem administra o **produto**
+
+A tabela `platform_admins` não tem política de escrita de propósito: promover
+alguém é operação de banco, não algo que uma sessão autenticada faça.
+
+### Segredo de terceiro nunca chega ao navegador
+
+`social_tokens` tem RLS ligada e **zero políticas** — inalcançável por
+qualquer sessão autenticada, inclusive a do dono da agência. Só a função
+serverless a lê, com `clienteDeServico()`.
+
+É o único uso da chave de serviço no projeto. Se precisar de outro, pense duas
+vezes: ela ignora a RLS inteira.
+
+### Papel vem da sessão, nunca de `user_metadata`
+
+Metadados são editáveis pelo próprio usuário e não servem para autorização.
+
+---
+
+## Como verificar cada camada
+
+**Código:** `bun run lint && bun run test && bun run build`. Os testes de
+guarda (`ids`, `rotas-api`, `ordem-de-gravacao`, `automacoes`) protegem
+invariantes que não quebram nada visível quando violados — é para isso que
+eles existem.
+
+**RLS:** teste impersonando usuários de verdade, não lendo a policy. O padrão
+usado no projeto:
+
+```sql
+create temp table res (passo text, obtido text, esperado text);
+grant all on res to authenticated;
+
+do $$
+begin
+    perform set_config('role', 'authenticated', true);
+    perform set_config('request.jwt.claims',
+        json_build_object('sub', '<uuid do usuário>', 'role', 'authenticated')::text, true);
+    -- consulta ou escrita, contando linhas afetadas
+end $$;
+
+select passo, obtido, esperado,
+       case when obtido like esperado || '%' then 'OK' else 'FALHOU' end from res;
+```
+
+Sempre inclua o caso do intruso e o da auto-promoção. `42501` é o resultado
+esperado quando a policy segura.
+
+**Persistência:** confira no banco, não na tela. A tela mostra o estado
+otimista e mente sobre o que foi gravado — foi assim que "0 jobs no banco com
+um job na interface" passou despercebido.
+
+---
+
+## Convenções
+
+Código e comentários em **português**. Nomes de domínio em português
+(`criarRepositorio`, `dispararAutomacoes`); nomes que espelham o schema ficam
+como no banco (`workspace_id`, `job.status`).
+
+Comentário explica **por que**, não o que. Se o código já diz o que faz, o
+comentário só ganha espaço registrando a decisão — de preferência o custo de
+ter feito diferente.
+
+Toda tela que depende de configuração externa **diz o que falta**, com o nome
+da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
+`/api/status` e mostra o estado real do servidor em vez de uma lista fixa.
+
+---
+
+## Mapa
+
+```
+src/lib/supabase.ts        cliente único; a chave publicável é pública por definição
+src/lib/db.ts              repositórios por entidade, operações por linha
+src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
+src/lib/sincronizacao.ts   diferenciar() e novoId()
+src/lib/permissions.ts     papéis dentro da agência
+src/lib/automacoes.ts      motor: evento tipado → ação
+src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
+
+api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServico
+api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
+api/_lib/meta.ts           Graph API da Meta
+api/_lib/ssrf.ts           bloqueio de rede interna no webhook
+
+supabase/migrations/       schema é a fonte de verdade; 13 migrações
+```
+
+---
+
+## Pendências conhecidas
+
+- **A senha `Sofia&Alice*1802` está no histórico do git** (commits `361b9db` e
+  `d40757e`). Saiu do código, mas continua lá. Precisa ser rotacionada — o
+  histórico não some sem reescrever a branch.
+- **Publicação nas redes depende de revisão de app na Meta** —
+  `instagram_business_basic` e `instagram_business_content_publish`, 2 a 4
+  semanas cada. Antes disso, dá para publicar na própria conta com o app em
+  modo de desenvolvimento e a conta como Instagram Tester.
+- **Os e-mails disparam do navegador**, depois de a mudança estar gravada.
+  Fechar a aba no meio interrompe o envio. A correção definitiva é um gatilho
+  no Postgres chamando a função; fica para quando houver volume.
+- **Variáveis de ambiente na Vercel** — veja `.env.example`. A aba Integrações
+  mostra quais estão faltando, lendo do servidor.
