@@ -127,7 +127,7 @@ describe('sonda /api/ping', () => {
     // Um import aqui derrota o propósito: a sonda passaria a poder falhar
     // pelo mesmo motivo que as rotas de verdade.
     const fonte = readFileSync('api/ping.ts', 'utf-8');
-    const imports = fonte.match(/^import .*/gm) || [];
+    const imports: string[] = fonte.match(/^import .*/gm) ?? [];
     expect(imports.every((l) => l.startsWith('import type'))).toBe(true);
   });
 });
