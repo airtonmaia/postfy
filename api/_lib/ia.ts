@@ -18,6 +18,8 @@ export interface ConfiguracaoIA {
   modelo: string;
   /** Nem todo fornecedor aceita response_format; alguns quebram se receber. */
   suportaJsonNativo: boolean;
+  /** Cabeçalhos exigidos por fornecedor específico (atribuição do OpenRouter). */
+  cabecalhos?: Record<string, string>;
 }
 
 /**
@@ -47,6 +49,12 @@ const PRESETS: Record<string, Omit<ConfiguracaoIA, 'apiKey' | 'modelo'> & { mode
     baseUrl: 'https://openrouter.ai/api/v1',
     modeloPadrao: 'meta-llama/llama-3.3-70b-instruct:free',
     suportaJsonNativo: true,
+    // O OpenRouter usa estes dois para atribuir o consumo e listar o app no
+    // ranking dele. Sem eles a chamada funciona, mas aparece como anônima.
+    cabecalhos: {
+      'HTTP-Referer': 'https://app.orquesia.com.br',
+      'X-Title': 'Orquesia',
+    },
   },
   mistral: {
     baseUrl: 'https://api.mistral.ai/v1',
@@ -61,7 +69,7 @@ const PRESETS: Record<string, Omit<ConfiguracaoIA, 'apiKey' | 'modelo'> & { mode
 };
 
 export const configuracaoDaIA = (): ConfiguracaoIA | null => {
-  const provedor = (process.env.IA_PROVEDOR || 'gemini').toLowerCase();
+  const provedor = (process.env.IA_PROVEDOR || 'openrouter').toLowerCase();
 
   // Um endpoint totalmente customizado (modelo local, gateway próprio) tem
   // prioridade sobre os presets.
@@ -89,6 +97,7 @@ export const configuracaoDaIA = (): ConfiguracaoIA | null => {
     apiKey: chave,
     modelo: process.env.IA_MODELO || process.env.GEMINI_MODEL || preset.modeloPadrao,
     suportaJsonNativo: preset.suportaJsonNativo,
+    cabecalhos: preset.cabecalhos,
   };
 };
 
@@ -162,6 +171,7 @@ export const gerarJson = async <T = any>(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
+        ...config.cabecalhos,
       },
       body: JSON.stringify(corpo),
       signal: controlador.signal,

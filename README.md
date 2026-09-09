@@ -18,7 +18,7 @@ agendamento e relatórios.
 
 **Não há servidor de aplicação.** Autenticação e dados vão do navegador direto
 para o Supabase, protegidos pela RLS. As funções em `api/` existem só para o
-que precisa de segredo: a chave do Gemini, as credenciais do R2 e a do Resend.
+que precisa de segredo: a chave da IA, as credenciais do R2 e a do Resend.
 
 ## Começando
 
@@ -111,9 +111,13 @@ Dois pontos usam IA, ambos no modal de detalhe do conteúdo:
   ajuste em tarefas separadas por designer e copywriter
 
 Não há acoplamento a um fornecedor. A camada em `api/_lib/ia.ts` fala o
-dialeto de chat completions da OpenAI, que Gemini, Groq, Cerebras, OpenRouter,
+dialeto de chat completions da OpenAI, que OpenRouter, Gemini, Groq, Cerebras,
 Mistral e modelos locais (Ollama, LM Studio) entendem. Trocar de fornecedor é
 mudar `IA_PROVEDOR` e `IA_API_KEY` — sem release.
+
+O padrão é o **OpenRouter**: uma chave só alcança dezenas de modelos, e os
+terminados em `:free` não cobram. Quando um modelo gratuito sai do ar — e isso
+acontece —, `IA_MODELO` aponta para outro sem tocar em código.
 
 A extração do JSON tolera cerca de markdown e texto em volta da resposta,
 porque modelos gratuitos costumam ser menos disciplinados no formato.
@@ -127,7 +131,7 @@ Tudo é opcional menos o Supabase, que já vem com padrão. Ver
 [`.env.example`](./.env.example).
 
 Regra que não se quebra: **o que começa com `VITE_` vai para o bundle e é
-público.** A `service_role` do Supabase e as chaves de Gemini, R2 e Resend só
+público.** A `service_role` do Supabase e as chaves de IA, R2 e Resend só
 existem no ambiente das funções. O CI falha se alguma aparecer no bundle.
 
 ## O que ainda não existe
