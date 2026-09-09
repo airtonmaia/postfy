@@ -10,7 +10,6 @@ import {
   excedeuLimite,
 } from './_lib/auth';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Envio do convite de equipe por e-mail (Resend).

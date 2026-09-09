@@ -10,7 +10,6 @@ import {
 } from './_lib/auth';
 import { ESCOPOS_META } from './_lib/meta';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Início do OAuth com a Meta.

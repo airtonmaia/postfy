@@ -1,7 +1,6 @@
 import { usuarioDaRequisicao, json, naoAutenticado } from './_lib/auth';
 import { rota } from './_lib/rota';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * O que está de fato configurado no servidor.

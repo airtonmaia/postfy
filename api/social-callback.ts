@@ -3,7 +3,6 @@ import { rota } from './_lib/rota';
 import { conferirEstado } from './social-connect';
 import { trocarCodigoPorToken, contasDoUsuario } from './_lib/meta';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Retorno do OAuth da Meta.

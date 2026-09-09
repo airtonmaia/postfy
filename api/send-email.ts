@@ -10,7 +10,6 @@ import {
   excedeuLimite,
 } from './_lib/auth';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Disparo de um e-mail automático do sistema.

@@ -2,7 +2,6 @@ import { clienteDeServico, json } from './_lib/auth';
 import { rota } from './_lib/rota';
 import { publicarNoInstagram, ErroDaMeta } from './_lib/meta';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Publicador da fila. Roda por cron, não por clique.

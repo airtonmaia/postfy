@@ -8,7 +8,6 @@ import {
 import { rota } from './_lib/rota';
 import { configuracaoDaIA, gerarJson, ErroDeIA } from './_lib/ia';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Rotas de IA.

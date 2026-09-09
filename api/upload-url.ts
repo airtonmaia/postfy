@@ -11,7 +11,6 @@ import {
   excedeuLimite,
 } from './_lib/auth';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * URL pré-assinada para upload no Cloudflare R2.

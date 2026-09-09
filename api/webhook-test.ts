@@ -9,7 +9,6 @@ import {
 import { rota } from './_lib/rota';
 import { buscarComProtecao } from './_lib/ssrf';
 
-export const config = { runtime: 'nodejs' };
 
 /**
  * Disparo de teste de webhook.
