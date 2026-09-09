@@ -385,7 +385,15 @@ export const buscarConvitePorToken = async (token: string): Promise<DadosDoConvi
   const { data, error } = await supabase.rpc('convite_por_token', { t: token });
   if (error) throw new Error(error.message);
   const linha = Array.isArray(data) ? data[0] : data;
-  return linha ? { email: linha.email, name: linha.name, role: linha.role, agencia: linha.agencia } : null;
+  return linha
+    ? {
+        email: linha.email,
+        name: linha.name,
+        role: linha.role,
+        agencia: linha.agencia,
+        temConta: Boolean(linha.tem_conta),
+      }
+    : null;
 };
 
 /**
