@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { safeDateTimeFormat, safeDateFormat, copyToClipboard } from '../../lib/utils';
+import { safeDateTimeFormat, safeDateFormat, safeTimeFormat, copyToClipboard } from '../../lib/utils';
 import { 
   CheckCircle2,
   Key,
@@ -28,7 +28,10 @@ import {
   Upload,
   Trash2,
   LogOut,
-  Smartphone
+  Smartphone,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { Job, Client, JobPlatform, JobFormat } from '../../types';
@@ -48,6 +51,111 @@ const proporcaoDoCriativo = (platform: JobPlatform, format: JobFormat): string =
   // Feed/carrossel: 4:5 é o formato de maior área útil no Instagram e
   // Facebook, e serve como referência razoável para LinkedIn/X também.
   return 'aspect-[4/5]';
+};
+
+interface ClientPortalMonthGridProps {
+  month: Date;
+  jobs: Job[];
+  onSelectJob: (job: Job) => void;
+}
+
+/** Calendário mensal do portal: só leitura, sem filtro de cliente (a lista já
+ * chega recortada) e sem criação de conteúdo — o cliente aprova, não posta. */
+const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jobs, onSelectJob }) => {
+  const diasDaSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const ano = month.getFullYear();
+  const mes = month.getMonth();
+
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const indiceDoPrimeiroDia = new Date(ano, mes, 1).getDay();
+  const diasDoMesAnterior = new Date(ano, mes, 0).getDate();
+  const totalCelulas = Math.ceil((indiceDoPrimeiroDia + diasNoMes) / 7) * 7;
+
+  const hoje = new Date();
+  const ehHoje = (d: Date) =>
+    d.getFullYear() === hoje.getFullYear() && d.getMonth() === hoje.getMonth() && d.getDate() === hoje.getDate();
+
+  const jobsDoDia = (d: Date) =>
+    jobs.filter((job) => {
+      const alvo = new Date(job.scheduledDate || job.deadlineProduction);
+      return alvo.getFullYear() === d.getFullYear() && alvo.getMonth() === d.getMonth() && alvo.getDate() === d.getDate();
+    });
+
+  const celulas: { data: Date; doMesAtual: boolean; jobs: Job[] }[] = [];
+  for (let i = 0; i < totalCelulas; i++) {
+    let data: Date;
+    let doMesAtual = true;
+    if (i < indiceDoPrimeiroDia) {
+      data = new Date(ano, mes - 1, diasDoMesAnterior - (indiceDoPrimeiroDia - 1 - i));
+      doMesAtual = false;
+    } else if (i >= indiceDoPrimeiroDia + diasNoMes) {
+      data = new Date(ano, mes + 1, i - (indiceDoPrimeiroDia + diasNoMes) + 1);
+      doMesAtual = false;
+    } else {
+      data = new Date(ano, mes, i - indiceDoPrimeiroDia + 1);
+    }
+    celulas.push({ data, doMesAtual, jobs: jobsDoDia(data) });
+  }
+
+  return (
+    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 py-2">
+        {diasDaSemana.map((dia) => (
+          <div key={dia}>{dia}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800">
+        {celulas.map((celula, idx) => (
+          <div
+            key={idx}
+            className={`min-h-[100px] sm:min-h-[120px] p-1.5 flex flex-col gap-1 ${
+              celula.doMesAtual ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-950/60'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full shrink-0 ${
+                ehHoje(celula.data)
+                  ? 'bg-purple-600 text-white'
+                  : celula.doMesAtual
+                  ? 'text-slate-700 dark:text-slate-300'
+                  : 'text-slate-400'
+              }`}
+            >
+              {celula.data.getDate()}
+            </span>
+
+            <div className="flex-1 space-y-1 overflow-y-auto">
+              {celula.jobs.slice(0, 3).map((job) => (
+                <button
+                  key={job.id}
+                  onClick={() => onSelectJob(job)}
+                  className="w-full text-left bg-slate-50 dark:bg-slate-950 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-300 rounded-lg p-1 transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <PlatformBadge platform={job.platform} showLabel={false} className="px-1 py-0" />
+                    <span className="text-[9px] font-mono text-slate-400 truncate">
+                      {safeTimeFormat(job.scheduledDate)}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 leading-tight">
+                    {job.title}
+                  </p>
+                  <div className="mt-0.5">
+                    <StatusBadge status={job.status} size="sm" />
+                  </div>
+                </button>
+              ))}
+              {celula.jobs.length > 3 && (
+                <span className="block text-[10px] text-center text-slate-400 font-semibold">
+                  +{celula.jobs.length - 3} mais
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export const ClientPortalView: React.FC = () => {
@@ -85,6 +193,8 @@ export const ClientPortalView: React.FC = () => {
   const [selectedForReview, setSelectedForReview] = useState<Job | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [calendarPreviewJob, setCalendarPreviewJob] = useState<Job | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -247,7 +357,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />
-            Aprovações Pendentes ({pendingApprovals.length})
+            Aprovações
           </button>
 
           <button
@@ -259,7 +369,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <CalendarIcon className="w-4 h-4" />
-            Cronograma do Mês ({clientJobs.length})
+            Cronograma
           </button>
 
           <button
@@ -271,7 +381,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <FolderOpen className="w-4 h-4" />
-            Arquivos & Drive ({(client.files || []).length})
+            Arquivos
           </button>
 
           <button
@@ -283,7 +393,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <Key className="w-4 h-4" />
-            Cofre de Senhas ({(client.passwords || []).length})
+            Senhas
           </button>
 
           <button
@@ -295,7 +405,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <Receipt className="w-4 h-4" />
-            Notas Fiscais ({(client.invoices || []).length})
+            Notas Fiscais
           </button>
 
           <button
@@ -307,7 +417,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Briefing & Diretrizes
+            Briefing
           </button>
 
           <button
@@ -319,7 +429,7 @@ export const ClientPortalView: React.FC = () => {
             }`}
           >
             <Upload className="w-4 h-4" />
-            Envio de Fotos & Materiais ({clientMaterials.filter(m => m.clientId === client.id).length})
+            Fotos e Materiais
           </button>
         </div>
 
@@ -423,32 +533,39 @@ export const ClientPortalView: React.FC = () => {
         {/* Tab 2: Calendar */}
         {activeTab === 'calendar' && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Cronograma de Conteúdos da Conta</h3>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {clientJobs.map(job => (
-                <div key={job.id} className="py-3.5 flex items-center justify-between gap-4 text-xs">
-                  <div className="flex items-center gap-3">
-                    {job.mediaUrls && job.mediaUrls.length > 0 && (
-                      <img src={job.mediaUrls[0]} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-800" />
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <PlatformBadge platform={job.platform} showLabel={false} />
-                        <FormatBadge format={job.format} />
-                      </div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{job.title}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <span className="text-slate-500 dark:text-slate-400 font-mono">
-                      {safeDateFormat(job.scheduledDate)}
-                    </span>
-                    <StatusBadge status={job.status} />
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white capitalize">
+                {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h3>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCalendarMonth(new Date())}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                >
+                  Hoje
+                </button>
+                <button
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  title="Mês anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  title="Próximo mês"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+
+            <ClientPortalMonthGrid
+              month={calendarMonth}
+              jobs={clientJobs}
+              onSelectJob={setCalendarPreviewJob}
+            />
           </div>
         )}
 
@@ -863,6 +980,101 @@ export const ClientPortalView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Preview do job clicado no calendário: aprova/pede ajuste se ainda
+          estiver aguardando aprovação, senão só mostra o conteúdo e o status. */}
+      {calendarPreviewJob && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col">
+            <div
+              className={`relative ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 max-h-72`}
+            >
+              {calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
+                <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
+                  <Layers className="w-8 h-8" />
+                  <span>Preview do Criativo</span>
+                </div>
+              )}
+              <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                <PlatformBadge platform={calendarPreviewJob.platform} />
+                <FormatBadge format={calendarPreviewJob.format} />
+              </div>
+              <button
+                onClick={() => setCalendarPreviewJob(null)}
+                className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 overflow-y-auto">
+              <div className="flex items-start justify-between gap-3">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                  {calendarPreviewJob.title}
+                </h4>
+                <StatusBadge status={calendarPreviewJob.status} />
+              </div>
+
+              {calendarPreviewJob.caption && (
+                <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800/70 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
+                  {calendarPreviewJob.caption}
+                </div>
+              )}
+
+              {calendarPreviewJob.cta && (
+                <p className="text-xs text-purple-700 dark:text-purple-400 font-semibold bg-purple-50/70 dark:bg-purple-950/40 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/40">
+                  👉 {calendarPreviewJob.cta}
+                </p>
+              )}
+
+              <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+                <span>Previsão de postagem:</span>
+                <strong className="text-slate-700 dark:text-slate-300 font-mono">
+                  {safeDateTimeFormat(calendarPreviewJob.scheduledDate)}
+                </strong>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
+              {calendarPreviewJob.status === 'for_approval' ? (
+                <>
+                  <button
+                    onClick={() => {
+                      const job = calendarPreviewJob;
+                      setCalendarPreviewJob(null);
+                      setSelectedForReview(job);
+                      setIsRejecting(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    Pedir Ajuste
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleApprove(calendarPreviewJob.id);
+                      setCalendarPreviewJob(null);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Aprovar Agora
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setCalendarPreviewJob(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  Fechar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject/Adjustment Dialog */}
       {isRejecting && selectedForReview && (
