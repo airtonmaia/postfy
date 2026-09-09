@@ -1,0 +1,49 @@
+# Agendador da fila de publicação.
+#
+# O cron da Vercel seria o lugar natural, e não serve aqui: contas Hobby só
+# aceitam cron diário, e um agendamento a cada 5 minutos faz o deploy inteiro
+# falhar com "Hobby accounts are limited to daily cron jobs". Publicar uma vez
+# por dia não é agendamento de post.
+#
+# Este workflow não depende do plano. O compromisso é que o agendador do
+# GitHub tem 5 minutos de granularidade mínima e pode atrasar sob carga —
+# aceitável para post agendado, que já tolera minutos.
+#
+# No plano Pro, dá para voltar ao cron da Vercel: acrescente
+#   "crons": [{ "path": "/api/publicar", "schedule": "*/5 * * * *" }]
+# ao vercel.json e desligue este workflow. A rota é a mesma.
+name: Publicar fila
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  # Para disparar à mão ao testar, sem esperar o próximo ciclo.
+  workflow_dispatch:
+
+# Duas execuções simultâneas tentariam publicar o mesmo item. A trava do
+# banco já cobre isso, mas evitar a corrida é mais barato que resolvê-la.
+concurrency:
+  group: publicar-fila
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o publicador
+        env:
+          APP_URL: ${{ secrets.APP_URL || 'https://app.orquesia.com.br' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET não configurado nos segredos do repositório."
+            echo "A rota recusa a chamada sem ele, então não há o que fazer."
+            exit 1
+          fi
+
+          # --fail-with-body para o passo falhar no HTTP de erro e ainda
+          # mostrar o corpo, que é onde está o motivo.
+          curl --silent --show-error --fail-with-body \
+               --max-time 60 \
+               --header "Authorization: Bearer $CRON_SECRET" \
+               "$APP_URL/api/publicar"
