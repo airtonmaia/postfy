@@ -38,13 +38,51 @@ describe('link do portal', () => {
   });
 
   it('a prévia interna leva cliente e agência', () => {
-    const url = urlDaPreviaDoPortal('abc-123', 'pulmin');
+    const url = urlDaPreviaDoPortal('airton-maia', 'pulmin');
     expect(agenciaDoCaminho(url.split('?')[1])).toBe('pulmin');
-    expect(url).toContain('cliente=abc-123');
+    expect(url).toContain('cliente=airton-maia');
   });
 
   it('a prévia funciona sem agência', () => {
-    expect(urlDaPreviaDoPortal('abc-123')).toBe('/portal-do-cliente?cliente=abc-123');
+    expect(urlDaPreviaDoPortal('airton-maia')).toBe('/portal-do-cliente?cliente=airton-maia');
+  });
+
+  /**
+   * O uuid tem que continuar abrindo: links da prévia foram compartilhados e
+   * favoritados antes de o slug existir, e quebrá-los seria trocar um
+   * incômodo (URL feia) por uma regressão.
+   */
+  it('o contexto resolve slug e uuid', () => {
+    const ctx = readFileSync('src/context/PostfyContext.tsx', 'utf-8');
+    const trecho = ctx.slice(ctx.indexOf('const portalClientId'));
+    expect(trecho).toMatch(/c\.slug === portalPreviewClientId/);
+    expect(trecho).toMatch(/c\.id === portalPreviewClientId/);
+  });
+
+  it('o slug do cliente é gerado e mantido pelo banco', () => {
+    const sql = readFileSync(
+      'supabase/migrations/20260909200000_slug_do_cliente.sql',
+      'utf-8'
+    );
+    // Em trigger, e não no app: o cliente é criado pela camada de diff, que
+    // não conhece regra de negócio. No app seria preciso lembrar de gerar o
+    // slug em cada lugar que cria ou renomeia.
+    expect(sql).toMatch(/create trigger cliente_slug/);
+    expect(sql).toMatch(/before insert or update on public\.clients/);
+    // Único por agência, não global: duas agências podem ter o mesmo cliente,
+    // e uma não deveria descobrir a outra por um sufixo no endereço.
+    expect(sql).toMatch(/unique index[\s\S]*clients \(workspace_id, slug\)/);
+  });
+
+  it('a tela não manda o slug de volta para o banco', () => {
+    // Quem gera é o trigger. Mandá-lo daqui deixaria a tela sobrescrever o
+    // valor gerado com o que ela tinha em memória.
+    const mappers = readFileSync('src/lib/mappers.ts', 'utf-8');
+    const escrita = mappers.slice(
+      mappers.indexOf('export const clientParaLinha'),
+      mappers.indexOf('// ------', mappers.indexOf('export const clientParaLinha'))
+    );
+    expect(escrita).not.toMatch(/^\s*slug:/m);
   });
 
   it('agenciaDoCaminho não estoura com lixo', () => {

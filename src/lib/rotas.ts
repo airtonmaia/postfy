@@ -134,15 +134,28 @@ export const urlDaAba = (aba: TabType, subAba?: string, busca = ''): string =>
  * fundo, então fica fora do mapa `CAMINHOS` de propósito — igual ao link
  * externo `?portal=<token>`, que também não passa por `abaDoCaminho`.
  *
- * O id vai cru na query porque só vale para quem já está logado como equipe
- * (`portalClientId` em PostfyContext só resolve com `isAuthenticated`); não é
- * o mesmo caso do token opaco do link externo, que precisa ser não-enumerável
- * porque abre para qualquer um.
+ * O cliente vai identificado em claro na query porque isto só vale para quem
+ * já está logado como equipe (`portalClientId` em PostfyContext só resolve com
+ * `isAuthenticated`). Não é o caso do token opaco do link externo, que precisa
+ * ser não-enumerável porque abre para qualquer um.
  */
 export const CAMINHO_PORTAL_PREVIEW = '/portal-do-cliente';
 
-export const urlDaPreviaDoPortal = (clienteId: string, slugDaAgencia?: string): string => {
-  const params = new URLSearchParams({ cliente: clienteId });
+/**
+ * `cliente` recebe o slug — `?cliente=airton-maia`, não o uuid.
+ *
+ * Um uuid na barra de endereço não diz de quem é o link: ninguém confere
+ * antes de abrir, e num print ou numa conversa ele não significa nada.
+ *
+ * O id continua sendo aceito na leitura (ver `portalClientId` em
+ * PostfyContext), porque links compartilhados ou favoritados antes do slug
+ * existir precisam continuar abrindo.
+ */
+export const urlDaPreviaDoPortal = (
+  clienteSlugOuId: string,
+  slugDaAgencia?: string
+): string => {
+  const params = new URLSearchParams({ cliente: clienteSlugOuId });
   if (slugDaAgencia) params.set('agencia', slugDaAgencia);
   return `${CAMINHO_PORTAL_PREVIEW}?${params}`;
 };

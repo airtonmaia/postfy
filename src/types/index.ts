@@ -118,6 +118,12 @@ export interface ClientBriefing {
 
 export interface Client {
   id: string;
+  /**
+   * Endereço legível no link do portal, único dentro da agência.
+   * Gerado e mantido pelo banco a partir do nome — ver a migração
+   * 20260909200000_slug_do_cliente.sql.
+   */
+  slug?: string;
   workspaceId: string;
   name: string;
   legalName?: string;

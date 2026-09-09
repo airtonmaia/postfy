@@ -72,6 +72,7 @@ export const workspaceParaLinha = (w: Partial<Workspace>): Linha =>
 
 export const clientDaLinha = (l: Linha): Client => ({
   id: l.id,
+  slug: l.slug ?? undefined,
   workspaceId: l.workspace_id,
   name: l.name,
   legalName: ounull(l.legal_name),
@@ -118,6 +119,9 @@ export const clientParaLinha = (c: Partial<Client>): Linha =>
     invoices: c.invoices,
     briefing: c.briefing,
     notes: c.notes,
+    // `slug` fica de fora de propósito: quem gera e mantém é o trigger no
+    // banco, a partir do nome. Mandá-lo daqui deixaria a tela sobrescrever o
+    // valor gerado com o que ela tinha em memória.
   });
 
 // ---------------------------------------------------------------------- Job

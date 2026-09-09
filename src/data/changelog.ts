@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.6.0',
+    data: '2026-09-09',
+    resumo: 'O Financeiro do SaaS para de inventar receita, e o link da prévia fica legível.',
+    melhorias: [
+      'O link da prévia do portal traz o nome do cliente em vez do código interno: /portal-do-cliente?cliente=airton-maia. Os links antigos continuam abrindo.',
+      'O botão de copiar o link do portal ganhou rótulo. Como só ícone, ninguém o encontrava.',
+    ],
+    corrigido: [
+      'O painel Financeiro do SaaS estimava a receita multiplicando o número de agências por R$ 197 — contando as que estão em teste — e listava quatro pagamentos de agências que nunca existiram. No dia da correção eram três agências, todas em teste, e a tela mostrava R$ 591,00. Agora ela mostra só o que o banco sabe, e diz o que falta para haver faturamento de verdade.',
+    ],
+  },
+  {
     versao: '2.5.0',
     data: '2026-09-09',
     resumo: 'O portal abre com a marca da sua agência, e o link para o cliente volta a funcionar.',

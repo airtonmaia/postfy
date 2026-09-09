@@ -74,7 +74,7 @@ export const BotaoDoPortal: React.FC<Props> = ({
 
   const classeCopiar = destaque
     ? 'flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-r-xl shadow-xs transition cursor-pointer border-l border-purple-500'
-    : 'flex items-center px-2 py-1 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-r-lg transition cursor-pointer border-l border-purple-200 dark:border-purple-800';
+    : 'flex items-center px-2.5 py-1 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-r-lg transition cursor-pointer border-l border-purple-200 dark:border-purple-800';
 
   return (
     <div className="inline-flex items-center">
@@ -107,7 +107,15 @@ export const BotaoDoPortal: React.FC<Props> = ({
         ) : (
           <Copy className={destaque ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
         )}
-        {destaque && <span className="ml-1.5 text-xs font-bold">{copiado ? 'Copiado!' : 'Copiar link'}</span>}
+        {/* O rótulo aparece nas duas variantes.
+            
+            Era só o ícone no discreto, e ninguém o encontrou: um <Copy>
+            grudado num botão que abre o portal lê como parte do mesmo botão,
+            não como uma segunda ação. Custou o pedido "faltou o botão de
+            copiar o link" para algo que já estava na tela. */}
+        <span className={`ml-1.5 font-bold ${destaque ? 'text-xs' : 'text-[11px]'}`}>
+          {copiado ? 'Copiado!' : 'Copiar link'}
+        </span>
       </button>
     </div>
   );
