@@ -174,20 +174,14 @@ export const ClientPortalView: React.FC = () => {
     deleteClientMaterial
   } = usePostfy();
 
-  // Authentication State for Client Portal
-  const [authenticatedClient, setAuthenticatedClient] = useState<Client | null>(() => {
-    if (portalClientId) {
-      return clients.find(c => c.id === portalClientId) || null;
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    if (portalClientId) {
-      const match = clients.find(c => c.id === portalClientId);
-      if (match) setAuthenticatedClient(match);
-    }
-  }, [portalClientId, clients]);
+  // Quem está no portal vem do contexto: por token (cliente que entrou com o
+  // código) ou por prévia interna (equipe da agência). A tela não decide
+  // mais isso sozinha — antes ela comparava telefone contra a lista local, e
+  // essa lista só existia quando alguém da agência estava logado no mesmo
+  // navegador. Para o cliente de verdade, o portal abria vazio.
+  const authenticatedClient: Client | null = portalClientId
+    ? clients.find(c => c.id === portalClientId) || null
+    : null;
 
   const [activeTab, setActiveTab] = useState<'approvals' | 'calendar' | 'arquivos' | 'senhas' | 'notas' | 'briefing' | 'materiais'>('approvals');
   const [selectedForReview, setSelectedForReview] = useState<Job | null>(null);
@@ -205,14 +199,23 @@ export const ClientPortalView: React.FC = () => {
   const [newMatUrl, setNewMatUrl] = useState('');
   const [newMatNotes, setNewMatNotes] = useState('');
 
-  // If client is not authenticated with their WhatsApp number, render the WhatsApp Login Page
+  // Enquanto a RPC do portal não responde, a tela ainda não sabe se há
+  // cliente: mostrar o login aqui piscaria a tela de código para quem já
+  // entrou e só apertou F5.
+  if (!authenticatedClient && carregandoPortal) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-7 h-7 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+      </div>
+    );
+  }
+
   if (!authenticatedClient) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
         <ClientPortalLogin
           workspace={currentWorkspace}
-          clients={clients}
-          onLoginSuccess={(client) => setAuthenticatedClient(client)}
+          onLoginSuccess={entrarNoPortal}
         />
       </div>
     );
@@ -226,7 +229,7 @@ export const ClientPortalView: React.FC = () => {
   const upcomingScheduled = clientJobs.filter(j => j.status === 'scheduled' || j.status === 'approved');
 
   const handleLogout = () => {
-    setAuthenticatedClient(null);
+    closeClientPortal();
   };
 
   const handleApprove = (jobId: string) => {

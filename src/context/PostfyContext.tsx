@@ -1012,7 +1012,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const closeClientPortal = () => {
     setIsClientPortalOpen(false);
     setPortalPreviewClientId(null);
-    setPortalToken(null);
+    // Limpa também o que ficou guardado na aba: só apagar o estado deixava a
+    // sessão do cliente voltar no próximo F5.
+    sairDoPortal();
   };
 
   /**
