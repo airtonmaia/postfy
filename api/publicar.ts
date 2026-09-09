@@ -1,4 +1,5 @@
 import { clienteDeServico, json } from './_lib/auth';
+import { rota } from './_lib/rota';
 import { publicarNoInstagram, ErroDaMeta } from './_lib/meta';
 
 export const config = { runtime: 'nodejs' };
@@ -161,10 +162,13 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
 };
 
 /**
- * Export nomeado, sem default: é assim que o builder da Vercel reconhece a
- * assinatura Web. Ver o comentário longo em api/upload-url.ts.
- *
- * GET porque é o método que o agendador da Vercel usa.
+ * Handler no formato Web, exportado para os testes chamarem direto.
+ * O que a Vercel executa é o default abaixo.
  */
-export const GET = handler;
 export const POST = handler;
+
+/**
+ * Default no formato (req, res), que toda versão do builder da Vercel
+ * entende. Ver o porquê em api/_lib/rota.ts.
+ */
+export default rota(handler);

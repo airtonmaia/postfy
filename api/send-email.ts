@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { rota } from './_lib/rota';
 import {
   usuarioDaRequisicao,
   clienteDoUsuario,
@@ -181,7 +182,13 @@ async function handler(request: Request): Promise<Response> {
 }
 
 /**
- * Export nomeado, sem default: é assim que o builder da Vercel reconhece a
- * assinatura Web. Ver o comentário longo em api/upload-url.ts.
+ * Handler no formato Web, exportado para os testes chamarem direto.
+ * O que a Vercel executa é o default abaixo.
  */
 export const POST = handler;
+
+/**
+ * Default no formato (req, res), que toda versão do builder da Vercel
+ * entende. Ver o porquê em api/_lib/rota.ts.
+ */
+export default rota(handler);

@@ -12,32 +12,28 @@ import * as publicar from '../api/publicar';
 /**
  * Formato do export das funções serverless.
  *
- * Nossas rotas usam a assinatura Web (Request/Response). O builder da Vercel
- * decide isso pelo formato do export, e a regra não é óbvia: com
- * `export default` ele assume o handler clássico do Node e chama a função com
- * (req, res). Aí `request.headers.get(...)` estoura num IncomingMessage, a
- * função morre antes de responder e a Vercel devolve um 500 sem corpo JSON.
+ * Este arquivo já protegeu a regra errada. Vale registrar a história, porque
+ * ela é o motivo de o contrato atual ser o que é:
  *
- * Foi exatamente isso que derrubou as quatro rotas em produção sem aparecer em
- * teste nenhum: cada handler funcionava quando chamado à mão com um Request.
- * O que faltava era verificar como a Vercel vai chamá-lo.
+ * 1. As rotas usavam `export default` com assinatura Web. O builder da Vercel
+ *    tratou como handler clássico do Node e chamou com (req, res);
+ *    `request.headers.get(...)` estourou num IncomingMessage e a função morreu
+ *    antes de responder — 500 sem corpo. Quatro rotas ficaram assim por
+ *    semanas.
  *
- * A checagem abaixo reproduz `compileUserCode` de @vercel/node.
+ * 2. A correção trocou para `export const POST`, sem default, porque é assim
+ *    que o builder **instalado aqui** reconhece a assinatura Web. Só que a
+ *    versão do builder que roda na nuvem não é a do package.json, e não dá
+ *    para fixá-la: numa versão que procura só o default, não há handler algum
+ *    e a função crasha de novo, com a mesma cara.
+ *
+ * O contrato atual não depende de detecção: a rota exporta um handler
+ * `(req, res)` clássico — que toda versão entende — e por dentro continua
+ * Request/Response. É o adaptador em api/_lib/rota.ts.
+ *
+ * Por isso o teste que importa agora não é o formato do export: é **chamar o
+ * default como a Vercel chama e exigir que ele escreva uma resposta**.
  */
-
-const METODOS_HTTP = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH'];
-
-/** Mesma lógica de unwrapDefaults + isWebHandler do builder. */
-const detectar = (modulo: Record<string, unknown>): 'web' | 'node-classico' => {
-  let alvo: any = modulo;
-  for (let i = 0; i < 5; i++) {
-    if (alvo && alvo.default) alvo = alvo.default;
-    else break;
-  }
-  const ehWeb =
-    METODOS_HTTP.some((m) => typeof alvo[m] === 'function') || typeof alvo.fetch === 'function';
-  return ehWeb ? 'web' : 'node-classico';
-};
 
 const rotas = {
   'api/gemini.ts': gemini,
@@ -47,34 +43,80 @@ const rotas = {
   'api/status.ts': status,
   'api/send-email.ts': sendEmail,
   'api/social-connect.ts': socialConnect,
+  'api/publicar.ts': publicar,
 } as Record<string, Record<string, unknown>>;
 
-/**
- * O publicador não exige sessão: quem o chama é o agendador da Vercel, que
- * não tem usuário. Ele fica fora da checagem de 401 e ganha a sua, abaixo.
- */
-const rotasSemSessao = { 'api/publicar.ts': publicar } as Record<string, Record<string, unknown>>;
+/** Mínimo de IncomingMessage/ServerResponse que o adaptador consome. */
+const chamarComoAVercel = async (
+  modulo: Record<string, unknown>,
+  metodo = 'POST',
+  cabecalhos: Record<string, string> = {}
+) => {
+  const req: any = {
+    method: metodo,
+    url: '/api/teste',
+    headers: { host: 'app.orquesia.com.br', ...cabecalhos },
+    // O adaptador só lê o corpo fora de GET/HEAD.
+    [Symbol.asyncIterator]: async function* () {},
+  };
 
-describe('formato do export das rotas serverless', () => {
+  const escrito: string[] = [];
+  const res: any = {
+    statusCode: 0,
+    headersSent: false,
+    headers: {} as Record<string, string>,
+    setHeader(k: string, v: string) {
+      this.headers[k.toLowerCase()] = v;
+    },
+    write(pedaco: any) {
+      escrito.push(Buffer.from(pedaco).toString());
+    },
+    end(pedaco?: any) {
+      if (pedaco) escrito.push(Buffer.from(pedaco).toString());
+      this.finalizado = true;
+    },
+    finalizado: false,
+  };
+
+  const handler = modulo.default as (req: any, res: any) => Promise<void>;
+  await handler(req, res);
+  return { res, corpo: escrito.join('') };
+};
+
+describe('a Vercel consegue invocar cada rota', () => {
   for (const [nome, modulo] of Object.entries(rotas)) {
-    it(`${nome} é reconhecida como handler Web pela Vercel`, () => {
-      expect(detectar(modulo)).toBe('web');
+    it(`${nome} exporta um handler (req, res)`, () => {
+      // Toda versão do builder sabe chamar isto. É o ponto da correção.
+      expect(typeof modulo.default).toBe('function');
     });
 
-    it(`${nome} exporta POST e não exporta default`, () => {
-      expect(typeof modulo.POST).toBe('function');
-      // Um default reintroduzido faz o builder ignorar o POST: unwrapDefaults
-      // desce para dentro do default e perde os exports nomeados.
-      expect(modulo.default).toBeUndefined();
+    /**
+     * O teste central. Um handler que não escreve resposta nenhuma produz
+     * FUNCTION_INVOCATION_FAILED em produção — 500 sem corpo, sem pista.
+     * Era exatamente o sintoma das duas vezes em que isso quebrou.
+     */
+    it(`${nome} responde quando chamada como a Vercel chama`, async () => {
+      const { res } = await chamarComoAVercel(modulo);
+      expect(res.finalizado, 'a função terminou sem responder').toBe(true);
+      expect(res.statusCode).toBeGreaterThanOrEqual(200);
+      expect(res.statusCode).toBeLessThan(600);
+    });
+
+    it(`${nome} não estoura com GET`, async () => {
+      const { res } = await chamarComoAVercel(modulo, 'GET');
+      expect(res.finalizado).toBe(true);
     });
   }
 });
 
-describe('handler responde a Request de verdade', () => {
-  // Sem Authorization, toda rota tem que responder 401 em JSON — nunca
-  // estourar. Um throw aqui vira 500 sem corpo em produção.
-  for (const [nome, modulo] of Object.entries(rotas)) {
-    it(`${nome} devolve 401 em JSON sem token`, async () => {
+describe('sem sessão, resposta é 401 em JSON', () => {
+  // publicar não usa sessão: é chamada pelo agendador, que não tem usuário.
+  const comSessao = Object.fromEntries(
+    Object.entries(rotas).filter(([nome]) => nome !== 'api/publicar.ts')
+  );
+
+  for (const [nome, modulo] of Object.entries(comSessao)) {
+    it(`${nome} devolve 401 sem token`, async () => {
       const resposta = await (modulo.POST as (r: Request) => Promise<Response>)(
         new Request('https://app.orquesia.com.br/api/teste', {
           method: 'POST',
@@ -90,41 +132,30 @@ describe('handler responde a Request de verdade', () => {
 });
 
 describe('o publicador não pode ficar aberto', () => {
-  for (const [nome, modulo] of Object.entries(rotasSemSessao)) {
-    it(`${nome} é reconhecida como handler Web`, () => {
-      expect(detectar(modulo)).toBe('web');
-      expect(modulo.default).toBeUndefined();
-    });
+  const semSegredo = async (cabecalhos: Record<string, string> = {}) => {
+    const { res, corpo } = await chamarComoAVercel(publicar, 'GET', cabecalhos);
+    return { status: res.statusCode, corpo };
+  };
 
-    // Sem CRON_SECRET no ambiente, a rota tem que se recusar a rodar. Aberta,
-    // ela publicaria no perfil dos clientes a pedido de qualquer um.
-    it(`${nome} recusa chamada sem o segredo do cron`, async () => {
-      const anterior = process.env.CRON_SECRET;
-      delete process.env.CRON_SECRET;
-      try {
-        const resposta = await (modulo.GET as (r: Request) => Promise<Response>)(
-          new Request('https://app.orquesia.com.br/api/publicar')
-        );
-        expect(resposta.status).toBe(401);
-      } finally {
-        if (anterior !== undefined) process.env.CRON_SECRET = anterior;
-      }
-    });
+  it('recusa chamada sem o segredo do cron', async () => {
+    const anterior = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    try {
+      expect((await semSegredo()).status).toBe(401);
+    } finally {
+      if (anterior !== undefined) process.env.CRON_SECRET = anterior;
+    }
+  });
 
-    it(`${nome} recusa segredo errado`, async () => {
-      const anterior = process.env.CRON_SECRET;
-      process.env.CRON_SECRET = 'o-certo';
-      try {
-        const resposta = await (modulo.GET as (r: Request) => Promise<Response>)(
-          new Request('https://app.orquesia.com.br/api/publicar', {
-            headers: { authorization: 'Bearer o-errado' },
-          })
-        );
-        expect(resposta.status).toBe(401);
-      } finally {
-        if (anterior === undefined) delete process.env.CRON_SECRET;
-        else process.env.CRON_SECRET = anterior;
-      }
-    });
-  }
+  it('recusa segredo errado', async () => {
+    const anterior = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = 'o-certo';
+    try {
+      const { status } = await semSegredo({ authorization: 'Bearer o-errado' });
+      expect(status).toBe(401);
+    } finally {
+      if (anterior === undefined) delete process.env.CRON_SECRET;
+      else process.env.CRON_SECRET = anterior;
+    }
+  });
 });
