@@ -63,6 +63,54 @@ export const identidadePublicada = async (): Promise<IdentidadeDaBuild | null> =
   }
 };
 
+/**
+ * `import()` de tela que sobrevive a um deploy no meio do caminho.
+ *
+ * Cada tela é um chunk com hash no nome. Quando sai um deploy, os nomes
+ * mudam e os arquivos antigos deixam de existir — mas a aba aberta continua
+ * apontando para eles. Na hora em que a pessoa abre uma tela que ainda não
+ * tinha carregado, o navegador pede um arquivo que sumiu e a aplicação cai
+ * inteira com "Failed to fetch dynamically imported module".
+ *
+ * O aviso de versão nova não cobre esse caso: ele confere de dois em dois
+ * minutos, e o chunk pode ser pedido antes disso.
+ *
+ * A saída é recarregar: a página nova vem com o index.html novo, que aponta
+ * para os arquivos que existem. Uma vez só — se falhar de novo depois de
+ * recarregar, o problema é outro (rede, arquivo corrompido) e insistir viraria
+ * um laço de recarga infinito, que é bem pior que a tela de erro.
+ */
+const CHAVE_RECARGA = 'orquesia:recarga-por-chunk';
+
+export const comRetentativaDeDeploy = <T>(carregar: () => Promise<T>): Promise<T> =>
+  carregar().catch((erro) => {
+    let jaRecarregou = false;
+    try {
+      jaRecarregou = window.sessionStorage.getItem(CHAVE_RECARGA) === '1';
+      window.sessionStorage.setItem(CHAVE_RECARGA, '1');
+    } catch {
+      // Sem sessionStorage não dá para saber se já tentamos. Melhor entregar
+      // o erro do que arriscar o laço.
+      throw erro;
+    }
+
+    if (jaRecarregou) throw erro;
+
+    window.location.reload();
+    // A página está indo embora: esta promessa nunca resolve de propósito,
+    // para o React não pintar erro nem fallback no meio da saída.
+    return new Promise<T>(() => {});
+  });
+
+/** Chamado quando a aplicação sobe inteira: a próxima falha pode tentar de novo. */
+export const marcarCargaBemSucedida = (): void => {
+  try {
+    window.sessionStorage.removeItem(CHAVE_RECARGA);
+  } catch {
+    /* idem */
+  }
+};
+
 /** Há versão nova no ar? */
 export const temVersaoNova = async (): Promise<IdentidadeDaBuild | null> => {
   const publicada = await identidadePublicada();
