@@ -20,95 +20,80 @@ import {
   Search,
   MessageSquare
 } from 'lucide-react';
-import { Client, Workspace } from '../../types';
+import { Workspace } from '../../types';
 
 interface ClientPortalLoginProps {
   workspace: Workspace;
-  clients: Client[];
-  onLoginSuccess: (client: Client) => void;
-  prefilledPhone?: string;
+  /** Recebe o token do portal, já provado pelo código enviado por e-mail. */
+  onLoginSuccess: (token: string) => void;
+  prefilledEmail?: string;
 }
 
-const COUNTRIES = [
-  { code: '+55', name: 'Brazil', flag: '🇧🇷', mask: '(##) #####-####' },
-  { code: '+1', name: 'United States', flag: '🇺🇸', mask: '(###) ###-####' },
-  { code: '+351', name: 'Portugal', flag: '🇵🇹', mask: '### ### ###' },
-  { code: '+34', name: 'Spain', flag: '🇪🇸', mask: '### ### ###' },
-  { code: '+44', name: 'United Kingdom', flag: '🇬🇧', mask: '##### ######' },
-  { code: '+54', name: 'Argentina', flag: '🇦🇷', mask: '## ####-####' },
-  { code: '+52', name: 'Mexico', flag: '🇲🇽', mask: '## ####-####' },
-];
-
+/**
+ * Entrada em dois passos: e-mail e código de 6 dígitos.
+ *
+ * O telefone identificava e não autenticava — quem soubesse o número entrava
+ * na conta alheia, e número de WhatsApp de empresa costuma estar no rodapé do
+ * próprio site do cliente. O código prova que a caixa de e-mail é de quem diz
+ * ser.
+ *
+ * A tela nunca conta se o e-mail existe na base: o passo do código aparece do
+ * mesmo jeito nos dois casos. Contar a diferença transformaria o portal num
+ * verificador de "fulano é cliente de alguma agência daqui?".
+ */
 export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
   workspace,
-  clients,
   onLoginSuccess,
-  prefilledPhone = ''
+  prefilledEmail = ''
 }) => {
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
-  const [phone, setPhone] = useState(prefilledPhone);
+  const [passo, setPasso] = useState<'email' | 'codigo'>('email');
+  const [email, setEmail] = useState(prefilledEmail);
+  const [codigo, setCodigo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
 
-  // Helper to normalize phone numbers (strip non-digit characters)
-  const normalizePhone = (num: string) => num.replace(/\D/g, '');
-
-  // Format phone input nicely as user types (Brazil format)
-  const handlePhoneChange = (val: string) => {
-    setErrorMsg(null);
-    const digits = normalizePhone(val);
-    
-    if (selectedCountry.code === '+55') {
-      if (digits.length <= 2) {
-        setPhone(digits.length > 0 ? `(${digits}` : '');
-      } else if (digits.length <= 6) {
-        setPhone(`(${digits.slice(0, 2)}) ${digits.slice(2)}`);
-      } else if (digits.length <= 10) {
-        setPhone(`(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`);
-      } else {
-        setPhone(`(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`);
-      }
-    } else {
-      setPhone(val);
-    }
-  };
-
-  const handleLogin = (e?: React.FormEvent) => {
+  const pedirCodigo = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg(null);
-    setIsSubmitting(true);
 
-    const inputDigits = normalizePhone(phone);
-    if (!inputDigits || inputDigits.length < 8) {
-      setErrorMsg('Por favor, informe seu número de WhatsApp com DDD.');
-      setIsSubmitting(false);
+    const alvo = email.trim().toLowerCase();
+    if (!alvo || !alvo.includes('@')) {
+      setErrorMsg('Informe o e-mail cadastrado na agência.');
       return;
     }
 
-    // Comparação exata dos dígitos, tolerando apenas a variação do DDI e do
-    // nono dígito do celular brasileiro.
-    //
-    // Antes o casamento era por substring nos dois sentidos
-    // (a.includes(b) || b.includes(a)): digitar "999" casava com praticamente
-    // qualquer cliente da base e abria o portal dele.
-    const matchedClient = clients.find(c => {
-      if (c.phone && mesmoTelefone(c.phone, inputDigits)) return true;
-      return (c.contacts || []).some(contact =>
-        contact.phone ? mesmoTelefone(contact.phone, inputDigits) : false
-      );
-    });
-
-    setTimeout(() => {
+    setIsSubmitting(true);
+    try {
+      await portalApi.enviarCodigo(alvo);
+      setPasso('codigo');
+    } catch (erro) {
+      setErrorMsg(erro instanceof Error ? erro.message : 'Não foi possível enviar o código.');
+    } finally {
       setIsSubmitting(false);
-      if (matchedClient) {
-        onLoginSuccess(matchedClient);
-      } else {
-        setErrorMsg('Número não encontrado. Entre em contato com seu gestor de conta na agência para autorizar seu acesso.');
-      }
-    }, 450);
+    }
+  };
+
+  const conferirCodigo = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+
+    const digitos = codigo.replace(/\D/g, '');
+    if (digitos.length !== 6) {
+      setErrorMsg('O código tem 6 dígitos.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { token } = await portalApi.conferirCodigo(email.trim().toLowerCase(), digitos);
+      onLoginSuccess(token);
+    } catch (erro) {
+      setErrorMsg(erro instanceof Error ? erro.message : 'Código inválido ou expirado.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -152,75 +137,90 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Country Selector */}
-                <div className="relative">
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                    País
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCountryPicker(!showCountryPicker)}
-                    className="w-full h-10 px-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 flex items-center justify-between gap-1 hover:border-slate-400 transition cursor-pointer"
-                  >
-                    <span className="truncate flex items-center gap-1">
-                      <span>({selectedCountry.code}) {selectedCountry.name}</span>
-                    </span>
-                    <span className="text-slate-400 text-[11px] font-bold">✕</span>
-                  </button>
-
-                  {/* Country Picker Dropdown */}
-                  {showCountryPicker && (
-                    <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
-                      {COUNTRIES.map((c) => (
-                        <button
-                          key={c.code}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCountry(c);
-                            setShowCountryPicker(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-purple-50 dark:hover:bg-purple-950/50 flex items-center justify-between cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span>{c.flag}</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{c.name}</span>
-                          </span>
-                          <span className="text-slate-400 font-mono text-[11px]">{c.code}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Whatsapp Input */}
+            {passo === 'email' ? (
+              <form onSubmit={pedirCodigo} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                    Whatsapp
+                    E-mail
                   </label>
                   <input
-                    type="tel"
+                    type="email"
                     required
-                    value={phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    placeholder=""
-                    className="w-full h-10 px-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-hidden transition font-mono"
+                    autoFocus
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMsg(null);
+                    }}
+                    placeholder="voce@suaempresa.com.br"
+                    className="w-full h-10 px-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-hidden transition"
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Enviamos um código de 6 dígitos para confirmar que é você.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-10 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white active:bg-purple-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-60"
+                  >
+                    {isSubmitting ? 'Enviando...' : 'Receber código'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={conferirCodigo} className="space-y-4">
+                <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-900 dark:text-sky-200 text-xs">
+                  Se <strong>{email.trim().toLowerCase()}</strong> estiver cadastrado na agência,
+                  o código chegou na caixa de entrada. Ele vale por 10 minutos.
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Código
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                    autoFocus
+                    maxLength={6}
+                    value={codigo}
+                    onChange={(e) => {
+                      setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6));
+                      setErrorMsg(null);
+                    }}
+                    placeholder="000000"
+                    className="w-full h-12 px-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-lg font-bold tracking-[0.5em] text-center text-slate-900 dark:text-white placeholder-slate-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-hidden transition font-mono"
                   />
                 </div>
-              </div>
 
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full h-10 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white active:bg-purple-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-                >
-                  {isSubmitting ? 'Validando...' : 'Entrar'}
-                </button>
-              </div>
-            </form>
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-10 rounded-lg bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-60"
+                  >
+                    {isSubmitting ? 'Validando...' : 'Entrar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasso('email');
+                      setCodigo('');
+                      setErrorMsg(null);
+                    }}
+                    className="w-full h-9 rounded-lg text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    Usar outro e-mail
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Bottom Links (Matching reference) */}
             <div className="pt-8 text-center text-[11px] text-slate-400 space-x-3">

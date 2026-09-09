@@ -46,6 +46,12 @@ import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../l
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import { belongsToWorkspace as pertenceAoWorkspace } from '../lib/workspaceScope';
 import { abaDoCaminho, urlDaAba, ABA_INICIAL, CAMINHO_PORTAL_PREVIEW, urlDaPreviaDoPortal } from '../lib/rotas';
+import {
+  carregarPortal,
+  aprovarPeloPortal,
+  pedirAjustePeloPortal,
+  type DadosDoPortal,
+} from '../lib/portal';
 
 interface PostfyContextType {
   // General
@@ -108,6 +114,12 @@ interface PostfyContextType {
   /** Abre a prévia numa aba nova, com URL amigável própria (não `/calendario`). */
   visualizarPortalDoCliente: (clientId: string) => void;
   closeClientPortal: () => void;
+  /** Entrada do cliente: token devolvido pela conferência do código. */
+  entrarNoPortal: (token: string) => void;
+  sairDoPortal: () => void;
+  /** True enquanto a RPC do portal não respondeu. */
+  carregandoPortal: boolean;
+  erroDoPortal: string | null;
   /** Link externo do portal, com o token opaco do cliente. */
   buildClientPortalUrl: (clientId: string) => string;
   
@@ -606,16 +618,52 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // o portal de qualquer outro cliente da base, incluindo briefings e
   // materiais. O token é opaco e não enumerável.
 
+  /**
+   * O token fica no `sessionStorage`, e não no `localStorage`.
+   *
+   * Sem guardar em lugar nenhum, um F5 no portal jogava o cliente de volta
+   * para a tela de código. Guardar no `localStorage` deixaria a sessão aberta
+   * para sempre no computador — que pode ser compartilhado, já que o portal
+   * não é máquina de funcionário. `sessionStorage` morre com a aba, que é o
+   * comportamento certo para uma credencial dessas.
+   *
+   * Não é dado de agência: a regra do CLAUDE.md é sobre o estado do app, e
+   * esta é a credencial da sessão, como a do Supabase Auth.
+   */
+  const CHAVE_TOKEN_PORTAL = 'orquesia:portal';
+
   const [portalToken, setPortalToken] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const valor = params.get('portal');
       // 'true' era o formato antigo e não identifica ninguém.
-      return valor && valor !== 'true' ? valor : null;
+      if (valor && valor !== 'true') return valor;
+      return window.sessionStorage.getItem(CHAVE_TOKEN_PORTAL);
     } catch {
       return null;
     }
   });
+
+  /** Entrada concluída: o código já foi conferido pela rota serverless. */
+  const entrarNoPortal = (token: string) => {
+    try {
+      window.sessionStorage.setItem(CHAVE_TOKEN_PORTAL, token);
+    } catch {
+      /* Sem sessionStorage a sessão dura até o F5, e só. */
+    }
+    setPortalToken(token);
+    setIsClientPortalOpen(true);
+  };
+
+  const sairDoPortal = () => {
+    try {
+      window.sessionStorage.removeItem(CHAVE_TOKEN_PORTAL);
+    } catch {
+      /* idem */
+    }
+    setPortalToken(null);
+    setDadosDoPortal(null);
+  };
 
   // Prévia interna aberta direto por URL (aba nova) — só resolve de verdade
   // com `isAuthenticated` (ver `portalClientId` abaixo); sem sessão de
@@ -640,6 +688,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
   });
+
+  // O portal aberto por token traz os próprios dados, pela RPC. Sem isto o
+  // cliente via a tela vazia: `carregarDoBanco` só roda com sessão de
+  // agência, e o cliente não tem conta no sistema.
+  const [dadosDoPortal, setDadosDoPortal] = useState<DadosDoPortal | null>(null);
+  const [carregandoPortal, setCarregandoPortal] = useState(false);
+  const [erroDoPortal, setErroDoPortal] = useState<string | null>(null);
 
   // Workspace ativo: recorta todas as views derivadas abaixo.
   const currentWsId = currentWorkspace?.id || '';
@@ -677,6 +732,59 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const activityLogs = useMemo(() => allActivityLogs.filter(belongsToWorkspace), [allActivityLogs, currentWsId]);
   const clientMaterials = useMemo(() => allClientMaterials.filter(belongsToWorkspace), [allClientMaterials, currentWsId]);
   const timesheetLogs = useMemo(() => allTimesheetLogs.filter(belongsToWorkspace), [allTimesheetLogs, currentWsId]);
+
+  /**
+   * Carga do portal por token.
+   *
+   * Escreve no mesmo estado que a agência usa, de propósito: assim a tela do
+   * portal continua lendo `clients`, `jobs` e `clientMaterials` do contexto,
+   * sem um segundo caminho de dados para manter em dia.
+   *
+   * Não há risco de a sincronização devolver isto para o banco: ela só grava
+   * com `isAuthenticated`, e aqui não há sessão de agência nenhuma.
+   *
+   * A agência também é definida aqui porque as views acima recortam por
+   * `currentWsId` — sem isso o cliente carregaria e a tela filtraria tudo.
+   */
+  useEffect(() => {
+    if (!portalToken || isAuthenticated) return;
+
+    let cancelado = false;
+    setCarregandoPortal(true);
+    setErroDoPortal(null);
+
+    (async () => {
+      try {
+        const dados = await carregarPortal(portalToken);
+        if (cancelado) return;
+
+        if (!dados) {
+          // Token revogado ou expirado: volta para a tela de código em vez de
+          // deixar a pessoa num portal vazio sem explicação.
+          setErroDoPortal('Seu acesso expirou. Entre novamente com seu e-mail.');
+          sairDoPortal();
+          return;
+        }
+
+        setDadosDoPortal(dados);
+        setCurrentWorkspaceState(dados.workspace);
+        setAllClients([dados.cliente]);
+        setAllJobs(dados.jobs);
+        setAllClientMaterials(dados.materiais);
+      } catch (erro) {
+        if (!cancelado) {
+          setErroDoPortal(
+            erro instanceof Error ? erro.message : 'Não foi possível carregar o portal.'
+          );
+        }
+      } finally {
+        if (!cancelado) setCarregandoPortal(false);
+      }
+    })();
+
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portalToken, isAuthenticated]);
 
   // ============================================================
   // Sincronização com o banco
@@ -1059,11 +1167,33 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
   
+  /** Aprovação vinda do portal: o cliente não tem sessão, então quem grava é a RPC. */
+  const aprovarPeloPortalDoCliente = async (jobId: string, quem: string) => {
+    if (!portalToken) return;
+    try {
+      await aprovarPeloPortal(portalToken, jobId, quem);
+    } catch (erro) {
+      setErroDoPortal(
+        erro instanceof Error ? erro.message : 'Não foi possível registrar a aprovação.'
+      );
+      // Recarrega para a tela voltar ao que o banco realmente tem: o estado
+      // otimista já mostrou "aprovado" e mentiria sobre a gravação.
+      const dados = await carregarPortal(portalToken).catch(() => null);
+      if (dados) setAllJobs(dados.jobs);
+    }
+  };
+
   const approveJob = (jobId: string, approverName: string = 'Cliente') => {
     registrar('conteudo_aprovado');
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
-    
+
+    // No portal a escrita direta seria recusada pela RLS — não há `auth.uid()`
+    // ali. A RPC faz o mesmo que o resto desta função faz no banco: status,
+    // versão marcada, log e notificação para a agência.
+    const noPortal = Boolean(portalToken) && !isAuthenticated;
+    if (noPortal) void aprovarPeloPortalDoCliente(jobId, approverName);
+
     // Celebrate with confetti
     try {
       confetti({
@@ -1110,7 +1240,22 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     registrar('ajuste_solicitado');
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
-    
+
+    // Mesmo caso da aprovação: sem sessão, quem grava é a RPC do portal.
+    if (portalToken && !isAuthenticated) {
+      void (async () => {
+        try {
+          await pedirAjustePeloPortal(portalToken, jobId, feedback, requesterName);
+        } catch (erro) {
+          setErroDoPortal(
+            erro instanceof Error ? erro.message : 'Não foi possível enviar o pedido de ajuste.'
+          );
+          const dados = await carregarPortal(portalToken).catch(() => null);
+          if (dados) setAllJobs(dados.jobs);
+        }
+      })();
+    }
+
     const updatedVersions = job.versions.map(v => 
       v.versionNumber === job.currentVersion ? { ...v, status: 'rejected' as const, feedback } : v
     );
@@ -1787,6 +1932,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         portalClientId,
         openClientPortal,
         visualizarPortalDoCliente,
+        entrarNoPortal,
+        sairDoPortal,
+        carregandoPortal,
+        erroDoPortal,
         closeClientPortal,
         buildClientPortalUrl,
         clients,
