@@ -610,6 +610,13 @@ const MainLayout: React.FC = () => {
 };
 
 export default function App() {
+  // A aplicação subiu inteira: se um chunk sumir daqui em diante, vale
+  // recarregar de novo. Sem isto, a marca da primeira recarga ficaria de pé
+  // pela sessão toda e o segundo deploy do dia cairia direto na tela de erro.
+  useEffect(() => {
+    marcarCargaBemSucedida();
+  }, []);
+
   return (
     <PostfyProvider>
       <DynamicThemeProvider />

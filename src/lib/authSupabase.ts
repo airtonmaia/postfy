@@ -286,6 +286,8 @@ export interface ConvitePendente {
   role: Role;
   createdAt: string;
   expiresAt: string;
+  /** Necessário para reenviar o e-mail sem recriar o convite. */
+  token: string;
 }
 
 export interface DadosDoConvite {
@@ -297,10 +299,18 @@ export interface DadosDoConvite {
   temConta: boolean;
 }
 
-export const listarConvites = async (): Promise<ConvitePendente[]> => {
+/**
+ * Convites pendentes de UMA agência.
+ *
+ * O recorte não é redundante com a RLS: ela deixa ler os convites de todas as
+ * agências onde a pessoa é owner/admin, então sem o filtro a lista de
+ * pendentes da Rhema mostrava também os da Pulmin.
+ */
+export const listarConvites = async (workspaceId: string): Promise<ConvitePendente[]> => {
   const { data, error } = await supabase
     .from('invites')
-    .select('id, workspace_id, email, name, role, created_at, expires_at')
+    .select('id, workspace_id, email, name, role, created_at, expires_at, token')
+    .eq('workspace_id', workspaceId)
     .is('accepted_at', null)
     .order('created_at', { ascending: false });
 
@@ -313,6 +323,7 @@ export const listarConvites = async (): Promise<ConvitePendente[]> => {
     role: l.role as Role,
     createdAt: l.created_at,
     expiresAt: l.expires_at,
+    token: l.token,
   }));
 };
 
@@ -336,6 +347,7 @@ export const criarConvite = async (input: {
     token: data.token,
     convite: {
       id: data.id,
+      token: data.token,
       workspaceId: data.workspace_id,
       email: data.email,
       name: data.name ?? undefined,

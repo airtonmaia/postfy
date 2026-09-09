@@ -78,6 +78,7 @@ export const SettingsUsers: React.FC = () => {
   const [motivoDoEmail, setMotivoDoEmail] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [salvandoMembro, setSalvandoMembro] = useState<string | null>(null);
+  const [reenviando, setReenviando] = useState<string | null>(null);
   const [situacao, setSituacao] = useState<SituacaoDoConvidado | null>(null);
 
   /**
@@ -115,7 +116,7 @@ export const SettingsUsers: React.FC = () => {
     try {
       setMembros(await listarEquipe(currentWorkspace.id));
       if (podeGerenciar) {
-        setConvites(await listarConvites());
+        setConvites(await listarConvites(currentWorkspace.id));
       }
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não foi possível carregar a equipe.');
@@ -241,6 +242,39 @@ export const SettingsUsers: React.FC = () => {
       setErro(err instanceof Error ? err.message : 'Não foi possível remover o membro.');
     } finally {
       setSalvandoMembro(null);
+    }
+  };
+
+  /**
+   * Reenvia o e-mail do convite que já existe.
+   *
+   * Antes a única saída para um e-mail que não chegou era criar outro
+   * convite, o que invalida o link anterior — se a pessoa tivesse recebido o
+   * primeiro e demorasse a clicar, ele morria na mão dela.
+   */
+  const reenviar = async (convite: ConvitePendente) => {
+    setErro(null);
+    setReenviando(convite.id);
+    try {
+      const url = new URL(window.location.href);
+      url.search = '';
+      url.pathname = '/';
+      url.searchParams.set('invite', convite.token);
+
+      await conviteApi.enviarPorEmail({
+        email: convite.email,
+        link: url.toString(),
+        workspaceId: convite.workspaceId,
+        agencyName: currentWorkspace?.name,
+        inviterName: currentUser.name,
+      });
+
+      setFeedback(`Convite reenviado para ${convite.email}.`);
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível reenviar o convite.');
+    } finally {
+      setReenviando(null);
     }
   };
 
@@ -446,6 +480,14 @@ export const SettingsUsers: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
                   {badgeDoPapel(convite.role)}
+                  <button
+                    onClick={() => reenviar(convite)}
+                    disabled={reenviando === convite.id}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-50"
+                    title="Reenviar o e-mail deste convite"
+                  >
+                    {reenviando === convite.id ? 'Reenviando...' : 'Reenviar'}
+                  </button>
                   <button
                     onClick={() => revogar(convite.id)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
