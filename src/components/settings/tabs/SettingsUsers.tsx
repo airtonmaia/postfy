@@ -4,7 +4,15 @@ import {
   Users, Plus, Mail, Trash2, CheckCircle2, X, Copy, Check, Clock, AlertCircle,
 } from 'lucide-react';
 import { Role } from '../../../types';
-import { teamApi, ApiUser, TeamInvite, ApiError } from '../../../lib/api';
+import { conviteApi } from '../../../lib/api';
+import {
+  listarEquipe,
+  listarConvites,
+  criarConvite,
+  revogarConvite,
+  type MembroDaEquipe,
+  type ConvitePendente,
+} from '../../../lib/authSupabase';
 import { pode } from '../../../lib/permissions';
 import { copyToClipboard } from '../../../lib/utils';
 
@@ -46,11 +54,11 @@ const badgeDoPapel = (papel: string) => {
  * convite gera um link real de aceite, com papel e validade.
  */
 export const SettingsUsers: React.FC = () => {
-  const { currentUser } = usePostfy();
+  const { currentUser, currentWorkspace } = usePostfy();
   const podeGerenciar = pode(currentUser?.role, 'gerenciar_usuarios');
 
-  const [membros, setMembros] = useState<ApiUser[]>([]);
-  const [convites, setConvites] = useState<TeamInvite[]>([]);
+  const [membros, setMembros] = useState<MembroDaEquipe[]>([]);
+  const [convites, setConvites] = useState<ConvitePendente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -61,22 +69,19 @@ export const SettingsUsers: React.FC = () => {
   const [enviando, setEnviando] = useState(false);
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [emailEnviado, setEmailEnviado] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     try {
-      const { users } = await teamApi.listUsers();
-      setMembros(users);
+      setMembros(await listarEquipe());
       if (podeGerenciar) {
-        const { invites } = await teamApi.listInvites();
-        setConvites(invites);
+        setConvites(await listarConvites());
       }
     } catch (err) {
-      setErro(
-        err instanceof ApiError ? err.message : 'Não foi possível carregar a equipe.'
-      );
+      setErro(err instanceof Error ? err.message : 'Não foi possível carregar a equipe.');
     } finally {
       setCarregando(false);
     }
@@ -93,22 +98,40 @@ export const SettingsUsers: React.FC = () => {
     setEnviando(true);
     setErro(null);
     try {
-      const { token } = await teamApi.createInvite({
+      const { token } = await criarConvite({
+        workspaceId: currentUser.workspaceId,
         email: email.trim(),
-        name: nome.trim() || undefined,
+        nome: nome.trim() || undefined,
         role: papel,
       });
 
       const url = new URL(window.location.href);
       url.search = '';
       url.searchParams.set('invite', token);
-      setLinkGerado(url.toString());
+      const link = url.toString();
+      setLinkGerado(link);
+
+      // O e-mail é um extra: se o envio falhar (Resend sem chave, por
+      // exemplo), o convite continua válido e o link fica na tela para ser
+      // compartilhado à mão. Por isso o erro aqui não derruba o fluxo.
+      try {
+        await conviteApi.enviarPorEmail({
+          email: email.trim(),
+          link,
+          workspaceId: currentUser.workspaceId,
+          agencyName: currentWorkspace?.name,
+          inviterName: currentUser.name,
+        });
+        setEmailEnviado(true);
+      } catch {
+        setEmailEnviado(false);
+      }
 
       setNome('');
       setEmail('');
       await carregar();
     } catch (err) {
-      setErro(err instanceof ApiError ? err.message : 'Não foi possível criar o convite.');
+      setErro(err instanceof Error ? err.message : 'Não foi possível criar o convite.');
     } finally {
       setEnviando(false);
     }
@@ -123,12 +146,12 @@ export const SettingsUsers: React.FC = () => {
 
   const revogar = async (id: string) => {
     try {
-      await teamApi.revokeInvite(id);
+      await revogarConvite(id);
       setFeedback('Convite revogado.');
       setTimeout(() => setFeedback(null), 3000);
       await carregar();
     } catch (err) {
-      setErro(err instanceof ApiError ? err.message : 'Não foi possível revogar o convite.');
+      setErro(err instanceof Error ? err.message : 'Não foi possível revogar o convite.');
     }
   };
 
@@ -180,19 +203,28 @@ export const SettingsUsers: React.FC = () => {
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {membros.map((membro) => (
-            <div key={membro.id} className="p-4 flex items-center justify-between gap-3">
+            <div key={membro.userId} className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold shrink-0">
                   {(membro.name || '?').substring(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {membro.name}
-                    {membro.id === currentUser?.id && (
+                    {membro.name || 'Sem nome'}
+                    {membro.userId === currentUser?.id && (
                       <span className="ml-1.5 text-[10px] font-medium text-slate-400">(você)</span>
                     )}
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{membro.email}</p>
+                  {/*
+                    O e-mail dos colegas não aparece de propósito: ele vive em
+                    auth.users, que a RLS não expõe entre membros. Mostramos o
+                    do próprio usuário, que ele já conhece.
+                  */}
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {membro.userId === currentUser?.id
+                      ? currentUser.email
+                      : 'Membro da agência'}
+                  </p>
                 </div>
               </div>
               {badgeDoPapel(membro.role)}
@@ -270,8 +302,9 @@ export const SettingsUsers: React.FC = () => {
             {linkGerado ? (
               <div className="p-5 space-y-4">
                 <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
-                  Convite criado. Envie o link abaixo para a pessoa — ela define a
-                  própria senha ao aceitar.
+                  {emailEnviado
+                    ? 'Convite enviado por e-mail. O link abaixo é o mesmo, caso queira compartilhar por outro canal.'
+                    : 'Convite criado, mas o e-mail não pôde ser enviado. Compartilhe o link abaixo manualmente.'}
                 </div>
 
                 <div className="flex items-center gap-2">

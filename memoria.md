@@ -48,3 +48,43 @@ Revisão completa do sistema com foco no que impedia colocá-lo em produção.
 **Pendências conhecidas, registradas no README:** cobrança, publicação
 automática nas redes, envio de e-mail, upload em nuvem, criptografia do cofre de
 senhas e assinatura eletrônica de contrato.
+
+## [2026-09-09] - Migração de stack: Supabase, Vercel serverless, R2, Resend e PostHog
+
+Reversão da decisão anterior de manter servidor próprio, a pedido do usuário.
+
+**Stack definida:**
+- **Supabase** (Postgres + Auth) como banco e autenticação. Sem servidor de
+  aplicação: o navegador fala direto com o banco e a RLS é quem isola.
+- **Vercel serverless** (`api/`) só para o que exige segredo: Gemini, R2,
+  Resend e o disparo de webhook.
+- **Cloudflare R2** para arquivos, por URL pré-assinada — o binário vai do
+  navegador direto para o bucket.
+- **Resend** para e-mail (domínio `orquesia.com.br` verificado).
+- **PostHog** para analytics.
+- **Firebase removido de vez.**
+
+**Decisões que valem registro:**
+
+1. **Chave publicável do Supabase embutida no código.** Ela é pública por
+   definição (vai para o bundle). Embutir evita que todo deploy novo suba
+   inoperante esperando variável de ambiente. A `service_role` nunca entra no
+   cliente, e o CI falha se qualquer segredo aparecer no bundle.
+
+2. **RLS com política por papel, não só por posse.** Um designer não cria
+   contrato — recusado pelo banco com `42501`. Isso fecha a lacuna que a
+   revisão do Codex apontou: até então as permissões por ação só existiam na
+   interface.
+
+3. **Persistência por diff.** O contexto tem ~40 mutações; em vez de reescrever
+   cada uma, o estado anterior é comparado com o novo e a diferença vira
+   insert/update/delete por linha. Resolve também a perda de atualização
+   concorrente da arquitetura anterior, que substituía a coleção inteira.
+
+4. **Analytics conservador por padrão.** Session replay e autocapture
+   desligados, todo input mascarado, identificação só por id e papel. O sistema
+   exibe contratos, faturamento e cofre de senhas de clientes.
+
+**Pendências registradas no README:** cobrança, publicação automática nas redes,
+link externo do portal do cliente, criptografia do cofre e assinatura
+eletrônica.
