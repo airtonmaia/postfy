@@ -579,6 +579,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const hidratado = useRef(false);
 
+  /**
+   * Fila única de gravação, compartilhada por todas as coleções.
+   *
+   * Serializa as escritas para respeitar as chaves estrangeiras entre
+   * tabelas. É mais lento que disparar tudo em paralelo, e é o preço de não
+   * gravar um filho antes do pai.
+   */
+  const filaDeGravacao = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => onStorageQuotaExceeded(({ key, bytes }) => {
     setStorageWarning(
       `O cache local do navegador encheu ao guardar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
@@ -623,10 +632,23 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const d = diferenciar(antes, linhas);
       if (!temMudanca(d)) return;
 
-      (async () => {
+      // Entra na fila em vez de sair gravando.
+      //
+      // Uma ação pode tocar duas coleções ligadas por chave estrangeira:
+      // converter lead em cliente cria o cliente e o contrato dele no mesmo
+      // render. Como cada coleção tem seu próprio efeito, os dois inserts
+      // saíam em paralelo e o contrato podia chegar ao Postgres antes do
+      // cliente existir — 23503, sem repetição, com a tela mostrando um
+      // contrato que sumia no reload.
+      //
+      // A fila é global e os efeitos entram nela na ordem em que os hooks
+      // são declarados, que é a ordem de dependência: clients antes de jobs,
+      // contracts e materials; leads antes de proposals.
+      filaDeGravacao.current = filaDeGravacao.current.then(async () => {
         try {
           setSyncState('saving');
           const repositorio = db[nome] as any;
+          // Dentro da mesma tabela a ordem não importa; entre tabelas, sim.
           await Promise.all([
             ...d.inseridos.map((linha) => repositorio.criar(linha)),
             ...d.atualizados.map((linha) => repositorio.atualizar(linha.id, linha)),
@@ -635,9 +657,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setSyncState('saved');
           setSyncError(null);
         } catch (erro) {
+          // A fila nunca rejeita: uma falha numa coleção não pode impedir a
+          // gravação das seguintes.
           relatarErro(erro, 'salvar as alterações');
         }
-      })();
+      });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [linhas]);
   };
