@@ -32,6 +32,7 @@ export const SaasEmailsView: React.FC = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [salvo, setSalvo] = useState<string | null>(null);
+  const [aba, setAba] = useState<'agencia' | 'cliente'>('agencia');
 
   useEffect(() => {
     listarModelos()
@@ -67,15 +68,17 @@ export const SaasEmailsView: React.FC = () => {
 
   if (carregando) {
     return (
-      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 p-6">
+      <div className="flex-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 p-6">
         <Loader2 className="w-4 h-4 animate-spin" />
         Carregando os modelos...
       </div>
     );
   }
 
+  const modelosDaAba = modelos.filter((m) => m.destinatario === aba);
+
   return (
-    <div className="space-y-6">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
           Super Admin
@@ -96,13 +99,41 @@ export const SaasEmailsView: React.FC = () => {
         </div>
       )}
 
-      {modelos.length === 0 && !erro && (
+      {modelos.length === 0 && !erro ? (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Nenhum modelo visível. Esta tela é do administrador da plataforma.
         </p>
+      ) : (
+        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+          {(
+            [
+              { id: 'agencia', label: 'Agência', Icon: Building2 },
+              { id: 'cliente', label: 'Cliente', Icon: User },
+            ] as const
+          ).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setAba(id)}
+              className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                aba === id
+                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
       )}
 
-      {modelos.map((modelo) => {
+      {modelosDaAba.length === 0 && modelos.length > 0 && !erro && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Nenhum e-mail cadastrado para {aba === 'agencia' ? 'a agência' : 'o cliente'}.
+        </p>
+      )}
+
+      {modelosDaAba.map((modelo) => {
         const variaveis = VARIAVEIS_POR_EVENTO[modelo.evento] || [];
         const paraCliente = modelo.destinatario === 'cliente';
 
