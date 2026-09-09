@@ -1051,8 +1051,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const visualizarPortalDoCliente = (clientId: string) => {
     // O slug vai junto para a prévia abrir com a marca da agência — é o que
     // o cliente vai ver, e uma prévia com a marca errada não serve de prévia.
+    // Slug quando existir: `?cliente=airton-maia` diz de quem é o link antes
+    // de alguém abrir. O id é a reserva para cliente recém-criado, que ainda
+    // não voltou do banco com o slug gerado pelo trigger.
+    const alvo = allClients.find((c) => c.id === clientId);
     window.open(
-      urlDaPreviaDoPortal(clientId, currentWorkspace.slug),
+      urlDaPreviaDoPortal(alvo?.slug || clientId, currentWorkspace.slug),
       '_blank',
       'noopener,noreferrer'
     );
@@ -1075,7 +1079,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const alvo = allClients.find((c) => c.portalToken === portalToken);
       return alvo ? alvo.id : null;
     }
-    return isAuthenticated ? portalPreviewClientId : null;
+    if (!isAuthenticated || !portalPreviewClientId) return null;
+
+    // Aceita slug ou id. O slug é o que vai na URL hoje; o id continua
+    // valendo para os links que já foram compartilhados ou favoritados antes
+    // de o slug existir.
+    const alvo = allClients.find(
+      (c) => c.slug === portalPreviewClientId || c.id === portalPreviewClientId
+    );
+    return alvo ? alvo.id : null;
   }, [portalToken, portalPreviewClientId, allClients, isAuthenticated]);
 
   const buildClientPortalUrl = (clientId: string): string => {

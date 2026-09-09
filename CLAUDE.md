@@ -66,7 +66,7 @@ a tela já mostrou o resultado antes de o banco responder.
 
 ## Armadilhas
 
-Oito regras. Todas vieram de bugs que chegaram a produção.
+Nove regras. Todas vieram de bugs que chegaram a produção.
 
 ### 0. Import relativo em `api/` precisa da extensão `.js`
 
@@ -257,6 +257,31 @@ normal. Por isso `garantirAgencia` também pergunta ao banco
 deixa owner/admin ler).
 
 Protegido por `tests/convite.test.ts`.
+
+---
+
+### 9. Tela não afirma o que não mediu
+
+O Financeiro do SaaS calculava `MRR = agências × R$ 197` — contando toda
+agência criada, inclusive as em teste —, projetava o ARR em cima disso, e
+trazia `100% adimplentes`, `+18,4% este mês` e `Ticket Médio R$ 197,00` como
+texto fixo. Embaixo, quatro "transações" de agências que nunca existiram na
+base: Vanguarda Social, Pixel Mídia, Creative Hub.
+
+**No dia em que isso foi encontrado eram três agências, todas em teste, R$ 0,00
+de receita. A tela dizia R$ 591,00.**
+
+Não existe assinatura da agência com o SaaS nem registro de cobrança no banco
+— `plans` é outra coisa, é o catálogo que cada agência monta para os clientes
+dela. Sem esses dados, qualquer número ali é chute.
+
+Número inventado em tela financeira é pior que tela vazia: ele é usado para
+decidir. Enquanto o dado não existir, a tela mostra o que o banco sabe e
+**diz o que falta, com nome** — a mesma regra da aba Integrações.
+
+Protegido por `tests/telas-honestas.test.ts`, que varre `src/components`
+depois de remover os comentários: o projeto registra o bug nos comentários, e
+sem essa limpeza a guarda acusaria a própria memória do bug.
 
 ---
 
