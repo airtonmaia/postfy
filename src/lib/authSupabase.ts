@@ -46,12 +46,18 @@ export const entrar = async (email: string, senha: string): Promise<ResultadoAut
  * sessão — sem sessão não há `auth.uid()`, e a RPC de criação da agência
  * recusaria. Nesse caso a agência é criada no primeiro login, por
  * garantirAgencia().
+ *
+ * `criarAgenciaPropria: false` é o caso do convite, e existe por um bug real:
+ * quem se cadastrava pelo link do convite ganhava uma agência própria antes
+ * de o vínculo ser criado, ficava em duas, e caía na errada ao entrar. Quem
+ * chega por convite tem agência — a de quem convidou.
  */
 export const cadastrar = async (input: {
   nome: string;
   email: string;
   senha: string;
   nomeDaAgencia?: string;
+  criarAgenciaPropria?: boolean;
 }): Promise<ResultadoAuth> => {
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
@@ -76,6 +82,8 @@ export const cadastrar = async (input: {
       mensagem: 'Conta criada. Confirme o e-mail que enviamos para poder entrar.',
     };
   }
+
+  if (input.criarAgenciaPropria === false) return { sucesso: true };
 
   const criada = await garantirAgencia();
   if (!criada.sucesso) return criada;
@@ -102,6 +110,31 @@ export const garantirAgencia = async (): Promise<ResultadoAuth> => {
   }
   if (membros && membros.length > 0) {
     return { sucesso: true };
+  }
+
+  // Quem tem convite pendente já tem agência: a de quem convidou.
+  //
+  // Sem esta pergunta, o convidado que confirma o e-mail e entra pela tela de
+  // login normal ganha uma agência própria no caminho, aceita o convite
+  // depois, e acaba em duas — caindo na vazia. Ver a migração
+  // 20260909110000_convite_antes_de_agencia.sql.
+  const { data: temConvite, error: erroConvite } = await supabase.rpc(
+    'tenho_convite_pendente'
+  );
+  if (erroConvite) {
+    // Na dúvida, não cria: uma agência a menos se resolve abrindo o convite;
+    // uma agência a mais fica para sempre na lista da pessoa.
+    return { sucesso: false, mensagem: erroConvite.message };
+  }
+  if (temConvite) {
+    // Não dá para aceitar por aqui: o token só existe no link, e é ele que
+    // prova o convite. Então a tela diz o que falta, em vez de deixar a
+    // pessoa numa sessão sem agência nenhuma — que é o que acontecia.
+    return {
+      sucesso: false,
+      mensagem:
+        'Você tem um convite esperando. Abra o link que recebeu por e-mail para entrar na agência.',
+    };
   }
 
   const metadados = usuario.user_metadata || {};
@@ -202,10 +235,14 @@ export const carregarSessao = async (
   const usuario = data.session?.user;
   if (!usuario) return null;
 
+  // Ordem explícita porque o fallback é o primeiro da lista: sem `order`, o
+  // Postgres não promete ordem nenhuma, e a agência inicial podia mudar de
+  // uma recarga para a outra em quem participa de mais de uma.
   const { data: membros, error } = await supabase
     .from('workspace_members')
     .select('*')
-    .eq('user_id', usuario.id);
+    .eq('user_id', usuario.id)
+    .order('created_at', { ascending: true });
 
   if (error || !membros || membros.length === 0) return null;
 
@@ -329,13 +366,17 @@ export const buscarConvitePorToken = async (token: string): Promise<DadosDoConvi
 export const aceitarConvite = async (
   token: string,
   nomeDoUsuario?: string
-): Promise<ResultadoAuth> => {
-  const { error } = await supabase.rpc('aceitar_convite', {
+): Promise<ResultadoAuth & { workspaceId?: string }> => {
+  const { data, error } = await supabase.rpc('aceitar_convite', {
     t: token,
     nome_do_usuario: nomeDoUsuario || null,
   });
   if (error) return { sucesso: false, mensagem: traduzir(error.message) };
-  return { sucesso: true };
+
+  // A agência do convite vira a agência da vez. Quem já tinha outra caía na
+  // antiga depois de aceitar, e o convite parecia não ter funcionado.
+  const linha = Array.isArray(data) ? data[0] : data;
+  return { sucesso: true, workspaceId: linha?.id };
 };
 
 /** Membros da agência, para a tela de equipe. */

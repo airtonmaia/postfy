@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 /**
  * Guarda contra o id inventado no cliente.
@@ -98,5 +99,30 @@ describe('arquivo não vira string no registro', () => {
     ]) {
       expect(readFileSync(arquivo, 'utf-8'), arquivo).toContain('arquivosApi.enviar');
     }
+  });
+});
+
+/**
+ * Todo arquivo do código-fonte precisa estar no git.
+ *
+ * `.gitignore` tinha `data/` sem barra inicial, para o store em arquivo que
+ * não existe mais. Sem a barra o padrão casa com **qualquer** pasta chamada
+ * data, e engoliu `src/data/` inteira — inclusive o changelog, que a modal
+ * importa.
+ *
+ * O modo de falha é o pior possível: o arquivo existe na máquina, `tsc`
+ * passa, os testes passam e o `vite build` passa. Quebra só no deploy, num
+ * import de um arquivo que nunca foi enviado.
+ */
+describe('nada do código-fonte fica de fora do git', () => {
+  it('nenhum arquivo de src ou api está ignorado', () => {
+    const fontes = [...varrer('src'), ...varrer('api')];
+
+    const ignorados = fontes.filter((arquivo) => {
+      const r = spawnSync('git', ['check-ignore', '-q', arquivo]);
+      return r.status === 0;
+    });
+
+    expect(ignorados).toEqual([]);
   });
 });
