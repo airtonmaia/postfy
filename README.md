@@ -14,11 +14,11 @@ agendamento e relatórios.
 | Arquivos | Cloudflare R2, por URL pré-assinada |
 | E-mail | Resend |
 | Analytics | PostHog |
-| IA | Google Gemini |
+| IA | Qualquer endpoint compatível com a API da OpenAI |
 
 **Não há servidor de aplicação.** Autenticação e dados vão do navegador direto
 para o Supabase, protegidos pela RLS. As funções em `api/` existem só para o
-que precisa de segredo: a chave do Gemini, as credenciais do R2 e a do Resend.
+que precisa de segredo: a chave da IA, as credenciais do R2 e a do Resend.
 
 ## Começando
 
@@ -91,7 +91,7 @@ Schema e verificações: **[`supabase/README.md`](./supabase/README.md)**.
 
 | Rota | Para quê |
 | --- | --- |
-| `POST /api/gemini` | Geração de copy, pautas e conversão de feedback |
+| `POST /api/gemini` | Geração de copy e conversão de feedback em checklist |
 | `POST /api/upload-url` | URL pré-assinada do R2 (o binário não passa pela função) |
 | `POST /api/send-invite` | E-mail de convite pelo Resend |
 | `POST /api/webhook-test` | Disparo de teste, com proteção contra SSRF |
@@ -101,13 +101,37 @@ permissão pelo banco** — nenhuma confia no que o navegador afirma. Cada uma
 degrada com `503` e aviso claro quando o serviço não está configurado, em vez
 de fingir que funcionou.
 
+## IA
+
+Dois pontos usam IA, ambos no modal de detalhe do conteúdo:
+
+- **Gerar copy** — legenda, gancho, CTA, hashtags e roteiro de Reels, a partir
+  do briefing do cliente
+- **Gerar checklist do feedback** — transforma o texto solto do pedido de
+  ajuste em tarefas separadas por designer e copywriter
+
+Não há acoplamento a um fornecedor. A camada em `api/_lib/ia.ts` fala o
+dialeto de chat completions da OpenAI, que OpenRouter, Gemini, Groq, Cerebras,
+Mistral e modelos locais (Ollama, LM Studio) entendem. Trocar de fornecedor é
+mudar `IA_PROVEDOR` e `IA_API_KEY` — sem release.
+
+O padrão é o **OpenRouter**: uma chave só alcança dezenas de modelos, e os
+terminados em `:free` não cobram. Quando um modelo gratuito sai do ar — e isso
+acontece —, `IA_MODELO` aponta para outro sem tocar em código.
+
+A extração do JSON tolera cerca de markdown e texto em volta da resposta,
+porque modelos gratuitos costumam ser menos disciplinados no formato.
+
+Sem chave configurada, os dois botões avisam que a IA não está disponível em
+vez de fingir que geraram algo.
+
 ## Configuração
 
 Tudo é opcional menos o Supabase, que já vem com padrão. Ver
 [`.env.example`](./.env.example).
 
 Regra que não se quebra: **o que começa com `VITE_` vai para o bundle e é
-público.** A `service_role` do Supabase e as chaves de Gemini, R2 e Resend só
+público.** A `service_role` do Supabase e as chaves de IA, R2 e Resend só
 existem no ambiente das funções. O CI falha se alguma aparecer no bundle.
 
 ## O que ainda não existe
