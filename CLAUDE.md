@@ -170,13 +170,19 @@ login entre reloads, e não é dado de agência.
 Protegido pelo teste de guarda em `tests/ids.test.ts`, com essa exceção
 escrita.
 
-### 5. Arquivo vai para o R2, nunca para dentro do registro
+### 5. Arquivo vai para o R2, nunca para dentro do registro — e o bucket precisa de CORS
 
 Sem `readAsDataURL`. Use `arquivosApi.enviar`, que pede URL pré-assinada e
 manda o binário do navegador direto para o R2.
 
 Sem armazenamento configurado, **não caia de volta no base64** — era ele o
 problema. A tela oferece colar a URL.
+
+O bucket precisa de **política de CORS**, e isso não é opcional: o PUT parte
+do navegador, então sem a origem liberada ele é bloqueado antes de sair e a
+barra trava em 0% — sem erro no console da função, porque a função nem é
+chamada. O bucket `orquesia-midia` estava sem nenhuma regra, e foi essa a
+causa da primeira falha de upload em produção. Ver `.env.example`.
 
 ### 6. `vercel.json` não é validado pelo CI
 

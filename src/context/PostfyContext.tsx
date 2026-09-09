@@ -582,6 +582,25 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const hidratado = useRef(false);
 
   /**
+   * Marca o render que carrega dados do banco, para o diff ignorá-lo.
+   *
+   * `hidratado` sozinho não resolve: ele é ligado dentro de carregarTudo, mas
+   * `setState` é assíncrono e os efeitos das coleções só rodam no render
+   * seguinte — quando a bandeira já está ligada. Aí o estado anterior está
+   * vazio, o novo tem as linhas do banco, e o carregamento inteiro vira
+   * inserção.
+   *
+   * Era isso que duplicava as linhas a cada recarga. Mandar o id no insert
+   * (v1.2) trocou a duplicação silenciosa por violação de chave única — o
+   * erro ficou visível, e a causa continuou aqui.
+   *
+   * Esta bandeira é limpa por um efeito declarado depois de todas as
+   * coleções: efeitos do mesmo commit rodam na ordem de declaração, então
+   * quando ele executa todas já pularam o próprio carregamento.
+   */
+  const aplicandoCargaDoBanco = useRef(false);
+
+  /**
    * Fila única de gravação, compartilhada por todas as coleções.
    *
    * Serializa as escritas para respeitar as chaves estrangeiras entre
@@ -620,6 +639,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       anterior.current = linhas;
 
       if (!hidratado.current || !isAuthenticated) return;
+
+      // Estas linhas acabaram de vir do banco: gravá-las de volta seria
+      // reinserir o que já existe.
+      if (aplicandoCargaDoBanco.current) return;
 
       const d = diferenciar(antes, linhas);
       if (!temMudanca(d)) return;
@@ -669,6 +692,21 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useColecaoSincronizada('clientMaterials', allClientMaterials);
   useColecaoSincronizada('timesheetLogs', allTimesheetLogs);
 
+  /**
+   * Baixa a bandeira de carga.
+   *
+   * Precisa ficar **depois** de todas as coleções: efeitos do mesmo commit
+   * rodam na ordem em que são declarados, então quando este executa todas já
+   * tiveram a chance de pular o próprio carregamento. Mover para cima faz o
+   * carregamento voltar a ser gravado como inserção.
+   *
+   * Sem lista de dependências de propósito: roda em todo render, e é o que
+   * garante que a próxima edição de verdade seja sincronizada.
+   */
+  useEffect(() => {
+    aplicandoCargaDoBanco.current = false;
+  });
+
   /** Carrega tudo do banco assim que existe sessão. */
   const carregarDoBanco = async () => {
     setSyncState('loading');
@@ -687,6 +725,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workspaceId: m.workspaceId,
       }))
     );
+    aplicandoCargaDoBanco.current = true;
+
     setAllClients(dados.clients);
     setAllJobs(dados.jobs);
     setAllLeads(dados.leads);
