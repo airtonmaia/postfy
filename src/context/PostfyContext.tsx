@@ -23,22 +23,24 @@ import {
   ClientMaterial,
   TimesheetLog
 } from '../types';
-import { 
-  initialWorkspaces, 
-  initialUsers, 
-  initialClients, 
-  initialJobs, 
-  initialLeads, 
-  initialProposals, 
-  initialContracts, 
-  initialAutomations, 
-  initialNotifications, 
-  initialActivityLogs,
-  initialClientMaterials,
-  initialTimesheetLogs
-} from '../data/initialData';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { authApi, dataApi, aiApi, teamApi, ApiError } from '../lib/api';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { aiApi, ApiError } from '../lib/api';
+import { db, carregarTudo, listarWorkspaces, atualizarWorkspace, DbError } from '../lib/db';
+import {
+  entrar as authEntrar,
+  cadastrar as authCadastrar,
+  sair as authSair,
+  garantirAgencia,
+  criarAgencia as authCriarAgencia,
+  enviarRecuperacaoDeSenha,
+  definirNovaSenha,
+  carregarSessao,
+  aoMudarAutenticacao,
+  removerMembro as removerMembroDaAgencia,
+  type SessaoDoApp,
+} from '../lib/authSupabase';
+import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
+import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
 import {
   readStorage,
   writeStorage,
@@ -59,8 +61,8 @@ interface PostfyContextType {
   setCurrentWorkspace: (ws: Workspace) => void;
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
-  createWorkspace: (name: string, primaryColor?: string) => Workspace;
-  deleteWorkspace: (workspaceId: string) => void;
+  createWorkspace: (name: string, primaryColor?: string) => Promise<Workspace | null>;
+  deleteWorkspace: (workspaceId: string) => Promise<void>;
   isCreateWorkspaceModalOpen: boolean;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
@@ -70,8 +72,11 @@ interface PostfyContextType {
   isAuthLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   register: (input: { name: string; email: string; password: string; agencyName?: string }) => Promise<{ success: boolean; message?: string }>;
-  acceptInvite: (input: { token: string; name: string; password: string }) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
+  /** Recarrega a sessão do Supabase (usado após aceitar convite). */
+  recarregarSessaoPublica: () => Promise<void>;
+  recuperarSenha: (email: string) => Promise<{ success: boolean; message?: string }>;
+  redefinirSenha: (novaSenha: string) => Promise<{ success: boolean; message?: string }>;
   
   // Navigation & Views
   activeTab: string;
@@ -198,27 +203,39 @@ const PostfyContext = createContext<PostfyContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY_PREFIX = 'postfy_v1_';
 
 export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load or fallback to initial data
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => {
-    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`);
-    return saved ? JSON.parse(saved) : initialWorkspaces;
-  });
-  
+  // As agências vêm do banco. O cache local só evita a tela piscar vazia
+  // entre a montagem e a resposta do Supabase — nada de dados de exemplo, que
+  // exibiriam agências inexistentes antes do login.
+  const AGENCIA_VAZIA: Workspace = {
+    id: '',
+    name: 'Orquesia',
+    slug: 'orquesia',
+    logo: '',
+    primaryColor: '#6366f1',
+    whiteLabel: false,
+    timezone: 'America/Sao_Paulo',
+  };
+
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
+    readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []));
+
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(() => {
-    const savedWsId = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`);
-    const initialList = (() => {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`);
-      return saved ? JSON.parse(saved) : initialWorkspaces;
-    })();
-    return initialList.find((w: Workspace) => w.id === savedWsId) || initialList[0] || initialWorkspaces[0];
+    const salvas = readStorage<Workspace[]>(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, []);
+    const idSalvo = readStorage<string | null>(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null);
+    return salvas.find((w) => w.id === idSalvo) || salvas[0] || AGENCIA_VAZIA;
   });
 
   const setCurrentWorkspace = (ws: Workspace) => {
     setCurrentWorkspaceState(ws);
-    localStorage.setItem(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, ws.id);
+    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, ws.id);
   };
 
   const updateWorkspace = (workspaceId: string, updates: Partial<Workspace>) => {
+    // Otimista na tela, persistido em seguida. Só owner/admin passa na RLS;
+    // para os demais o erro aparece na faixa de aviso.
+    atualizarWorkspace(workspaceId, updates).catch((erro) =>
+      relatarErro(erro, 'salvar a agência')
+    );
     setWorkspaces(prev => {
       const updatedList = prev.map(w => {
         if (w.id === workspaceId) {
@@ -245,128 +262,136 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
 
-  const createWorkspace = (name: string, primaryColor: string = '#6366f1'): Workspace => {
-    const id = `ws-${Date.now()}`;
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 7);
-
-    const newWs: Workspace = {
-      id,
-      name,
-      slug,
-      logo: 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg',
-      primaryColor: '#6366f1',
-      whiteLabel: true,
-      timezone: 'America/Sao_Paulo',
-      isTrial: true,
-      trialEndsAt: trialEnd.toISOString(),
-    };
-
-    setWorkspaces(prev => [...prev, newWs]);
-    setCurrentWorkspace(newWs);
-    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-    setIsCreateWorkspaceModalOpen(false);
-    return newWs;
-  };
-
-  const deleteWorkspace = (workspaceId: string) => {
-    if (workspaces.length <= 1) {
-      alert('Você não pode excluir o único workspace restante.');
-      return;
-    }
-    setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
-    if (currentWorkspace?.id === workspaceId) {
-      const remaining = workspaces.filter(w => w.id !== workspaceId);
-      if (remaining.length > 0) {
-        setCurrentWorkspace(remaining[0]);
+  /**
+   * Cria a agência no banco, pela RPC.
+   *
+   * Antes o objeto nascia só no estado local, com um id inventado. A agência
+   * não existia no Postgres, então qualquer gravação nela era recusada pela
+   * RLS — a interface mostrava a agência nova e nada dentro dela salvava.
+   */
+  const createWorkspace = async (
+    name: string,
+    primaryColor: string = '#6366f1'
+  ): Promise<Workspace | null> => {
+    try {
+      const res = await authCriarAgencia(name, currentUser.name);
+      if (!res.sucesso || !res.workspace) {
+        setSyncError(res.mensagem || 'Não foi possível criar a agência.');
+        return null;
       }
+
+      const criada = res.workspace;
+      if (primaryColor && primaryColor !== criada.primaryColor) {
+        await atualizarWorkspace(criada.id, { primaryColor });
+        criada.primaryColor = primaryColor;
+      }
+
+      setWorkspaces((prev) => [...prev, criada]);
+      setCurrentWorkspace(criada);
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      setIsCreateWorkspaceModalOpen(false);
+      return criada;
+    } catch (erro) {
+      relatarErro(erro, 'criar a agência');
+      return null;
     }
   };
-  
-  const [users] = useState<User[]>(initialUsers);
-  
+
+  /**
+   * Sair da agência.
+   *
+   * Remove o próprio vínculo, não a agência: apagar a agência levaria junto,
+   * por cascade, os dados de todos os outros membros. Uma agência sem nenhum
+   * membro fica inalcançável pela RLS de qualquer forma.
+   */
+  const deleteWorkspace = async (workspaceId: string) => {
+    try {
+      await removerMembroDaAgencia(workspaceId, currentUser.id);
+      const restantes = workspaces.filter((w) => w.id !== workspaceId);
+      setWorkspaces(restantes);
+      if (currentWorkspace?.id === workspaceId && restantes[0]) {
+        setCurrentWorkspace(restantes[0]);
+      }
+    } catch (erro) {
+      relatarErro(erro, 'sair da agência');
+    }
+  };
+
+  // Equipe real da agência, vinda de workspace_members.
+  // O e-mail não vem junto: ele vive em auth.users, que a RLS não expõe entre
+  // membros. Para atribuir tarefa e montar squad, id + nome + papel bastam.
+  const [users, setUsers] = useState<User[]>([]);
+
   // ============================================================
-  // Autenticação
+  // Autenticação (Supabase Auth)
   // ============================================================
-  // A sessão vive no servidor, num cookie httpOnly assinado, e é validada em
-  // /api/auth/me. O estado abaixo é apenas o reflexo dela na interface.
-  //
-  // A versão anterior aceitava qualquer e-mail com qualquer senha (o parâmetro
-  // password sequer era lido) e guardava "isAuthenticated" no localStorage:
-  // bastava editar essa chave pelo console do navegador para entrar como dono
-  // da agência.
+  // A sessão é do Supabase e o JWT dela é o que a RLS enxerga como
+  // auth.uid(). Ou seja: a mesma sessão que autentica é a que autoriza —
+  // não existe um segundo sistema de permissão no cliente para contornar.
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   const USUARIO_VAZIO: User = {
-    id: '',
-    name: '',
-    email: '',
-    avatar: '',
-    role: 'owner',
-    workspaceId: '',
+    id: '', name: '', email: '', avatar: '', role: 'owner', workspaceId: '',
   };
-
   const [currentUser, setCurrentUser] = useState<User>(USUARIO_VAZIO);
 
-  /** Garante que o workspace devolvido pelo servidor exista na lista local. */
-  const adotarWorkspaceDoServidor = (remoto: { id: string; name: string; slug: string } | null) => {
-    if (!remoto) return;
-
-    const montado: Workspace = {
-      id: remoto.id,
-      name: remoto.name,
-      slug: remoto.slug,
-      logo: '',
-      primaryColor: '#6366f1',
-      whiteLabel: false,
-      timezone: 'America/Sao_Paulo',
-    };
-
-    setWorkspaces((prev) => {
-      const existente = prev.find((w) => w.id === remoto.id);
-      if (existente) return prev;
-      return [...prev, montado];
-    });
-
-    setCurrentWorkspaceState((prev) => {
-      if (prev?.id === remoto.id) return prev;
-      return montado;
-    });
-
-    writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, remoto.id);
-  };
-
-  const aplicarSessao = (payload: { user: any; workspace: any }) => {
+  const aplicarSessao = (sessao: SessaoDoApp | null) => {
+    if (!sessao) {
+      setIsAuthenticated(false);
+      setCurrentUser(USUARIO_VAZIO);
+      return;
+    }
     setCurrentUser({
-      id: payload.user.id,
-      name: payload.user.name,
-      email: payload.user.email,
-      avatar: payload.user.avatar || '',
-      role: payload.user.role as Role,
-      workspaceId: payload.user.workspaceId,
+      id: sessao.userId,
+      name: sessao.nome,
+      email: sessao.email,
+      avatar: sessao.avatar,
+      role: sessao.role,
+      workspaceId: sessao.workspaceId,
     });
     setIsAuthenticated(true);
-    adotarWorkspaceDoServidor(payload.workspace);
+    // Identifica pelo id e pelo papel. E-mail e nome ficam de fora.
+    identificar(sessao.userId, sessao.role);
   };
 
-  // Restaura a sessão ao abrir a aplicação.
+  /** Recarrega a sessão a partir do Supabase e reflete no estado. */
+  const recarregarSessao = async (): Promise<SessaoDoApp | null> => {
+    const preferido = readStorage<string | null>(
+      `${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, null
+    );
+    const sessao = await carregarSessao(preferido);
+    aplicarSessao(sessao);
+    return sessao;
+  };
+
+  // Restaura ao abrir e acompanha login/logout feitos em outra aba.
   useEffect(() => {
     let cancelado = false;
+
     (async () => {
       try {
-        const sessao = await authApi.me();
-        if (!cancelado && sessao) aplicarSessao(sessao);
+        await recarregarSessao();
       } catch {
-        /* servidor indisponível: segue deslogado */
+        /* offline ou projeto indisponível: segue deslogado */
       } finally {
         if (!cancelado) setIsAuthLoading(false);
       }
     })();
+
+    const desinscrever = aoMudarAutenticacao(async (temSessao) => {
+      if (cancelado) return;
+      if (!temSessao) {
+        aplicarSessao(null);
+        return;
+      }
+      await recarregarSessao();
+    });
+
     return () => {
       cancelado = true;
+      desinscrever();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -375,15 +400,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     email: string,
     password: string
   ): Promise<{ success: boolean; message?: string }> => {
-    try {
-      aplicarSessao(await authApi.login({ email, password }));
-      return { success: true, message: 'Autenticado com sucesso.' };
-    } catch (err) {
-      return {
-        success: false,
-        message: err instanceof ApiError ? err.message : 'Falha ao autenticar.',
-      };
-    }
+    const res = await authEntrar(email, password);
+    if (!res.sucesso) return { success: false, message: res.mensagem };
+
+    // Quem confirmou o e-mail depois do cadastro chega aqui sem agência.
+    const criada = await garantirAgencia();
+    if (!criada.sucesso) return { success: false, message: criada.mensagem };
+
+    await recarregarSessao();
+    return { success: true, message: 'Autenticado com sucesso.' };
   };
 
   const register = async (input: {
@@ -392,48 +417,46 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     password: string;
     agencyName?: string;
   }): Promise<{ success: boolean; message?: string }> => {
-    try {
-      aplicarSessao(await authApi.register(input));
-      return { success: true, message: 'Conta criada com sucesso.' };
-    } catch (err) {
-      return {
-        success: false,
-        message: err instanceof ApiError ? err.message : 'Falha ao criar a conta.',
-      };
+    const res = await authCadastrar({
+      nome: input.name,
+      email: input.email,
+      senha: input.password,
+      nomeDaAgencia: input.agencyName,
+    });
+    if (!res.sucesso) return { success: false, message: res.mensagem };
+
+    if (res.precisaConfirmarEmail) {
+      return { success: true, message: res.mensagem };
     }
+
+    await recarregarSessao();
+    return { success: true, message: 'Conta criada com sucesso.' };
   };
 
-  const acceptInvite = async (input: {
-    token: string;
-    name: string;
-    password: string;
-  }): Promise<{ success: boolean; message?: string }> => {
-    try {
-      aplicarSessao(await teamApi.acceptInvite(input));
-      return { success: true, message: 'Convite aceito. Entrando...' };
-    } catch (err) {
-      return {
-        success: false,
-        message: err instanceof ApiError ? err.message : 'Não foi possível aceitar o convite.',
-      };
-    }
+  const recuperarSenha = async (email: string) => {
+    const res = await enviarRecuperacaoDeSenha(email);
+    return { success: res.sucesso, message: res.mensagem };
+  };
+
+  const redefinirSenha = async (novaSenha: string) => {
+    const res = await definirNovaSenha(novaSenha);
+    return { success: res.sucesso, message: res.mensagem };
+  };
+
+  const recarregarSessaoPublica = async () => {
+    await recarregarSessao();
   };
 
   const logout = async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      /* mesmo se a chamada falhar, limpamos o estado local */
-    }
-    setIsAuthenticated(false);
-    setCurrentUser(USUARIO_VAZIO);
-
-    // Limpa o cache local para que os dados de uma agência não fiquem
-    // visíveis para quem logar em seguida no mesmo navegador.
+    await authSair();
+    aplicarSessao(null);
+    encerrarIdentificacao();
+    // O cache local é do usuário que saiu; deixá-lo exposto para o próximo
+    // que logar neste navegador seria vazamento entre contas.
     [
       'clients', 'jobs', 'leads', 'proposals', 'contracts', 'automations',
       'notifications', 'activityLogs', 'clientMaterials', 'timesheetLogs',
-      'currentUser', 'isAuthenticated',
+      'workspaces', 'currentWorkspaceId',
     ].forEach((nome) => removeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${nome}`));
   };
 
@@ -499,51 +522,38 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   // Workspace ativo: recorta todas as views derivadas abaixo.
-  const currentWsId = currentWorkspace?.id || 'ws-1';
+  const currentWsId = currentWorkspace?.id || '';
 
   // ============================================================
   // Estado das entidades
   // ============================================================
-  // O estado guarda o dataset COMPLETO e as views por workspace são derivadas
-  // com useMemo.
+  // O estado guarda o dataset completo das agências às quais o usuário
+  // pertence, e as views por workspace são derivadas com useMemo.
   //
-  // Antes o filtro era aplicado dentro do inicializador do useState e o efeito
-  // de persistência gravava esse array já filtrado por cima do conjunto
-  // completo: na primeira renderização os dados dos outros workspaces eram
-  // apagados do localStorage. E trocar de workspace não trocava os dados na
-  // tela, porque nada reexecutava o filtro.
+  // O cache local serve só para a tela não nascer vazia enquanto o banco
+  // responde. A fonte de verdade é o Postgres.
 
   const [allClients, setAllClients] = useState<Client[]>(() =>
-    readStorage<Client[]>(`${LOCAL_STORAGE_KEY_PREFIX}clients`, initialClients));
-
+    readStorage<Client[]>(`${LOCAL_STORAGE_KEY_PREFIX}clients`, []));
   const [allJobs, setAllJobs] = useState<Job[]>(() =>
-    readStorage<Job[]>(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, initialJobs));
-
+    readStorage<Job[]>(`${LOCAL_STORAGE_KEY_PREFIX}jobs`, []));
   const [allLeads, setAllLeads] = useState<Lead[]>(() =>
-    readStorage<Lead[]>(`${LOCAL_STORAGE_KEY_PREFIX}leads`, initialLeads));
-
+    readStorage<Lead[]>(`${LOCAL_STORAGE_KEY_PREFIX}leads`, []));
   const [allProposals, setAllProposals] = useState<Proposal[]>(() =>
-    readStorage<Proposal[]>(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, initialProposals));
-
+    readStorage<Proposal[]>(`${LOCAL_STORAGE_KEY_PREFIX}proposals`, []));
   const [allContracts, setAllContracts] = useState<Contract[]>(() =>
-    readStorage<Contract[]>(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, initialContracts));
-
+    readStorage<Contract[]>(`${LOCAL_STORAGE_KEY_PREFIX}contracts`, []));
   const [allAutomations, setAllAutomations] = useState<Automation[]>(() =>
-    readStorage<Automation[]>(`${LOCAL_STORAGE_KEY_PREFIX}automations`, initialAutomations));
-
+    readStorage<Automation[]>(`${LOCAL_STORAGE_KEY_PREFIX}automations`, []));
   const [allNotifications, setAllNotifications] = useState<Notification[]>(() =>
-    readStorage<Notification[]>(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, initialNotifications));
-
+    readStorage<Notification[]>(`${LOCAL_STORAGE_KEY_PREFIX}notifications`, []));
   const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>(() =>
-    readStorage<ActivityLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, initialActivityLogs));
-
+    readStorage<ActivityLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}activityLogs`, []));
   const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>(() =>
-    readStorage<ClientMaterial[]>(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, initialClientMaterials));
-
+    readStorage<ClientMaterial[]>(`${LOCAL_STORAGE_KEY_PREFIX}clientMaterials`, []));
   const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>(() =>
-    readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, initialTimesheetLogs));
+    readStorage<TimesheetLog[]>(`${LOCAL_STORAGE_KEY_PREFIX}timesheetLogs`, []));
 
-  // Regras de recorte ficam em src/lib/workspaceScope.ts, com testes próprios.
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
     pertenceAoWorkspace(row, currentWsId);
 
@@ -559,157 +569,153 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const timesheetLogs = useMemo(() => allTimesheetLogs.filter(belongsToWorkspace), [allTimesheetLogs, currentWsId]);
 
   // ============================================================
-  // Persistência
+  // Sincronização com o banco
   // ============================================================
-  // Cache local (abre offline, não pisca tela vazia) + envio ao servidor, que
-  // é a fonte de verdade compartilhada pela equipe.
 
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const dismissStorageWarning = () => setStorageWarning(null);
 
-  const hydratedRef = useRef(false);
-  const pushTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const hidratado = useRef(false);
 
   useEffect(() => onStorageQuotaExceeded(({ key, bytes }) => {
     setStorageWarning(
-      `O armazenamento do navegador encheu ao salvar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
-      `(~${formatBytes(bytes)}). Anexe mídias por URL em vez de subir o arquivo, ou remova as mais pesadas.`
+      `O cache local do navegador encheu ao guardar "${key.replace(LOCAL_STORAGE_KEY_PREFIX, '')}" ` +
+      `(~${formatBytes(bytes)}). Seus dados estão salvos no servidor; o cache serve só para abrir mais rápido.`
     );
   }), []);
 
+  const relatarErro = (erro: unknown, acao: string) => {
+    const mensagem =
+      erro instanceof DbError || erro instanceof ApiError
+        ? erro.message
+        : `Não foi possível ${acao}.`;
+    setSyncState('error');
+    setSyncError(mensagem);
+  };
+
   /**
-   * O servidor mantém um workspace por sessão e carimba toda linha recebida
-   * com ele. O seletor de workspace da interface, porém, é local: existem
-   * agências na lista que não correspondem à sessão.
+   * Persiste uma coleção comparando o estado anterior com o novo.
    *
-   * Sincronizar nessa situação seria destrutivo — as linhas da agência
-   * selecionada localmente (ou um array vazio) sobrescreveriam os dados reais
-   * da agência da sessão. Então a sincronização só acontece quando as duas
-   * coincidem; nas demais, a interface opera apenas sobre o cache local.
+   * O contexto tem dezenas de mutações, todas no formato setAllX(prev => ...).
+   * Em vez de reescrever cada uma para chamar o banco — e correr o risco de
+   * esquecer alguma, que passaria a salvar só no navegador —, derivamos as
+   * operações do diff. Cada linha vira um insert, update ou delete próprio,
+   * nunca a substituição da coleção inteira, que perderia edições
+   * concorrentes de outro membro da equipe.
    */
-  const workspaceDaSessao = currentUser?.workspaceId || '';
-  const sincronizacaoPermitida =
-    isAuthenticated && Boolean(workspaceDaSessao) && currentWsId === workspaceDaSessao;
+  const useColecaoSincronizada = <T extends { id: string; workspaceId?: string }>(
+    nome: keyof typeof db,
+    chaveLocal: string,
+    linhas: T[]
+  ) => {
+    const anterior = useRef<T[]>(linhas);
 
-  /** Envia a fatia do workspace atual, com debounce para não disparar a cada tecla. */
-  const schedulePush = (collection: string, rows: { workspaceId?: string }[]) => {
-    if (!hydratedRef.current || !sincronizacaoPermitida) return;
-
-    clearTimeout(pushTimers.current[collection]);
-    pushTimers.current[collection] = setTimeout(async () => {
-      try {
-        setSyncState('saving');
-        await dataApi.pushCollection(collection, rows.filter(belongsToWorkspace));
-        setSyncState('saved');
-        setSyncError(null);
-      } catch (err) {
-        setSyncState('error');
-        setSyncError(
-          err instanceof ApiError
-            ? err.message
-            : 'Não foi possível salvar no servidor. As alterações seguem neste navegador.'
-        );
-      }
-    }, 800);
-  };
-
-  const usePersistedCollection = (name: string, rows: { workspaceId?: string }[]) => {
     useEffect(() => {
-      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${name}`, rows);
-      schedulePush(name, rows);
+      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}${chaveLocal}`, linhas);
+
+      const antes = anterior.current;
+      anterior.current = linhas;
+
+      if (!hidratado.current || !isAuthenticated) return;
+
+      const d = diferenciar(antes, linhas);
+      if (!temMudanca(d)) return;
+
+      (async () => {
+        try {
+          setSyncState('saving');
+          const repositorio = db[nome] as any;
+          await Promise.all([
+            ...d.inseridos.map((linha) => repositorio.criar(linha)),
+            ...d.atualizados.map((linha) => repositorio.atualizar(linha.id, linha)),
+            ...d.removidos.map((id) => repositorio.remover(id)),
+          ]);
+          setSyncState('saved');
+          setSyncError(null);
+        } catch (erro) {
+          relatarErro(erro, 'salvar as alterações');
+        }
+      })();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rows]);
+    }, [linhas]);
   };
 
-  usePersistedCollection('clients', allClients);
-  usePersistedCollection('jobs', allJobs);
-  usePersistedCollection('leads', allLeads);
-  usePersistedCollection('proposals', allProposals);
-  usePersistedCollection('contracts', allContracts);
-  usePersistedCollection('automations', allAutomations);
-  usePersistedCollection('notifications', allNotifications);
-  usePersistedCollection('activityLogs', allActivityLogs);
-  usePersistedCollection('clientMaterials', allClientMaterials);
-  usePersistedCollection('timesheetLogs', allTimesheetLogs);
+  useColecaoSincronizada('clients', 'clients', allClients);
+  useColecaoSincronizada('jobs', 'jobs', allJobs);
+  useColecaoSincronizada('leads', 'leads', allLeads);
+  useColecaoSincronizada('proposals', 'proposals', allProposals);
+  useColecaoSincronizada('contracts', 'contracts', allContracts);
+  useColecaoSincronizada('automations', 'automations', allAutomations);
+  useColecaoSincronizada('notifications', 'notifications', allNotifications);
+  useColecaoSincronizada('activityLogs', 'activityLogs', allActivityLogs);
+  useColecaoSincronizada('clientMaterials', 'clientMaterials', allClientMaterials);
+  useColecaoSincronizada('timesheetLogs', 'timesheetLogs', allTimesheetLogs);
 
   useEffect(() => {
     writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}workspaces`, workspaces);
   }, [workspaces]);
 
-  /**
-   * Hidratação a partir do servidor assim que existe sessão. Se o servidor
-   * ainda não tem nada deste workspace, sobe o que está no navegador — é a
-   * migração do estado local para o compartilhado.
-   */
-  useEffect(() => {
-    // Mesma trava do envio: hidratar com a agência da sessão enquanto a
-    // interface exibe outra misturaria dados de duas agências no mesmo estado.
-    if (!sincronizacaoPermitida) {
-      hydratedRef.current = false;
-      return;
+  /** Carrega tudo do banco assim que existe sessão. */
+  const carregarDoBanco = async () => {
+    setSyncState('loading');
+    hidratado.current = false;
+
+    const dados = await carregarTudo();
+
+    setWorkspaces(dados.workspaces);
+    setUsers(
+      dados.membros.map((m) => ({
+        id: m.userId,
+        name: m.name || 'Membro',
+        email: m.userId === currentUser.id ? currentUser.email : '',
+        avatar: m.avatar || '',
+        role: m.role as Role,
+        workspaceId: m.workspaceId,
+      }))
+    );
+    setAllClients(dados.clients);
+    setAllJobs(dados.jobs);
+    setAllLeads(dados.leads);
+    setAllProposals(dados.proposals);
+    setAllContracts(dados.contracts);
+    setAllAutomations(dados.automations);
+    setAllNotifications(dados.notifications);
+    setAllActivityLogs(dados.activityLogs);
+    setAllClientMaterials(dados.clientMaterials);
+    setAllTimesheetLogs(dados.timesheetLogs);
+
+    const alvo =
+      dados.workspaces.find((w) => w.id === currentUser.workspaceId) || dados.workspaces[0];
+    if (alvo) {
+      setCurrentWorkspaceState(alvo);
+      writeStorage(`${LOCAL_STORAGE_KEY_PREFIX}currentWorkspaceId`, alvo.id);
     }
 
-    let cancelado = false;
+    // Só liga a sincronização depois de aplicar os dados, senão o próprio
+    // carregamento seria interpretado como edição e reescreveria tudo.
+    hidratado.current = true;
+    setSyncState('saved');
+    setSyncError(null);
+  };
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hidratado.current = false;
+      return;
+    }
+    let cancelado = false;
     (async () => {
       try {
-        setSyncState('loading');
-        const { workspaceId, collections } = await dataApi.fetchAll();
-        if (cancelado) return;
-
-        const aplicar = <T extends { workspaceId?: string }>(
-          nome: string,
-          setter: React.Dispatch<React.SetStateAction<T[]>>,
-          locais: T[]
-        ) => {
-          const remotas = (collections[nome] || []) as T[];
-          if (remotas.length > 0) {
-            // O servidor manda: troca as linhas deste workspace, preserva as demais.
-            setter([
-              ...locais.filter((r) => r.workspaceId && r.workspaceId !== workspaceId),
-              ...remotas,
-            ]);
-          } else {
-            const paraSubir = locais.filter(belongsToWorkspace);
-            if (paraSubir.length > 0) {
-              dataApi.pushCollection(nome, paraSubir).catch(() => {});
-            }
-          }
-        };
-
-        aplicar('clients', setAllClients, allClients);
-        aplicar('jobs', setAllJobs, allJobs);
-        aplicar('leads', setAllLeads, allLeads);
-        aplicar('proposals', setAllProposals, allProposals);
-        aplicar('contracts', setAllContracts, allContracts);
-        aplicar('automations', setAllAutomations, allAutomations);
-        aplicar('notifications', setAllNotifications, allNotifications);
-        aplicar('activityLogs', setAllActivityLogs, allActivityLogs);
-        aplicar('clientMaterials', setAllClientMaterials, allClientMaterials);
-        aplicar('timesheetLogs', setAllTimesheetLogs, allTimesheetLogs);
-
-        hydratedRef.current = true;
-        setSyncState('saved');
-        setSyncError(null);
-      } catch (err) {
-        if (cancelado) return;
-        hydratedRef.current = true;
-        setSyncState('error');
-        setSyncError(
-          err instanceof ApiError
-            ? err.message
-            : 'Servidor indisponível. Trabalhando com os dados salvos neste navegador.'
-        );
+        await carregarDoBanco();
+      } catch (erro) {
+        if (!cancelado) relatarErro(erro, 'carregar os dados');
       }
     })();
-
-    return () => {
-      cancelado = true;
-    };
+    return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sincronizacaoPermitida, currentWsId]);
+  }, [isAuthenticated, currentUser.id]);
 
   // Modal handlers
   const openCreateJobModal = (date?: string) => {
@@ -872,6 +878,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   const approveJob = (jobId: string, approverName: string = 'Cliente') => {
+    registrar('conteudo_aprovado');
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     
@@ -914,6 +921,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   const requestAdjustment = (jobId: string, feedback: string, requesterName: string = 'Cliente') => {
+    registrar('ajuste_solicitado');
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     
@@ -1049,6 +1057,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     
     setAllClients(prev => [newClient, ...prev]);
+    registrar('cliente_criado');
     logActivity('Cadastrou novo cliente', `Cliente: ${newClient.name}`);
     return newClient;
   };
@@ -1400,6 +1409,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     clientId?: string;
     additionalNotes?: string;
   }) => {
+    registrar('ia_utilizada', { recurso: 'copy' });
     const client = clients.find((c) => c.id === params.clientId);
     return aiApi.generateCopy({
       theme: params.theme,
@@ -1431,67 +1441,31 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ============================================================
   // Sincronização
   // ============================================================
-  // O Firebase foi removido: era um segundo banco, sem autenticação e com
-  // regras liberadas para qualquer origem. A persistência compartilhada passou
-  // a ser a API autenticada em /api/data.
-  //
-  // O Supabase continua disponível como caminho de migração documentado
-  // (supabase/schema.sql e README), mas não é a fonte de verdade hoje.
+  // O Supabase passou a ser a fonte de verdade: as consultas saem do
+  // navegador direto para o Postgres e quem garante o isolamento é a RLS.
+  // Não há mais store em arquivo nem servidor Express no caminho dos dados.
 
   const isSupabaseConnected = isSupabaseConfigured();
 
-  const syncWithSupabase = async (): Promise<{ success: boolean; message: string }> => {
-    if (!isSupabaseConfigured() || !supabase) {
-      return {
-        success: false,
-        message: 'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
-      };
-    }
-    try {
-      const { error } = await supabase.from('clients').select('id').limit(1);
-      if (error) throw error;
-      return {
-        success: true,
-        message: 'O Supabase respondeu. Nenhum dado foi migrado — a migração ainda é manual.',
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: `Não foi possível consultar o Supabase: ${err?.message || 'verifique o schema e as políticas RLS.'}`,
-      };
-    }
-  };
-
+  /** Recarrega tudo do banco, descartando o que estiver em memória. */
   const forceSync = async (): Promise<{ success: boolean; message: string }> => {
     if (!isAuthenticated) {
-      return { success: false, message: 'Faça login para sincronizar com o servidor.' };
+      return { success: false, message: 'Faça login para sincronizar.' };
     }
     try {
-      setSyncState('saving');
-      await Promise.all(
-        ([
-          ['clients', allClients],
-          ['jobs', allJobs],
-          ['leads', allLeads],
-          ['proposals', allProposals],
-          ['contracts', allContracts],
-          ['automations', allAutomations],
-          ['clientMaterials', allClientMaterials],
-          ['timesheetLogs', allTimesheetLogs],
-        ] as const).map(([nome, linhas]) =>
-          dataApi.pushCollection(nome, (linhas as { workspaceId?: string }[]).filter(belongsToWorkspace))
-        )
-      );
-      setSyncState('saved');
-      setSyncError(null);
-      return { success: true, message: 'Dados enviados ao servidor com sucesso.' };
-    } catch (err) {
-      const mensagem = err instanceof ApiError ? err.message : 'Falha ao sincronizar com o servidor.';
-      setSyncState('error');
-      setSyncError(mensagem);
+      await carregarDoBanco();
+      return { success: true, message: 'Dados recarregados do banco.' };
+    } catch (erro) {
+      relatarErro(erro, 'recarregar os dados');
+      const mensagem =
+        erro instanceof DbError ? erro.message : 'Falha ao recarregar do banco.';
       return { success: false, message: mensagem };
     }
   };
+
+  // Mantido no contexto porque a tela de Integrações expõe o estado da
+  // conexão; agora ele simplesmente reflete o mesmo banco que a aplicação usa.
+  const syncWithSupabase = forceSync;
 
   // Agency Health Score Calculator (0 - 100)
   const calculateAgencyHealth = () => {
@@ -1558,7 +1532,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isAuthLoading,
         login,
         register,
-        acceptInvite,
+        recarregarSessaoPublica,
+        recuperarSenha,
+        redefinirSenha,
         logout,
         activeTab,
         setActiveTab,

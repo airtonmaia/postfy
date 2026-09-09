@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ehIpBloqueado, validarUrlExterna } from '../server/lib/ssrf';
+import { ehIpBloqueado, validarUrlExterna } from '../api/_lib/ssrf';
 
 describe('classificação de endereços', () => {
   it('bloqueia loopback', () => {

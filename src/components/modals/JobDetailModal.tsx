@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { JobStatus, JobVersion } from '../../types';
 import { AiCopyModal } from './AiCopyModal';
+import { ApiError } from '../../lib/api';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { FileUpload } from '../ui/file-upload';
 
@@ -77,6 +78,7 @@ export const JobDetailModal: React.FC = () => {
   const [isAiCopyOpen, setIsAiCopyOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isConvertingFeedback, setIsConvertingFeedback] = useState(false);
+  const [erroIa, setErroIa] = useState<string | null>(null);
 
   // Timer State
   const [timerRunning, setTimerRunning] = useState(false);
@@ -135,6 +137,7 @@ export const JobDetailModal: React.FC = () => {
   const handleConvertFeedbackWithAi = async () => {
     if (!selectedJob.lastFeedback) return;
     setIsConvertingFeedback(true);
+    setErroIa(null);
     try {
       const res = await convertFeedbackToTasks({
         clientFeedback: selectedJob.lastFeedback,
@@ -159,7 +162,15 @@ export const JobDetailModal: React.FC = () => {
         setActiveTab('checklist');
       }
     } catch (err) {
-      console.error(err);
+      // Precisa aparecer na tela: as funções de IA propagam erro em vez de
+      // devolver texto de exemplo, então sem isto o botão só para de girar.
+      setErroIa(
+        err instanceof ApiError && err.naoConfigurado
+          ? 'A conversão por IA ainda não está configurada neste ambiente.'
+          : err instanceof Error
+          ? err.message
+          : 'Não foi possível converter o feedback. Tente novamente.'
+      );
     } finally {
       setIsConvertingFeedback(false);
     }
@@ -454,6 +465,12 @@ export const JobDetailModal: React.FC = () => {
                     <p className="italic pl-5 bg-white/60 dark:bg-black/30 p-2 rounded-lg border border-rose-100 dark:border-rose-900">
                       "{selectedJob.lastFeedback}"
                     </p>
+
+                    {erroIa && (
+                      <p className="pl-5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                        {erroIa}
+                      </p>
+                    )}
                   </div>
                 )}
 

@@ -19,15 +19,18 @@ export const CreateWorkspaceModal: React.FC = () => {
 
   if (!isCreateWorkspaceModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    // A criação agora vai ao banco; o setTimeout de antes só simulava espera.
     setIsLoading(true);
-    setTimeout(() => {
-      createWorkspace(name.trim(), primaryColor);
-      setIsLoading(false);
+    try {
+      await createWorkspace(name.trim(), primaryColor);
       setName('');
-    }, 400);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

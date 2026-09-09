@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
 import { useServerCollection } from '../../../lib/useServerCollection';
+import { novoId } from '../../../lib/sincronizacao';
 import { 
   Shield, Users, Plus, Check, Trash2, CheckCircle2, Building2, Briefcase, X 
 } from 'lucide-react';
@@ -15,13 +16,13 @@ interface Squad {
 }
 
 export const SettingsTeams: React.FC = () => {
-  const { users, clients } = usePostfy();
+  const { users, clients, currentWorkspace } = usePostfy();
 
   // Squads persistidos no servidor. Antes viviam num useState local e
   // desapareciam no recarregamento da página.
   const SQUADS_PADRAO: Squad[] = [
     {
-      id: 'sq-1',
+      id: novoId(),
       name: 'Squad Retail & Gastronomia',
       leaderId: 'u-1',
       memberIds: ['u-1', 'u-2', 'u-4'],
@@ -29,7 +30,7 @@ export const SettingsTeams: React.FC = () => {
       color: 'purple'
     },
     {
-      id: 'sq-2',
+      id: novoId(),
       name: 'Squad B2B & Fintech',
       leaderId: 'u-3',
       memberIds: ['u-3', 'u-2'],
@@ -40,7 +41,26 @@ export const SettingsTeams: React.FC = () => {
 
   const { linhas: squads, salvar: setSquads, erro: erroSquads } = useServerCollection<Squad>(
     'squads',
-    SQUADS_PADRAO
+    SQUADS_PADRAO,
+    currentWorkspace?.id || '',
+    (sq, workspaceId) => ({
+      id: sq.id,
+      workspace_id: workspaceId,
+      name: sq.name,
+      leader_id: sq.leaderId,
+      member_ids: sq.memberIds,
+      client_ids: sq.clientIds,
+      // A cor identifica o squad na interface; sem guardar, todos voltariam iguais.
+      color: sq.color,
+    }),
+    (l) => ({
+      id: l.id,
+      name: l.name,
+      leaderId: l.leader_id ?? '',
+      memberIds: l.member_ids ?? [],
+      clientIds: l.client_ids ?? [],
+      color: l.color ?? '#6366f1',
+    })
   );
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -53,7 +73,7 @@ export const SettingsTeams: React.FC = () => {
     if (!squadName.trim()) return;
 
     const newSq: Squad = {
-      id: `sq-${Date.now()}`,
+      id: novoId(),
       name: squadName.trim(),
       leaderId: leaderId || users[0]?.id || 'u-1',
       memberIds: [leaderId || 'u-1'],

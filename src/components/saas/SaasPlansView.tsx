@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { useServerCollection } from '../../lib/useServerCollection';
+import { novoId } from '../../lib/sincronizacao';
 import { Crown, Check, Plus, Edit2, Trash2, Shield, DollarSign, Users } from 'lucide-react';
 
 interface Plan {
@@ -22,7 +23,7 @@ export const SaasPlansView: React.FC = () => {
   // qualquer edição sumia no recarregamento da página.
   const PLANOS_PADRAO: Plan[] = [
     {
-      id: 'plan-free',
+      id: novoId(),
       name: 'Teste Grátis (7 dias)',
       price: 0,
       interval: 'monthly',
@@ -34,7 +35,7 @@ export const SaasPlansView: React.FC = () => {
       badge: 'Trial'
     },
     {
-      id: 'plan-pro',
+      id: novoId(),
       name: 'Agência PRO',
       price: 197,
       interval: 'monthly',
@@ -46,7 +47,7 @@ export const SaasPlansView: React.FC = () => {
       badge: 'Mais Popular'
     },
     {
-      id: 'plan-enterprise',
+      id: novoId(),
       name: 'Enterprise / Holding',
       price: 497,
       interval: 'monthly',
@@ -61,7 +62,33 @@ export const SaasPlansView: React.FC = () => {
 
   const { linhas: plans, salvar: setPlans, erro: erroPlanos } = useServerCollection<Plan>(
     'plans',
-    PLANOS_PADRAO
+    PLANOS_PADRAO,
+    currentWorkspace?.id || '',
+    (p, workspaceId) => ({
+      id: p.id,
+      workspace_id: workspaceId,
+      name: p.name,
+      price: p.price,
+      interval: p.interval,
+      max_workspaces: p.maxWorkspaces,
+      max_users: p.maxUsers,
+      storage: p.storage,
+      features: p.features,
+      badge: p.badge,
+      active_agencies_count: p.activeAgenciesCount,
+    }),
+    (l) => ({
+      id: l.id,
+      name: l.name,
+      price: Number(l.price ?? 0),
+      interval: l.interval,
+      maxWorkspaces: l.max_workspaces,
+      maxUsers: l.max_users,
+      storage: l.storage ?? '',
+      features: l.features ?? [],
+      badge: l.badge ?? undefined,
+      activeAgenciesCount: l.active_agencies_count ?? 0,
+    })
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,7 +104,7 @@ export const SaasPlansView: React.FC = () => {
       setPlans(atual => atual.map(p => p.id === editingPlan.id ? { ...p, name, price, maxUsers, storage } : p));
     } else {
       const newPlan: Plan = {
-        id: `plan-${Date.now()}`,
+        id: novoId(),
         name,
         price,
         interval: 'monthly',

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login, register, currentWorkspace } = usePostfy();
+  const { login, register, recuperarSenha, currentWorkspace } = usePostfy();
 
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -59,6 +59,32 @@ export const LoginView: React.FC = () => {
       }
     } catch {
       setErrorMsg('Não foi possível falar com o servidor. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Recuperação de senha. A resposta é sempre a mesma exista ou não a conta:
+   * dizer "e-mail não encontrado" entregaria quem tem cadastro na plataforma.
+   */
+  const handleRecuperarSenha = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!email.trim()) {
+      setErrorMsg('Informe seu e-mail para receber o link de recuperação.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await recuperarSenha(email.trim());
+      if (res.success) {
+        setSuccessMsg(res.message || 'Link de recuperação enviado.');
+      } else {
+        setErrorMsg(res.message || 'Não foi possível enviar o link.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -257,10 +283,11 @@ export const LoginView: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => { setActiveMode('register'); setErrorMsg(null); }}
-                  className="text-orange-600 hover:underline font-semibold"
+                  onClick={handleRecuperarSenha}
+                  disabled={isLoading}
+                  className="text-orange-600 hover:underline font-semibold disabled:opacity-50"
                 >
-                  Criar nova agência
+                  Esqueci minha senha
                 </button>
               </div>
 

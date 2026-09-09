@@ -1,4 +1,6 @@
 import React, { useRef, useState } from 'react';
+import { arquivosApi, ApiError } from '../../lib/api';
+import { usePostfy } from '../../context/PostfyContext';
 import { 
   Upload, 
   X, 
@@ -27,22 +29,25 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   label = 'Mídias e Criativos (Fotos e Vídeos)',
   helperText = 'Arraste imagens/vídeos ou clique para selecionar do seu computador (Suporta até 10 arquivos para carrossel)'
 }) => {
+  const { currentWorkspace } = usePostfy();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
 
   /**
-   * Limite por arquivo. O anexo vira uma data URL em base64 e cresce cerca de
-   * 33% ao ser codificado; o armazenamento do navegador fica na casa dos 5 MB
-   * no total. Sem esse teto, dois ou três anexos estouram a cota e o trabalho
-   * se perde no recarregamento — antes o erro era engolido em silêncio.
+   * Limite por arquivo, alinhado ao que a função de upload aceita.
+   * O arquivo vai do navegador direto para o Cloudflare R2 por URL
+   * pré-assinada — antes virava base64 no localStorage e dois ou três anexos
+   * estouravam a cota do navegador.
    */
-  const TAMANHO_MAXIMO_BYTES = 1.5 * 1024 * 1024;
+  const TAMANHO_MAXIMO_BYTES = 100 * 1024 * 1024;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
 
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadError(null);
 
@@ -58,33 +63,42 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
     if (grandes.length > 0) {
       setUploadError(
-        `${grandes.length === 1 ? 'O arquivo' : 'Alguns arquivos'} passa${grandes.length === 1 ? '' : 'm'} de ` +
-        `${(TAMANHO_MAXIMO_BYTES / (1024 * 1024)).toFixed(1)} MB e não ` +
-        `${grandes.length === 1 ? 'foi anexado' : 'foram anexados'}. ` +
-        'Para mídias pesadas, hospede o arquivo e cole a URL abaixo.'
+        `${grandes.length === 1 ? 'O arquivo passa' : 'Alguns arquivos passam'} de ` +
+        `${TAMANHO_MAXIMO_BYTES / 1024 / 1024} MB e não ` +
+        `${grandes.length === 1 ? 'foi anexado' : 'foram anexados'}.`
       );
     }
+    if (aceitos.length === 0) return;
 
-    // Acumula todos antes de um único onChange: chamar onChange dentro do
-    // onload de cada leitor descartava os anteriores, porque cada callback
-    // partia do mesmo mediaUrls capturado no fechamento.
-    Promise.all(
-      aceitos.map(
-        (file) =>
-          new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve((event.target?.result as string) || null);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(file);
-          })
-      )
-    ).then((resultados) => {
-      const novos = resultados.filter((r): r is string => Boolean(r));
-      if (novos.length > 0) onChange([...mediaUrls, ...novos]);
-      if (novos.length < aceitos.length) {
-        setUploadError('Não foi possível ler um dos arquivos selecionados.');
+    setEnviando(true);
+    setProgresso(0);
+
+    const enviados: string[] = [];
+    try {
+      for (let i = 0; i < aceitos.length; i++) {
+        const url = await arquivosApi.enviar(
+          aceitos[i],
+          currentWorkspace?.id || '',
+          (pct) => setProgresso(Math.round(((i + pct / 100) / aceitos.length) * 100))
+        );
+        enviados.push(url);
       }
-    });
+      // Um único onChange no fim: chamar dentro do laço descartaria os
+      // anteriores, porque cada chamada parte do mesmo mediaUrls capturado.
+      if (enviados.length) onChange([...mediaUrls, ...enviados]);
+    } catch (err) {
+      const mensagem =
+        err instanceof ApiError && err.naoConfigurado
+          ? 'Armazenamento de arquivos ainda não configurado. Por enquanto, cole a URL da mídia abaixo.'
+          : err instanceof Error
+          ? err.message
+          : 'Falha ao enviar o arquivo.';
+      setUploadError(mensagem);
+      if (enviados.length) onChange([...mediaUrls, ...enviados]);
+    } finally {
+      setEnviando(false);
+      setProgresso(0);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -174,6 +188,21 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           >
             Adicionar
           </button>
+        </div>
+      )}
+
+      {enviando && (
+        <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] font-bold text-purple-700 dark:text-purple-300">
+            <span>Enviando arquivo...</span>
+            <span>{progresso}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-purple-100 dark:bg-purple-900 overflow-hidden">
+            <div
+              className="h-full bg-purple-600 transition-all duration-200"
+              style={{ width: `${progresso}%` }}
+            />
+          </div>
         </div>
       )}
 

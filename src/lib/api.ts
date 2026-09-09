@@ -1,8 +1,15 @@
+import { supabase } from './supabase';
+
 /**
- * Cliente HTTP da API do Orquesia.
- * Sempre com credentials: 'include' porque a sessão vive num cookie httpOnly —
- * o token nunca fica acessível ao JavaScript, o que fecha a porta para XSS
- * roubar a sessão.
+ * Cliente das funções serverless (/api/*).
+ *
+ * Só sobrou aqui o que precisa mesmo de servidor: a chave do Gemini, as
+ * credenciais do R2 e a do Resend — segredos que não podem ir para o bundle.
+ * Autenticação e dados vão direto do navegador para o Supabase, protegidos
+ * pela RLS.
+ *
+ * O token da sessão vai no header Authorization e a função o valida contra o
+ * próprio Supabase, então ela nunca confia no que o navegador afirma.
  */
 
 export class ApiError extends Error {
@@ -15,27 +22,42 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+
+  /** Recurso existe, mas o ambiente não foi configurado. */
+  get naoConfigurado(): boolean {
+    return this.status === 503;
+  }
 }
 
-const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-  let response: Response;
+const chamar = async <T>(caminho: string, corpo: unknown): Promise<T> => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new ApiError('Faça login para usar este recurso.', 401);
+  }
+
+  let resposta: Response;
   try {
-    response = await fetch(path, {
-      credentials: 'include',
-      headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
-      ...init,
+    resposta = await fetch(caminho, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(corpo),
     });
   } catch {
     throw new ApiError('Não foi possível falar com o servidor. Verifique sua conexão.', 0);
   }
 
-  const isJson = response.headers.get('content-type')?.includes('application/json');
-  const payload = isJson ? await response.json().catch(() => ({})) : {};
+  const ehJson = resposta.headers.get('content-type')?.includes('application/json');
+  const payload = ehJson ? await resposta.json().catch(() => ({})) : {};
 
-  if (!response.ok) {
+  if (!resposta.ok) {
     throw new ApiError(
-      payload?.error || `Falha na requisição (${response.status}).`,
-      response.status,
+      payload?.error || `Falha na requisição (${resposta.status}).`,
+      resposta.status,
       payload?.code
     );
   }
@@ -43,118 +65,91 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   return payload as T;
 };
 
-export interface ApiUser {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  role: string;
-  workspaceId: string;
+export const aiApi = {
+  generateCopy: (params: Record<string, unknown>) =>
+    chamar<any>('/api/gemini', { action: 'generate-copy', ...params }),
+
+  convertFeedback: (params: Record<string, unknown>) =>
+    chamar<any>('/api/gemini', { action: 'convert-feedback', ...params }),
+
+  editorialIdeas: (params: Record<string, unknown>) =>
+    chamar<any>('/api/gemini', { action: 'editorial-ideas', ...params }),
+};
+
+export interface UrlDeUpload {
+  uploadUrl: string;
+  key: string;
+  publicUrl: string | null;
 }
 
-export interface ApiWorkspace {
-  id: string;
-  name: string;
-  slug: string;
-  ownerId: string;
-  createdAt: string;
-}
+export const arquivosApi = {
+  /** Pede a URL pré-assinada; o binário vai do navegador direto para o R2. */
+  pedirUrl: (input: {
+    fileName: string;
+    contentType: string;
+    size: number;
+    workspaceId: string;
+  }) => chamar<UrlDeUpload>('/api/upload-url', input),
 
-export interface SessionPayload {
-  user: ApiUser;
-  workspace: ApiWorkspace | null;
-}
+  /**
+   * Envia o arquivo e devolve a URL pública.
+   * onProgress usa XMLHttpRequest porque fetch não reporta progresso de envio.
+   */
+  enviar: async (
+    arquivo: File,
+    workspaceId: string,
+    onProgress?: (porcentagem: number) => void
+  ): Promise<string> => {
+    const { uploadUrl, publicUrl, key } = await arquivosApi.pedirUrl({
+      fileName: arquivo.name,
+      contentType: arquivo.type || 'application/octet-stream',
+      size: arquivo.size,
+      workspaceId,
+    });
 
-export const authApi = {
-  register: (input: { name: string; email: string; password: string; agencyName?: string }) =>
-    request<SessionPayload>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', arquivo.type || 'application/octet-stream');
 
-  login: (input: { email: string; password: string }) =>
-    request<SessionPayload>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
+      xhr.upload.onprogress = (evento) => {
+        if (evento.lengthComputable && onProgress) {
+          onProgress(Math.round((evento.loaded / evento.total) * 100));
+        }
+      };
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new ApiError('Falha ao enviar o arquivo.', xhr.status));
+      xhr.onerror = () => reject(new ApiError('Falha de rede ao enviar o arquivo.', 0));
+      xhr.send(arquivo);
+    });
 
-  logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
-
-  /** Retorna null quando não há sessão, em vez de estourar. */
-  me: async (): Promise<SessionPayload | null> => {
-    try {
-      return await request<SessionPayload>('/api/auth/me');
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) return null;
-      throw err;
+    if (!publicUrl) {
+      throw new ApiError(
+        'Arquivo enviado, mas o bucket não tem domínio público configurado (R2_PUBLIC_BASE_URL). ' +
+          `Chave: ${key}`,
+        500
+      );
     }
+    return publicUrl;
   },
 };
 
-export interface TeamInvite {
-  id: string;
-  workspaceId: string;
-  email: string;
-  name?: string;
-  role: string;
-  createdAt: string;
-  expiresAt: string;
-}
-
-export const teamApi = {
-  listUsers: () => request<{ users: ApiUser[] }>('/api/auth/users'),
-
-  listInvites: () => request<{ invites: TeamInvite[] }>('/api/auth/invites'),
-
-  createInvite: (input: { email: string; name?: string; role: string }) =>
-    request<{ invite: TeamInvite; token: string }>('/api/auth/invites', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
-
-  revokeInvite: (id: string) =>
-    request<{ ok: boolean }>(`/api/auth/invites/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    }),
-
-  lookupInvite: (token: string) =>
-    request<{ email: string; name: string | null; role: string; agencyName: string | null }>(
-      `/api/auth/invites/token/${encodeURIComponent(token)}`
-    ),
-
-  acceptInvite: (input: { token: string; name: string; password: string }) =>
-    request<SessionPayload>('/api/auth/accept-invite', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
-};
-
-export const dataApi = {
-  fetchAll: () =>
-    request<{ workspaceId: string; collections: Record<string, any[]> }>('/api/data'),
-
-  pushCollection: (collection: string, rows: unknown[]) =>
-    request<{ ok: boolean; count: number }>(`/api/data/${collection}`, {
-      method: 'PUT',
-      body: JSON.stringify({ rows }),
-    }),
+export const conviteApi = {
+  enviarPorEmail: (input: {
+    email: string;
+    link: string;
+    workspaceId: string;
+    agencyName?: string;
+    inviterName?: string;
+  }) => chamar<{ ok: boolean }>('/api/send-invite', input),
 };
 
 export const webhookApi = {
   test: (url: string, event?: string) =>
-    request<{ ok: boolean; status?: number; statusText?: string }>('/api/webhooks/test', {
-      method: 'POST',
-      body: JSON.stringify({ url, event }),
+    chamar<{ ok: boolean; status?: number; statusText?: string }>('/api/webhook-test', {
+      url,
+      event,
     }),
-};
-
-export const aiApi = {
-  generateCopy: (params: Record<string, unknown>) =>
-    request<any>('/api/gemini/generate-copy', { method: 'POST', body: JSON.stringify(params) }),
-
-  convertFeedback: (params: Record<string, unknown>) =>
-    request<any>('/api/gemini/convert-feedback', { method: 'POST', body: JSON.stringify(params) }),
-
-  editorialIdeas: (params: Record<string, unknown>) =>
-    request<any>('/api/gemini/editorial-ideas', { method: 'POST', body: JSON.stringify(params) }),
 };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard as safeCopyToClipboard } from '../../lib/utils';
+import { ApiError } from '../../lib/api';
 import { 
   X, 
   Sparkles, 
@@ -9,7 +10,8 @@ import {
   Bot, 
   ArrowRight, 
   Loader2, 
-  Hash, 
+  Hash,
+  AlertCircle, 
   Video, 
   FileText,
   Target
@@ -46,6 +48,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
   } | null>(null);
 
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -54,6 +57,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
   const handleGenerate = async () => {
     if (!theme.trim()) return;
     setLoading(true);
+    setErro(null);
     try {
       const data = await generateAiCopy({
         theme,
@@ -64,7 +68,16 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
       });
       setResult(data);
     } catch (err) {
-      console.error(err);
+      // A falha precisa aparecer na tela. Antes ia só para o console: como as
+      // funções de IA passaram a propagar erro em vez de devolver texto de
+      // exemplo, o usuário via o spinner parar e mais nada acontecer.
+      setErro(
+        err instanceof ApiError && err.naoConfigurado
+          ? 'A geração por IA ainda não está configurada neste ambiente.'
+          : err instanceof Error
+          ? err.message
+          : 'Não foi possível gerar o conteúdo. Tente novamente.'
+      );
     } finally {
       setLoading(false);
     }
@@ -219,6 +232,13 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
           </button>
 
           {/* Results Display */}
+          {erro && (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{erro}</span>
+            </div>
+          )}
+
           {result && (
             <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
               

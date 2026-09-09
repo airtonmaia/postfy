@@ -29,19 +29,48 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Servidor de produção sobe e responde
+      - name: Verificar artefatos do build
         run: |
-          NODE_ENV=production PORT=3000 DATA_DIR=/tmp/ci-data node dist/server.mjs &
-          SERVIDOR=$!
-          for i in $(seq 1 20); do
-            curl -sf http://127.0.0.1:3000/api/health > /dev/null && break
-            sleep 1
-          done
-          curl -sf http://127.0.0.1:3000/api/health || { echo "servidor não respondeu"; exit 1; }
-          # As rotas de dados não podem responder sem sessão.
-          CODIGO=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/data)
-          if [ "$CODIGO" != "401" ]; then
-            echo "esperava 401 em /api/data sem sessão, recebi $CODIGO"
-            exit 1
+          test -f dist/index.html || { echo "dist/index.html não gerado"; exit 1; }
+          test -d dist/assets || { echo "dist/assets não gerado"; exit 1; }
+
+      # A chave de serviço do Supabase ignora a RLS. Se ela vazar para o
+      # bundle, todo o isolamento entre agências cai por terra.
+      #
+      # Procuramos o FORMATO de uma chave real, não o nome da variável:
+      # bibliotecas legitimamente contêm strings como "sb_secret_" no código
+      # que detecta o tipo da chave, e casar com o nome dava falso positivo.
+      - name: Garantir que nenhum segredo foi para o bundle
+        run: |
+          falhou=0
+
+          # Chave secreta do Supabase: prefixo seguido de material real.
+          if grep -rqE 'sb_secret_[A-Za-z0-9_-]{20,}' dist/assets/ 2>/dev/null; then
+            echo "ERRO: chave secreta do Supabase encontrada no bundle."
+            falhou=1
           fi
-          kill $SERVIDOR
+
+          # JWT com papel de serviço (a anon/publishable é esperada e permitida).
+          for jwt in $(grep -rohE 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' dist/assets/ 2>/dev/null | sort -u); do
+            corpo=$(echo "$jwt" | cut -d. -f2)
+            # base64url -> base64, com padding
+            corpo=$(echo "$corpo" | tr '_-' '/+')
+            while [ $(( ${#corpo} % 4 )) -ne 0 ]; do corpo="${corpo}="; done
+            if echo "$corpo" | base64 -d 2>/dev/null | grep -q 'service_role'; then
+              echo "ERRO: JWT com role de serviço encontrado no bundle."
+              falhou=1
+            fi
+          done
+
+          # Chaves de terceiros que só podem existir no servidor.
+          if grep -rqE 're_[A-Za-z0-9]{20,}' dist/assets/ 2>/dev/null; then
+            echo "ERRO: chave do Resend encontrada no bundle."
+            falhou=1
+          fi
+          if grep -rqE 'AIza[A-Za-z0-9_-]{30,}' dist/assets/ 2>/dev/null; then
+            echo "ERRO: chave de API do Google encontrada no bundle."
+            falhou=1
+          fi
+
+          [ "$falhou" -eq 0 ] || exit 1
+          echo "Nenhum segredo de servidor no bundle."
