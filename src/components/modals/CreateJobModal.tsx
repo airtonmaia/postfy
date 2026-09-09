@@ -25,9 +25,10 @@ export const CreateJobModal: React.FC = () => {
   const [cta, setCta] = useState('');
   const [hashtagsStr, setHashtagsStr] = useState('#Novidade #Marketing');
   const [firstComment, setFirstComment] = useState('');
-  const [mediaUrls, setMediaUrls] = useState<string[]>([
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-  ]);
+  // Começa vazio: um conteúdo novo não tem mídia. A foto de banco que ficava
+  // aqui virava a arte de todo post criado, e quem não reparasse publicava com
+  // ela.
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
 
@@ -91,10 +92,8 @@ export const CreateJobModal: React.FC = () => {
       const deadlineProdIso = new Date(Math.max(Date.now(), scheduledTime - 86400000 * 2)).toISOString();
       const deadlineApprIso = new Date(Math.max(Date.now(), scheduledTime - 86400000 * 1)).toISOString();
 
-      const filteredMedia = mediaUrls.filter(u => u.trim().length > 0);
-      const finalMedia = filteredMedia.length > 0 
-        ? filteredMedia 
-        : ['https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'];
+      // Sem mídia é um estado legítimo: pauta entra antes da arte existir.
+      const finalMedia = mediaUrls.filter(u => u.trim().length > 0);
 
       // Sem cliente cadastrado não há job possível: 'c-1' era um id inventado
       // que o Postgres recusa, e o conteúdo sumia sem aviso.

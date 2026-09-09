@@ -841,16 +841,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       hashtags: jobData.hashtags || [],
       firstComment: jobData.firstComment || '',
       link: jobData.link || '',
-      mediaUrls: jobData.mediaUrls || [
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-      ],
+      // Sem imagem de banco como padrão: ela acabava virando a arte real do
+      // post de quem não reparasse.
+      mediaUrls: jobData.mediaUrls || [],
       currentVersion: 1,
       versions: [
         {
           versionNumber: 1,
-          mediaUrls: jobData.mediaUrls || [
-            'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-          ],
+          mediaUrls: jobData.mediaUrls || [],
           caption: jobData.caption || '',
           submittedBy: currentUser.name,
           submittedAt: new Date().toISOString(),
