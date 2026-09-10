@@ -20,6 +20,7 @@ import {
 import { Client } from '../../types';
 import { ClientDetail } from './ClientDetail';
 import { FileUpload } from '../ui/file-upload';
+import { Avatar } from '../common/Avatar';
 
 export const ClientsView: React.FC = () => {
   const { clients, jobs, visualizarPortalDoCliente, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
@@ -52,7 +53,10 @@ export const ClientsView: React.FC = () => {
       email: email.trim(),
       phone: phone.trim(),
       cpfCnpj: cpfCnpj.trim(),
-      avatar: avatar.trim() || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80',
+      // Sem logo, fica vazio e o `Avatar` desenha as iniciais. O padrão
+      // anterior era um retrato do Unsplash: a foto de um desconhecido no
+      // lugar do cliente da agência, vinda de um servidor de terceiro.
+      avatar: avatar.trim(),
       status: 'active',
       segment: segment.trim() || 'Serviços & Varejo',
       services: [
@@ -218,7 +222,7 @@ export const ClientsView: React.FC = () => {
                 {/* Top Info */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <img src={client.avatar} alt="" className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-800" />
+                    <Avatar nome={client.name} url={client.avatar} tamanho={48} formato="quadrado" className="border border-slate-200 dark:border-slate-800" />
                     <div>
                       <h4 className="text-base font-bold text-slate-900 dark:text-white">{client.name}</h4>
                       <span className="text-xs text-slate-400 block">{client.segment}</span>

@@ -37,6 +37,7 @@ import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { Job, Client, JobPlatform, JobFormat } from '../../types';
 import { ClientPortalLogin } from './ClientPortalLogin';
 import { FileUpload } from '../ui/file-upload';
+import { Avatar } from '../common/Avatar';
 
 /**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
@@ -344,10 +345,12 @@ export const ClientPortalView: React.FC = () => {
           {/* Client Authenticated Info & Logout Action */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5">
-              <img 
-                src={client.avatar} 
-                alt="" 
-                className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shadow-xs shrink-0" 
+              <Avatar
+                nome={client.name}
+                url={client.avatar}
+                tamanho={32}
+                formato="quadrado"
+                className="border border-slate-200 dark:border-slate-800 shadow-xs"
               />
               <div className="hidden sm:block text-right">
                 <span className="text-xs font-extrabold text-slate-900 dark:text-white block truncate max-w-56">
@@ -850,14 +853,17 @@ export const ClientPortalView: React.FC = () => {
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!newMatTitle.trim()) return;
+                  // Sem arquivo não há material. O padrão anterior gravava
+                  // uma foto do Unsplash e "4,2 MB" — a agência recebia um
+                  // material que o cliente nunca enviou, com um tamanho que
+                  // ninguém mediu, e ia trabalhar em cima disso.
+                  if (!newMatTitle.trim() || !newMatUrl.trim()) return;
                   addClientMaterial({
                     clientId: client.id,
                     title: newMatTitle.trim(),
                     category: newMatCategory,
-                    url: newMatUrl.trim() || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
-                    thumbnailUrl: newMatUrl.trim() || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
-                    size: '4.2 MB',
+                    url: newMatUrl.trim(),
+                    thumbnailUrl: newMatUrl.trim(),
                     notes: newMatNotes.trim(),
                     status: 'recebido'
                   });
@@ -940,9 +946,18 @@ export const ClientPortalView: React.FC = () => {
                   >
                     Cancelar
                   </button>
+                  {/* Desabilitado, e não recusando calado no submit: sem o
+                      arquivo o envio não acontece, e a pessoa precisa ver por
+                      quê antes de clicar. */}
                   <button
                     type="submit"
-                    className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xs"
+                    disabled={!newMatTitle.trim() || !newMatUrl.trim()}
+                    title={
+                      !newMatUrl.trim()
+                        ? 'Envie o arquivo ou cole o link dele antes de confirmar.'
+                        : undefined
+                    }
+                    className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl shadow-xs"
                   >
                     Confirmar Envio
                   </button>

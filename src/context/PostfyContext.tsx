@@ -1424,9 +1424,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: novoId(),
       authorName: isClient ? 'Cliente' : currentUser.name,
       authorRole: isClient ? 'client' as const : currentUser.role,
-      authorAvatar: isClient 
-        ? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80' 
-        : currentUser.avatar,
+      // Vazio para o cliente: era um retrato do Unsplash, sempre o mesmo,
+      // então todo comentário de todo cliente de toda agência vinha com a
+      // cara da mesma pessoa. `Avatar` desenha as iniciais.
+      authorAvatar: isClient ? '' : currentUser.avatar,
       isClient,
       text,
       createdAt: new Date().toISOString()
@@ -1470,9 +1471,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       workspaceId: currentWorkspace.id,
       name: clientData.name || 'Novo Cliente',
       legalName: clientData.legalName || clientData.name,
-      email: clientData.email || 'contato@cliente.com.br',
-      phone: clientData.phone || '(11) 99999-9999',
-      avatar: clientData.avatar || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80',
+      // Vazio, e não inventado. Havia `contato@cliente.com.br` e
+      // `(11) 99999-9999` de padrão: um endereço e um telefone que parecem
+      // do cliente, ficam gravados como se fossem, e a agência acaba
+      // escrevendo para eles. Campo em branco pelo menos se vê.
+      email: clientData.email || '',
+      phone: clientData.phone || '',
+      avatar: clientData.avatar || '',
       status: 'active',
       segment: clientData.segment || 'Varejo / Serviços',
       website: clientData.website || '',

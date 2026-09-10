@@ -17,6 +17,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Job } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 interface InstagramGridModalProps {
   isOpen: boolean;
@@ -110,10 +111,11 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <div className="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600">
-                    <img
-                      src={currentClient?.avatar}
-                      alt=""
-                      className="w-full h-full rounded-full object-cover border-2 border-white dark:border-black"
+                    <Avatar
+                      nome={currentClient?.name || 'Cliente'}
+                      url={currentClient?.avatar}
+                      tamanho={60}
+                      className="border-2 border-white dark:border-black"
                     />
                   </div>
                 </div>

@@ -35,6 +35,7 @@ import { AiCopyModal } from './AiCopyModal';
 import { ApiError } from '../../lib/api';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { FileUpload } from '../ui/file-upload';
+import { Avatar } from '../common/Avatar';
 
 const formatSafeDate = (dateStr?: string, options?: Intl.DateTimeFormatOptions): string => {
   if (!dateStr) return 'Não definida';
@@ -240,10 +241,11 @@ export const JobDetailModal: React.FC = () => {
         {/* Header */}
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950/70">
           <div className="flex items-center gap-3 min-w-0">
-            <img 
-              src={client?.avatar} 
-              alt="" 
-              className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-800 shrink-0" 
+            <Avatar
+              nome={client?.name || 'Cliente'}
+              url={client?.avatar}
+              tamanho={40}
+              className="border border-slate-200 dark:border-slate-800"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap text-xs">

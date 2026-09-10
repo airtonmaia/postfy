@@ -31,7 +31,7 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
-    versao: '2.10.0',
+    versao: '2.11.0',
     data: '2026-09-10',
     resumo: 'A conexão com o Instagram passou a usar o fluxo certo — o mesmo que funcionou no teste manual.',
     novidades: [
@@ -44,6 +44,23 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'O sistema pedia duas permissões de página do Facebook que fazem a tela de autorização do Instagram recusar o acesso.',
       'A página de retorno da autorização estava declarada como se recebesse um envio de formulário, e não uma visita do navegador — o que podia deixar a conexão sem resposta.',
       'Conexão gravada sem a credencial agora é desfeita na hora, com aviso. Antes ela ficava na lista parecendo conectada e só falhava na hora de publicar.',
+    ],
+  },
+  {
+    versao: '2.10.0',
+    data: '2026-09-10',
+    resumo: 'Seu perfil agora se edita por dentro do sistema: nome, foto e senha.',
+    novidades: [
+      'Painel da conta refeito: dá para trocar seu nome, enviar uma foto de perfil e alterar a senha sem sair do sistema. Antes o único jeito de trocar a senha era pelo "esqueci minha senha" da tela de entrada, que exige sair da conta.',
+      'A troca de senha pede a senha atual. É de propósito: sem isso, quem sentasse numa aba esquecida aberta trocaria a senha e ficaria com a conta.',
+      'Também dá para pedir a troca do e-mail de entrada. Ele só muda depois que você abrir o link de confirmação, e a tela diz isso em vez de anunciar que já trocou.',
+      'Seu nome e sua foto valem em todas as agências de que você participa. A tela avisa em quantas a mudança pegou.',
+    ],
+    corrigido: [
+      'Quem não tinha foto aparecia com um ícone de imagem quebrada no calendário, no kanban, nas aprovações e no portal. Agora aparecem as iniciais, num círculo colorido que é sempre o mesmo para a mesma pessoa.',
+      'Cliente novo nascia com a foto de um desconhecido, o e-mail "contato@cliente.com.br" e o telefone "(11) 99999-9999" — dados inventados que ficavam gravados como se fossem do cliente. Agora os campos ficam em branco.',
+      'No portal, cadastrar um material sem anexar o arquivo gravava uma foto de banco de imagens e "4,2 MB" de tamanho. A agência recebia um material que o cliente nunca enviou. Agora o envio exige o arquivo.',
+      'As últimas fotos que o sistema buscava em servidores de terceiros saíram. Nenhuma tela depende mais de um site externo para desenhar.',
     ],
   },
   {
