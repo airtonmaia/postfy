@@ -198,6 +198,13 @@ export interface Job {
   targetAudience?: string;
   funnelStage?: 'topo' | 'meio' | 'fundo';
   
+  /**
+   * Campos que só existem numa rede: localização e capa do Reel no Instagram,
+   * thumbnail e visibilidade no YouTube, tipo de publicação no LinkedIn.
+   * O catálogo do que cabe aqui está em `lib/camposDoCanal.ts`.
+   */
+  configuracoes?: Record<string, unknown>;
+
   // Content details
   caption: string;
   cta?: string;

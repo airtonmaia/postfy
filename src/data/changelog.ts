@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.13.0',
+    data: '2026-09-10',
+    resumo: 'O cadastro pergunta o que cada rede realmente precisa, e a prévia deixa navegar pelo carrossel.',
+    novidades: [
+      'Os campos mudam com a rede. Instagram pede legenda, localização e primeiro comentário — e, no Reel, capa e "compartilhar no feed". YouTube pede descrição, thumbnail, categoria e visibilidade. LinkedIn pede o texto e o tipo de publicação.',
+      'A prévia ficou maior e navega no carrossel: ← 1 / 5 →. Antes ela mostrava só a primeira arte, e é justamente a terceira que costuma estar na proporção errada.',
+      'Botão Celular / Computador na prévia: a mesma legenda quebra em lugares diferentes nas duas larguras.',
+      'A localização digitada aparece na prévia embaixo do nome do perfil, como aparece na rede.',
+    ],
+  },
+  {
     versao: '2.12.0',
     data: '2026-09-10',
     resumo: 'O quadro virou WorkFlow, o cadastro ganhou prévia da rede, e agora cabe copy e roteiro além do conteúdo pronto.',

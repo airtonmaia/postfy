@@ -8,6 +8,8 @@ import { JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
 import { MediaUploader } from '../common/MediaUploader';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
+import { camposVisiveis, type CampoDoCanal } from '../../lib/camposDoCanal';
+import { CampoDinamico } from '../common/CampoDinamico';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -98,12 +100,16 @@ export const CreateJobModal: React.FC = () => {
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('ideas');
   const [caption, setCaption] = useState('');
-  // CTA, hashtags e primeiro comentário saíram do cadastro: enchiam o modal
-  // de campos que quase ninguém preenchia na criação. Continuam existindo no
-  // job e são editáveis no detalhe — quem precisa deles ainda os tem.
+  // CTA e hashtags saíram do cadastro: enchiam o modal de campos que quase
+  // ninguém preenchia na criação, e seguem editáveis no detalhe.
   //
   // O padrão de hashtags era '#Novidade #Marketing', e ele ia junto mesmo sem
   // ninguém digitar nada: conteúdo nascia marcado com tag inventada.
+  //
+  // O primeiro comentário voltou, agora como campo do Instagram — é onde as
+  // hashtags costumam ir, para não poluir a legenda.
+  const [firstComment, setFirstComment] = useState('');
+  const [configuracoes, setConfiguracoes] = useState<Record<string, unknown>>({});
   // Começa vazio: um conteúdo novo não tem mídia. A foto de banco que ficava
   // aqui virava a arte de todo post criado, e quem não reparasse publicava com
   // ela.
@@ -131,6 +137,8 @@ export const CreateJobModal: React.FC = () => {
       setPriority('medium');
       setStatus('ideas');
       setCaption('');
+      setFirstComment('');
+      setConfiguracoes({});
       setMediaUrls([]);
       setErro('');
     }
@@ -180,6 +188,28 @@ export const CreateJobModal: React.FC = () => {
   const clienteSelecionado = clients.find((c) => c.id === clientId) || clients[0];
 
   const formatosDoCanal = FORMATOS_POR_CANAL[platform] || FORMATOS_POR_CANAL.instagram;
+  const campos = camposVisiveis(platform, format);
+
+  /**
+   * Legenda e primeiro comentário têm coluna própria e continuam nela; o
+   * resto vive no `jsonb`. Ler e escrever pelo catálogo evita a tela precisar
+   * saber onde cada campo mora.
+   */
+  const valorDoCampo = (campo: CampoDoCanal): unknown => {
+    if (campo.destino === 'config') return configuracoes[campo.chave];
+    if (campo.chave === 'caption') return caption;
+    if (campo.chave === 'firstComment') return firstComment;
+    return '';
+  };
+
+  const definirCampo = (campo: CampoDoCanal, valor: unknown) => {
+    if (campo.destino === 'config') {
+      setConfiguracoes((atual) => ({ ...atual, [campo.chave]: valor }));
+      return;
+    }
+    if (campo.chave === 'caption') setCaption(String(valor ?? ''));
+    if (campo.chave === 'firstComment') setFirstComment(String(valor ?? ''));
+  };
 
   /**
    * `statusFinal` existe por causa do botão "Enviar para aprovação": ele é o
@@ -240,7 +270,16 @@ export const CreateJobModal: React.FC = () => {
         caption: caption.trim(),
         cta: '',
         hashtags: [],
-        firstComment: '',
+        firstComment: firstComment.trim(),
+        // Só o que a rede escolhida pede: trocar de canal no meio do cadastro
+        // deixaria para trás a configuração da rede anterior, e ela iria junto
+        // para o banco sem aparecer em tela nenhuma.
+        configuracoes: Object.fromEntries(
+          campos
+            .filter((c) => c.destino === 'config')
+            .map((c) => [c.chave, configuracoes[c.chave]])
+            .filter(([, v]) => v !== undefined && v !== '' && v !== false)
+        ),
         mediaUrls: finalMedia,
         scheduledDate: scheduledIso,
         deadlineProduction: deadlineProdIso,
@@ -261,7 +300,7 @@ export const CreateJobModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden"
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden"
       >
         {/* Sem faixa de cabeçalho: ela repetia o que o próprio formulário já
             diz e comia altura útil num modal que já rola. Sobra o fechar. */}
@@ -406,47 +445,48 @@ export const CreateJobModal: React.FC = () => {
                 mediaUrls={mediaUrls}
                 onChange={setMediaUrls}
                 maxFiles={10}
-                acoesExtras={
-                  /*
-                    Buscar a arte de onde ela já está é o próximo passo; hoje
-                    não existe. Os botões ficam visíveis e desligados, dizendo
-                    "em breve": ligados e mudos, seriam a promessa que a
-                    armadilha 9 proíbe.
-                  */
-                  <>
-                    {['Canva', 'Google Drive', 'Dropbox'].map((origem) => (
-                      <button
-                        key={origem}
-                        type="button"
-                        disabled
-                        title={`Importar do ${origem} — em breve`}
-                        className="flex items-center gap-1 px-2 h-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-[10px] font-semibold text-slate-400 cursor-not-allowed whitespace-nowrap"
-                      >
-                        <LinkIcon className="w-3 h-3 shrink-0" />
-                        {origem}
-                      </button>
-                    ))}
-                  </>
-                }
+                label="Mídia e criativos"
+                /* Buscar a arte de onde ela já está é o próximo passo; hoje
+                   não existe. Entram no menu desligadas, dizendo "em breve". */
+                origens={[
+                  { rotulo: 'Canva', disponivel: false },
+                  { rotulo: 'Google Drive', disponivel: false },
+                  { rotulo: 'Dropbox', disponivel: false },
+                ]}
               />
             </div>
           )}
 
-          {/* O texto principal: legenda no conteúdo, a própria entrega nos outros. */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              {tipo.rotuloDoTexto}
-            </label>
-            {/* Legenda de rede social é texto longo: com três linhas, escrever
-                e reler viravam rolagem dentro de um campo minúsculo. */}
-            <textarea
-              rows={tipo.pedeArte ? 10 : 12}
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder={tipo.exemploDoTexto}
-              className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
-            />
-          </div>
+          {/*
+            Os campos vêm do catálogo da rede escolhida. Em copy e roteiro a
+            entrega é o próprio texto, então ali vale o campo do tipo e não o
+            da rede — um roteiro não tem localização nem capa de Reel.
+          */}
+          {tipo.pedeArte ? (
+            <div className="space-y-4">
+              {campos.map((campo) => (
+                <CampoDinamico
+                  key={campo.chave}
+                  campo={campo}
+                  valor={valorDoCampo(campo)}
+                  onChange={(v) => definirCampo(campo, v)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                {tipo.rotuloDoTexto}
+              </label>
+              <textarea
+                rows={12}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={tipo.exemploDoTexto}
+                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
+              />
+            </div>
+          )}
 
           {erro && (
             <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
@@ -487,15 +527,16 @@ export const CreateJobModal: React.FC = () => {
         {/* Prévia: como fica na rede escolhida, com o dado deste formulário. */}
         {/* Centralizada na vertical, e com folga no topo: encostada em cima
             ela passava por baixo do botão de fechar. */}
-        <aside className="lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 pt-12 flex items-center">
+        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 pt-12 flex items-center">
           <PreviaDaRede
             className="w-full"
             dados={{
               nomeDoPerfil: clienteSelecionado?.name || '',
               avatar: clienteSelecionado?.avatar,
-              plataforma: platform,
-              arte: tipo.pedeArte ? mediaUrls[0] : undefined,
+              canais: [platform],
+              artes: tipo.pedeArte ? mediaUrls : [],
               legenda: caption,
+              localizacao: String(configuracoes.localizacao || '') || undefined,
             }}
           />
         </aside>
