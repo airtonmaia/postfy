@@ -294,6 +294,53 @@ sem essa limpeza a guarda acusaria a própria memória do bug.
 
 ---
 
+## Instagram: é o login do **Instagram**, não o do Facebook
+
+Existem dois caminhos para publicar, e escolher o errado não dá erro nenhum
+até a pessoa já ter digitado a senha:
+
+| | login do Facebook | **login do Instagram** ← o nosso |
+|---|---|---|
+| entra com | conta do Facebook | conta do Instagram |
+| exige Página | sim | não |
+| token que publica | o **da Página**, via `/me/accounts` | o da conta |
+| autorização | `www.facebook.com/.../dialog/oauth` | `www.instagram.com/oauth/authorize` |
+| troca do código | `graph.facebook.com` (query) | `api.instagram.com` (**POST form**) |
+| chamadas | `graph.facebook.com` | `graph.instagram.com` |
+| app id | o do app da Meta | **outro**, em Instagram → Configuração da API |
+
+O projeto nasceu com o primeiro implementado e o segundo configurado na
+Meta. A prova de qual é o nosso está no teste manual que passou: `/me`
+devolveu `28732739896414585` e **esse mesmo id** publicou em `/media`. No
+fluxo do Facebook, `/me` devolve o usuário do Facebook, e um POST em
+`/{id-do-facebook}/media` é recusado.
+
+Três armadilhas dentro dessa, todas com o mesmo sintoma — falha depois do
+login, com mensagem que não nomeia a causa:
+
+1. **`INSTAGRAM_APP_ID` não é `META_APP_ID`.** São apps diferentes, com ids
+   diferentes, no mesmo painel.
+2. **`pages_show_list` e `pages_read_engagement` invalidam a autorização.**
+   São escopos do fluxo do Facebook. Só `instagram_business_basic` e
+   `instagram_business_content_publish` entram.
+3. **A URL de retorno tem que bater caractere a caractere** entre o que
+   mandamos ao abrir a autorização, o que mandamos ao trocar o código e o que
+   está cadastrado no painel. `Admin → Integrações` mostra o valor exato,
+   vindo do servidor, com botão de copiar — escrito à mão na tela ele
+   envelheceria, e o valor certo depende de `APP_URL`.
+
+O token de longa duração vale **60 dias e é renovável**. `api/publicar.ts`
+renova o que vence em menos de 10 dias, em toda passada do agendador, e olha
+todas as conexões — não só as que têm item na fila, porque é justamente quem
+não publica há tempos que corre o risco. Sem isso a conta cai sozinha depois
+de dois meses, e o sintoma é a publicação agendada falhando de madrugada.
+
+Protegido por `tests/instagram.test.ts`, que varre os arquivos **depois de
+remover os comentários** — o porquê de cada host do Facebook ter saído está
+registrado neles.
+
+---
+
 ## Duas marcas, e elas não se misturam
 
 `saas_settings` (uma linha só) é a cara do **produto**: a marca do Orquesia, a
@@ -480,7 +527,7 @@ src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 
 api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServico
 api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
-api/_lib/meta.ts           Graph API da Meta
+api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 
@@ -494,10 +541,11 @@ supabase/migrations/       schema é a fonte de verdade; 13 migrações
 - **A senha `Sofia&Alice*1802` está no histórico do git** (commits `361b9db` e
   `d40757e`). Saiu do código, mas continua lá. Precisa ser rotacionada — o
   histórico não some sem reescrever a branch.
-- **Publicação nas redes depende de revisão de app na Meta** —
+- **Publicação em conta de cliente depende de revisão de app na Meta** —
   `instagram_business_basic` e `instagram_business_content_publish`, 2 a 4
-  semanas cada. Antes disso, dá para publicar na própria conta com o app em
-  modo de desenvolvimento e a conta como Instagram Tester.
+  semanas cada. Com o app em modo de desenvolvimento dá para publicar nas
+  contas adicionadas como testador do Instagram, que é como o fluxo foi
+  conferido de ponta a ponta.
 - **Os e-mails disparam do navegador**, depois de a mudança estar gravada.
   Fechar a aba no meio interrompe o envio. A correção definitiva é um gatilho
   no Postgres chamando a função; fica para quando houver volume.

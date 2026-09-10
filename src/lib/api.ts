@@ -178,6 +178,17 @@ export interface StatusDoServidor {
    * valor inválido derrubou o Portal do Cliente e esta tela seguiu verde.
    */
   chaveDeServicoValida: boolean;
+
+  /** INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET — não são os do app da Meta. */
+  instagram: boolean;
+  /** Assina o `state` do OAuth. Sem ele a conexão nem começa. */
+  estadoDoOauth: boolean;
+  /** CRON_SECRET. Sem ele o agendador leva 401 em toda passada. */
+  agendador: boolean;
+  /** R2_PUBLIC_BASE_URL. A Meta baixa a mídia da URL, então precisa ser pública. */
+  midiaPublica: boolean;
+  /** A URL de retorno que precisa estar cadastrada na Meta, igual. */
+  urlDeRetorno: string;
 }
 
 /**

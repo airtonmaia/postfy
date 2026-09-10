@@ -8,11 +8,11 @@ import {
   falharComSeguranca,
   textoValido,
 } from './_lib/auth.js';
-import { ESCOPOS_META } from './_lib/meta.js';
+import { urlDeAutorizacao } from './_lib/instagram.js';
 
 
 /**
- * Início do OAuth com a Meta.
+ * Início do OAuth com o Instagram.
  *
  * Devolve a URL para onde o navegador deve ir. Não redireciona daqui porque
  * a chamada vem de um fetch autenticado: o redirect morreria no XHR.
@@ -21,6 +21,10 @@ import { ESCOPOS_META } from './_lib/meta.js';
  * trocar o id no meio do caminho e ligar a conta de Instagram do próprio
  * perfil a uma agência alheia — que é o modo clássico de sequestrar uma
  * conexão OAuth.
+ *
+ * As credenciais são as do **app do Instagram** (Instagram → Configuração da
+ * API), que não são as do app da Meta. Ver o comentário longo em
+ * `api/_lib/instagram.ts`.
  */
 
 const SEGREDO_DO_ESTADO = () => process.env.OAUTH_STATE_SECRET || process.env.CRON_SECRET || '';
@@ -70,14 +74,17 @@ async function handler(request: Request): Promise<Response> {
   const usuario = await usuarioDaRequisicao(request);
   if (!usuario) return naoAutenticado();
 
-  const appId = process.env.META_APP_ID;
+  const appId = process.env.INSTAGRAM_APP_ID;
   const segredo = SEGREDO_DO_ESTADO();
 
-  if (!appId || !process.env.META_APP_SECRET || !segredo) {
+  if (!appId || !process.env.INSTAGRAM_APP_SECRET || !segredo) {
     return json(
       {
         error:
-          'Conexão com redes sociais não configurada. Defina META_APP_ID, META_APP_SECRET e OAUTH_STATE_SECRET.',
+          'Conexão com o Instagram não configurada. Defina INSTAGRAM_APP_ID, ' +
+          'INSTAGRAM_APP_SECRET e OAUTH_STATE_SECRET. Atenção: o app id do ' +
+          'Instagram não é o do app da Meta — ele fica em Instagram → ' +
+          'Configuração da API.',
         code: 'SOCIAL_NOT_CONFIGURED',
       },
       503
@@ -117,14 +124,14 @@ async function handler(request: Request): Promise<Response> {
     const redirectUri = `${base}/api/social-callback`;
     const estado = montarEstado(workspaceId, usuario.id, segredo);
 
-    const url =
-      `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent(ESCOPOS_META)}` +
-      `&state=${encodeURIComponent(estado)}` +
-      `&response_type=code`;
+    // `www.instagram.com/oauth/authorize`, e não o diálogo do Facebook: a
+    // conta que autoriza é a do Instagram, sem Página no caminho.
+    const url = urlDeAutorizacao(appId, redirectUri, estado);
 
-    return json({ url });
+    // A URL de redirecionamento vai junto porque ela precisa estar cadastrada
+    // **igual** na Meta, e o erro de não bater só aparece depois de a pessoa
+    // já ter digitado a senha. A tela de Integrações mostra qual é.
+    return json({ url, redirectUri });
   } catch (erro) {
     return falharComSeguranca('social/connect', erro);
   }
