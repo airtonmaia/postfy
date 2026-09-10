@@ -42,6 +42,7 @@ import { LoginView } from './components/auth/LoginView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 import { BotaoDoPortal } from './components/common/BotaoDoPortal';
+import { Avatar } from './components/common/Avatar';
 
 const CalendarApp = tela(() => import('./components/calendar/CalendarApp'), 'CalendarApp');
 const DashboardView = tela(() => import('./components/dashboard/DashboardView'), 'DashboardView');
@@ -353,7 +354,15 @@ const MainLayout: React.FC = () => {
               title="Gerenciar Sessão & Alternar Usuário"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <img src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
+                {/* Era um retrato do Unsplash como padrão: a foto de um
+                    desconhecido no lugar da pessoa, e uma dependência de rede
+                    para desenhar a barra lateral. */}
+                <Avatar
+                  nome={currentUser?.name || 'Usuário'}
+                  url={currentUser?.avatar}
+                  tamanho={32}
+                  className="border border-slate-200 dark:border-slate-700"
+                />
                 <div className="min-w-0">
                   <span className="font-bold text-slate-800 dark:text-white block truncate">{currentUser?.name || 'Usuário'}</span>
                   <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono font-bold block truncate">

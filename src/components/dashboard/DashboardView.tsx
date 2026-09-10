@@ -17,6 +17,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { PlatformBadge, StatusBadge, FormatBadge } from '../common/Badges';
+import { Avatar } from '../common/Avatar';
 
 export const DashboardView: React.FC = () => {
   const { 
@@ -338,7 +339,7 @@ export const DashboardView: React.FC = () => {
                   className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:bg-slate-950 transition text-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={client.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-800" />
+                    <Avatar nome={client.name} url={client.avatar} tamanho={32} className="border border-slate-200 dark:border-slate-800" />
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-200 block">{client.name}</span>
                       <span className="text-[11px] text-slate-400">{client.segment}</span>

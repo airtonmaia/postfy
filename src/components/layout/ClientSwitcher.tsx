@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, CheckCircle2, Users, Search, X, Building2 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
+import { Avatar } from '../common/Avatar';
 
 export const ClientSwitcher: React.FC = () => {
   const { clients, clientFilter, setClientFilter, jobs } = usePostfy();
@@ -40,17 +41,13 @@ export const ClientSwitcher: React.FC = () => {
       >
         <div className="flex items-center gap-2">
           {selectedClient ? (
-            selectedClient.avatar ? (
-              <img 
-                src={selectedClient.avatar} 
-                alt={selectedClient.name} 
-                className="w-7 h-7 rounded-lg object-cover border border-purple-300 dark:border-purple-700 shrink-0" 
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                {selectedClient.name.substring(0, 2).toUpperCase()}
-              </div>
-            )
+            <Avatar
+              nome={selectedClient.name}
+              url={selectedClient.avatar}
+              tamanho={28}
+              formato="quadrado"
+              className="border border-purple-300 dark:border-purple-700"
+            />
           ) : (
             <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
               <Users className="w-3.5 h-3.5" />
@@ -157,13 +154,7 @@ export const ClientSwitcher: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {c.avatar ? (
-                      <img src={c.avatar} alt={c.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
-                    ) : (
-                      <div className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                        {c.name.substring(0, 2).toUpperCase()}
-                      </div>
-                    )}
+                    <Avatar nome={c.name} url={c.avatar} tamanho={24} formato="quadrado" />
                     <div className="min-w-0 truncate">
                       <span className="text-xs block truncate">{c.name}</span>
                       <span className="text-[10px] text-slate-400 block truncate">{c.segment || 'Cliente'}</span>

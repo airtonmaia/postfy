@@ -13,6 +13,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { Job, Client } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 export const ListView: React.FC = () => {
   const { 
@@ -101,7 +102,7 @@ export const ListView: React.FC = () => {
                   <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <img src={client?.avatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={16} />
                         {client?.name}
                       </span>
                       <span className="text-slate-300">•</span>

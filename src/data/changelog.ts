@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.10.0',
+    data: '2026-09-10',
+    resumo: 'Seu perfil agora se edita por dentro do sistema: nome, foto e senha.',
+    novidades: [
+      'Painel da conta refeito: dá para trocar seu nome, enviar uma foto de perfil e alterar a senha sem sair do sistema. Antes o único jeito de trocar a senha era pelo "esqueci minha senha" da tela de entrada, que exige sair da conta.',
+      'A troca de senha pede a senha atual. É de propósito: sem isso, quem sentasse numa aba esquecida aberta trocaria a senha e ficaria com a conta.',
+      'Também dá para pedir a troca do e-mail de entrada. Ele só muda depois que você abrir o link de confirmação, e a tela diz isso em vez de anunciar que já trocou.',
+      'Seu nome e sua foto valem em todas as agências de que você participa. A tela avisa em quantas a mudança pegou.',
+    ],
+    corrigido: [
+      'Quem não tinha foto aparecia com um ícone de imagem quebrada no calendário, no kanban, nas aprovações e no portal. Agora aparecem as iniciais, num círculo colorido que é sempre o mesmo para a mesma pessoa.',
+      'Cliente novo nascia com a foto de um desconhecido, o e-mail "contato@cliente.com.br" e o telefone "(11) 99999-9999" — dados inventados que ficavam gravados como se fossem do cliente. Agora os campos ficam em branco.',
+      'No portal, cadastrar um material sem anexar o arquivo gravava uma foto de banco de imagens e "4,2 MB" de tamanho. A agência recebia um material que o cliente nunca enviou. Agora o envio exige o arquivo.',
+      'As últimas fotos que o sistema buscava em servidores de terceiros saíram. Nenhuma tela depende mais de um site externo para desenhar.',
+    ],
+  },
+  {
     versao: '2.9.0',
     data: '2026-09-10',
     resumo: 'A administração do Orquesia ganhou área própria em /admin, com Design, SEO e Relatórios.',

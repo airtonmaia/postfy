@@ -13,6 +13,7 @@ import {
   Search
 } from 'lucide-react';
 import { Job, JobStatus, Client } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 export const KanbanBoard: React.FC = () => {
   const { 
@@ -145,7 +146,7 @@ export const KanbanBoard: React.FC = () => {
                       {/* Top: Client & Platform & Version */}
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <img src={client?.avatar} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                          <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={16} />
                           <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate">
                             {client?.name}
                           </span>

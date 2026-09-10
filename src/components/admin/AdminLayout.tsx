@@ -20,6 +20,7 @@ import {
 
 import { usePostfy } from '../../context/PostfyContext';
 import { MarcaOrquesia } from '../common/MarcaOrquesia';
+import { Avatar } from '../common/Avatar';
 import { tela } from '../../lib/telaSobDemanda';
 import { ABA_INICIAL } from '../../lib/rotas';
 import type { TabType } from '../../types';
@@ -230,10 +231,11 @@ export const AdminLayout: React.FC = () => {
 
           <div className="flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2">
             <div className="flex-1 flex items-center gap-2.5 p-2 min-w-0">
-              <img
-                src={currentUser?.avatar || ''}
-                alt=""
-                className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-800"
+              <Avatar
+                nome={currentUser?.name || 'Usuário'}
+                url={currentUser?.avatar}
+                tamanho={32}
+                className="border border-slate-200 dark:border-slate-700"
               />
               <div className="min-w-0">
                 <span className="font-bold text-slate-800 dark:text-white block truncate text-xs">
