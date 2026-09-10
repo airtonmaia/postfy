@@ -159,7 +159,7 @@ const MainLayout: React.FC = () => {
   const todasAsAbas: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
-    { id: 'producao', label: 'Quadro Kanban', icon: Kanban },
+    { id: 'producao', label: 'WorkFlow', icon: Kanban },
     { 
       id: 'aprovacoes', 
       label: 'Aprovações', 

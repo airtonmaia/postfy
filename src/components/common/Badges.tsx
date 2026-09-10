@@ -7,11 +7,13 @@ import {
   Twitter, 
   Video, 
   Layers, 
-  Image as ImageIcon, 
-  FileText, 
-  Smartphone 
+  Image as ImageIcon,
+  FileText,
+  Smartphone,
+  PenLine,
+  Clapperboard
 } from 'lucide-react';
-import { JobPlatform, JobFormat, JobStatus, JobPriority } from '../../types';
+import { JobPlatform, JobFormat, JobStatus, JobPriority, JobTipo } from '../../types';
 
 export const PlatformBadge: React.FC<{ platform: JobPlatform; showLabel?: boolean; className?: string }> = ({ 
   platform, 
@@ -77,6 +79,40 @@ export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
   };
 
   const c = configs[format] || configs.feed;
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${c.color}`}>
+      {c.icon}
+      {c.label}
+    </span>
+  );
+};
+
+/**
+ * O que está sendo aprovado: conteúdo, copy ou roteiro.
+ *
+ * Sem este selo, um card de copy e um de arte pronta ficam idênticos no
+ * quadro — e a diferença é justamente o que o cliente vai olhar.
+ */
+export const TipoBadge: React.FC<{ tipo: JobTipo }> = ({ tipo }) => {
+  const configs: Record<JobTipo, { label: string; icon: React.ReactNode; color: string }> = {
+    conteudo: {
+      label: 'Conteúdo',
+      icon: <ImageIcon className="w-3 h-3" />,
+      color: 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800',
+    },
+    copy: {
+      label: 'Copy',
+      icon: <PenLine className="w-3 h-3" />,
+      color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800',
+    },
+    roteiro: {
+      label: 'Roteiro',
+      icon: <Clapperboard className="w-3 h-3" />,
+      color: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800',
+    },
+  };
+
+  const c = configs[tipo] || configs.conteudo;
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${c.color}`}>
       {c.icon}

@@ -175,11 +175,21 @@ export interface JobChecklistItem {
   assignedTo?: string;
 }
 
+/**
+ * O que está sendo aprovado.
+ *
+ * O cliente olha para coisas diferentes em cada um: `conteudo` tem arte
+ * pronta, `copy` e `roteiro` são texto — pedir aprovação de imagem neles
+ * seria pedir aprovação de algo que não existe.
+ */
+export type JobTipo = 'conteudo' | 'copy' | 'roteiro';
+
 export interface Job {
   id: string;
   workspaceId: string;
   clientId: string;
   title: string;
+  tipo: JobTipo;
   campaign?: string;
   platform: JobPlatform;
   format: JobFormat;
