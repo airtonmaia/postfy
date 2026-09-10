@@ -400,6 +400,42 @@ em todo o sistema" e "Exportação de relatório em PDF" — nenhum construído.
 changelog que descreve intenção é pior que não ter changelog: o cliente cobra
 o que leu. Correção conta como entrada; foi boa parte do valor entregue.
 
+### Uma linha visual só: o desenho do dashboard
+
+**Tela nova copia o desenho que já existe. Não invente nada.** Nem raio de
+canto, nem sombra, nem espaçamento, nem tamanho de fonte, nem tom de cinza.
+Se a peça que você precisa já está em tela em algum lugar, ela é a resposta —
+copie as classes.
+
+O que "o desenho do dashboard" significa, levantado por contagem no `src`:
+
+| peça | classe | onde |
+|---|---|---|
+| fundo de tela | `bg-slate-50 dark:bg-slate-950` | 175 usos |
+| superfície de card | `bg-white dark:bg-slate-900` | 200 usos |
+| borda e canto de card | `rounded-2xl border border-slate-200 dark:border-slate-800` | 87 usos |
+| respiro da tela | `p-6 md:p-8 space-y-6` | todas as telas de conteúdo |
+| barra lateral | `w-64` | casca da agência e casca do `/admin` |
+| cabeçalho | `h-14` | idem |
+| item de menu | `px-3 py-2 rounded-xl text-xs font-semibold` | idem |
+| botão primário | `bg-purple-600 hover:bg-purple-700 text-white` | 13 botões |
+
+`rounded-xl` é o canto **interno** — campo, botão, item de menu. `rounded-2xl`
+é o canto do card. Os dois convivem; um terceiro não.
+
+A regra vale para casca também: a área `/admin` tem barra lateral e cabeçalho
+próprios porque o **conteúdo** é outro, e nenhum pixel de medida foi mudado
+por isso. Foi de propósito — casca nova com medida nova faria a mesma pessoa
+achar que trocou de produto ao clicar num botão.
+
+Isto não é gosto. Cada valor solto — um `rounded-3xl` aqui, um `p-5` ali —
+custa pouco sozinho e fica; depois de vinte deles ninguém consegue mais dizer
+qual é o padrão, e cada tela nova vira uma decisão do zero. O momento de
+recusar é o primeiro.
+
+Cor nova segue a mesma regra da variante de botão: sai do que já está em tela,
+levantado por contagem. Nunca inventada.
+
 ### Interface: shadcn/ui na estrutura, cores do projeto
 
 `src/components/ui/button.tsx` segue o formato do shadcn — cva + Slot +
