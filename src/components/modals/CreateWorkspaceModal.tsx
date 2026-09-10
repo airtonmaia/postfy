@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Building2, Sparkles, X, Check, ShieldCheck } from 'lucide-react';
+import { Building2, Sparkles, X, Check, ShieldCheck, Link2} from 'lucide-react';
+import { gerarSlug } from '../../lib/slug';
 import { usePostfy } from '../../context/PostfyContext';
 
 const COLOR_PRESETS = [
@@ -81,6 +82,20 @@ export const CreateWorkspaceModal: React.FC = () => {
               required
               autoFocus
             />
+
+            {/* Mesma prévia da tela de cadastro: o endereço do portal sai do
+                nome, e quem cria precisa ver isso antes de gravar. */}
+            {name.trim() && (
+              <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
+                <Link2 className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" />
+                <span>
+                  Portal dos clientes:{' '}
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    /portal-do-cliente?agencia={gerarSlug(name)}
+                  </span>
+                </span>
+              </p>
+            )}
           </div>
 
           <div>

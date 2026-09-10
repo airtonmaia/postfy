@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { MarcaOrquesia } from '../common/MarcaOrquesia';
+import { gerarSlug } from '../../lib/slug';
 import { usePostfy } from '../../context/PostfyContext';
 import { Role, User } from '../../types';
 import { 
@@ -14,8 +16,7 @@ import {
   Zap, 
   Eye, 
   EyeOff,
-  LayoutDashboard
-} from 'lucide-react';
+  LayoutDashboard, Link2} from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login, register, recuperarSenha, currentWorkspace } = usePostfy();
@@ -35,9 +36,6 @@ export const LoginView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Standard Orquesia Logo URL from user request
-  const orquesiaLogo = 'https://i.pinimg.com/736x/dd/6e/b3/dd6eb385dafdfd1cce83c084d0021670.jpg';
 
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,8 +128,13 @@ export const LoginView: React.FC = () => {
       {/* Left Side: Full Screen Hero Banner with Antelope Canyon Image */}
       <div className="lg:col-span-5 hidden lg:flex relative bg-slate-900 h-full flex-col justify-end p-10 lg:p-14 text-white overflow-hidden shadow-2xl">
         <img 
-          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80" 
-          alt="Orquesia Background" 
+          /* Era um link do Unsplash. A primeira tela do produto não deveria
+             depender de um servidor de terceiro que pode cair, trocar a
+             imagem ou ficar lento — e a foto já está no repositório, servida
+             do mesmo domínio. */
+          src="/portal-hero.jpg"
+          alt="" 
+          aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center opacity-90 transition duration-700 hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
@@ -158,9 +161,7 @@ export const LoginView: React.FC = () => {
         {/* Brand Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 p-1.5 flex items-center justify-center shadow-sm shrink-0">
-              <img src={orquesiaLogo} alt="Orquesia Logo" className="max-w-full max-h-full object-contain rounded-xl" />
-            </div>
+            <MarcaOrquesia tamanho={44} className="shrink-0" />
             <div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900">
                 Orquesia
@@ -333,6 +334,24 @@ export const LoginView: React.FC = () => {
                   placeholder="Ex: Agência Orquesia Creative"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
                 />
+
+                {/* O endereço do portal aparece enquanto se digita.
+                    
+                    Não é enfeite: é por este endereço que o cliente da agência
+                    entra, e ele sai do nome — quem cadastra precisa ver que
+                    "Ação & Cia" vira `acao-cia` antes de gravar, não depois de
+                    já ter mandado o link para o cliente. */}
+                {regAgency.trim() && (
+                  <p className="mt-1.5 text-[11px] text-slate-500 flex items-start gap-1.5">
+                    <Link2 className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" />
+                    <span>
+                      Portal dos seus clientes:{' '}
+                      <span className="font-mono font-bold text-indigo-600">
+                        /portal-do-cliente?agencia={gerarSlug(regAgency)}
+                      </span>
+                    </span>
+                  </p>
+                )}
               </div>
 
               <div>
