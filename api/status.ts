@@ -100,6 +100,24 @@ async function handler(request: Request): Promise<Response> {
     armazenamento,
     armazenamentoPublico: armazenamento && temTodas('R2_PUBLIC_BASE_URL'),
     email: temTodas('RESEND_API_KEY'),
+
+    // Instagram. Quatro respostas em vez de uma porque cada falta se resolve
+    // de um jeito diferente, e uma delas não é óbvia: o app id do Instagram
+    // não é o do app da Meta.
+    instagram: temTodas('INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'),
+    // Assina o `state` do OAuth. Sem ele a conexão nem começa.
+    estadoDoOauth: temTodas('OAUTH_STATE_SECRET') || temTodas('CRON_SECRET'),
+    // Protege /api/publicar. Sem ele o agendador roda e leva 401 em todas as
+    // passadas — foi o que aconteceu: publicação agendada nunca disparou.
+    agendador: temTodas('CRON_SECRET'),
+    // A Meta **baixa** a mídia da URL informada. Sem domínio público no R2,
+    // a publicação falha mesmo com tudo o mais certo.
+    midiaPublica: temTodas('R2_PUBLIC_BASE_URL'),
+
+    // A URL que precisa estar cadastrada na Meta, igual. É montada do mesmo
+    // jeito por social-connect e social-callback; divergir num caractere faz
+    // a autorização falhar só depois de a pessoa digitar a senha.
+    urlDeRetorno: `${(process.env.APP_URL || 'https://app.orquesia.com.br').replace(/\/+$/, '')}/api/social-callback`,
   });
 }
 

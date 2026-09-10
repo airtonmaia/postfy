@@ -1,6 +1,6 @@
 import { clienteDeServico, json } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
-import { publicarNoInstagram, ErroDaMeta } from './_lib/meta.js';
+import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.js';
 
 
 /**
@@ -45,6 +45,10 @@ async function handler(request: Request): Promise<Response> {
 
   const agora = new Date().toISOString();
 
+  // Renovar vem antes de publicar, e não depois: um token vencido faz a
+  // publicação falhar, gastar tentativa e só então alguém descobrir.
+  const renovadas = await renovarTokensQuePodemVencer(supabase);
+
   const { data: itens, error } = await supabase
     .from('publish_queue')
     .select('id, job_id, connection_id, attempts, workspace_id')
@@ -59,7 +63,7 @@ async function handler(request: Request): Promise<Response> {
   }
 
   if (!itens || itens.length === 0) {
-    return json({ processados: 0 });
+    return json({ processados: 0, renovadas });
   }
 
   const resultados: { id: string; ok: boolean; detalhe: string }[] = [];
@@ -116,8 +120,78 @@ async function handler(request: Request): Promise<Response> {
     processados: resultados.length,
     publicados: resultados.filter((r) => r.ok).length,
     falhas: resultados.filter((r) => !r.ok).length,
+    renovadas,
   });
 }
+
+/**
+ * Mantém as conexões vivas.
+ *
+ * O token do Instagram vale 60 dias. Sem renovar, a conexão de uma agência
+ * que ficou dois meses sem publicar simplesmente para de funcionar — e o
+ * sintoma é a publicação agendada falhando de madrugada, não um aviso.
+ *
+ * Roda em toda passada do agendador e olha **todas** as conexões, não só as
+ * que têm item na fila: é justamente quem não publica há tempos que corre o
+ * risco. A Meta só renova token com mais de 24 horas, e a margem de 10 dias
+ * dá quase duas semanas de tentativas antes de a conta cair.
+ */
+const MARGEM_DE_RENOVACAO_MS = 10 * 24 * 60 * 60_000;
+
+const renovarTokensQuePodemVencer = async (supabase: any): Promise<number> => {
+  const limite = new Date(Date.now() + MARGEM_DE_RENOVACAO_MS).toISOString();
+
+  const { data: conexoes, error } = await supabase
+    .from('social_connections')
+    .select('id, account_name')
+    .eq('platform', 'instagram')
+    .not('expires_at', 'is', null)
+    .lte('expires_at', limite)
+    .limit(LOTE);
+
+  if (error || !conexoes?.length) return 0;
+
+  let renovadas = 0;
+  for (const conexao of conexoes) {
+    try {
+      const { data: guardado } = await supabase
+        .from('social_tokens')
+        .select('access_token')
+        .eq('connection_id', conexao.id)
+        .maybeSingle();
+
+      if (!guardado?.access_token) continue;
+
+      const { token, expiraEm } = await renovarToken(guardado.access_token);
+
+      await supabase
+        .from('social_tokens')
+        .update({ access_token: token, updated_at: new Date().toISOString() })
+        .eq('connection_id', conexao.id);
+
+      await supabase
+        .from('social_connections')
+        .update({
+          expires_at: expiraEm
+            ? new Date(Date.now() + expiraEm * 1000).toISOString()
+            : null,
+        })
+        .eq('id', conexao.id);
+
+      renovadas++;
+    } catch (erro) {
+      // Uma conexão que não renova não pode derrubar a passada inteira: as
+      // outras ainda têm publicação para fazer. O `expires_at` continua
+      // vencendo, e a tela de Integrações mostra isso.
+      console.error(
+        '[publicar] renovação',
+        conexao.account_name,
+        erro instanceof Error ? erro.message : erro
+      );
+    }
+  }
+  return renovadas;
+};
 
 const publicarItem = async (supabase: any, item: any): Promise<string> => {
   const { data: conexao } = await supabase

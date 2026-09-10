@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.10.0',
+    data: '2026-09-10',
+    resumo: 'A conexão com o Instagram passou a usar o fluxo certo — o mesmo que funcionou no teste manual.',
+    novidades: [
+      'Conectar o Instagram agora é pela conta do Instagram, sem precisar de uma página do Facebook no meio. A agência entra com a conta do cliente e pronto.',
+      'Admin → Integrações ganhou um bloco do Instagram: mostra a URL de redirecionamento exata para colar na Meta, com botão de copiar, quais permissões o sistema pede e quais credenciais já estão no servidor.',
+      'A conexão se mantém sozinha: o acesso que o Instagram concede vale 60 dias, e o sistema renova antes de vencer. Antes, uma conta que ficasse dois meses sem publicar simplesmente parava de funcionar.',
+    ],
+    corrigido: [
+      'A conexão com o Instagram estava montada para o fluxo do login do Facebook, enquanto o aplicativo na Meta está configurado para o login do Instagram. Na prática a autorização abria, pedia a senha e falhava no fim, sem dizer o motivo.',
+      'O sistema pedia duas permissões de página do Facebook que fazem a tela de autorização do Instagram recusar o acesso.',
+      'A página de retorno da autorização estava declarada como se recebesse um envio de formulário, e não uma visita do navegador — o que podia deixar a conexão sem resposta.',
+      'Conexão gravada sem a credencial agora é desfeita na hora, com aviso. Antes ela ficava na lista parecendo conectada e só falhava na hora de publicar.',
+    ],
+  },
+  {
     versao: '2.9.0',
     data: '2026-09-10',
     resumo: 'A administração do Orquesia ganhou área própria em /admin, com Design, SEO e Relatórios.',

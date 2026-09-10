@@ -1,11 +1,14 @@
 import { clienteDeServico } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { conferirEstado } from './social-connect.js';
-import { trocarCodigoPorToken, contasDoUsuario } from './_lib/meta.js';
+import {
+  trocarCodigoPorToken,
+  contaDoToken,
+} from './_lib/instagram.js';
 
 
 /**
- * Retorno do OAuth da Meta.
+ * Retorno do OAuth do Instagram.
  *
  * Quem chega aqui é o navegador, vindo do site da Meta — sem token do
  * Supabase no header, porque é uma navegação e não um fetch. Por isso a
@@ -52,11 +55,11 @@ async function handler(request: Request): Promise<Response> {
   }
 
   const segredo = process.env.OAUTH_STATE_SECRET || process.env.CRON_SECRET || '';
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
+  const appId = process.env.INSTAGRAM_APP_ID;
+  const appSecret = process.env.INSTAGRAM_APP_SECRET;
 
   if (!segredo || !appId || !appSecret) {
-    return paginaDeRetorno('Conexão com redes sociais não configurada no servidor.', true);
+    return paginaDeRetorno('Conexão com o Instagram não configurada no servidor.', true);
   }
 
   const dados = conferirEstado(estado, segredo);
@@ -72,55 +75,65 @@ async function handler(request: Request): Promise<Response> {
 
   try {
     const base = process.env.APP_URL || 'https://app.orquesia.com.br';
-    const { token } = await trocarCodigoPorToken(
+    // A mesma string que `social-connect` mandou para a Meta. Se as duas
+    // divergirem em um caractere, a troca do código é recusada aqui.
+    const { token, expiraEm } = await trocarCodigoPorToken(
       codigo,
       `${base}/api/social-callback`,
       appId,
       appSecret
     );
 
-    const contas = await contasDoUsuario(token);
-    if (contas.length === 0) {
-      return paginaDeRetorno(
-        'Nenhuma conta profissional do Instagram encontrada. ' +
-          'A conta precisa ser Profissional e estar ligada a uma página do Facebook.',
-        true
-      );
-    }
+    // Uma conta por autorização: no login do Instagram é a conta que entrou,
+    // e não uma lista de Páginas como era no fluxo do Facebook.
+    const conta = await contaDoToken(token);
 
-    for (const conta of contas) {
-      const { data: conexao, error } = await supabase
-        .from('social_connections')
-        .upsert(
-          {
-            workspace_id: dados.workspaceId,
-            platform: 'instagram',
-            account_id: conta.accountId,
-            account_name: conta.accountName,
-            created_by: dados.userId,
-          },
-          { onConflict: 'workspace_id,platform,account_id' }
-        )
-        .select('id')
-        .single();
+    // 60 dias, e renovável — `api/publicar.ts` renova antes de vencer. Fica
+    // em `social_connections` porque é o que a tela mostra; o token, esse
+    // continua na tabela que sessão nenhuma alcança.
+    const expiraEmIso = expiraEm
+      ? new Date(Date.now() + expiraEm * 1000).toISOString()
+      : null;
 
-      if (error || !conexao) {
-        console.error('[social/callback] conexão', error?.message);
-        continue;
-      }
-
-      await supabase.from('social_tokens').upsert(
+    const { data: conexao, error } = await supabase
+      .from('social_connections')
+      .upsert(
         {
-          connection_id: conexao.id,
-          access_token: conta.accessToken,
-          updated_at: new Date().toISOString(),
+          workspace_id: dados.workspaceId,
+          platform: 'instagram',
+          account_id: conta.accountId,
+          account_name: conta.accountName,
+          expires_at: expiraEmIso,
+          created_by: dados.userId,
         },
-        { onConflict: 'connection_id' }
-      );
+        { onConflict: 'workspace_id,platform,account_id' }
+      )
+      .select('id')
+      .single();
+
+    if (error || !conexao) {
+      console.error('[social/callback] conexão', error?.message);
+      return paginaDeRetorno('Não foi possível guardar a conexão.', true);
     }
 
-    const nomes = contas.map((c) => c.accountName).join(', ');
-    return paginaDeRetorno(`Conta conectada: ${nomes}`, false);
+    const { error: erroToken } = await supabase.from('social_tokens').upsert(
+      {
+        connection_id: conexao.id,
+        access_token: token,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'connection_id' }
+    );
+
+    if (erroToken) {
+      // Conexão sem token publica nada e não diz por quê. Melhor falhar aqui,
+      // com a pessoa ainda olhando a tela.
+      console.error('[social/callback] token', erroToken.message);
+      await supabase.from('social_connections').delete().eq('id', conexao.id);
+      return paginaDeRetorno('Não foi possível guardar a credencial da conta.', true);
+    }
+
+    return paginaDeRetorno(`Conta conectada: @${conta.accountName}`, false);
   } catch (erro) {
     console.error('[social/callback]', erro instanceof Error ? erro.message : erro);
     return paginaDeRetorno('Não foi possível concluir a conexão.', true);
@@ -128,16 +141,16 @@ async function handler(request: Request): Promise<Response> {
 }
 
 /**
- * GET porque quem chama é o navegador voltando do site da Meta.
- *
- * Export nomeado, sem default: ver o comentário longo em api/upload-url.ts.
- */
-
-/**
  * Handler no formato Web, exportado para os testes chamarem direto.
+ *
+ * `GET`, e não `POST`: quem chega aqui é o navegador voltando do site do
+ * Instagram, que faz uma navegação. O export nomeado dizia `POST` e
+ * contradizia o próprio comentário — nos builders que decidem pelo método
+ * nomeado, a navegação não casaria com handler nenhum.
+ *
  * O que a Vercel executa é o default abaixo.
  */
-export const POST = handler;
+export const GET = handler;
 
 /**
  * Default no formato (req, res), que toda versão do builder da Vercel
