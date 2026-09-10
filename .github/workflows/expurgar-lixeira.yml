@@ -1,0 +1,44 @@
+# Expurgo diário da lixeira de agências.
+#
+# Como em publicar.yml, o cron da Vercel não serve: contas Hobby só aceitam
+# agendamento diário, e este aqui É diário, então não haveria problema — mas
+# manter os dois agendadores no mesmo lugar (GitHub) evita que um dependa do
+# plano da Vercel e o outro não.
+#
+# Uma agência sai da lixeira sozinha só de duas formas: alguém restaura, ou
+# passam sete dias e este workflow apaga de vez — arquivos no R2 e a linha no
+# banco, que leva junto tudo que referencia aquela agência.
+name: Expurgar lixeira de agências
+
+on:
+  schedule:
+    # 03:15 UTC — de madrugada no Brasil, fora do horário de quem trabalha.
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+# Duas execuções simultâneas tentariam apagar a mesma agência duas vezes. A
+# rota já lida bem com isso (a segunda não encontra a linha), mas evitar a
+# corrida é mais barato que resolvê-la.
+concurrency:
+  group: expurgar-lixeira
+  cancel-in-progress: false
+
+jobs:
+  expurgar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o expurgo
+        env:
+          APP_URL: ${{ secrets.APP_URL || 'https://app.orquesia.com.br' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET não configurado nos segredos do repositório."
+            echo "A rota recusa a chamada sem ele, então não há o que fazer."
+            exit 1
+          fi
+
+          curl --silent --show-error --fail-with-body \
+               --max-time 120 \
+               --header "Authorization: Bearer $CRON_SECRET" \
+               "$APP_URL/api/expurgar-lixeira"

@@ -57,6 +57,17 @@ export interface Workspace {
   timezone: string;
   isTrial?: boolean;
   trialEndsAt?: string;
+  /**
+   * Quando a agência foi para a lixeira. `null` = ativa.
+   *
+   * Só de leitura no cliente: quem escreve são as RPCs
+   * `mover_agencia_para_lixeira` e `restaurar_agencia`, porque o admin da
+   * plataforma precisa fazer isso sem ser membro da agência — e a RLS de
+   * update em `workspaces` exige ser owner/admin dela. Por isso o campo não
+   * aparece em `workspaceParaLinha`.
+   */
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 }
 
 export interface ClientContact {

@@ -136,3 +136,21 @@ export const excedeuLimite = (chave: string, max: number, janelaMs: number): boo
   janelas.set(chave, marcas);
   return false;
 };
+
+/**
+ * Confere o segredo do cron, compartilhado por `api/publicar.ts` e
+ * `api/expurgar-lixeira.ts` — as duas rotas chamadas pelo agendador do
+ * GitHub, sem sessão de usuário nenhuma.
+ *
+ * Extraído para as duas nunca divergirem sobre o que "autorizado" significa.
+ * Antes de existir esta função, cada rota reimplementava a comparação — bug
+ * fácil de introduzir seria uma delas aceitar segredo vazio, e a outra não.
+ */
+export const autorizadoPeloCron = (request: Request): boolean => {
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado) return false;
+
+  // A Vercel/GitHub manda o segredo no Authorization ao chamar um cron.
+  const header = request.headers.get('authorization') || '';
+  return header === `Bearer ${esperado}`;
+};

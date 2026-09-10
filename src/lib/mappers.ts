@@ -51,6 +51,8 @@ export const workspaceDaLinha = (l: Linha): Workspace => ({
   timezone: l.timezone ?? 'America/Sao_Paulo',
   isTrial: ounull(l.is_trial),
   trialEndsAt: ounull(l.trial_ends_at),
+  deletedAt: ounull(l.deleted_at),
+  deletedBy: ounull(l.deleted_by),
 });
 
 export const workspaceParaLinha = (w: Partial<Workspace>): Linha =>

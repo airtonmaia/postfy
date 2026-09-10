@@ -154,6 +154,35 @@ export const atualizarWorkspace = async (
   return workspaceDaLinha(data);
 };
 
+/**
+ * Move a agência para a lixeira. Devolve quando ela entrou lá.
+ *
+ * Não apaga nada agora: a linha continua no banco por 7 dias, e
+ * `api/expurgar-lixeira.ts` é quem apaga de vez depois disso.
+ *
+ * Por RPC, e não por `update` direto: o admin da plataforma precisa poder
+ * fazer isso em agência da qual **não é membro**, e a política de update em
+ * `workspaces` exige ser owner/admin dela. Foi esse descasamento que deixou
+ * o botão antigo de "Excluir Agência" mudo — ele removia o vínculo de quem
+ * clicava, e o admin não tinha vínculo nenhum ali.
+ */
+export const moverAgenciaParaLixeira = async (workspaceId: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('mover_agencia_para_lixeira', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) throw traduzirErro(error);
+  return (data as { deleted_at: string } | null)?.deleted_at ?? new Date().toISOString();
+};
+
+/** Tira da lixeira. `false` quando ela já não estava lá. */
+export const restaurarAgencia = async (workspaceId: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('restaurar_agencia', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) throw traduzirErro(error);
+  return Boolean(data);
+};
+
 export interface MembroDaAgencia {
   userId: string;
   workspaceId: string;
