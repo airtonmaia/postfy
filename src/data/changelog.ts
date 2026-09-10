@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.8.0',
+    data: '2026-09-10',
+    resumo: 'O cadastro da agência mostra o endereço do portal enquanto você digita o nome.',
+    novidades: [
+      'Ao criar uma agência, o endereço do portal aparece embaixo do nome: "Ação & Cia" vira /portal-do-cliente?agencia=acao-cia. É por ele que o seu cliente entra, e agora dá para ver antes de gravar.',
+    ],
+    corrigido: [
+      'A tela de cadastro mostrava uma foto qualquer no lugar da marca do Orquesia — era um link do Pinterest, endereço de terceiro que pode sumir ou trocar de conteúdo. Agora a marca é desenhada pelo próprio sistema.',
+      'A imagem de fundo da tela de entrada também vinha de fora. Passou a ser servida junto com o sistema, e a tela deixa de depender de um servidor que não é nosso.',
+    ],
+  },
+  {
     versao: '2.7.2',
     data: '2026-09-09',
     resumo: 'O botão do Portal do Cliente some da barra lateral: corrigido.',
