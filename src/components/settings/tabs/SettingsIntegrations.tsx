@@ -9,7 +9,7 @@ import { ConexoesSociais } from '../../publications/ConexoesSociais';
  * IA, credenciais do R2, chave do Resend. Não é assunto de quem usa: são
  * variáveis de ambiente que o dono do SaaS controla, iguais para toda a base,
  * e ver "requer configuração" ali só gerava dúvida sobre algo que a agência
- * não pode resolver. Isso foi para o Super Admin.
+ * não pode resolver. Isso foi para a área /admin.
  *
  * O que sobra aqui é o que de fato pertence à agência: autorizar a conta de
  * Instagram do cliente para agendar, buscar mídia do Drive dele. São conexões

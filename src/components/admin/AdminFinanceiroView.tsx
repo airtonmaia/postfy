@@ -34,7 +34,7 @@ const formatarData = (iso?: string | null): string => {
     : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-export const SaasFinancialView: React.FC = () => {
+export const AdminFinanceiroView: React.FC = () => {
   const { workspaces } = usePostfy();
 
   const total = workspaces.length;
@@ -49,9 +49,9 @@ export const SaasFinancialView: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full">
-            Super Admin SaaS
+            Financeiro
           </span>
-          <span className="text-xs text-slate-400">• Painel Financeiro</span>
+          <span className="text-xs text-slate-400">• Situação das agências</span>
         </div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Financeiro & Faturamento do SaaS

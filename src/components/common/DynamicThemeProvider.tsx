@@ -35,10 +35,19 @@ function adjustHexBrightness(hex: string, percent: number): string {
 }
 
 export const DynamicThemeProvider: React.FC = () => {
-  const { currentWorkspace } = usePostfy();
+  const { currentWorkspace, aparencia } = usePostfy();
 
-  const primary = currentWorkspace?.primaryColor || '#9333ea';
-  const secondary = currentWorkspace?.secondaryColor || '#ea580c';
+  /**
+   * A agência sobrepõe o produto, e não o contrário.
+   *
+   * Dentro de uma agência quem pinta é o whitelabel dela — é para isso que
+   * ele existe, e o cliente dela é quem vê aquela tela. A paleta do Orquesia
+   * vale onde não há agência aberta: entrada, cadastro, porta do portal e a
+   * área de administração. Antes o fallback era um roxo literal aqui, que
+   * ninguém conseguia trocar sem deploy.
+   */
+  const primary = currentWorkspace?.primaryColor || aparencia.corPrimaria;
+  const secondary = currentWorkspace?.secondaryColor || aparencia.corSecundaria;
 
   useEffect(() => {
     const hoverPrimary = adjustHexBrightness(primary, -12);

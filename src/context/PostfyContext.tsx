@@ -41,6 +41,11 @@ import {
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
+import {
+  carregarAparencia,
+  APARENCIA_PADRAO,
+  type AparenciaDoSaas,
+} from '../lib/aparencia';
 import { carregarPreferencias, salvarPreferencias } from '../lib/preferencias';
 import { dispararAutomacoes, EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../lib/automacoes';
 import { identificar, encerrarIdentificacao, registrar } from '../lib/analytics';
@@ -212,6 +217,17 @@ interface PostfyContextType {
   generateAiCopy: (params: { theme: string; format?: string; platform?: string; clientId?: string; additionalNotes?: string }) => Promise<{ caption: string; hook: string; cta: string; hashtags: string[]; reelsScript?: string }>;
   convertFeedbackToTasks: (params: { clientFeedback: string; jobTitle: string; currentCopy?: string }) => Promise<{ summary: string; checklist: { item: string; role: 'designer' | 'copywriter' }[] }>;
   generateEditorialIdeas: (clientId: string) => Promise<{ ideas: { title: string; format: string; hook: string; rationale: string }[] }>;
+
+  /**
+   * A cara do produto: marca, paleta, banners e textos das telas públicas.
+   *
+   * Vem do banco por uma função anônima, então já está aqui antes de existir
+   * sessão — é o que a tela de entrada e a porta do portal precisam. Enquanto
+   * a resposta não chega, e se ela não chegar, vale `APARENCIA_PADRAO`:
+   * ninguém deixa de entrar no sistema porque a cor não carregou.
+   */
+  aparencia: AparenciaDoSaas;
+  recarregarAparencia: () => Promise<void>;
 
   // Supabase
   isPlatformAdmin: boolean;
@@ -411,6 +427,19 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * navegador, as telas abririam vazias em vez de vazar.
    */
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  // Aparência do produto. Não depende de sessão de propósito: a tela de
+  // entrada e a porta do portal são anônimas, e são justamente as duas que
+  // mais dependem dela.
+  const [aparencia, setAparencia] = useState<AparenciaDoSaas>(APARENCIA_PADRAO);
+
+  const recarregarAparencia = useCallback(async () => {
+    setAparencia(await carregarAparencia());
+  }, []);
+
+  useEffect(() => {
+    void recarregarAparencia();
+  }, [recarregarAparencia]);
 
   const aplicarSessao = (sessao: SessaoDoApp | null) => {
     if (!sessao) {
@@ -2052,6 +2081,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         generateAiCopy,
         convertFeedbackToTasks,
         generateEditorialIdeas,
+        aparencia,
+        recarregarAparencia,
         isPlatformAdmin,
         isSupabaseConnected,
         syncWithSupabase,

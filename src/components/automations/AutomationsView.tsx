@@ -146,7 +146,7 @@ export const AutomationsView: React.FC = () => {
               </select>
               {acao === 'email' && (
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-                  O texto é o configurado em Super Admin → E-mails do Sistema.
+                  O texto é o configurado em Admin → E-mails do Sistema.
                 </p>
               )}
             </div>

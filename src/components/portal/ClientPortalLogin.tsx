@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { portalApi } from '../../lib/api';
 import { ShieldCheck, X, FileText } from 'lucide-react';
 import { Workspace } from '../../types';
+import { usePostfy } from '../../context/PostfyContext';
 
 interface ClientPortalLoginProps {
   workspace: Workspace;
@@ -23,20 +24,24 @@ interface ClientPortalLoginProps {
  * verificador de "fulano é cliente de alguma agência daqui?".
  */
 /**
- * Arte do painel direito.
+ * Arte do painel direito, quando Admin → Design não definiu nenhuma.
  *
  * Fica em `public/`, e não importada pelo bundler, de propósito: é conteúdo
  * de marca que muda sem envolver deploy de código — trocar o arquivo basta.
  * O caminho é absoluto porque o portal também abre em `/portal-do-cliente`,
  * e um caminho relativo procuraria a imagem dentro dessa pasta.
  */
-const IMAGEM_DO_PORTAL = '/portal-hero.jpg';
+const IMAGEM_PADRAO_DO_PORTAL = '/portal-hero.jpg';
 
 export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
   workspace,
   onLoginSuccess,
   prefilledEmail = ''
 }) => {
+  // A marca da tela é da agência — o portal é whitelabel. O que vem daqui é
+  // do produto: a arte de fundo e a frase, iguais para todas as agências.
+  const { aparencia } = usePostfy();
+
   const [passo, setPasso] = useState<'email' | 'codigo'>('email');
   const [email, setEmail] = useState(prefilledEmail);
   const [codigo, setCodigo] = useState('');
@@ -252,7 +257,7 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
           entrar, não ver a imagem. */}
       <div className="hidden lg:block relative flex-1 overflow-hidden border-l border-slate-200/60 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
         <img
-          src={IMAGEM_DO_PORTAL}
+          src={aparencia.bannerPortalUrl || IMAGEM_PADRAO_DO_PORTAL}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
@@ -269,9 +274,16 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
             dentro dela sem este escurecimento. */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent" />
 
-        <p className="absolute bottom-8 left-10 right-10 text-sm font-semibold text-white/95 drop-shadow-sm">
-          Aprove o conteúdo da sua agência sem trocar uma mensagem sequer.
-        </p>
+        <div className="absolute bottom-8 left-10 right-10 space-y-1">
+          <p className="text-sm font-semibold text-white/95 drop-shadow-sm">
+            {aparencia.tituloPortal || 'Aprove o conteúdo da sua agência sem trocar uma mensagem sequer.'}
+          </p>
+          {aparencia.subtituloPortal && (
+            <p className="text-xs text-white/80 drop-shadow-sm leading-relaxed">
+              {aparencia.subtituloPortal}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Privacy Policy Modal */}

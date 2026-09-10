@@ -5,6 +5,21 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/robots.txt",
+      "destination": "/api/seo"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Twitterbot|twitterbot|LinkedInBot|linkedinbot|WhatsApp|whatsapp|Slackbot|slackbot|TelegramBot|telegrambot|Discordbot|discordbot|Pinterest|pinterest|redditbot|Applebot|applebot|BingPreview|bingpreview|Embedly|embedly|SkypeUriPreview|W3C_Validator|Bitlybot|bitlybot).*"
+        }
+      ],
+      "destination": "/api/seo"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

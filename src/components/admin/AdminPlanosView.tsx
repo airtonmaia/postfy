@@ -17,7 +17,7 @@ interface Plan {
   badge?: string;
 }
 
-export const SaasPlansView: React.FC = () => {
+export const AdminPlanosView: React.FC = () => {
   const { currentWorkspace } = usePostfy();
   // Planos persistidos no servidor. Antes viviam num useState local e
   // qualquer edição sumia no recarregamento da página.
@@ -133,9 +133,9 @@ export const SaasPlansView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">
-              Super Admin SaaS
+              Planos
             </span>
-            <span className="text-xs text-slate-400">• Gerenciamento de Planos</span>
+            <span className="text-xs text-slate-400">• O que cada agência contrata</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Planos & Assinaturas do SaaS

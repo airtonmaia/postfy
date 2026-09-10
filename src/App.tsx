@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { PostfyProvider, usePostfy } from './context/PostfyContext';
 import { safeTimeFormat } from './lib/utils';
 import { 
@@ -43,26 +43,6 @@ import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 import { BotaoDoPortal } from './components/common/BotaoDoPortal';
 
-/**
- * Views carregadas sob demanda (code splitting): cada tela vira um chunk
- * próprio, então abrir o login não baixa mais relatórios, gráficos e PDF.
- *
- * `comRetentativaDeDeploy` cobre o chunk que some no meio do caminho: quando
- * sai um deploy, os arquivos ganham hash novo e os antigos deixam de existir,
- * mas a aba aberta continua pedindo os de antes. Sem isso a aplicação caía
- * inteira em "Failed to fetch dynamically imported module" na primeira tela
- * que ainda não tinha sido aberta.
- */
-const tela = <T extends Record<string, unknown>>(
-  carregar: () => Promise<T>,
-  nome: keyof T
-) =>
-  lazy(() =>
-    comRetentativaDeDeploy(carregar).then((m) => ({
-      default: m[nome] as React.ComponentType<Record<string, never>>,
-    }))
-  );
-
 const CalendarApp = tela(() => import('./components/calendar/CalendarApp'), 'CalendarApp');
 const DashboardView = tela(() => import('./components/dashboard/DashboardView'), 'DashboardView');
 const KanbanBoard = tela(() => import('./components/kanban/KanbanBoard'), 'KanbanBoard');
@@ -74,12 +54,13 @@ const ReportsView = tela(() => import('./components/reports/ReportsView'), 'Repo
 const AutomationsView = tela(() => import('./components/automations/AutomationsView'), 'AutomationsView');
 const SettingsView = tela(() => import('./components/settings/SettingsView'), 'SettingsView');
 const ClientPortalView = tela(() => import('./components/portal/ClientPortalView'), 'ClientPortalView');
-const SaasPlansView = tela(() => import('./components/saas/SaasPlansView'), 'SaasPlansView');
-const SaasFinancialView = tela(() => import('./components/saas/SaasFinancialView'), 'SaasFinancialView');
-const SaasAgenciesView = tela(() => import('./components/saas/SaasAgenciesView'), 'SaasAgenciesView');
-const SaasEmailsView = tela(() => import('./components/saas/SaasEmailsView'), 'SaasEmailsView');
-const SaasIntegrationsView = tela(() => import('./components/saas/SaasIntegrationsView'), 'SaasIntegrationsView');
-const SaasUsersView = tela(() => import('./components/saas/SaasUsersView'), 'SaasUsersView');
+
+/**
+ * A área do dono do produto tem casca própria: barra lateral, cabeçalho e
+ * menus diferentes. Vem inteira num chunk só, que quem não é admin da
+ * plataforma nunca baixa.
+ */
+const AdminLayout = tela(() => import('./components/admin/AdminLayout'), 'AdminLayout');
 
 const CarregandoTela: React.FC = () => (
   <div className="flex-1 flex items-center justify-center p-8">
@@ -91,9 +72,12 @@ import { podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
+import { SeoDoSaas } from './components/common/SeoDoSaas';
 import { VersaoDoApp } from './components/common/VersaoDoApp';
 import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
-import { comRetentativaDeDeploy, marcarCargaBemSucedida } from './lib/atualizacao';
+import { marcarCargaBemSucedida } from './lib/atualizacao';
+import { tela } from './lib/telaSobDemanda';
+import { ehAbaDeAdmin } from './lib/rotas';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -125,17 +109,9 @@ const MainLayout: React.FC = () => {
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [saasAberto, setSaasAberto] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-
-  // Abre o submenu quando já se está numa tela do SaaS: recolhido, ele
-  // esconderia onde a pessoa está. Fica antes das saídas antecipadas porque
-  // hook não pode vir depois de return condicional.
-  useEffect(() => {
-    if (String(activeTab).startsWith('saas_')) setSaasAberto(true);
-  }, [activeTab]);
 
   // Sync dynamic favicon when whitelabel favicon is updated
   useEffect(() => {
@@ -177,21 +153,7 @@ const MainLayout: React.FC = () => {
   const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
   const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
-  // Dono do SaaS, e não dono de agência.
-  //
-  // Vinha de `pode(role, 'gerenciar_saas')`, mas `owner` é o papel que a RPC
-  // criar_agencia dá a todo mundo que se cadastra: na prática, qualquer
-  // cliente novo enxergava o menu de gestão do produto. Agora vem da tabela
-  // platform_admins, que é a mesma fonte consultada pela RLS.
-  const isSuperAdmin = isPlatformAdmin;
-
-  const ABAS_SAAS: TabType[] = [
-    'saas_planos', 'saas_financeiro', 'saas_agencias', 'saas_usuarios',
-    'saas_emails', 'saas_integracoes',
-  ];
-  const abaPermitida = ABAS_SAAS.includes(activeTab as TabType)
-    ? isSuperAdmin
-    : podeAcessarAba(currentUser?.role, activeTab as TabType);
+  const abaPermitida = podeAcessarAba(currentUser?.role, activeTab as TabType);
 
   const todasAsAbas: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -224,6 +186,32 @@ const MainLayout: React.FC = () => {
    * quebrou por causa de um chunk do Dashboard, que não tem nada a ver com o
    * portal.
    */
+  /**
+   * `/admin` monta outra casca — barra lateral, cabeçalho e menus próprios.
+   *
+   * A troca acontece aqui, e não dentro do `main`, porque a área do dono do
+   * produto não é uma aba da agência: montá-la por dentro traria junto o
+   * seletor de agência, o filtro de clientes e o "Novo Conteúdo", que não
+   * significam nada quando se está administrando toda a base.
+   *
+   * A recusa para quem não é admin da plataforma fica lá dentro, com a
+   * mensagem que explica o porquê — redirecionar calado esconderia o link
+   * errado.
+   */
+  if (ehAbaDeAdmin(activeTab)) {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="w-8 h-8 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+          </div>
+        }
+      >
+        <AdminLayout />
+      </Suspense>
+    );
+  }
+
   if (isClientPortalOpen) {
     return (
       <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-800 dark:text-slate-200">
@@ -311,59 +299,6 @@ const MainLayout: React.FC = () => {
               );
             })}
 
-            {isSuperAdmin && (
-              <>
-                {/* Recolhível: são cinco itens que o dono do SaaS usa de vez
-                    em quando, competindo por espaço com o menu do dia a dia.
-                    Abre sozinho quando já se está numa das telas, senão
-                    recolher esconderia onde a pessoa está. */}
-                <button
-                  type="button"
-                  onClick={() => setSaasAberto((v) => !v)}
-                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 cursor-pointer group"
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                    👑 Super Admin
-                  </span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-purple-600 dark:text-purple-400 transition-transform ${
-                      saasAberto ? '' : '-rotate-90'
-                    }`}
-                  />
-                </button>
-                {saasAberto && [
-                  { id: 'saas_planos', label: 'Planos do SaaS', icon: Crown },
-                  { id: 'saas_financeiro', label: 'Financeiro SaaS', icon: DollarSign },
-                  { id: 'saas_agencias', label: 'Lista de Agências', icon: Building2 },
-                  { id: 'saas_usuarios', label: 'Usuários', icon: Users },
-                  { id: 'saas_emails', label: 'E-mails do Sistema', icon: Mail },
-                  { id: 'saas_integracoes', label: 'Integrações do SaaS', icon: Plug },
-                ].map(item => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id as TabType);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                        isActive
-                          ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
-                          : 'text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200/50 dark:border-purple-900/30'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`} />
-                        <span>{item.label}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </>
-            )}
           </nav>
         </div>
 
@@ -485,6 +420,26 @@ const MainLayout: React.FC = () => {
               </button>
             )}
 
+            {/*
+              A porta para `/admin`, só para quem administra o produto.
+
+              Pequena e no cabeçalho de propósito: as telas de lá não são do
+              dia a dia de ninguém — são visitadas de vez em quando, e antes
+              disputavam a barra lateral com o menu que a agência usa toda
+              hora. Some para todo mundo que não está em `platform_admins`;
+              quem digitar `/admin` mesmo assim recebe a recusa explicada.
+            */}
+            {isPlatformAdmin && (
+              <button
+                onClick={() => setActiveTab('admin_agencias')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-900 text-xs font-bold transition cursor-pointer"
+                title="Administração do Orquesia (/admin)"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Admin</span>
+              </button>
+            )}
+
             {/* What's New / Novidades Changelog button */}
             <button
               onClick={() => setIsChangelogOpen(true)}
@@ -587,12 +542,6 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'relatorios' && <ReportsView />}
           {abaPermitida && activeTab === 'automacoes' && <AutomationsView />}
           {abaPermitida && activeTab === 'configuracoes' && <SettingsView />}
-          {abaPermitida && activeTab === 'saas_planos' && <SaasPlansView />}
-          {abaPermitida && activeTab === 'saas_financeiro' && <SaasFinancialView />}
-          {abaPermitida && activeTab === 'saas_agencias' && <SaasAgenciesView />}
-          {abaPermitida && activeTab === 'saas_emails' && <SaasEmailsView />}
-          {abaPermitida && activeTab === 'saas_usuarios' && <SaasUsersView />}
-          {abaPermitida && activeTab === 'saas_integracoes' && <SaasIntegrationsView />}
           </Suspense>
         </main>
       </div>
@@ -615,6 +564,10 @@ export default function App() {
   return (
     <PostfyProvider>
       <DynamicThemeProvider />
+      {/* Título da aba e meta tags, vindos do banco. Os robôs de prévia de
+          link não executam JavaScript e não chegam aqui — para eles existe
+          api/seo.ts, servido pela Vercel conforme o user-agent. */}
+      <SeoDoSaas />
       <MainLayout />
     </PostfyProvider>
   );

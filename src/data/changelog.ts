@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.9.0',
+    data: '2026-09-10',
+    resumo: 'A administração do Orquesia ganhou área própria em /admin, com Design, SEO e Relatórios.',
+    novidades: [
+      'Nova área /admin, com a mesma cara do sistema e os menus de quem administra o produto: Agências, Usuários, Planos, Financeiro, Relatórios, E-mails do Sistema, Integrações, SEO e Design. Quem administra a plataforma tem um botão no topo do app; o endereço /admin também abre direto.',
+      'Tela de Design: a marca, a paleta e as artes das telas de entrada agora se trocam pelo painel. Antes a foto da tela de login e a cor roxa estavam escritas no código, e mudar qualquer uma exigia uma nova publicação do sistema.',
+      'Tela de SEO: título, descrição e imagem que aparecem no Google e no cartão que o WhatsApp monta quando alguém manda o link. A prévia é montada na hora, do jeito que vai ficar.',
+      'Tela de Relatórios do produto: quantas agências, contas, clientes e conteúdos existem somando toda a base, com os últimos doze meses mês a mês. Também avisa quando alguma conta ficou sem agência ou algum convite não foi aceito.',
+    ],
+    melhorias: [
+      'Os endereços das telas de administração passaram de /super-admin/... para /admin/... Os links antigos continuam abrindo.',
+      'O menu de administração saiu de dentro da barra lateral da agência: eram seis itens do dia a dia de ninguém competindo por espaço com o menu que a equipe usa toda hora.',
+    ],
+    corrigido: [
+      'O link do Orquesia compartilhado no WhatsApp, no LinkedIn ou no Slack aparecia como um retângulo cinza, sem título nem imagem: esses aplicativos leem a página antes de o sistema carregar. Agora o servidor responde a eles com os dados certos.',
+    ],
+  },
+  {
     versao: '2.8.0',
     data: '2026-09-10',
     resumo: 'O cadastro da agência mostra o endereço do portal enquanto você digita o nome.',

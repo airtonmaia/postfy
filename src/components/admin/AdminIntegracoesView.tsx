@@ -15,7 +15,7 @@ import { webhookApi, statusApi, ApiError, type StatusDoServidor } from '../../li
 type StatusIntegracao = 'ativa' | 'opcional' | 'nao_implementada';
 
 /**
- * Infraestrutura do produto. Vive no Super Admin, e não nas configurações da
+ * Infraestrutura do produto. Vive em /admin, e não nas configurações da
  * agência, porque é isto que a separação significa:
  *
  *   - o dono do SaaS configura o que vale para toda a base — banco, IA,
@@ -50,7 +50,7 @@ const BADGE: Record<StatusIntegracao, { texto: string; classe: string; Icone: Re
   },
 };
 
-export const SaasIntegrationsView: React.FC = () => {
+export const AdminIntegracoesView: React.FC = () => {
   const { syncState, syncError, forceSync } = usePostfy();
 
   const [sincronizando, setSincronizando] = useState(false);

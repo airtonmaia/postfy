@@ -57,6 +57,18 @@ export const clienteDoUsuario = (request: Request) => {
 };
 
 /**
+ * Cliente sem sessão nenhuma.
+ *
+ * Para as rotas que respondem a quem ainda não provou ser ninguém — o robô do
+ * WhatsApp buscando a prévia de um link, por exemplo. Só alcança o que foi
+ * concedido a `anon`, que hoje são duas funções de lista fechada.
+ */
+export const clienteAnonimo = () =>
+  createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+/**
  * Cliente com a chave de serviço, que ignora a RLS.
  *
  * Existe por um motivo só: `social_tokens` tem RLS ligada e nenhuma política,
