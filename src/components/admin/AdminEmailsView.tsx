@@ -12,7 +12,7 @@ import {
  * Configuração dos disparos automáticos do sistema.
  *
  * São e-mails do produto, não de uma agência: o texto que o cliente final
- * recebe é o mesmo para toda a base. Por isso a tela vive no Super Admin, e
+ * recebe é o mesmo para toda a base. Por isso a tela vive em /admin, e
  * a RLS só deixa o admin da plataforma ler e gravar — para qualquer outro a
  * lista volta vazia.
  */
@@ -26,7 +26,7 @@ const EXEMPLO: Record<string, string> = {
   link: 'https://app.orquesia.com.br/...',
 };
 
-export const SaasEmailsView: React.FC = () => {
+export const AdminEmailsView: React.FC = () => {
   const [modelos, setModelos] = useState<ModeloDeEmail[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export const SaasEmailsView: React.FC = () => {
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-          Super Admin
+          Comunicação do produto
         </p>
         <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
           E-mails do Sistema

@@ -36,15 +36,55 @@ export const CAMINHOS: Record<TabType, string> = {
   relatorios: '/relatorios',
   automacoes: '/automacoes',
   configuracoes: '/configuracoes',
-  saas_planos: '/super-admin/planos',
-  saas_financeiro: '/super-admin/financeiro',
-  saas_agencias: '/super-admin/agencias',
-  saas_emails: '/super-admin/emails',
-  saas_integracoes: '/super-admin/integracoes',
-  saas_usuarios: '/super-admin/usuarios',
+  admin_agencias: '/admin/agencias',
+  admin_usuarios: '/admin/usuarios',
+  admin_planos: '/admin/planos',
+  admin_financeiro: '/admin/financeiro',
+  admin_relatorios: '/admin/relatorios',
+  admin_emails: '/admin/emails',
+  admin_integracoes: '/admin/integracoes',
+  admin_seo: '/admin/seo',
+  admin_design: '/admin/design',
 };
 
 export const ABA_INICIAL: TabType = 'dashboard';
+
+/** Raiz da área do dono do produto. Abrir só `/admin` cai na primeira tela. */
+export const CAMINHO_ADMIN = '/admin';
+
+/**
+ * A tela que `/admin` abre.
+ *
+ * Lista de Agências, e não SEO ou Design: é a única que responde "como o
+ * produto está agora" sem ninguém precisar clicar. Quem digita `/admin` está
+ * chegando, não voltando para onde estava.
+ */
+export const ABA_INICIAL_ADMIN: TabType = 'admin_agencias';
+
+/**
+ * A aba é da área do dono do produto?
+ *
+ * Decide duas coisas ao mesmo tempo, e por isso mora aqui e não espalhada em
+ * `startsWith('admin_')` pelos componentes: qual casca monta (`App.tsx`) e se
+ * a autorização exigida é `platform_admins` em vez do papel na agência.
+ */
+export const ehAbaDeAdmin = (aba: string): boolean => aba.startsWith('admin_');
+
+/**
+ * Endereços antigos que precisam continuar abrindo.
+ *
+ * As telas do dono do produto moraram em `/super-admin/*` por uma versão.
+ * São poucos links, e todos de uma pessoa só — mas quebrar um favorito para
+ * economizar seis linhas é troca ruim. Eles resolvem; nada os gera.
+ */
+const CAMINHOS_ANTIGOS: Record<string, TabType> = {
+  '/super-admin/planos': 'admin_planos',
+  '/super-admin/financeiro': 'admin_financeiro',
+  '/super-admin/agencias': 'admin_agencias',
+  '/super-admin/emails': 'admin_emails',
+  '/super-admin/integracoes': 'admin_integracoes',
+  '/super-admin/usuarios': 'admin_usuarios',
+};
 
 /** Abas de Configurações: viram o segundo trecho de `/configuracoes/...`. */
 export const ABAS_DE_CONFIGURACOES = [
@@ -89,10 +129,15 @@ export const abaDoCaminho = (caminho: string): TabType | null => {
     return 'configuracoes';
   }
 
+  // `/admin` sozinho é um endereço que a pessoa digita; as telas moram um
+  // nível abaixo. Sem isto, ele cairia em "caminho desconhecido" e a URL
+  // seria trocada pela do Dashboard antes de a área abrir.
+  if (alvo === CAMINHO_ADMIN) return ABA_INICIAL_ADMIN;
+
   const encontrada = (Object.keys(CAMINHOS) as TabType[]).find(
     (aba) => CAMINHOS[aba] === alvo
   );
-  return encontrada ?? null;
+  return encontrada ?? CAMINHOS_ANTIGOS[alvo] ?? null;
 };
 
 /** Caminho da aba. Aceita a sub-aba de Configurações. */

@@ -335,6 +335,16 @@ export interface ActivityLog {
 
 export type CalendarViewMode = 'month' | 'week' | 'day' | 'list';
 
+/**
+ * As telas do app da agência e as do dono do produto, num tipo só.
+ *
+ * O prefixo `admin_` não é decoração: é ele que decide qual casca monta —
+ * `App.tsx` troca o layout inteiro quando a aba começa com `admin_`, e a
+ * autorização (`platform_admins`) é conferida no mesmo ponto. Antes essas
+ * telas eram um submenu recolhível dentro da barra lateral da agência, e o
+ * dono do SaaS administrava o produto de dentro de uma agência qualquer,
+ * com o seletor de clientes e o "Novo Conteúdo" na tela.
+ */
 export type TabType = 
   | 'dashboard' 
   | 'calendario' 
@@ -346,12 +356,15 @@ export type TabType =
   | 'relatorios' 
   | 'automacoes' 
   | 'configuracoes'
-  | 'saas_planos'
-  | 'saas_financeiro'
-  | 'saas_agencias'
-  | 'saas_emails'
-  | 'saas_integracoes'
-  | 'saas_usuarios';
+  | 'admin_agencias'
+  | 'admin_usuarios'
+  | 'admin_planos'
+  | 'admin_financeiro'
+  | 'admin_relatorios'
+  | 'admin_emails'
+  | 'admin_integracoes'
+  | 'admin_seo'
+  | 'admin_design';
 
 export type LeadStage = 'new_lead' | 'meeting_scheduled' | 'proposal_sent' | 'negotiating' | 'won' | 'lost';
 

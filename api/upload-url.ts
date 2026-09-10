@@ -31,6 +31,14 @@ const TIPOS_PERMITIDOS = new Set([
 
 const TAMANHO_MAXIMO = 100 * 1024 * 1024; // 100 MB
 
+/**
+ * Pasta dos arquivos do produto, e não de uma agência.
+ *
+ * Não é um uuid, e é por isso que serve: `workspaces.id` é uuid, então
+ * nenhuma agência pode se chamar assim e disputar esta pasta.
+ */
+const PASTA_DA_PLATAFORMA = 'plataforma';
+
 const configurado = () =>
   Boolean(
     process.env.R2_ACCOUNT_ID &&
@@ -107,22 +115,47 @@ async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    // O usuário diz em qual agência quer gravar, então confirmamos que ele
-    // pertence a ela — a consulta passa pela RLS, como qualquer outra.
     const supabase = clienteDoUsuario(request);
-    const { data: membro, error } = await supabase
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', usuario.id)
-      .maybeSingle();
 
-    if (error) return falharComSeguranca('upload/membership', error, 500);
-    if (!membro) {
-      return json({ error: 'Você não pertence a esta agência.' }, 403);
-    }
-    if (membro.role === 'client') {
-      return json({ error: 'Seu perfil não pode enviar arquivos.' }, 403);
+    if (workspaceId === PASTA_DA_PLATAFORMA) {
+      // Marca, banners e imagem de prévia do próprio Orquesia não pertencem a
+      // agência nenhuma. Sem este caso, o dono do produto teria que gravá-los
+      // dentro de uma agência qualquer — e o arquivo da tela de entrada
+      // passaria a morar na pasta de um cliente.
+      //
+      // A RLS de platform_admins só deixa um admin enxergar a própria linha:
+      // para qualquer outro a consulta volta vazia, que é exatamente a
+      // resposta. Não há checagem de papel no navegador aqui.
+      const { data: admin, error } = await supabase
+        .from('platform_admins')
+        .select('user_id')
+        .eq('user_id', usuario.id)
+        .maybeSingle();
+
+      if (error) return falharComSeguranca('upload/plataforma', error, 500);
+      if (!admin) {
+        return json(
+          { error: 'Só o administrador da plataforma grava nesta pasta.' },
+          403
+        );
+      }
+    } else {
+      // O usuário diz em qual agência quer gravar, então confirmamos que ele
+      // pertence a ela — a consulta passa pela RLS, como qualquer outra.
+      const { data: membro, error } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', usuario.id)
+        .maybeSingle();
+
+      if (error) return falharComSeguranca('upload/membership', error, 500);
+      if (!membro) {
+        return json({ error: 'Você não pertence a esta agência.' }, 403);
+      }
+      if (membro.role === 'client') {
+        return json({ error: 'Seu perfil não pode enviar arquivos.' }, 403);
+      }
     }
 
     // Prefixo por agência: mantém os arquivos separados e evita colisão.

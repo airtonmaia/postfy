@@ -209,8 +209,15 @@ recarregar em `/calendario` devolve 404 da Vercel antes de o app existir. O
 padrão exclui `/api/` de propósito — engolir esse prefixo faria toda função
 serverless devolver HTML.
 
-`tests/rotas.test.ts` lê o `vercel.json` e confere as duas coisas. É a única
-guarda que existe para esse arquivo.
+A **ordem** dos rewrites também é regra: a Vercel avalia de cima para baixo e
+para no primeiro que casa, e o coringa `/((?!api/).*)` casa com tudo. Se ele
+subir, `/robots.txt` e o desvio dos robôs de prévia de link (por `user-agent`,
+para `/api/seo`) deixam de existir — sem erro nenhum, só voltam a servir o
+`index.html`.
+
+`tests/rotas.test.ts` lê o `vercel.json` e confere as quatro coisas — inclusive
+que o padrão do desvio casa com `facebookexternalhit` e **não** casa com Chrome
+ou Safari. É a única guarda que existe para esse arquivo.
 
 Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
 significa nada.
@@ -282,6 +289,29 @@ decidir. Enquanto o dado não existir, a tela mostra o que o banco sabe e
 Protegido por `tests/telas-honestas.test.ts`, que varre `src/components`
 depois de remover os comentários: o projeto registra o bug nos comentários, e
 sem essa limpeza a guarda acusaria a própria memória do bug.
+
+---
+
+---
+
+## Duas marcas, e elas não se misturam
+
+`saas_settings` (uma linha só) é a cara do **produto**: a marca do Orquesia, a
+paleta, as artes das telas de entrada, o que vai para os buscadores. Escreve
+quem está em `platform_admins`; lê qualquer um, mas por
+`aparencia_do_saas()`, função de lista fechada — a tela de entrada é anônima
+por definição.
+
+`workspaces` (logo, cores, favicon) é a cara de **cada agência**, e é ela que
+pinta o portal do cliente daquela agência.
+
+**A agência sobrepõe o produto, nunca o contrário** (`DynamicThemeProvider`).
+A paleta do SaaS vale onde não há agência aberta: entrada, cadastro, porta do
+portal e a área `/admin`. Sobrepor na direção oposta apagaria a marca que o
+cliente da agência espera ver — que é o motivo de o whitelabel existir.
+
+A tela de Design diz isso em texto, e não por acaso: prometer "personalize o
+SaaS inteiro" e repintar só metade seria a armadilha 9 de novo.
 
 ---
 
@@ -406,6 +436,9 @@ src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
+src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
+src/lib/numerosDoSaas.ts   contagens do produto inteiro, via RPC de admin
+src/components/admin/      a área /admin: casca própria + as nove telas
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 
@@ -413,6 +446,7 @@ api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServi
 api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/meta.ts           Graph API da Meta
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
+api/seo.ts                 meta tags para robô de prévia + /robots.txt
 
 supabase/migrations/       schema é a fonte de verdade; 13 migrações
 ```

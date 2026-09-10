@@ -66,7 +66,7 @@ describe('telas não inventam dado', () => {
 
   it('o Financeiro do SaaS não estima receita', () => {
     const financeiro = semComentarios(
-      readFileSync('src/components/saas/SaasFinancialView.tsx', 'utf-8')
+      readFileSync('src/components/admin/AdminFinanceiroView.tsx', 'utf-8')
     );
 
     // Não há assinatura nem cobrança no banco: qualquer MRR aqui é chute.

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { Building2, Plus, Trash2, ExternalLink, Shield, CheckCircle2, Globe, Calendar, Search, Edit3, Users } from 'lucide-react';
 
-export const SaasAgenciesView: React.FC = () => {
+export const AdminAgenciasView: React.FC = () => {
   const { workspaces, currentWorkspace, setCurrentWorkspace, setIsCreateWorkspaceModalOpen, updateWorkspace, deleteWorkspace, users } = usePostfy();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingWs, setEditingWs] = useState<any | null>(null);
@@ -53,9 +53,9 @@ export const SaasAgenciesView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">
-              Super Admin SaaS
+              Base de agências
             </span>
-            <span className="text-xs text-slate-400">• Gestão Completa de Agências</span>
+            <span className="text-xs text-slate-400">• Todas as agências do produto</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Lista de Agências ({workspaces.length})

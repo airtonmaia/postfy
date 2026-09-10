@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Link2} from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login, register, recuperarSenha, currentWorkspace } = usePostfy();
+  const { login, register, recuperarSenha, currentWorkspace, aparencia } = usePostfy();
 
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -130,9 +130,11 @@ export const LoginView: React.FC = () => {
         <img 
           /* Era um link do Unsplash. A primeira tela do produto não deveria
              depender de um servidor de terceiro que pode cair, trocar a
-             imagem ou ficar lento — e a foto já está no repositório, servida
-             do mesmo domínio. */
-          src="/portal-hero.jpg"
+             imagem ou ficar lento.
+
+             Agora o endereço vem de Admin → Design, e a foto do repositório é
+             a reserva: trocar a arte da entrada deixou de exigir deploy. */
+          src={aparencia.bannerLoginUrl || '/portal-hero.jpg'}
           alt="" 
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center opacity-90 transition duration-700 hover:scale-105"
@@ -146,10 +148,11 @@ export const LoginView: React.FC = () => {
             <span>Gestão Inteligente de Agências</span>
           </div>
           <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight text-white drop-shadow-md">
-            Sua agência de conteúdo em outro nível.
+            {aparencia.tituloLogin || 'Sua agência de conteúdo em outro nível.'}
           </h2>
           <p className="text-sm text-slate-200 leading-relaxed font-normal opacity-90">
-            Fluxos de aprovação com clientes, pautas editoriais e inteligência artificial para criadores e gestores de mídia.
+            {aparencia.subtituloLogin ||
+              'Fluxos de aprovação com clientes, pautas editoriais e inteligência artificial para criadores e gestores de mídia.'}
           </p>
         </div>
       </div>
@@ -161,10 +164,18 @@ export const LoginView: React.FC = () => {
         {/* Brand Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <MarcaOrquesia tamanho={44} className="shrink-0" />
+            {aparencia.logoUrl ? (
+              <img
+                src={aparencia.logoUrl}
+                alt=""
+                className="w-11 h-11 rounded-xl object-cover shrink-0"
+              />
+            ) : (
+              <MarcaOrquesia tamanho={44} className="shrink-0" />
+            )}
             <div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Orquesia
+                {aparencia.nome}
               </h1>
               <span className="text-[11px] font-mono text-indigo-600 font-bold uppercase tracking-widest block">
                 Agency Operating System
@@ -182,10 +193,10 @@ export const LoginView: React.FC = () => {
           {/* Welcome Title */}
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Bem-vindo ao Orquesia
+              Bem-vindo ao {aparencia.nome}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-              Orquesia é a forma mais rápida, simples e segura de gerenciar pautas, aprovações e produção de conteúdo da sua agência.
+              {aparencia.nome} é a forma mais rápida, simples e segura de gerenciar pautas, aprovações e produção de conteúdo da sua agência.
             </p>
           </div>
 
@@ -388,7 +399,7 @@ export const LoginView: React.FC = () => {
                 disabled={isLoading}
                 className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 mt-1"
               >
-                {isLoading ? 'Criando Conta...' : 'Criar Conta Orquesia'}
+                {isLoading ? 'Criando Conta...' : `Criar Conta ${aparencia.nome}`}
               </button>
             </form>
           )}

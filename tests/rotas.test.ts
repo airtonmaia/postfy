@@ -150,6 +150,71 @@ describe('a Vercel serve o app em qualquer caminho', () => {
     expect(padrao.test('/super-admin/planos')).toBe(true);
   });
 
+  /**
+   * A ordem das regras é a regra.
+   *
+   * A Vercel avalia os rewrites de cima para baixo e para no primeiro que
+   * casa. O `/((?!api/).*)` casa com **tudo** que não é `/api`, inclusive
+   * `/robots.txt` e a requisição do robô do WhatsApp: se ele vier antes, os
+   * outros dois nunca são alcançados — e nada nisso aparece no CI, porque
+   * `vercel.json` não é validado por `tsc`, vitest nem `vite build`
+   * (armadilha 6).
+   */
+  it('as regras específicas vêm antes do coringa', () => {
+    const posicao = (destino: string, temHas: boolean) =>
+      config.rewrites.findIndex(
+        (r: any) => r.destination === destino && Boolean(r.has) === temHas
+      );
+
+    const coringa = posicao('/index.html', false);
+    const robots = config.rewrites.findIndex((r: any) => r.source === '/robots.txt');
+    const robos = posicao('/api/seo', true);
+
+    expect(robots, 'sem regra para /robots.txt').toBeGreaterThanOrEqual(0);
+    expect(robos, 'sem regra para os robôs de prévia').toBeGreaterThanOrEqual(0);
+    expect(robots).toBeLessThan(coringa);
+    expect(robos).toBeLessThan(coringa);
+  });
+
+  /**
+   * O desvio é por user-agent, e só para robô.
+   *
+   * A rota `/api/seo` devolve um HTML mínimo com as meta tags — bom para o
+   * robô de prévia, péssimo para uma pessoa, que perderia o app inteiro. Um
+   * padrão frouxo demais mandaria navegador de verdade para lá.
+   */
+  it('o desvio dos robôs não pega navegador de gente', () => {
+    const regra = config.rewrites.find(
+      (r: any) => r.destination === '/api/seo' && r.has
+    );
+    const condicao = regra.has.find(
+      (h: any) => h.type === 'header' && h.key === 'user-agent'
+    );
+    expect(condicao, 'o desvio tem que ser por user-agent').toBeTruthy();
+
+    const padrao = new RegExp(`^${condicao.value}$`);
+
+    for (const robo of [
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'WhatsApp/2.23.20.0 A',
+      'Twitterbot/1.0',
+      'LinkedInBot/1.0 (compatible; Mozilla/5.0)',
+      'Slackbot-LinkExpanding 1.0',
+      'TelegramBot (like TwitterBot)',
+      'Mozilla/5.0 (compatible; Discordbot/2.0)',
+    ]) {
+      expect(padrao.test(robo), robo).toBe(true);
+    }
+
+    for (const gente of [
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
+    ]) {
+      expect(padrao.test(gente), gente).toBe(false);
+    }
+  });
+
   it('todo caminho de aba passa pelo rewrite', () => {
     const regra = config.rewrites.find((r: any) => r.destination === '/index.html');
     // A Vercel casa o `source` contra o caminho inteiro, não como busca.

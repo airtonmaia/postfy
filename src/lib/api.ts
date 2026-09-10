@@ -82,6 +82,14 @@ export interface UrlDeUpload {
   publicUrl: string | null;
 }
 
+/**
+ * Pasta dos arquivos do próprio produto — marca, banners, imagem de prévia.
+ *
+ * Não pertencem a agência nenhuma. `api/upload-url.ts` reconhece este valor e
+ * exige, no banco, que quem envia esteja em `platform_admins`.
+ */
+export const PASTA_DA_PLATAFORMA = 'plataforma';
+
 export const arquivosApi = {
   /** Pede a URL pré-assinada; o binário vai do navegador direto para o R2. */
   pedirUrl: (input: {
