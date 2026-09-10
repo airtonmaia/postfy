@@ -10,6 +10,7 @@ import {
   Share2, Sparkles, Building2, CheckCircle2
 } from 'lucide-react';
 import { FileUpload } from '../ui/file-upload';
+import { Avatar } from '../common/Avatar';
 
 interface ClientDetailProps {
   client: Client;
@@ -184,10 +185,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               Voltar para lista de clientes
             </button>
             <div className="flex items-center gap-3">
-              <img 
-                src={client.avatar} 
-                alt="" 
-                className="w-11 h-11 rounded-2xl object-cover border border-slate-200 dark:border-slate-800 shadow-xs" 
+              <Avatar
+                nome={client.name}
+                url={client.avatar}
+                tamanho={44}
+                formato="quadrado"
+                className="border border-slate-200 dark:border-slate-800 shadow-xs"
               />
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5">

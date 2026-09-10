@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { Search, X, Calendar, User, Briefcase, FileText, ArrowRight } from 'lucide-react';
 import { PlatformBadge, StatusBadge } from '../common/Badges';
+import { Avatar } from '../common/Avatar';
 
 export const SearchModal: React.FC = () => {
   const { 
@@ -137,7 +138,7 @@ export const SearchModal: React.FC = () => {
                       className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 text-left transition text-xs group"
                     >
                       <div className="flex items-center gap-2.5">
-                        <img src={client.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                        <Avatar nome={client.name} url={client.avatar} tamanho={20} formato="quadrado" />
                         <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-purple-900">
                           {client.name}
                         </span>

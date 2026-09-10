@@ -4,6 +4,7 @@ import { safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
 import { Plus, Clock, CheckCircle2, MessageSquare, AlertCircle, ArrowRight } from 'lucide-react';
 import { Job, Client } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 interface DayViewProps {
   currentDate: Date;
@@ -120,7 +121,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <img src={client?.avatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={16} />
                         {client?.name}
                       </span>
                       <PlatformBadge platform={job.platform} />

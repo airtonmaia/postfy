@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { JobPlatform, JobStatus } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 interface CalendarSidebarProps {
   currentDate: Date;
@@ -214,7 +215,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800'
               }`}
             >
-              <img src={client.avatar} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+              <Avatar nome={client.name} url={client.avatar} tamanho={16} />
               <span className="truncate">{client.name}</span>
             </button>
           ))}

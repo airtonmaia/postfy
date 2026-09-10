@@ -5,6 +5,7 @@ import { novoId } from '../../../lib/sincronizacao';
 import { 
   Shield, Users, Plus, Check, Trash2, CheckCircle2, Building2, Briefcase, X 
 } from 'lucide-react';
+import { Avatar } from '../../common/Avatar';
 
 interface Squad {
   id: string;
@@ -149,10 +150,11 @@ export const SettingsTeams: React.FC = () => {
                 <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
                   <span className="block text-[11px] text-slate-400">Líder Operacional:</span>
                   <div className="flex items-center gap-2">
-                    <img 
-                      src={leader?.avatar} 
-                      alt="" 
-                      className="w-6 h-6 rounded-full object-cover border border-slate-200" 
+                    <Avatar
+                      nome={leader?.name || 'Não definido'}
+                      url={leader?.avatar}
+                      tamanho={24}
+                      className="border border-slate-200"
                     />
                     <strong className="text-slate-800 dark:text-slate-200">{leader?.name || 'Não definido'}</strong>
                   </div>
@@ -185,12 +187,12 @@ export const SettingsTeams: React.FC = () => {
                   </span>
                   <div className="flex items-center -space-x-2">
                     {squadMembers.map(m => (
-                      <img 
-                        key={m.id} 
-                        src={m.avatar} 
-                        title={`${m.name} (${m.role})`}
-                        alt="" 
-                        className="w-7 h-7 rounded-full object-cover border-2 border-white dark:border-slate-900" 
+                      <Avatar
+                        key={m.id}
+                        nome={m.name}
+                        url={m.avatar}
+                        tamanho={28}
+                        className="border-2 border-white dark:border-slate-900"
                       />
                     ))}
                   </div>

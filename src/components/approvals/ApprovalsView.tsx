@@ -16,6 +16,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Job, Client } from '../../types';
+import { Avatar } from '../common/Avatar';
 
 export const ApprovalsView: React.FC = () => {
   const { 
@@ -139,7 +140,7 @@ export const ApprovalsView: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <img src={client?.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                          <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={24} />
                           <span className="text-xs font-bold text-slate-900 dark:text-white">{client?.name}</span>
                         </div>
                         <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
