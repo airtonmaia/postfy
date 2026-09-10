@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.12.0',
+    data: '2026-09-10',
+    resumo: 'O quadro virou WorkFlow, o cadastro ganhou prévia da rede, e agora cabe copy e roteiro além do conteúdo pronto.',
+    novidades: [
+      'O botão do quadro virou "Adicionar" e pergunta o que você vai criar: Conteúdo, Copy ou Roteiro.',
+      'O cadastro mostra a prévia de como o post fica na rede escolhida, com a arte, o nome do cliente e a legenda que você está escrevendo. No Instagram ela alterna sozinha entre Feed e Story — é onde a arte costuma perder a cabeça de alguém no corte.',
+      'A rede virou uma fileira de logos, no lugar da lista suspensa: dá para ver e trocar o canal sem abrir nada.',
+      '"Enviar para aprovação" ao lado de "Criar conteúdo": o conteúdo já nasce na coluna de aprovação e o cliente é avisado.',
+      'Copy e roteiro não pedem mais upload de arte — são texto, e o campo de escrita ocupa o lugar que era da imagem.',
+      'No quadro, copy e roteiro ganham um selo próprio. Conteúdo continua sem marca, que é a maioria.',
+      'No portal, um copy ou roteiro deixa de mostrar a moldura vazia de imagem: o cliente lê o texto e aprova, sem ficar esperando uma arte que não existe.',
+    ],
+    melhorias: [
+      'O menu "Quadro Kanban" agora se chama WorkFlow. O endereço continua /kanban, para não quebrar link já compartilhado.',
+      'O cadastro perdeu a faixa de título, que repetia o que o formulário já dizia, e o campo de legenda ficou três vezes mais alto — legenda de rede social é texto longo.',
+      'Chamada para ação e hashtags saíram do cadastro e seguem editáveis no detalhe do conteúdo. As hashtags vinham preenchidas com "#Novidade #Marketing" mesmo sem ninguém digitar, e iam para o post assim.',
+    ],
+  },
+  {
     versao: '2.11.0',
     data: '2026-09-10',
     resumo: 'A conexão com o Instagram passou a usar o fluxo certo — o mesmo que funcionou no teste manual.',

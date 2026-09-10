@@ -9,8 +9,9 @@ import {
   Trash2, 
   Plus, 
   MoveLeft, 
-  MoveRight, 
+  MoveRight,
   ExternalLink,
+  Link2,
   Sparkles
 } from 'lucide-react';
 
@@ -20,6 +21,13 @@ interface MediaUploaderProps {
   maxFiles?: number;
   label?: string;
   helperText?: string;
+  /**
+   * Outras origens da arte, na mesma linha do "inserir por URL".
+   *
+   * Fica como slot, e não embutido aqui, porque quais integrações existem é
+   * decisão da tela que usa o uploader — não do uploader.
+   */
+  acoesExtras?: React.ReactNode;
 }
 
 export const MediaUploader: React.FC<MediaUploaderProps> = ({
@@ -27,7 +35,8 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   onChange,
   maxFiles = 10,
   label = 'Mídias e Criativos (Fotos e Vídeos)',
-  helperText = 'Arraste imagens/vídeos ou clique para selecionar do seu computador (Suporta até 10 arquivos para carrossel)'
+  helperText = 'Arraste imagens/vídeos ou clique para selecionar do seu computador (Suporta até 10 arquivos para carrossel)',
+  acoesExtras
 }) => {
   const { currentWorkspace } = usePostfy();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -162,14 +171,27 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowUrlInput(!showUrlInput)}
-          className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
-        >
-          <ExternalLink className="w-3 h-3" />
-          {showUrlInput ? 'Ocultar link web' : 'Inserir por URL web'}
-        </button>
+        {/* Origens da arte, todas na mesma linha. O "inserir por URL" perdeu o
+            rótulo e virou ícone para caber ao lado das integrações — escrito
+            por extenso, ele empurrava os outros botões para fora da linha. */}
+        <div className="flex items-center gap-2">
+          {acoesExtras}
+
+          <button
+            type="button"
+            onClick={() => setShowUrlInput(!showUrlInput)}
+            title={showUrlInput ? 'Ocultar o campo de link' : 'Inserir por URL da web'}
+            aria-label={showUrlInput ? 'Ocultar o campo de link' : 'Inserir por URL da web'}
+            aria-pressed={showUrlInput}
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+              showUrlInput
+                ? 'bg-purple-600 border-purple-600 text-white'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+            }`}
+          >
+            <Link2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {showUrlInput && (
