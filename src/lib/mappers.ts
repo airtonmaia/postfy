@@ -10,6 +10,7 @@ import type {
   ClientMaterial,
   TimesheetLog,
   Workspace,
+  ClientUser,
 } from '../types';
 
 /**
@@ -124,6 +125,34 @@ export const clientParaLinha = (c: Partial<Client>): Linha =>
     // `slug` fica de fora de propósito: quem gera e mantém é o trigger no
     // banco, a partir do nome. Mandá-lo daqui deixaria a tela sobrescrever o
     // valor gerado com o que ela tinha em memória.
+  });
+
+// ------------------------------------------------------- Usuário do cliente
+
+export const clientUserDaLinha = (l: Linha): ClientUser => ({
+  id: l.id,
+  workspaceId: l.workspace_id,
+  clientId: l.client_id,
+  email: l.email ?? '',
+  name: ounull(l.name),
+  role: l.role ?? 'aprovador',
+  ativo: l.ativo ?? true,
+  createdAt: l.created_at,
+  ultimoAcesso: ounull(l.ultimo_acesso),
+});
+
+export const clientUserParaLinha = (u: Partial<ClientUser>): Linha =>
+  semNulos({
+    workspace_id: u.workspaceId,
+    client_id: u.clientId,
+    // O banco tem índice único em `lower(email)`; normalizar aqui evita que
+    // a mesma pessoa cadastrada com maiúsculas volte como violação de chave.
+    email: u.email?.trim().toLowerCase(),
+    name: u.name,
+    role: u.role,
+    ativo: u.ativo,
+    // `ultimo_acesso` fica de fora: quem escreve é `portal_conferir_codigo`,
+    // no banco. Mandá-lo daqui deixaria a tela reescrever o carimbo.
   });
 
 // ---------------------------------------------------------------------- Job

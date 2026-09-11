@@ -31,6 +31,28 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.12.0',
+    data: '2026-09-11',
+    resumo: 'O Portal do Cliente passou a ter gente, com dois papéis: quem só aprova e quem também edita.',
+    novidades: [
+      'Cada cliente ganhou a aba Usuários na ficha dele. É ali que a agência decide quem da empresa do cliente entra no portal, e com qual papel.',
+      'Aprovador: vê o conteúdo, aprova e pede ajuste. Nada além disso.',
+      'Editor: tudo do aprovador, mais anexar arquivos, cadastrar senhas, acessar as notas fiscais, ler e alterar o briefing da marca e convidar outros usuários — sem depender da agência.',
+      'O editor gerencia os acessos de dentro do próprio portal, numa aba Usuários exclusiva dele.',
+      'O briefing virou editável pelo portal. Antes era só leitura, e mudar uma linha exigia pedir para a agência.',
+    ],
+    melhorias: [
+      'Quem já entrava no portal continua entrando, como editor: ninguém perdeu acesso na virada.',
+      'Cada aprovação passou a ser registrada com o nome da pessoa que apertou o botão. Antes o histórico dizia só "Cliente".',
+      'A sessão do portal dura 30 dias, em vez de morrer ao fechar a aba.',
+    ],
+    corrigido: [
+      'Material enviado pelo cliente aparecia na galeria e sumia no reload: a gravação era recusada pelo banco e ninguém via o erro. Agora é gravado de verdade.',
+      'O briefing mostrava textos de exemplo ("Acolhedor, especialista, dinâmico…") como se fossem do cliente. Campo vazio agora diz que está vazio.',
+      'O cofre de senhas e as notas fiscais chegavam ao navegador de qualquer pessoa que entrasse no portal, mesmo com a aba fechada na tela. Para o aprovador esses dados não saem mais do servidor.',
+    ],
+  },
+  {
     versao: '2.11.0',
     data: '2026-09-10',
     resumo: 'A conexão com o Instagram passou a usar o fluxo certo — o mesmo que funcionou no teste manual.',

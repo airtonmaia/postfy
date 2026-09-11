@@ -11,10 +11,12 @@ import {
   clientMaterialDaLinha, clientMaterialParaLinha,
   timesheetLogDaLinha, timesheetLogParaLinha,
   workspaceDaLinha, workspaceParaLinha,
+  clientUserDaLinha, clientUserParaLinha,
 } from './mappers';
 import type {
   Client, Job, Lead, Proposal, Contract, Automation,
   Notification, ActivityLog, ClientMaterial, TimesheetLog, Workspace,
+  ClientUser,
 } from '../types';
 
 /**
@@ -181,6 +183,59 @@ export const restaurarAgencia = async (workspaceId: string): Promise<boolean> =>
   });
   if (error) throw traduzirErro(error);
   return Boolean(data);
+};
+
+/**
+ * Usuários do Portal do Cliente, do lado da agência.
+ *
+ * Fora do `carregarTudo` e fora do diff de propósito. A tela de um cliente é
+ * o único lugar que precisa desta lista, e a persistência derivada de diff
+ * grava em segundo plano — aqui a gravação é a resposta ao clique, e a tela
+ * precisa saber se o banco recusou (e-mail repetido, papel sem permissão)
+ * antes de dizer que criou.
+ *
+ * Quem recorta continua sendo a RLS: `select` para membro da agência,
+ * escrita só para owner/admin/manager.
+ */
+export const listarUsuariosDoCliente = async (clientId: string): Promise<ClientUser[]> => {
+  const { data, error } = await supabase
+    .from('client_users')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
+  if (error) throw traduzirErro(error);
+  return (data || []).map(clientUserDaLinha);
+};
+
+export const criarUsuarioDoCliente = async (
+  usuario: Pick<ClientUser, 'workspaceId' | 'clientId' | 'email' | 'role'> & { name?: string }
+): Promise<ClientUser> => {
+  const { data, error } = await supabase
+    .from('client_users')
+    .insert(clientUserParaLinha(usuario))
+    .select()
+    .single();
+  if (error) throw traduzirErro(error);
+  return clientUserDaLinha(data);
+};
+
+export const atualizarUsuarioDoCliente = async (
+  id: string,
+  mudancas: Partial<ClientUser>
+): Promise<ClientUser> => {
+  const { data, error } = await supabase
+    .from('client_users')
+    .update(clientUserParaLinha(mudancas))
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw traduzirErro(error);
+  return clientUserDaLinha(data);
+};
+
+export const removerUsuarioDoCliente = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('client_users').delete().eq('id', id);
+  if (error) throw traduzirErro(error);
 };
 
 export interface MembroDaAgencia {

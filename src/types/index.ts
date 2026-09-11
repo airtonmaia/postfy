@@ -156,7 +156,43 @@ export interface Client {
   briefing?: ClientBriefing;
   notes?: string;
   createdAt: string;
-  portalToken: string;
+  /**
+   * Credencial do link direto do portal. Opcional porque `portal_dados` não
+   * a devolve: quem entrou no portal já provou quem é pela sessão, e mandar
+   * a credencial de volta para o navegador dela não serve para nada — só
+   * amplia o estrago de um vazamento de tela.
+   */
+  portalToken?: string;
+}
+
+/**
+ * Quem entra no Portal do Cliente, e até onde vai.
+ *
+ * Antes o portal não tinha "quem": o token era da linha de `clients`, e todo
+ * mundo que soubesse dele entrava com o mesmo poder — cofre de senhas e
+ * notas fiscais incluídos. Estes dois papéis são a resposta.
+ *
+ *   aprovador  vê o conteúdo e aprova, e nada além disso
+ *   editor     tudo do aprovador + arquivos, senhas, notas, briefing
+ *              (inclusive alterar) e criar outros usuários
+ *
+ * O recorte é do banco, não da tela: `portal_dados` simplesmente não devolve
+ * senhas, notas e briefing para o aprovador. Esconder aba com o dado já no
+ * navegador seria a tela mentindo sobre o que entregou.
+ */
+export type ClientUserRole = 'aprovador' | 'editor';
+
+export interface ClientUser {
+  id: string;
+  workspaceId: string;
+  clientId: string;
+  email: string;
+  name?: string;
+  role: ClientUserRole;
+  ativo: boolean;
+  createdAt: string;
+  /** Última vez que a pessoa conferiu o código e entrou. */
+  ultimoAcesso?: string;
 }
 
 export interface JobVersion {
