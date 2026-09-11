@@ -43,6 +43,7 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'O botão "Excluir Agência" não excluía nada. Ele removia o vínculo de quem clicava — e como quem administra o produto normalmente não é membro da agência, o clique não fazia efeito nenhum e não mostrava erro.',
       'A lista de agências dizia "👑 Agência PRO" para toda agência sem marca de teste. Não existe assinatura nem cobrança no banco: o selo afirmava um plano que ninguém contratou, bem na tela de onde se decide excluir a agência.',
       'A mesma lista mostrava "3 usuários" quando não conseguia contar — um número literal no código. Agora a contagem de equipe e clientes vem do banco, e quando não vem a tela diz isso.',
+      'O deploy desta versão estava falhando por passar do limite de funções do plano da Vercel, sem nenhum erro de código para mostrar. As duas rotas da lixeira viraram uma só.',
     ],
   },
   {

@@ -215,9 +215,23 @@ subir, `/robots.txt` e o desvio dos robôs de prévia de link (por `user-agent`,
 para `/api/seo`) deixam de existir — sem erro nenhum, só voltam a servir o
 `index.html`.
 
+**E o plano Hobby aceita 12 funções serverless por deploy.** Passar disso não
+dá erro de código: `tsc`, vitest e `vite build` ficam verdes — nenhum deles
+conta arquivos em `api/` — e **o deploy inteiro falha**, com a produção presa
+na versão anterior. A branch da lixeira ficou quatro deploys sem subir por
+causa de duas rotas novas, que levaram o total a 14.
+
+Rota nova, portanto, significa **juntar duas que já existem**. Foi o que
+aconteceu com a exclusão imediata de agência: virou um modo de
+`api/expurgar-lixeira.ts` (GET com o segredo do cron varre; POST com sessão de
+admin apaga uma), porque as duas já chamavam a mesma `apagarAgenciaDeVez`. E
+foi por isso que a sonda `api/ping.ts` saiu — ela não fazia parte do produto,
+e o slot dela era a diferença entre subir e não subir.
+
 `tests/rotas.test.ts` lê o `vercel.json` e confere as quatro coisas — inclusive
 que o padrão do desvio casa com `facebookexternalhit` e **não** casa com Chrome
-ou Safari. É a única guarda que existe para esse arquivo.
+ou Safari — e conta as funções em `api/`. É a única guarda que existe para
+esse arquivo e para o limite do plano.
 
 Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
 significa nada.
@@ -564,8 +578,9 @@ api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
+api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 27 migrações
+supabase/migrations/       schema é a fonte de verdade; 30 migrações
 ```
 
 ---
