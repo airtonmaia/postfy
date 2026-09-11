@@ -202,8 +202,6 @@ interface PostfyContextType {
   portalUsuario: UsuarioDoPortal | null;
   /** Atalho do papel: o editor escreve, o aprovador só aprova. */
   portalEhEditor: boolean;
-  /** Link externo do portal, com o token opaco do cliente. */
-  buildClientPortalUrl: (clientId: string) => string;
   
   // Data Entities
   clients: Client[];
@@ -1311,14 +1309,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return alvo ? alvo.id : null;
   }, [portalToken, portalPreviewClientId, allClients, isAuthenticated]);
 
-  const buildClientPortalUrl = (clientId: string): string => {
-    const alvo = allClients.find((c) => c.id === clientId);
-    const url = new URL(window.location.href);
-    url.search = '';
-    if (alvo?.portalToken) url.searchParams.set('portal', alvo.portalToken);
-    return url.toString();
-  };
-  
   // Activity logger helper
   const logActivity = (action: string, target: string, userName: string = currentUser?.name || 'Usuário') => {
     const newLog: ActivityLog = {
@@ -1688,7 +1678,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ],
       notes: clientData.notes || '',
       createdAt: new Date().toISOString(),
-      portalToken: `token-${Math.random().toString(36).substring(2, 9)}`
+      // `portalToken` fica de fora, pelo mesmo motivo do `slug`: quem gera é
+      // o default da coluna (`gen_random_bytes(24)`), e `clientParaLinha` não
+      // o manda de volta. O valor inventado aqui nunca chegava ao banco — só
+      // ficava no estado da tela até o F5, onde virava outro.
     };
     
     setAllClients(prev => [newClient, ...prev]);
@@ -2308,7 +2301,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         portalUsuario,
         portalEhEditor,
         closeClientPortal,
-        buildClientPortalUrl,
         clients,
         jobs,
         leads,

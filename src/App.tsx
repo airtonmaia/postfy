@@ -100,7 +100,6 @@ const MainLayout: React.FC = () => {
     setIsSearchModalOpen,
     isClientPortalOpen,
     visualizarPortalDoCliente,
-    buildClientPortalUrl,
     clients,
     clientFilter,
     setClientFilter,

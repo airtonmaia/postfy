@@ -91,7 +91,7 @@ Conferidos em 2026-09-10, com arquivo e linha.
 
 | Prioridade | O quê | Onde |
 |---|---|---|
-| 🔴 Segurança | **Token do portal gerado com `Math.random()`**, 7 caracteres. É a credencial que o código por e-mail destrava — todo o cuidado do login novo depende dela. Ao corrigir, usar `crypto.getRandomValues`/`crypto.randomUUID` **sem cair para `Math.random()`**: `novoId()` tem esse fallback para navegador antigo, o que é aceitável num id e não numa credencial. Melhor ainda seria o banco gerar o token, já que ele nasce no `insert`. | `src/context/PostfyContext.tsx:1494` |
+| ✅ Resolvido em 2026-09-11 | **Não era falha de segurança — o diagnóstico anterior estava errado.** O token do portal sempre veio do banco: `clients.portal_token` tem default `encode(gen_random_bytes(24), 'hex')`, e os clientes em produção têm 48 caracteres. O `Math.random()` que existia em `addClient` nunca chegava ao Postgres, porque `clientParaLinha` não inclui `portal_token` na escrita — ele só enfeitava o estado do React até o F5. Removido, junto do `buildClientPortalUrl`, que estava morto (desestruturado em `App.tsx` e nunca chamado). |  |
 | 🟠 Armadilha 9 | **Relatórios & BI**: `'5min'`, `'1d 14h'` e `'0 min'` são texto fixo; a tabela repete os mesmos valores em toda linha; os filtros de Período e Granularidade não filtram. | `src/components/reports/ReportsView.tsx:138` |
 | 🟠 Armadilha 9 | **Card "Insights" do Dashboard** cita "EcoModa Brasil" e "Café Aroma Gourmet", clientes que não existem em agência nenhuma. | `src/components/dashboard/DashboardView.tsx:194` |
 | 🟡 | Custo de job usa **R$ 85,00/hora fixo** para toda agência, e o rótulo "Rentabilidade" não compara com contrato nenhum. | `src/components/modals/JobDetailModal.tsx:802` |
