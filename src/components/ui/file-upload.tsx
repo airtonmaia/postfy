@@ -308,8 +308,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     {currentFile.size}
                   </span>
                 )}
+                {/* `rounded-full` porque é assim que o projeto pinta um badge
+                    deste tamanho — o `rounded-xl`/`rounded-2xl` do CLAUDE.md é
+                    canto de peça, e badge de 10px não é peça. Estava em
+                    `rounded-md`, um terceiro canto que só este lugar usava. */}
                 {isSvg && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
                     SVG Vetorial
                   </span>
                 )}

@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.29.1',
+    data: '2026-09-11',
+    resumo: 'Os cantos arredondados voltaram ao tamanho certo.',
+    corrigido: [
+      'A versão anterior engrossou o arredondamento de botões, campos e itens de menu, deixando-os do mesmo tamanho do canto dos cards — a interface ficou com uma "casca" só, sem a diferença entre o que é caixa e o que é botão. Foram 649 elementos afetados. Revertido.',
+    ],
+  },
+  {
     versao: '2.29.0',
     data: '2026-09-11',
     resumo:

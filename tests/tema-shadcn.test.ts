@@ -31,7 +31,27 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-const css = readFileSync(join(RAIZ, 'src', 'index.css'), 'utf-8');
+/**
+ * O projeto registra nos comentários o que deu errado antes — inclusive as
+ * classes exatas do bug. Sem tirar os comentários, a guarda acusaria a
+ * explicação que ela existe para preservar; é o mesmo tratamento de
+ * `tests/telas-honestas.test.ts` e `tests/fuso-horario.test.ts`.
+ */
+const semComentarios = (fonte: string): string =>
+  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+/**
+ * O CSS **sem comentário nenhum**, e isso é obrigatório aqui.
+ *
+ * O bloco do `@theme inline` guarda, em comentário, as quatro linhas de
+ * `--radius-*` que causaram o bug de 2.29.0 — é assim que o projeto registra
+ * o custo de ter feito diferente. Lendo o arquivo cru, a guarda que proíbe
+ * `--radius-sm:` acharia justamente essa explicação e reprovaria, e a saída
+ * seria apagar a memória do bug.
+ */
+const css = semComentarios(
+  readFileSync(join(RAIZ, 'src', 'index.css'), 'utf-8')
+);
 const tema = readFileSync(
   join(RAIZ, 'src', 'components', 'common', 'DynamicThemeProvider.tsx'),
   'utf-8'
@@ -136,11 +156,51 @@ describe('as variáveis do shadcn existem e viram classe', () => {
     }
   });
 
-  it('o raio é o rounded-xl do projeto, não o 0.625rem do shadcn', () => {
-    // `rounded-xl` é o canto interno declarado no CLAUDE.md — campo, botão e
-    // item de menu. Com o padrão do shadcn toda peça nova nasceria num
-    // terceiro canto, que é exatamente o que a regra de desenho proíbe.
-    expect(css).toMatch(/--radius:\s*0\.75rem/);
+  it('o @theme inline não redefine a escala de raio do Tailwind', () => {
+    /**
+     * Esta guarda existe por um bug que foi ao ar na 2.29.0.
+     *
+     * O bloco que o `shadcn init` instala declara `--radius-sm|md|lg|xl`, e
+     * **esses são os nomes da escala nativa do Tailwind**, não nomes novos.
+     * Redefinir um deles move toda classe `rounded-*` que já existe: naquele
+     * dia, 444 `rounded-xl` foram de 12px para 16px e 191 `rounded-lg` de 8px
+     * para 12px.
+     *
+     * O estrago caiu na regra de desenho. `rounded-xl` é o canto interno e
+     * `rounded-2xl` é o do card; com o `xl` em 16px os dois viraram o mesmo
+     * canto, e a distinção sumiu em 649 lugares — com `tsc`, vitest e
+     * `vite build` os três verdes, que é o que torna a armadilha cara.
+     *
+     * O teste anterior conferia `--radius: 0.75rem`. Estava certo isolado, e
+     * não dizia nada sobre o que aquilo fazia com `rounded-xl`.
+     */
+    const escalaDoTailwind = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl'];
+
+    for (const passo of escalaDoTailwind) {
+      expect(
+        inline,
+        `--radius-${passo} está no @theme inline — isso move todo rounded-${passo} ` +
+          `que já existe no projeto, sem quebrar build nem teste`
+      ).not.toMatch(new RegExp(`--radius-${passo}\\s*:`));
+    }
+  });
+
+  it('o canto do projeto continua sendo dois, e escrito como classe', () => {
+    // A regra do CLAUDE.md: `rounded-xl` por dentro, `rounded-2xl` no card,
+    // "os dois convivem; um terceiro não". Peça do shadcn chega em
+    // `rounded-md` e tem o canto trocado na hora de entrar — por isso não
+    // pode haver `rounded-md` nem `rounded-sm` em `src/components/ui`.
+    const { readdirSync } = require('node:fs') as typeof import('node:fs');
+    const dirUi = join(RAIZ, 'src', 'components', 'ui');
+
+    for (const arquivo of readdirSync(dirUi).filter((f) => f.endsWith('.tsx'))) {
+      const fonte = semComentarios(readFileSync(join(dirUi, arquivo), 'utf-8'));
+      expect(
+        fonte,
+        `${arquivo}: veio com o canto do shadcn; troque rounded-md/rounded-sm ` +
+          `pelo rounded-xl do projeto`
+      ).not.toMatch(/\brounded-(?:md|sm)\b/);
+    }
   });
 });
 
