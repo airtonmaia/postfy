@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { safeDateTimeFormat, safeDateFormat, safeTimeFormat, copyToClipboard } from '../../lib/utils';
+import { copyToClipboard, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
 import { 
   CheckCircle2,
   Key,
@@ -792,7 +792,7 @@ export const ClientPortalView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white capitalize">
-                {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                {safeDateFormat(calendarMonth, { month: 'long', year: 'numeric' })}
               </h3>
               <div className="flex items-center gap-1.5">
                 <button

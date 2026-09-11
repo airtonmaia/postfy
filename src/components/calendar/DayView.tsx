@@ -1,4 +1,5 @@
 import React from 'react';
+import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
@@ -40,11 +41,10 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
     if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
     if (statusFilter !== 'all' && job.status !== statusFilter) return false;
 
-    const target = new Date(job.scheduledDate || job.deadlineProduction);
+    // Pelo dia da agência, não pelo do dispositivo — ver MonthView.
     return (
-      target.getFullYear() === year &&
-      target.getMonth() === month &&
-      target.getDate() === day
+      diaNoFuso(job.scheduledDate || job.deadlineProduction) ===
+      chaveDoDia(year, month, day)
     );
   }).sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
 

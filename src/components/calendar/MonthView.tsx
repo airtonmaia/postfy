@@ -1,4 +1,5 @@
 import React from 'react';
+import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
 import { Plus, MoreHorizontal, Clock, Sparkles } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeTimeFormat } from '../../lib/utils';
@@ -42,18 +43,15 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
 
   // Helper to test if a job falls on a given date (based on scheduledDate or deadlineProduction)
   const getJobsForDate = (dateObj: Date): Job[] => {
-    const y = dateObj.getFullYear();
-    const m = dateObj.getMonth();
-    const d = dateObj.getDate();
+    // A casinha é um rótulo ("14 de setembro"), então a chave sai dos números
+    // da grade; quem é convertido para o fuso da agência é o conteúdo. Comparar
+    // `getDate()` dos dois lados usava o dia do **dispositivo**: um post das
+    // 21:00 em Cuiabá caía na casinha seguinte para quem abrisse de Lisboa.
+    const chave = chaveDoDia(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
 
-    return filteredJobs.filter(job => {
-      const targetDate = new Date(job.scheduledDate || job.deadlineProduction);
-      return (
-        targetDate.getFullYear() === y &&
-        targetDate.getMonth() === m &&
-        targetDate.getDate() === d
-      );
-    });
+    return filteredJobs.filter(
+      (job) => diaNoFuso(job.scheduledDate || job.deadlineProduction) === chave
+    );
   };
 
   const today = new Date();

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { safeDateFormat } from '../../lib/utils';
 import { usePostfy } from '../../context/PostfyContext';
 import { DollarSign, Building2, Clock, AlertTriangle, Plug, CreditCard } from 'lucide-react';
 import { carregarNumerosDeCobranca, type NumerosDeCobranca } from '../../lib/numerosDoSaas';
@@ -38,7 +39,7 @@ const formatarData = (iso?: string | null): string => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    : safeDateFormat(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 /** Centavos → "R$ 1.234,56". Zero é zero, e é dito assim. */
