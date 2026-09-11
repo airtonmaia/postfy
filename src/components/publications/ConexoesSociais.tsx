@@ -14,15 +14,28 @@ import { ApiError } from '../../lib/api';
  * Só Instagram por enquanto, e a tela diz isso: cada rede exige revisão de
  * app própria, e prometer LinkedIn e TikTok num rótulo seria o mesmo tipo de
  * promessa vazia que o aviso antigo fazia.
+ *
+ * **A conta é de um cliente, não da agência.** Uma agência atende muitos
+ * clientes, cada um com o seu perfil, e quem publica precisa saber em qual
+ * deles postar. A coluna `client_id` existia desde o começo sem ninguém
+ * escrever: toda conexão nascia órfã, e por isso nenhum conteúdo achava onde
+ * ir. Escolher o cliente aqui, antes de autorizar, é o que fecha esse elo.
  */
 
 export const ConexoesSociais: React.FC = () => {
-  const { currentWorkspace } = usePostfy();
+  const { currentWorkspace, clients } = usePostfy();
 
   const [contas, setContas] = useState<ContaConectada[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
+  const [clienteAlvo, setClienteAlvo] = useState('');
+
+  // Sem cliente escolhido a conexão nasceria órfã, e conexão órfã não publica
+  // nada: todo conteúdo tem cliente, e é por ele que o agendador acha o
+  // perfil. Oferecer "conta da agência" seria oferecer um botão que não faz
+  // nada — que é como a coluna `client_id` ficou vazia até aqui.
+  const semClientes = clients.length === 0;
 
   const recarregar = useCallback(() => {
     listarContas()
@@ -45,11 +58,17 @@ export const ConexoesSociais: React.FC = () => {
     return () => window.removeEventListener('message', aoReceber);
   }, [recarregar]);
 
+  const nomeDoCliente = (id?: string) => clients.find((c) => c.id === id)?.name;
+
   const conectar = async () => {
+    if (!clienteAlvo) {
+      setErro('Escolha de qual cliente é esta conta antes de conectar.');
+      return;
+    }
     setErro(null);
     setConectando(true);
     try {
-      await conectarConta(currentWorkspace.id);
+      await conectarConta(currentWorkspace.id, clienteAlvo);
     } catch (e) {
       setConectando(false);
       setErro(
@@ -86,20 +105,39 @@ export const ConexoesSociais: React.FC = () => {
               Contas conectadas
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
-              Conteúdo aprovado e agendado é publicado sozinho na conta conectada.
-              Por enquanto só Instagram: cada rede exige uma revisão de app própria.
+              Cada conta pertence a um cliente: é assim que o agendador sabe em qual
+              perfil publicar. Por enquanto só Instagram — cada rede exige uma revisão
+              de app própria.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={conectar}
-          disabled={conectando}
-          className="shrink-0 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          {conectando ? 'Aguardando autorização...' : 'Conectar Instagram'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+          {/* O cliente é escolhido antes de autorizar, e não depois: quem
+              volta da Meta não traz sessão, então uma escolha feita no retorno
+              não teria como ser conferida. */}
+          <select
+            value={clienteAlvo}
+            onChange={(e) => setClienteAlvo(e.target.value)}
+            className="text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+          >
+            <option value="">De qual cliente?</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={conectar}
+            disabled={conectando || !clienteAlvo}
+            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {conectando ? 'Aguardando autorização...' : 'Conectar Instagram'}
+          </button>
+        </div>
       </div>
 
       {erro && (
@@ -109,7 +147,14 @@ export const ConexoesSociais: React.FC = () => {
         </div>
       )}
 
-      {!carregando && contas.length === 0 && !erro && (
+      {semClientes && (
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
+          Cadastre um cliente antes de conectar: a conta do Instagram é ligada a
+          um deles, e é assim que o agendador sabe onde publicar.
+        </p>
+      )}
+
+      {!carregando && contas.length === 0 && !erro && !semClientes && (
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
           Nenhuma conta conectada. A conta precisa ser Profissional no Instagram e
           estar ligada a uma página do Facebook.
@@ -127,6 +172,14 @@ export const ConexoesSociais: React.FC = () => {
                 <Instagram className="w-4 h-4 text-pink-600 shrink-0" />
                 <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                   @{conta.accountName}
+                </span>
+                {/* De quem é a conta, à vista: publicar no perfil errado não
+                    tem volta, e "conta da agência" não publica conteúdo de
+                    cliente nenhum. */}
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
+                  {conta.clientId
+                    ? nomeDoCliente(conta.clientId) ?? 'cliente removido'
+                    : 'sem cliente — não publica'}
                 </span>
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                   <CheckCircle2 className="w-3 h-3" />
