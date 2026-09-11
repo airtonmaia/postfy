@@ -1,23 +1,36 @@
-# Agendador da fila de publicação.
+# Disparo **manual** da fila de publicação.
 #
-# O cron da Vercel seria o lugar natural, e não serve aqui: contas Hobby só
-# aceitam cron diário, e um agendamento a cada 5 minutos faz o deploy inteiro
-# falhar com "Hobby accounts are limited to daily cron jobs". Publicar uma vez
-# por dia não é agendamento de post.
+# Este workflow já foi o agendador, em `*/5 * * * *`. Não é mais, e o motivo
+# está medido: em 2026-09-11 ele havia rodado **15 vezes em 52,6 horas** —
+# 2,4% das 631 passadas que o cron pedia, com intervalos reais de 2 a 5
+# horas entre uma e outra.
 #
-# Este workflow não depende do plano. O compromisso é que o agendador do
-# GitHub tem 5 minutos de granularidade mínima e pode atrasar sob carga —
-# aceitável para post agendado, que já tolera minutos.
+# O comentário que estava aqui assumia outra coisa: "pode atrasar sob carga
+# — aceitável para post agendado, que já tolera minutos". Atraso de minutos
+# seria. Atraso de horas não é: um post marcado para as 10:00 sai às 14:00,
+# no perfil do cliente, e quem explica é a agência.
 #
-# No plano Pro, dá para voltar ao cron da Vercel: acrescente
-#   "crons": [{ "path": "/api/publicar", "schedule": "*/5 * * * *" }]
-# ao vercel.json e desligue este workflow. A rota é a mesma.
-name: Publicar fila
+# Não é erro de configuração. O `schedule` do GitHub Actions é best-effort
+# por definição — a documentação deles avisa que ele é adiado sob carga e
+# que execução não é garantida. Para CI isso não custa nada; para hora de
+# publicação, custa tudo.
+#
+# Quem agenda agora é o `pg_cron`, dentro do Postgres que já é nosso
+# (`supabase/migrations/20260911200000_agendador_no_banco.sql`). O cron da
+# Vercel seria o lugar natural e não serve: contas Hobby só aceitam cron
+# diário, e `*/5` faz o deploy inteiro falhar.
+#
+# **O `schedule:` saiu daqui de propósito, e não por esquecimento.** Deixá-lo
+# como reserva pareceria prudente e seria o contrário: os dois agendadores
+# esconderiam a morte um do outro, e ninguém notaria o `pg_cron` parado
+# enquanto posts saíssem algumas horas atrasados. Com um agendador só, a
+# parada aparece na fila da tela de Publicações, com os itens em pendente.
+#
+# O disparo manual continua: é o que se usa para testar sem esperar o ciclo,
+# e foi como o `CRON_SECRET` foi conferido.
+name: Publicar fila (manual)
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
-  # Para disparar à mão ao testar, sem esperar o próximo ciclo.
   workflow_dispatch:
 
 # Duas execuções simultâneas tentariam publicar o mesmo item. A trava do
