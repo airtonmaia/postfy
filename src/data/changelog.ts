@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.18.0',
+    data: '2026-09-11',
+    resumo: 'Um conteúdo agora vai para mais de uma rede, e a prévia mostra como ele fica em cada uma.',
+    novidades: [
+      'Dá para marcar Instagram e Facebook no mesmo conteúdo, em vez de cadastrar duas vezes a mesma arte com duas aprovações.',
+      'A prévia ganhou uma aba por rede escolhida — e só das escolhidas. Trocando a aba, você vê o mesmo post do jeito que cada rede vai mostrar.',
+      'No carrossel dá para navegar pelas páginas (← 1/5 →), com as bolinhas embaixo da arte. Antes só a primeira aparecia, e é justamente a terceira que costuma estar na proporção errada.',
+      'Botão Celular / Computador: a mesma legenda quebra em pontos diferentes nas duas larguras.',
+    ],
+    melhorias: [
+      'O formato agora oferece só o que existe em todas as redes marcadas. Instagram e YouTube, por exemplo, só têm o vídeo curto em comum — antes dava para escolher Story para o YouTube, e a falha só aparecia na hora de publicar.',
+      'A prévia mostra a localização digitada e a data do agendamento, além do "Ver mais" no ponto em que o Instagram corta a legenda.',
+    ],
+  },
+  {
     versao: '2.17.0',
     data: '2026-09-11',
     resumo: 'O teste grátis passou a ter prazo de verdade — com data de fim e uma tela que avisa quando acaba.',

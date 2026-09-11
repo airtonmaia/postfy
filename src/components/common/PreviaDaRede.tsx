@@ -307,6 +307,19 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
             </div>
 
             <div className="px-3 pb-3 pt-2 space-y-1">
+              {/*
+                Moldura da rede, não dado do post.
+
+                A linha de curtidas e a de comentários são desenho: é o que
+                faz o quadro ser lido como Instagram em vez de como um card
+                genérico. Nenhum número sai daqui — não existe post publicado
+                para ter métrica, e um "436 curtidas" no meio da prévia seria
+                lido como promessa na frente do cliente.
+              */}
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                Curtido por <strong className="font-bold text-slate-900 dark:text-white">sua audiência</strong> e outras pessoas
+              </span>
+
               {dados.legenda.trim() ? (
                 <>
                   <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed line-clamp-3">
@@ -325,12 +338,11 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
                 </p>
               )}
 
-              {/*
-                A data é a do agendamento — real, vinda do formulário. O
-                mockup trazia "Há 1 dia" e "50 comentários": não dá para
-                mostrar nenhum dos dois, porque o post ainda não existe e a
-                agência abre esta tela na frente do cliente.
-              */}
+              <span className="block text-[11px] text-slate-400">
+                Ver todos os comentários
+              </span>
+
+              {/* A data é a do agendamento — esta é real, vem do formulário. */}
               {dados.dataPrevista && (
                 <span className="block text-[10px] uppercase tracking-wide text-slate-400 pt-0.5">
                   {dados.dataPrevista}
