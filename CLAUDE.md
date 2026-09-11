@@ -511,9 +511,37 @@ select created, status_code, content::text
 `status_code` 401 significa que o valor no Vault e o da Vercel divergiram —
 o mesmo sintoma que derrubava o workflow.
 
-Protegido por `tests/agendador.test.ts`, que confere que existe **um**
-agendamento, que o workflow não agenda mais, que o `vercel.json` continua sem
-`crons`, e que nenhuma migração embute segredo.
+### `extensions.net.http_get` não é schema errado — é nome de três partes
+
+`create extension pg_net with schema extensions` registra a extensão ali, mas
+as funções **não** vão junto: o pg_net fixa o schema `net` no próprio control
+file, e é em `net.http_get` que elas ficam. Escrever `extensions.net.http_get`
+faz o Postgres ler *banco*.*schema*.*função* e recusar com
+`0A000: cross-database references are not implemented`.
+
+O que torna isso caro é o momento em que aparece. **A migração aplica limpa**:
+PL/pgSQL só resolve nome na execução, então `create or replace function`
+aceita o corpo sem conferir nada e o `cron.schedule` grava. A primeira falha
+chega na primeira passada, como uma linha em `cron.job_run_details` que
+ninguém abre — nada publica, a fila enche de `pendente`, e não há erro em
+lugar nenhum. Exatamente o sintoma que o `pg_cron` veio resolver.
+
+`net` também precisa estar no `search_path` da função: ela é `security
+definer` com caminho fixo, então o schema não entra por herança da sessão.
+
+**E migração escrita não é migração aplicada.** Esta ficou quatro commits no
+repositório sem nunca ter sido aplicada — com o `schedule:` do GitHub já
+removido, o produto passou esse tempo **sem agendador nenhum**. A regra do
+banco compartilhado corta nos dois sentidos: aplicar cedo demais quebra a
+`main`, e aplicar nunca desliga o produto em silêncio. Antes de fechar a
+entrega, confira no banco (`select * from cron.job`), não no arquivo.
+
+`tests/agendador.test.ts` já existia e conferia a **fiação de fora** — um
+`cron.schedule` só, com `unschedule` antes, workflow sem `schedule`,
+`vercel.json` sem `crons`, segredo fora do git. Nada olhava para dentro do
+corpo da função, que é onde o erro estava. Agora olha: o disparo tem que usar
+`net.http_get` com `net` no `search_path`, e nenhuma migração pode conter nome
+de três partes.
 
 ---
 

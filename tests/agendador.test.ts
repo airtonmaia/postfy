@@ -116,3 +116,46 @@ describe('o segredo não entra no git', () => {
     }
   });
 });
+
+/**
+ * O disparo em si — e é aqui que ele falhou de verdade.
+ *
+ * `extensions.net.http_get(...)` não é schema errado: é nome de três partes,
+ * que o Postgres lê como *banco*.*schema*.*função* e recusa com
+ * `0A000: cross-database references are not implemented`. O pg_net fixa o
+ * schema `net` no próprio control file — `with schema extensions` registra a
+ * extensão, não move as funções.
+ *
+ * O veneno é o momento em que isso aparece. **A migração aplica limpa**:
+ * PL/pgSQL só resolve nome na execução, então `create or replace function`
+ * aceita o corpo sem conferir nada e o `cron.schedule` grava. A falha chega na
+ * primeira passada, como uma linha em `cron.job_run_details` que ninguém abre
+ * — nada publica, a fila enche de `pendente`, e não há erro em lugar nenhum.
+ * Exatamente o sintoma que o `pg_cron` veio resolver.
+ */
+describe('o disparo chama a função onde ela mora', () => {
+  it('usa net.http_get, e não um nome de três partes', () => {
+    const sql = migracaoDoAgendador();
+
+    expect(sql).toMatch(/perform\s+net\.http_get\(/);
+    // `net` tem que estar no search_path: a função é `security definer` com
+    // caminho fixo, então o schema não entra por herança da sessão.
+    expect(sql).toMatch(/set search_path = [^\n]*\bnet\b/);
+  });
+
+  it('nenhuma migração usa extensions.net.x', () => {
+    for (const arquivo of readdirSync(MIGRACOES).filter((f) => f.endsWith('.sql'))) {
+      // Depois de remover os comentários: o porquê da correção está escrito
+      // neles, e sem a limpeza a guarda acusaria a memória do próprio bug.
+      const semComentarios = readFileSync(`${MIGRACOES}/${arquivo}`, 'utf8')
+        .split('\n')
+        .filter((l) => !l.trimStart().startsWith('--'))
+        .join('\n');
+
+      expect(
+        semComentarios,
+        `${arquivo}: extensions.net.x é lido como banco.schema.função e só falha ao executar`
+      ).not.toMatch(/\bextensions\.net\./);
+    }
+  });
+});
