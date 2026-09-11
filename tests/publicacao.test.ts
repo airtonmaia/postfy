@@ -144,6 +144,35 @@ describe('a fila de publicação tem produtor', () => {
  * isso a fila nunca recebia nada. É a mesma classe de bug de
  * `workspaces.trial_ends_at`: coluna que parece uma regra e não é.
  */
+/**
+ * O caminho de sessão em `api/publicar.ts` — o "Publicar agora (teste)".
+ *
+ * É a única porta da rota que não usa o segredo do cron, e ela publica no
+ * perfil de um cliente de verdade. Três coisas não podem afrouxar:
+ */
+describe('publicar agora, por sessão', () => {
+  it('reconfere o papel no banco, não no que o navegador diz', () => {
+    // A mesma lista que a policy de INSERT da publish_queue aceita. Sem esta
+    // conferência, qualquer membro publicaria no perfil do cliente.
+    expect(publicarTs).toMatch(/PAPEIS_QUE_PUBLICAM/);
+    expect(publicarTs).toMatch(/from\('workspace_members'\)/);
+    expect(publicarTs).toMatch(/403/);
+  });
+
+  it('o que vai para a Meta sai do banco, nunca do corpo da requisição', () => {
+    // A rota lê só o `jobId`. Aceitar legenda ou mídia do navegador deixaria
+    // a sessão escolher o que é postado, sem passar pela aprovação.
+    const corpoLido = publicarTs.match(/const \{ ([^}]*) \} = corpo \|\| \{\};/);
+    expect(corpoLido?.[1].trim()).toBe('jobId');
+  });
+
+  it('conteúdo já publicado não é publicado de novo', () => {
+    // Publicar duplicado é pior que não publicar, e um upsert cego por cima
+    // de uma linha `publicado` faria exatamente isso.
+    expect(publicarTs).toMatch(/JA_PUBLICADO/);
+  });
+});
+
 describe('a conta conectada pertence a um cliente', () => {
   const callback = semComentarios(
     readFileSync(join(RAIZ, 'api', 'social-callback.ts'), 'utf-8')

@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.25.0',
+    data: '2026-09-11',
+    resumo:
+      'Um botão temporário para provar que a publicação no Instagram funciona — com a resposta na hora, não em cinco minutos.',
+    novidades: [
+      'Botão "Publicar agora (teste)" no cadastro de conteúdo, quando o Instagram está marcado. Ele salva e publica na mesma hora, e mostra ali mesmo o que aconteceu: o id do post na Meta, ou o erro exato que ela devolveu. É temporário — existe para conferir a integração de ponta a ponta, e sai depois disso.',
+    ],
+    melhorias: [
+      'Um conteúdo já publicado não é publicado de novo pelo botão de teste: a resposta diz que ele já saiu, e em qual conta.',
+    ],
+    corrigido: [
+      'A correção do agendador da versão anterior não chegaria a quem já tinha aplicado a versão com defeito — o histórico marca aquele passo como concluído e não o repete. Agora ela vai numa etapa própria, que roda mesmo nesses casos.',
+    ],
+  },
+  {
     versao: '2.24.0',
     data: '2026-09-11',
     resumo:
