@@ -48,6 +48,64 @@ export const COMO_PUBLICA: Record<JobPlatform, string> = {
   twitter: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
 };
 
+/**
+ * As redes da Meta, e o que dá para fazer com cada uma **hoje**.
+ *
+ * A aba "Conexões do perfil" lista as quatro. Só o Instagram conecta: é o
+ * único com o fluxo de OAuth escrito (`api/_lib/instagram.ts`), e cada uma
+ * das outras precisa de coisa diferente, não de mais um botão.
+ *
+ * `pendencia` diz **o que falta, com nome**, e não "em breve": não há data, e
+ * prometer prazo que ninguém assumiu é a mesma mentira com outra roupa. É a
+ * mesma regra do `COMO_PUBLICA` acima e da aba Integrações.
+ *
+ * Botão que abre e falha depois do login é pior que botão ausente — foi
+ * exatamente assim que a escolha errada de fluxo do Instagram custou quatro
+ * rodadas de diagnóstico.
+ */
+export interface RedeDaMeta {
+  id: 'instagram' | 'facebook' | 'threads' | 'whatsapp';
+  rotulo: string;
+  /** Dá para conectar agora. */
+  disponivel: boolean;
+  /** O que falta para a rede sair de `disponivel: false`. */
+  pendencia?: string;
+}
+
+export const REDES_DA_META: readonly RedeDaMeta[] = [
+  {
+    id: 'instagram',
+    rotulo: 'Instagram',
+    disponivel: true,
+  },
+  {
+    id: 'facebook',
+    rotulo: 'Facebook',
+    disponivel: false,
+    // É outro fluxo, não o mesmo com outro nome: publicar numa Página usa o
+    // login do Facebook e o token **da Página**, via `/me/accounts` — o
+    // caminho que este projeto deliberadamente não seguiu para o Instagram.
+    pendencia:
+      'Exige o login do Facebook e o token da Página, que é um fluxo diferente do que está escrito, mais a revisão de pages_manage_posts.',
+  },
+  {
+    id: 'threads',
+    rotulo: 'Threads',
+    disponivel: false,
+    pendencia:
+      'Tem API própria, com app e revisão separados (threads_basic e threads_content_publish).',
+  },
+  {
+    id: 'whatsapp',
+    rotulo: 'WhatsApp Business',
+    disponivel: false,
+    // Fica na lista porque é da Meta e a pergunta aparece. Mas o produto é
+    // outro: mensagem para contato, não publicação em feed.
+    pendencia:
+      'É mensageria, não publicação em feed: serviria para falar com o cliente, e isso é outra funcionalidade.',
+  },
+] as const;
+
 export interface ContaConectada {
   id: string;
   workspaceId: string;

@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.22.0',
+    data: '2026-09-11',
+    resumo:
+      'A ficha do cliente ganhou endereço próprio, os nomes das abas agora batem com os do portal, e cada perfil mostra seus canais conectados.',
+    novidades: [
+      'Nova aba "Conexões do perfil" dentro do cliente: mostra os canais da Meta ligados àquele perfil e conecta o Instagram em um clique, sem passar pela lista de todos os clientes.',
+      'A ficha do cliente tem URL própria — /clientes/nome-do-cliente. Dá para recarregar sem voltar à lista, usar o voltar do navegador para fechar a ficha, e mandar o link do cadastro para alguém da equipe.',
+    ],
+    melhorias: [
+      'As abas do cliente passaram a ter os mesmos nomes do portal: "Arquivos & Drive" virou Arquivos, "Cofre de Senhas" virou Senhas e "Briefing da Marca" virou Briefing. A agência e o cliente olham para as mesmas coisas — agora chamam pelo mesmo nome ao telefone.',
+      'Facebook, Threads e WhatsApp aparecem na lista de conexões dizendo exatamente o que falta em cada um, em vez de um botão que abriria e falharia depois do login.',
+    ],
+  },
+  {
     versao: '2.21.0',
     data: '2026-09-11',
     resumo:
