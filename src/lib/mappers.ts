@@ -50,6 +50,7 @@ export const workspaceDaLinha = (l: Linha): Workspace => ({
   customDomain: ounull(l.custom_domain),
   whiteLabel: Boolean(l.white_label),
   timezone: l.timezone ?? 'America/Sao_Paulo',
+  notificacaoAprovacao: l.notificacao_aprovacao === 'lote' ? 'lote' : 'cada',
   isTrial: ounull(l.is_trial),
   trialEndsAt: ounull(l.trial_ends_at),
   deletedAt: ounull(l.deleted_at),
@@ -67,6 +68,7 @@ export const workspaceParaLinha = (w: Partial<Workspace>): Linha =>
     custom_domain: w.customDomain,
     white_label: w.whiteLabel,
     timezone: w.timezone,
+    notificacao_aprovacao: w.notificacaoAprovacao,
     is_trial: w.isTrial,
     trial_ends_at: w.trialEndsAt,
   });
