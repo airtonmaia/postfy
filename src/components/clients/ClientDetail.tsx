@@ -7,10 +7,11 @@ import {
   User, FolderOpen, Key, Receipt, FileText, Upload, Plus, 
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
   ShieldCheck, AlertCircle, Calendar, DollarSign, Globe, Phone, Mail,
-  Share2, Sparkles, Building2, CheckCircle2
+  Share2, Sparkles, Building2, CheckCircle2, Users
 } from 'lucide-react';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
+import { ClientUsersTab } from './ClientUsersTab';
 
 interface ClientDetailProps {
   client: Client;
@@ -31,7 +32,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     users
   } = usePostfy();
 
-  const [activeTab, setActiveTab] = useState<'cadastro' | 'arquivos' | 'senhas' | 'notas' | 'briefing'>('cadastro');
+  const [activeTab, setActiveTab] = useState<'cadastro' | 'usuarios' | 'arquivos' | 'senhas' | 'notas' | 'briefing'>('cadastro');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showPasswordIds, setShowPasswordIds] = useState<Record<string, boolean>>({});
   const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
@@ -165,6 +166,9 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
 
   const tabs = [
     { id: 'cadastro', label: 'Cadastro', icon: User },
+    // Sem contador: a lista vive no banco e só é carregada quando a aba
+    // abre. Um número aqui teria que ser adivinhado a cada render.
+    { id: 'usuarios', label: 'Usuários', icon: Users },
     { id: 'arquivos', label: 'Arquivos & Drive', icon: FolderOpen, count: (client.files || []).length },
     { id: 'senhas', label: 'Cofre de Senhas', icon: Key, count: (client.passwords || []).length },
     { id: 'notas', label: 'Notas Fiscais', icon: Receipt, count: (client.invoices || []).length },
@@ -397,7 +401,10 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
           </form>
         )}
 
-        {/* TAB 2: ARQUIVOS & DRIVE */}
+        {/* TAB 2: USUÁRIOS DO PORTAL */}
+        {activeTab === 'usuarios' && <ClientUsersTab client={client} />}
+
+        {/* TAB 3: ARQUIVOS & DRIVE */}
         {activeTab === 'arquivos' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">

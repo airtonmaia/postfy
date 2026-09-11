@@ -1,4 +1,4 @@
-import { clienteDeServico, json } from './_lib/auth.js';
+import { clienteDeServico, json, autorizadoPeloCron } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.js';
 
@@ -19,17 +19,8 @@ import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.
 const LOTE = 10;
 const MAX_TENTATIVAS = 3;
 
-const autorizado = (request: Request): boolean => {
-  const esperado = process.env.CRON_SECRET;
-  if (!esperado) return false;
-
-  // A Vercel manda o segredo no Authorization ao chamar um cron.
-  const header = request.headers.get('authorization') || '';
-  return header === `Bearer ${esperado}`;
-};
-
 async function handler(request: Request): Promise<Response> {
-  if (!autorizado(request)) {
+  if (!autorizadoPeloCron(request)) {
     // Mesma resposta para segredo errado e para segredo ausente: dizer qual
     // dos dois é ajuda quem está tentando adivinhar.
     return json({ error: 'Não autorizado.' }, 401);

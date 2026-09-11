@@ -31,6 +31,44 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.15.0',
+    data: '2026-09-11',
+    resumo: 'Excluir agência passou a excluir de verdade — com sete dias de lixeira antes de não ter mais volta.',
+    novidades: [
+      'Admin → Agências ganhou a Lixeira. Excluir tira a agência do ar na hora, mas a apaga de vez só depois de 7 dias, e até lá o botão "Restaurar" traz tudo de volta.',
+      'Cada agência na lixeira mostra desde quando está lá, quantos dias faltam e o que vai junto: clientes, conteúdos e arquivos.',
+      'Quem estiver trabalhando numa agência que foi para a lixeira vê um aviso no topo, com o prazo. Antes a equipe seguia produzindo e perdia tudo numa madrugada, sem nunca ter visto nada.',
+    ],
+    corrigido: [
+      'O botão "Excluir Agência" não excluía nada. Ele removia o vínculo de quem clicava — e como quem administra o produto normalmente não é membro da agência, o clique não fazia efeito nenhum e não mostrava erro.',
+      'A lista de agências dizia "👑 Agência PRO" para toda agência sem marca de teste. Não existe assinatura nem cobrança no banco: o selo afirmava um plano que ninguém contratou, bem na tela de onde se decide excluir a agência.',
+      'A mesma lista mostrava "3 usuários" quando não conseguia contar — um número literal no código. Agora a contagem de equipe e clientes vem do banco, e quando não vem a tela diz isso.',
+      'O deploy desta versão estava falhando por passar do limite de funções do plano da Vercel, sem nenhum erro de código para mostrar. As duas rotas da lixeira viraram uma só.',
+    ],
+  },
+  {
+    versao: '2.14.0',
+    data: '2026-09-11',
+    resumo: 'O Portal do Cliente passou a ter gente, com dois papéis: quem só aprova e quem também edita.',
+    novidades: [
+      'Cada cliente ganhou a aba Usuários na ficha dele. É ali que a agência decide quem da empresa do cliente entra no portal, e com qual papel.',
+      'Aprovador: vê o conteúdo, aprova e pede ajuste. Nada além disso.',
+      'Editor: tudo do aprovador, mais anexar arquivos, cadastrar senhas, acessar as notas fiscais, ler e alterar o briefing da marca e convidar outros usuários — sem depender da agência.',
+      'O editor gerencia os acessos de dentro do próprio portal, numa aba Usuários exclusiva dele.',
+      'O briefing virou editável pelo portal. Antes era só leitura, e mudar uma linha exigia pedir para a agência.',
+    ],
+    melhorias: [
+      'Quem já entrava no portal continua entrando, como editor: ninguém perdeu acesso na virada.',
+      'Cada aprovação passou a ser registrada com o nome da pessoa que apertou o botão. Antes o histórico dizia só "Cliente".',
+      'A sessão do portal dura 30 dias, em vez de morrer ao fechar a aba.',
+    ],
+    corrigido: [
+      'Material enviado pelo cliente aparecia na galeria e sumia no reload: a gravação era recusada pelo banco e ninguém via o erro. Agora é gravado de verdade.',
+      'O briefing mostrava textos de exemplo ("Acolhedor, especialista, dinâmico…") como se fossem do cliente. Campo vazio agora diz que está vazio.',
+      'O cofre de senhas e as notas fiscais chegavam ao navegador de qualquer pessoa que entrasse no portal, mesmo com a aba fechada na tela. Para o aprovador esses dados não saem mais do servidor.',
+    ],
+  },
+  {
     versao: '2.13.0',
     data: '2026-09-10',
     resumo: 'O cadastro pergunta o que cada rede realmente precisa, e a prévia deixa navegar pelo carrossel.',
@@ -39,25 +77,6 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'A prévia ficou maior e navega no carrossel: ← 1 / 5 →. Antes ela mostrava só a primeira arte, e é justamente a terceira que costuma estar na proporção errada.',
       'Botão Celular / Computador na prévia: a mesma legenda quebra em lugares diferentes nas duas larguras.',
       'A localização digitada aparece na prévia embaixo do nome do perfil, como aparece na rede.',
-    ],
-  },
-  {
-    versao: '2.12.0',
-    data: '2026-09-10',
-    resumo: 'O quadro virou WorkFlow, o cadastro ganhou prévia da rede, e agora cabe copy e roteiro além do conteúdo pronto.',
-    novidades: [
-      'O botão do quadro virou "Adicionar" e pergunta o que você vai criar: Conteúdo, Copy ou Roteiro.',
-      'O cadastro mostra a prévia de como o post fica na rede escolhida, com a arte, o nome do cliente e a legenda que você está escrevendo. No Instagram ela alterna sozinha entre Feed e Story — é onde a arte costuma perder a cabeça de alguém no corte.',
-      'A rede virou uma fileira de logos, no lugar da lista suspensa: dá para ver e trocar o canal sem abrir nada.',
-      '"Enviar para aprovação" ao lado de "Criar conteúdo": o conteúdo já nasce na coluna de aprovação e o cliente é avisado.',
-      'Copy e roteiro não pedem mais upload de arte — são texto, e o campo de escrita ocupa o lugar que era da imagem.',
-      'No quadro, copy e roteiro ganham um selo próprio. Conteúdo continua sem marca, que é a maioria.',
-      'No portal, um copy ou roteiro deixa de mostrar a moldura vazia de imagem: o cliente lê o texto e aprova, sem ficar esperando uma arte que não existe.',
-    ],
-    melhorias: [
-      'O menu "Quadro Kanban" agora se chama WorkFlow. O endereço continua /kanban, para não quebrar link já compartilhado.',
-      'O cadastro perdeu a faixa de título, que repetia o que o formulário já dizia, e o campo de legenda ficou três vezes mais alto — legenda de rede social é texto longo.',
-      'Chamada para ação e hashtags saíram do cadastro e seguem editáveis no detalhe do conteúdo. As hashtags vinham preenchidas com "#Novidade #Marketing" mesmo sem ninguém digitar, e iam para o post assim.',
     ],
   },
   {

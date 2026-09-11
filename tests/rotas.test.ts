@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import {
   CAMINHOS,
@@ -224,5 +224,30 @@ describe('a Vercel serve o app em qualquer caminho', () => {
     for (const caminho of Object.values(CAMINHOS)) {
       expect(padrao.test(caminho), caminho).toBe(true);
     }
+  });
+
+  /**
+   * O plano Hobby aceita 12 funções serverless por deploy.
+   *
+   * Passar disso não dá erro de código: `tsc`, vitest e `vite build` ficam
+   * verdes — nenhum deles olha para `api/` contando arquivos —, e **o deploy
+   * inteiro falha**, com a produção presa na versão anterior. Foi assim que
+   * a branch da lixeira ficou quatro deploys sem subir: duas rotas novas
+   * levaram o total a 14.
+   *
+   * É a mesma família da armadilha do cron de 5 minutos: limite de plano que
+   * só aparece no deploy de verdade. Rota nova aqui significa juntar duas
+   * que já existem — foi o que aconteceu com a exclusão de agência, que
+   * virou modo da própria rota de expurgo.
+   */
+  it('não passa do limite de funções serverless do plano', () => {
+    const LIMITE_DO_PLANO_HOBBY = 12;
+
+    const funcoes = readdirSync('api').filter((f) => f.endsWith('.ts'));
+
+    expect(
+      funcoes.length,
+      `${funcoes.length} funções em api/ (limite ${LIMITE_DO_PLANO_HOBBY}): ${funcoes.join(', ')}`
+    ).toBeLessThanOrEqual(LIMITE_DO_PLANO_HOBBY);
   });
 });

@@ -27,7 +27,15 @@ import {
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { aiApi, ApiError } from '../lib/api';
-import { db, carregarTudo, listarWorkspaces, atualizarWorkspace, DbError } from '../lib/db';
+import {
+  db,
+  carregarTudo,
+  listarWorkspaces,
+  atualizarWorkspace,
+  moverAgenciaParaLixeira as moverParaLixeira,
+  restaurarAgencia as restaurarDaLixeira,
+  DbError,
+} from '../lib/db';
 import {
   entrar as authEntrar,
   cadastrar as authCadastrar,
@@ -38,7 +46,6 @@ import {
   definirNovaSenha,
   carregarSessao,
   aoMudarAutenticacao,
-  removerMembro as removerMembroDaAgencia,
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
@@ -63,10 +70,13 @@ import {
   carregarPortal,
   aprovarPeloPortal,
   pedirAjustePeloPortal,
+  salvarDadosPeloPortal,
+  enviarMaterialPeloPortal,
   tokenGuardado,
   guardarToken,
   esquecerToken,
   type DadosDoPortal,
+  type UsuarioDoPortal,
   carregarMarcaDaAgencia,
 } from '../lib/portal';
 
@@ -84,7 +94,17 @@ interface PostfyContextType {
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
   createWorkspace: (name: string, primaryColor?: string) => Promise<Workspace | null>;
-  deleteWorkspace: (workspaceId: string) => Promise<void>;
+  /**
+   * Manda a agência para a lixeira. Devolve quando ela entrou lá.
+   *
+   * Substitui o antigo `deleteWorkspace`, que chamava `removerMembro` — ele
+   * tirava o vínculo de quem clicou, não a agência. Para o admin da
+   * plataforma, que normalmente não é membro, era um no-op silencioso: o
+   * botão não fazia nada e ninguém via erro.
+   */
+  moverAgenciaParaLixeira: (workspaceId: string) => Promise<void>;
+  /** Tira da lixeira, antes de os 7 dias passarem. */
+  restaurarAgenciaDaLixeira: (workspaceId: string) => Promise<void>;
   isCreateWorkspaceModalOpen: boolean;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
@@ -141,6 +161,13 @@ interface PostfyContextType {
   /** True enquanto a RPC do portal não respondeu. */
   carregandoPortal: boolean;
   erroDoPortal: string | null;
+  /**
+   * Quem entrou no portal e com que papel. `null` na prévia interna, que é
+   * a equipe da agência olhando — ela não é usuária do cliente.
+   */
+  portalUsuario: UsuarioDoPortal | null;
+  /** Atalho do papel: o editor escreve, o aprovador só aprova. */
+  portalEhEditor: boolean;
   /** Link externo do portal, com o token opaco do cliente. */
   buildClientPortalUrl: (clientId: string) => string;
   
@@ -389,16 +416,41 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * por cascade, os dados de todos os outros membros. Uma agência sem nenhum
    * membro fica inalcançável pela RLS de qualquer forma.
    */
-  const deleteWorkspace = async (workspaceId: string) => {
+  const moverAgenciaParaLixeira = async (workspaceId: string) => {
     try {
-      await removerMembroDaAgencia(workspaceId, currentUser.id);
-      const restantes = workspaces.filter((w) => w.id !== workspaceId);
-      setWorkspaces(restantes);
-      if (currentWorkspace?.id === workspaceId && restantes[0]) {
-        setCurrentWorkspace(restantes[0]);
+      const quando = await moverParaLixeira(workspaceId);
+      // A linha continua no banco por 7 dias, então ela continua na lista —
+      // só marcada. Tirá-la daqui esconderia a única tela de onde dá para
+      // restaurar.
+      setWorkspaces((antes) =>
+        antes.map((w) => (w.id === workspaceId ? { ...w, deletedAt: quando } : w))
+      );
+
+      // Ninguém fica dentro de uma agência que acabou de ir para a lixeira.
+      if (currentWorkspace?.id === workspaceId) {
+        const outra = workspaces.find((w) => w.id !== workspaceId && !w.deletedAt);
+        if (outra) setCurrentWorkspace(outra);
       }
     } catch (erro) {
-      relatarErro(erro, 'sair da agência');
+      relatarErro(erro, 'mover a agência para a lixeira');
+    }
+  };
+
+  const restaurarAgenciaDaLixeira = async (workspaceId: string) => {
+    try {
+      const restaurou = await restaurarDaLixeira(workspaceId);
+      if (!restaurou) {
+        // `false` é resposta, não erro: a agência já não estava na lixeira
+        // (o expurgo passou, ou outra pessoa restaurou antes). Recarregar é
+        // mais honesto que deixar a tela afirmar que restaurou.
+        setWorkspaces(await listarWorkspaces());
+        return;
+      }
+      setWorkspaces((antes) =>
+        antes.map((w) => (w.id === workspaceId ? { ...w, deletedAt: null, deletedBy: null } : w))
+      );
+    } catch (erro) {
+      relatarErro(erro, 'restaurar a agência');
     }
   };
 
@@ -743,6 +795,26 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [dadosDoPortal, setDadosDoPortal] = useState<DadosDoPortal | null>(null);
   const [carregandoPortal, setCarregandoPortal] = useState(false);
   const [erroDoPortal, setErroDoPortal] = useState<string | null>(null);
+
+  /**
+   * "Estamos no portal, sem sessão de agência".
+   *
+   * Vale para toda gravação daqui para baixo, não só para aprovar: com
+   * `isAuthenticated` falso o `useColecaoSincronizada` sai cedo e **nada**
+   * é persistido — a mutação morre no estado da aba, e a tela mostra o que
+   * o banco nunca recebeu. Onde isto é verdade, quem grava é RPC.
+   */
+  const noPortal = Boolean(portalToken) && !isAuthenticated;
+
+  /**
+   * Papel de quem entrou no portal. `null` para a equipe da agência, que
+   * chega pela prévia interna e não tem papel de cliente nenhum.
+   *
+   * Vem do banco junto com os dados, e é o mesmo papel que decidiu o que
+   * veio: a tela usa isto para não oferecer um botão que a RPC recusaria.
+   */
+  const portalUsuario = dadosDoPortal?.usuario ?? null;
+  const portalEhEditor = portalUsuario?.papel === 'editor';
 
   // Workspace ativo: recorta todas as views derivadas abaixo.
   const currentWsId = currentWorkspace?.id || '';
@@ -1291,7 +1363,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // No portal a escrita direta seria recusada pela RLS — não há `auth.uid()`
     // ali. A RPC faz o mesmo que o resto desta função faz no banco: status,
     // versão marcada, log e notificação para a agência.
-    const noPortal = Boolean(portalToken) && !isAuthenticated;
     if (noPortal) void aprovarPeloPortalDoCliente(jobId, approverName);
 
     // Celebrate with confetti
@@ -1342,7 +1413,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!job) return;
 
     // Mesmo caso da aprovação: sem sessão, quem grava é a RPC do portal.
-    if (portalToken && !isAuthenticated) {
+    if (noPortal && portalToken) {
       void (async () => {
         try {
           await pedirAjustePeloPortal(portalToken, jobId, feedback, requesterName);
@@ -1522,24 +1593,56 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAllClients(prev => prev.filter(c => c.id !== clientId));
   };
 
+  /**
+   * Grava, pelo portal, o que na agência seria gravado pelo diff.
+   *
+   * `useColecaoSincronizada` está desligado sem sessão, então sem isto
+   * arquivo anexado e senha cadastrada pelo cliente sumiriam no F5 — a tela
+   * mostrando o que o banco nunca recebeu. A RPC confere o papel: só editor
+   * passa, e só nos três campos que ele pode tocar.
+   */
+  const gravarClienteNoPortal = async (
+    campos: Partial<Pick<Client, 'files' | 'passwords' | 'briefing'>>
+  ) => {
+    if (!portalToken) return;
+    try {
+      await salvarDadosPeloPortal(portalToken, campos);
+    } catch (erro) {
+      setErroDoPortal(
+        erro instanceof Error ? erro.message : 'Não foi possível salvar a alteração.'
+      );
+      // Volta ao que o banco tem: o estado otimista já mostrou o resultado.
+      const dados = await carregarPortal(portalToken).catch(() => null);
+      if (dados) setAllClients([dados.cliente]);
+    }
+  };
+
   const addClientPassword = (clientId: string, passwordData: Omit<ClientPassword, 'id' | 'updatedAt'>) => {
     const newPassword: ClientPassword = {
       ...passwordData,
       id: novoId(),
       updatedAt: new Date().toISOString()
     };
+    const proximas = [...(allClients.find(c => c.id === clientId)?.passwords || []), newPassword];
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, passwords: [...(c.passwords || []), newPassword] };
     }));
+    if (noPortal) {
+      void gravarClienteNoPortal({ passwords: proximas });
+      return;
+    }
     logActivity('Cadastrou credencial no cofre', `Cliente #${clientId}: ${passwordData.service}`);
   };
 
   const deleteClientPassword = (clientId: string, passwordId: string) => {
+    const proximas = (allClients.find(c => c.id === clientId)?.passwords || [])
+      .filter(p => p.id !== passwordId);
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, passwords: (c.passwords || []).filter(p => p.id !== passwordId) };
     }));
+    if (noPortal) void gravarClienteNoPortal({ passwords: proximas });
   };
 
   const addClientInvoice = (clientId: string, invoiceData: Omit<ClientInvoice, 'id'>) => {
@@ -1567,41 +1670,51 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: novoId(),
       uploadedAt: new Date().toISOString().split('T')[0]
     };
+    const proximos = [newFile, ...(allClients.find(c => c.id === clientId)?.files || [])];
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, files: [newFile, ...(c.files || [])] };
     }));
+    if (noPortal) {
+      void gravarClienteNoPortal({ files: proximos });
+      return;
+    }
     logActivity('Adicionou arquivo', `Cliente #${clientId}: ${fileData.name}`);
   };
 
   const deleteClientFile = (clientId: string, fileId: string) => {
+    const proximos = (allClients.find(c => c.id === clientId)?.files || [])
+      .filter(f => f.id !== fileId);
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, files: (c.files || []).filter(f => f.id !== fileId) };
     }));
+    if (noPortal) void gravarClienteNoPortal({ files: proximos });
   };
 
   const updateClientBriefing = (clientId: string, briefingData: Partial<ClientBriefing>) => {
+    const atual = allClients.find(c => c.id === clientId)?.briefing || {
+      brandVoice: '',
+      targetAudience: '',
+      painPoints: '',
+      competitors: '',
+      brandGuidelines: '',
+      monthlyGoals: '',
+      updatedAt: new Date().toISOString()
+    };
+    const proximo: ClientBriefing = {
+      ...atual,
+      ...briefingData,
+      updatedAt: new Date().toISOString()
+    };
     setAllClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;
-      const current = c.briefing || {
-        brandVoice: '',
-        targetAudience: '',
-        painPoints: '',
-        competitors: '',
-        brandGuidelines: '',
-        monthlyGoals: '',
-        updatedAt: new Date().toISOString()
-      };
-      return {
-        ...c,
-        briefing: {
-          ...current,
-          ...briefingData,
-          updatedAt: new Date().toISOString()
-        }
-      };
+      return { ...c, briefing: proximo };
     }));
+    if (noPortal) {
+      void gravarClienteNoPortal({ briefing: proximo });
+      return;
+    }
     logActivity('Atualizou briefing', `Cliente #${clientId}`);
   };
 
@@ -1822,6 +1935,31 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Client Materials
   const addClientMaterial = (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => {
+    // Quem envia material é, quase sempre, o cliente pelo portal — onde não
+    // há sessão e a persistência por diff está desligada. A galeria mostrava
+    // o material, o insert nunca acontecia, e no F5 ele sumia sem erro
+    // nenhum. Aqui quem grava é a RPC, e o que entra no estado é a linha que
+    // o banco devolveu.
+    if (noPortal && portalToken) {
+      void (async () => {
+        try {
+          const gravado = await enviarMaterialPeloPortal(portalToken, {
+            titulo: material.title,
+            categoria: material.category || 'photo',
+            url: material.url,
+            notas: material.notes,
+          });
+          if (gravado) setAllClientMaterials(prev => [gravado, ...prev]);
+          else setErroDoPortal('Envio recusado: seu acesso não permite enviar materiais.');
+        } catch (erro) {
+          setErroDoPortal(
+            erro instanceof Error ? erro.message : 'Não foi possível enviar o material.'
+          );
+        }
+      })();
+      return;
+    }
+
     const newMaterial: ClientMaterial = {
       ...material,
       id: novoId(),
@@ -2002,7 +2140,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateWorkspace,
         updateCurrentWorkspace,
         createWorkspace,
-        deleteWorkspace,
+        moverAgenciaParaLixeira,
+        restaurarAgenciaDaLixeira,
         isCreateWorkspaceModalOpen,
         setIsCreateWorkspaceModalOpen,
         users,
@@ -2043,6 +2182,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sairDoPortal,
         carregandoPortal,
         erroDoPortal,
+        portalUsuario,
+        portalEhEditor,
         closeClientPortal,
         buildClientPortalUrl,
         clients,

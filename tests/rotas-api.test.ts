@@ -9,7 +9,6 @@ import * as status from '../api/status';
 import * as sendEmail from '../api/send-email';
 import * as socialConnect from '../api/social-connect';
 import * as publicar from '../api/publicar';
-import * as ping from '../api/ping';
 
 /**
  * Formato do export das funções serverless.
@@ -154,23 +153,6 @@ describe('a Vercel consegue invocar cada rota', () => {
  * A sonda existe para dividir o problema quando tudo falha em produção.
  * Se ela deixar de responder aqui, deixou de servir para isso.
  */
-describe('sonda /api/ping', () => {
-  it('responde 200 sem depender de nada', async () => {
-    const { res, corpo } = await chamarComoAVercel(ping, 'GET');
-    expect(res.finalizado).toBe(true);
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(corpo)).toHaveProperty('ok', true);
-  });
-
-  it('não importa nada em tempo de execução', () => {
-    // Um import aqui derrota o propósito: a sonda passaria a poder falhar
-    // pelo mesmo motivo que as rotas de verdade.
-    const fonte = readFileSync('api/ping.ts', 'utf-8');
-    const imports: string[] = fonte.match(/^import .*/gm) ?? [];
-    expect(imports.every((l) => l.startsWith('import type'))).toBe(true);
-  });
-});
-
 describe('sem sessão, resposta é 401 em JSON', () => {
   // publicar não usa sessão: é chamada pelo agendador, que não tem usuário.
   const comSessao = Object.fromEntries(

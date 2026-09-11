@@ -66,7 +66,7 @@ a tela já mostrou o resultado antes de o banco responder.
 
 ## Armadilhas
 
-Nove regras. Todas vieram de bugs que chegaram a produção.
+Dez regras. Todas vieram de bugs que chegaram a produção.
 
 ### 0. Import relativo em `api/` precisa da extensão `.js`
 
@@ -215,9 +215,23 @@ subir, `/robots.txt` e o desvio dos robôs de prévia de link (por `user-agent`,
 para `/api/seo`) deixam de existir — sem erro nenhum, só voltam a servir o
 `index.html`.
 
+**E o plano Hobby aceita 12 funções serverless por deploy.** Passar disso não
+dá erro de código: `tsc`, vitest e `vite build` ficam verdes — nenhum deles
+conta arquivos em `api/` — e **o deploy inteiro falha**, com a produção presa
+na versão anterior. A branch da lixeira ficou quatro deploys sem subir por
+causa de duas rotas novas, que levaram o total a 14.
+
+Rota nova, portanto, significa **juntar duas que já existem**. Foi o que
+aconteceu com a exclusão imediata de agência: virou um modo de
+`api/expurgar-lixeira.ts` (GET com o segredo do cron varre; POST com sessão de
+admin apaga uma), porque as duas já chamavam a mesma `apagarAgenciaDeVez`. E
+foi por isso que a sonda `api/ping.ts` saiu — ela não fazia parte do produto,
+e o slot dela era a diferença entre subir e não subir.
+
 `tests/rotas.test.ts` lê o `vercel.json` e confere as quatro coisas — inclusive
 que o padrão do desvio casa com `facebookexternalhit` e **não** casa com Chrome
-ou Safari. É a única guarda que existe para esse arquivo.
+ou Safari — e conta as funções em `api/`. É a única guarda que existe para
+esse arquivo e para o limite do plano.
 
 Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
 significa nada.
@@ -289,6 +303,38 @@ decidir. Enquanto o dado não existir, a tela mostra o que o banco sabe e
 Protegido por `tests/telas-honestas.test.ts`, que varre `src/components`
 depois de remover os comentários: o projeto registra o bug nos comentários, e
 sem essa limpeza a guarda acusaria a própria memória do bug.
+
+---
+
+### 10. No portal não há sessão — logo, não há persistência por diff
+
+`useColecaoSincronizada` sai cedo quando `isAuthenticated` é falso. **Toda
+mutação feita de dentro do Portal do Cliente morre no estado da aba**: a tela
+mostra o resultado, o banco nunca é chamado, e o F5 apaga tudo sem erro
+nenhum. Foi assim que o envio de material do cliente ficou decorativo por
+meses — a galeria exibia o arquivo, `client_materials` não tinha a linha.
+
+Quem grava ali é RPC `security definer`, com o token da sessão como
+credencial:
+
+```ts
+if (noPortal) { void gravarClienteNoPortal({ passwords: proximas }); return; }
+```
+
+`noPortal` (`portalToken && !isAuthenticated`) fica no contexto, num lugar só.
+Mutação nova que o portal possa disparar precisa do desvio — ou volta a ser
+uma tela que mente sobre o que gravou.
+
+E o recorte por papel é do **banco**, não da tela: `portal_dados` não devolve
+`passwords`, `invoices`, `briefing` nem `files` para o aprovador. Esconder aba
+com o dado já no navegador seria a armadilha 9 outra vez. `portal_token`
+também não sai mais de lá, para papel nenhum.
+
+Protegido por `tests/usuarios-do-cliente.test.ts`, que lê a migração depois de
+remover os comentários e confere o recorte, o papel em cada escrita, os
+`grant ... to anon` e que cada `supabase.rpc` do portal aponta para função que
+existe — nome de RPC é string, e um erro de digitação só aparece na frente do
+cliente.
 
 ---
 
@@ -520,8 +566,10 @@ src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
-src/lib/numerosDoSaas.ts   contagens do produto inteiro, via RPC de admin
+src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
+src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre
 src/components/admin/      a área /admin: casca própria + as nove telas
+src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 
@@ -530,8 +578,9 @@ api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
+api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 13 migrações
+supabase/migrations/       schema é a fonte de verdade; 30 migrações
 ```
 
 ---

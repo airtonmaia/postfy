@@ -79,6 +79,7 @@ import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
 import { marcarCargaBemSucedida } from './lib/atualizacao';
 import { tela } from './lib/telaSobDemanda';
 import { ehAbaDeAdmin } from './lib/rotas';
+import { diasAteOExpurgo } from './lib/lixeira';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -511,6 +512,32 @@ const MainLayout: React.FC = () => {
 
         {/* Deploy que saiu com esta aba aberta. */}
         <AvisoDeAtualizacao />
+
+        {/*
+          A agência em que a pessoa está trabalhando foi para a lixeira.
+
+          A linha continua legível pelos sete dias, então sem este aviso a
+          equipe segue produzindo normalmente e perde tudo numa madrugada,
+          sem nunca ter visto nada. O prazo vem do mesmo lugar que o expurgo
+          usa — ver `src/lib/lixeira.ts`.
+        */}
+        {currentWorkspace?.deletedAt && (
+          <div className="shrink-0 px-4 py-2.5 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-900 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-800 dark:text-red-300 leading-relaxed flex-1">
+              <strong>Esta agência está na lixeira.</strong>{' '}
+              {(() => {
+                const restam = diasAteOExpurgo(currentWorkspace.deletedAt);
+                if (restam === 0) return 'Ela será apagada na próxima passada do expurgo,';
+                if (restam === 1) return 'Falta 1 dia para ela ser apagada,';
+                return `Faltam ${restam} dias para ela ser apagada,`;
+              })()}{' '}
+              com clientes, conteúdos e arquivos. Um administrador da plataforma ou o
+              proprietário da agência pode restaurá-la em <strong>Admin → Agências</strong> até
+              lá.
+            </p>
+          </div>
+        )}
 
         {/* Falha ao gravar no banco. Não existe mais aviso de cache: nada de
             dado de agência passa pelo navegador. */}

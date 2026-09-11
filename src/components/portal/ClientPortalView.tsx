@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeDateTimeFormat, safeDateFormat, safeTimeFormat, copyToClipboard } from '../../lib/utils';
 import { 
@@ -31,11 +31,23 @@ import {
   Smartphone,
   ChevronLeft,
   ChevronRight,
+  Users,
+  Plus,
+  Save,
   X
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge, TipoBadge } from '../common/Badges';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
-import { Job, Client, JobPlatform, JobFormat } from '../../types';
+import {
+  Job, Client, JobPlatform, JobFormat, ClientFile, ClientBriefing, ClientUserRole,
+} from '../../types';
+import {
+  tokenGuardado,
+  listarUsuariosDoPortal,
+  criarUsuarioPeloPortal,
+  removerUsuarioPeloPortal,
+  type UsuarioListadoNoPortal,
+} from '../../lib/portal';
 import { ClientPortalLogin } from './ClientPortalLogin';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
@@ -204,6 +216,48 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
   );
 };
 
+type AbaDoPortal =
+  | 'approvals'
+  | 'calendar'
+  | 'arquivos'
+  | 'senhas'
+  | 'notas'
+  | 'briefing'
+  | 'materiais'
+  | 'usuarios';
+
+/** Ordem e rótulo das abas do portal. O papel decide quais aparecem. */
+const ABAS_DO_PORTAL: { id: AbaDoPortal; rotulo: string; icone: typeof CheckCircle2 }[] = [
+  { id: 'approvals', rotulo: 'Aprovações', icone: CheckCircle2 },
+  { id: 'calendar', rotulo: 'Cronograma', icone: CalendarIcon },
+  { id: 'arquivos', rotulo: 'Arquivos', icone: FolderOpen },
+  { id: 'senhas', rotulo: 'Senhas', icone: Key },
+  { id: 'notas', rotulo: 'Notas Fiscais', icone: Receipt },
+  { id: 'briefing', rotulo: 'Briefing', icone: FileText },
+  { id: 'materiais', rotulo: 'Fotos e Materiais', icone: Upload },
+  { id: 'usuarios', rotulo: 'Usuários', icone: Users },
+];
+
+/**
+ * Os campos do briefing, na ordem em que a tela os mostra.
+ *
+ * `monthlyGoals` fica de fora: ele existe no tipo mas nunca teve lugar nesta
+ * tela, e abrir um campo aqui sem a agência olhar para ele do outro lado
+ * seria pedir um texto que ninguém lê.
+ */
+const CAMPOS_DO_BRIEFING: {
+  id: keyof Omit<ClientBriefing, 'updatedAt'>;
+  rotulo: string;
+  dica: string;
+  largo?: boolean;
+}[] = [
+  { id: 'brandVoice', rotulo: 'Tom de Voz & Personalidade', dica: 'Como a marca fala: próxima, técnica, bem-humorada?' },
+  { id: 'targetAudience', rotulo: 'Público-Alvo & Personas', dica: 'Quem você quer alcançar, com idade, cargo e contexto.' },
+  { id: 'painPoints', rotulo: 'Dores e Desejos Solucionados', dica: 'O problema que o cliente tem antes de procurar você.' },
+  { id: 'competitors', rotulo: 'Concorrentes & Inspirações', dica: 'Marcas que você admira e as que disputam o mesmo cliente.' },
+  { id: 'brandGuidelines', rotulo: 'Regras e Restrições de Marca', dica: 'O que nunca pode aparecer: cores, palavras, temas.', largo: true },
+];
+
 export const ClientPortalView: React.FC = () => {
   const {
     clients,
@@ -218,7 +272,13 @@ export const ClientPortalView: React.FC = () => {
     currentWorkspace,
     clientMaterials,
     addClientMaterial,
-    deleteClientMaterial
+    deleteClientMaterial,
+    portalUsuario,
+    addClientPassword,
+    deleteClientPassword,
+    addClientFile,
+    deleteClientFile,
+    updateClientBriefing
   } = usePostfy();
 
   // Quem está no portal vem do contexto: por token (cliente que entrou com o
@@ -230,7 +290,43 @@ export const ClientPortalView: React.FC = () => {
     ? clients.find(c => c.id === portalClientId) || null
     : null;
 
-  const [activeTab, setActiveTab] = useState<'approvals' | 'calendar' | 'arquivos' | 'senhas' | 'notas' | 'briefing' | 'materiais'>('approvals');
+  /**
+   * Aprovador: só aprova.
+   *
+   * `portalUsuario` é `null` na prévia interna — quem está olhando ali é a
+   * equipe da agência, que não é usuária do cliente e já enxerga tudo na
+   * ficha dele. Por isso a pergunta é "é aprovador?", e não "é editor?":
+   * ausência de papel não pode virar restrição.
+   */
+  const ehAprovador = portalUsuario?.papel === 'aprovador';
+
+  /**
+   * `usuarios` só existe para um editor de verdade: ela depende do token da
+   * sessão do portal, que a prévia interna não tem. A equipe da agência
+   * gerencia esses acessos na ficha do cliente, onde a RLS já a autoriza.
+   */
+  const abasVisiveis = useMemo(
+    () =>
+      ABAS_DO_PORTAL.filter((a) => {
+        if (ehAprovador) return a.id === 'approvals' || a.id === 'calendar';
+        if (a.id === 'usuarios') return portalUsuario?.papel === 'editor';
+        return true;
+      }),
+    // Memoizado porque a lista é dependência do efeito abaixo: um array novo
+    // a cada render faria o efeito rodar em todo render, sem nunca ter o que
+    // fazer.
+    [ehAprovador, portalUsuario?.papel]
+  );
+
+  const [activeTab, setActiveTab] = useState<AbaDoPortal>('approvals');
+
+  // O papel chega depois dos dados. Se a aba aberta deixar de existir (a
+  // pessoa era editora, virou aprovadora), a tela cairia num branco — nenhum
+  // bloco casaria com `activeTab`.
+  useEffect(() => {
+    if (!abasVisiveis.some((a) => a.id === activeTab)) setActiveTab('approvals');
+  }, [abasVisiveis, activeTab]);
+
   const [selectedForReview, setSelectedForReview] = useState<Job | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
@@ -245,6 +341,56 @@ export const ClientPortalView: React.FC = () => {
   const [newMatCategory, setNewMatCategory] = useState<'photo' | 'video' | 'logo' | 'doc'>('photo');
   const [newMatUrl, setNewMatUrl] = useState('');
   const [newMatNotes, setNewMatNotes] = useState('');
+
+  // O que o editor escreve pelo portal.
+  const podeEditar = !ehAprovador;
+
+  const [mostrarFormArquivo, setMostrarFormArquivo] = useState(false);
+  const [novoArqNome, setNovoArqNome] = useState('');
+  const [novoArqCategoria, setNovoArqCategoria] =
+    useState<ClientFile['category']>('identidade_visual');
+  const [novoArqUrl, setNovoArqUrl] = useState('');
+  const [novoArqTamanho, setNovoArqTamanho] = useState('');
+
+  const [mostrarFormSenha, setMostrarFormSenha] = useState(false);
+  const [novaSenhaServico, setNovaSenhaServico] = useState('');
+  const [novaSenhaUsuario, setNovaSenhaUsuario] = useState('');
+  const [novaSenhaValor, setNovaSenhaValor] = useState('');
+  const [novaSenhaNotas, setNovaSenhaNotas] = useState('');
+
+  const [briefingEmEdicao, setBriefingEmEdicao] = useState<Partial<ClientBriefing> | null>(null);
+
+  const [usuariosDoPortal, setUsuariosDoPortal] = useState<UsuarioListadoNoPortal[]>([]);
+  const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
+  const [erroUsuarios, setErroUsuarios] = useState<string | null>(null);
+  const [novoUsuEmail, setNovoUsuEmail] = useState('');
+  const [novoUsuNome, setNovoUsuNome] = useState('');
+  const [novoUsuPapel, setNovoUsuPapel] = useState<ClientUserRole>('aprovador');
+
+  const tokenDoPortal = tokenGuardado();
+
+  /**
+   * A lista de usuários não vem em `portal_dados`: ela só interessa a quem
+   * abrir esta aba, e é a única coisa da tela que muda sem a pessoa agir
+   * (outro editor pode ter convidado alguém).
+   */
+  const recarregarUsuarios = async () => {
+    if (!tokenDoPortal) return;
+    setCarregandoUsuarios(true);
+    try {
+      setUsuariosDoPortal(await listarUsuariosDoPortal(tokenDoPortal));
+      setErroUsuarios(null);
+    } catch (e) {
+      setErroUsuarios(e instanceof Error ? e.message : 'Não foi possível carregar os usuários.');
+    } finally {
+      setCarregandoUsuarios(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'usuarios') void recarregarUsuarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Enquanto a RPC do portal não responde, a tela ainda não sabe se há
   // cliente: mostrar o login aqui piscaria a tela de código para quem já
@@ -306,6 +452,88 @@ export const ClientPortalView: React.FC = () => {
 
   const toggleRevealPassword = (id: string) => {
     setRevealedPasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // As três escritas do editor passam pelas mesmas funções do contexto que a
+  // agência usa. Quem desvia para a RPC quando não há sessão é o contexto —
+  // esta tela não precisa saber se está no portal ou na prévia interna.
+  const salvarArquivo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoArqNome.trim() || !novoArqUrl.trim()) return;
+    addClientFile(client.id, {
+      name: novoArqNome.trim(),
+      category: novoArqCategoria,
+      url: novoArqUrl.trim(),
+      // O tamanho vem do upload; colado como link, não há o que medir — e
+      // inventar "1.5 MB" é a armadilha de a tela afirmar o que não mediu.
+      size: novoArqTamanho || '—',
+    });
+    setNovoArqNome('');
+    setNovoArqUrl('');
+    setNovoArqTamanho('');
+    setMostrarFormArquivo(false);
+  };
+
+  const salvarSenha = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaSenhaServico.trim() || !novaSenhaValor.trim()) return;
+    addClientPassword(client.id, {
+      service: novaSenhaServico.trim(),
+      username: novaSenhaUsuario.trim(),
+      password: novaSenhaValor,
+      notes: novaSenhaNotas.trim() || undefined,
+    });
+    setNovaSenhaServico('');
+    setNovaSenhaUsuario('');
+    setNovaSenhaValor('');
+    setNovaSenhaNotas('');
+    setMostrarFormSenha(false);
+  };
+
+  const salvarBriefing = () => {
+    if (!briefingEmEdicao) return;
+    updateClientBriefing(client.id, briefingEmEdicao);
+    setBriefingEmEdicao(null);
+  };
+
+  const criarUsuario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenDoPortal) return;
+    const email = novoUsuEmail.trim().toLowerCase();
+    if (!email.includes('@')) {
+      setErroUsuarios('Informe um e-mail válido.');
+      return;
+    }
+    try {
+      await criarUsuarioPeloPortal(tokenDoPortal, {
+        email,
+        nome: novoUsuNome.trim() || undefined,
+        papel: novoUsuPapel,
+      });
+      setNovoUsuEmail('');
+      setNovoUsuNome('');
+      setNovoUsuPapel('aprovador');
+      setErroUsuarios(null);
+      await recarregarUsuarios();
+    } catch (erro) {
+      setErroUsuarios(
+        erro instanceof Error ? erro.message : 'Não foi possível criar o usuário.'
+      );
+    }
+  };
+
+  const removerUsuario = async (id: string, email: string) => {
+    if (!tokenDoPortal) return;
+    if (!window.confirm(`Remover o acesso de ${email} ao portal?`)) return;
+    try {
+      await removerUsuarioPeloPortal(tokenDoPortal, id);
+      setErroUsuarios(null);
+      await recarregarUsuarios();
+    } catch (erro) {
+      setErroUsuarios(
+        erro instanceof Error ? erro.message : 'Não foi possível remover o usuário.'
+      );
+    }
   };
 
   // O e-mail, e não o telefone: é por ele que a pessoa entrou, então é o que
@@ -412,90 +640,31 @@ export const ClientPortalView: React.FC = () => {
         </div>
 
         {/* Portal Tabs Bar */}
+        {/*
+          Lista, e não sete botões iguais copiados: as abas agora dependem do
+          papel, e sete condicionais espalhadas seriam sete lugares para
+          esquecer uma. O que o aprovador não vê aqui ele também não recebe
+          do banco — esconder aba com o dado já no navegador seria a tela
+          mentindo sobre o que entregou.
+        */}
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 rounded-t-2xl overflow-x-auto no-scrollbar shadow-xs">
-          <button
-            onClick={() => setActiveTab('approvals')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'approvals'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Aprovações
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'calendar'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <CalendarIcon className="w-4 h-4" />
-            Cronograma
-          </button>
-
-          <button
-            onClick={() => setActiveTab('arquivos')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'arquivos'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <FolderOpen className="w-4 h-4" />
-            Arquivos
-          </button>
-
-          <button
-            onClick={() => setActiveTab('senhas')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'senhas'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Key className="w-4 h-4" />
-            Senhas
-          </button>
-
-          <button
-            onClick={() => setActiveTab('notas')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'notas'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            Notas Fiscais
-          </button>
-
-          <button
-            onClick={() => setActiveTab('briefing')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'briefing'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Briefing
-          </button>
-
-          <button
-            onClick={() => setActiveTab('materiais')}
-            className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'materiais'
-                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            Fotos e Materiais
-          </button>
+          {abasVisiveis.map((aba) => {
+            const Icone = aba.icone;
+            return (
+              <button
+                key={aba.id}
+                onClick={() => setActiveTab(aba.id)}
+                className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
+                  activeTab === aba.id
+                    ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Icone className="w-4 h-4" />
+                {aba.rotulo}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab 1: Approvals */}
@@ -660,10 +829,92 @@ export const ClientPortalView: React.FC = () => {
         {/* Tab 3: Arquivos & Drive */}
         {activeTab === 'arquivos' && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos e Pastas Compartilhadas</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Acesse logos oficiais, manuais de marca e pastas do Google Drive.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos e Pastas Compartilhadas</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Logos oficiais, manuais de marca e pastas na nuvem.</p>
+              </div>
+              {podeEditar && !mostrarFormArquivo && (
+                <button
+                  onClick={() => setMostrarFormArquivo(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  Anexar Arquivo
+                </button>
+              )}
             </div>
+
+            {podeEditar && mostrarFormArquivo && (
+              <form
+                onSubmit={salvarArquivo}
+                className="p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 bg-slate-50 dark:bg-slate-950 space-y-4 animate-in fade-in"
+              >
+                <h5 className="text-xs font-bold uppercase tracking-wider text-purple-600">Anexar arquivo</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Nome</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Manual da marca 2026"
+                      value={novoArqNome}
+                      onChange={(e) => setNovoArqNome(e.target.value)}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Categoria</label>
+                    <select
+                      value={novoArqCategoria}
+                      onChange={(e) => setNovoArqCategoria(e.target.value as ClientFile['category'])}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800 cursor-pointer"
+                    >
+                      <option value="identidade_visual">Identidade visual</option>
+                      <option value="briefing">Briefing</option>
+                      <option value="fotos">Fotos</option>
+                      <option value="videos">Vídeos</option>
+                      <option value="documentos">Documentos</option>
+                      <option value="contratos">Contratos</option>
+                    </select>
+                  </div>
+                </div>
+                <FileUpload
+                  label="Arquivo (ou link da nuvem)"
+                  value={novoArqUrl}
+                  fileName={novoArqNome}
+                  fileSize={novoArqTamanho}
+                  onFileSelect={(file) => {
+                    setNovoArqUrl(file.url);
+                    setNovoArqTamanho(file.size);
+                    // O nome do arquivo é o melhor palpite de título, e só
+                    // preenche o campo vazio: sobrescrever o que a pessoa
+                    // digitou seria perder o texto dela.
+                    if (!novoArqNome.trim()) setNovoArqNome(file.name.replace(/\.[^/.]+$/, ''));
+                  }}
+                  onFileRemove={() => {
+                    setNovoArqUrl('');
+                    setNovoArqTamanho('');
+                  }}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarFormArquivo(false)}
+                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg"
+                  >
+                    Anexar
+                  </button>
+                </div>
+              </form>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {(client.files || []).map(file => (
                 <div key={file.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-3 text-xs">
@@ -676,15 +927,26 @@ export const ClientPortalView: React.FC = () => {
                       <span className="text-slate-400 text-[11px] block">{file.size} &bull; {file.uploadedAt}</span>
                     </div>
                   </div>
-                  <a 
-                    href={file.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition shadow-xs cursor-pointer shrink-0"
-                    title="Acessar arquivo"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a 
+                      href={file.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition shadow-xs cursor-pointer"
+                      title="Acessar arquivo"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                    {podeEditar && (
+                      <button
+                        onClick={() => deleteClientFile(client.id, file.id)}
+                        className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition shadow-xs cursor-pointer"
+                        title="Remover arquivo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {(client.files || []).length === 0 && (
@@ -699,10 +961,94 @@ export const ClientPortalView: React.FC = () => {
         {/* Tab 4: Senhas (Cofre) */}
         {activeTab === 'senhas' && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Cofre de Senhas da Empresa</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Credenciais compartilhadas de forma criptografada e segura com sua equipe de marketing.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Cofre de Senhas da Empresa</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Credenciais que você compartilha com a equipe de marketing da agência.
+                </p>
+              </div>
+              {podeEditar && !mostrarFormSenha && (
+                <button
+                  onClick={() => setMostrarFormSenha(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nova Credencial
+                </button>
+              )}
             </div>
+
+            {podeEditar && mostrarFormSenha && (
+              <form
+                onSubmit={salvarSenha}
+                className="p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 bg-slate-50 dark:bg-slate-950 space-y-4 animate-in fade-in"
+              >
+                <h5 className="text-xs font-bold uppercase tracking-wider text-purple-600">Cadastrar credencial</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Serviço</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Instagram (@empresa)"
+                      value={novaSenhaServico}
+                      onChange={(e) => setNovaSenhaServico(e.target.value)}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Usuário</label>
+                    <input
+                      type="text"
+                      placeholder="login ou @usuario"
+                      value={novaSenhaUsuario}
+                      onChange={(e) => setNovaSenhaUsuario(e.target.value)}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Senha</label>
+                    <input
+                      type="text"
+                      placeholder="Senha de acesso"
+                      value={novaSenhaValor}
+                      onChange={(e) => setNovaSenhaValor(e.target.value)}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800 font-mono"
+                      required
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                      Notas / instruções de 2FA
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: o código de verificação chega no celular da Ana"
+                      value={novaSenhaNotas}
+                      onChange={(e) => setNovaSenhaNotas(e.target.value)}
+                      className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarFormSenha(false)}
+                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg"
+                  >
+                    Salvar credencial
+                  </button>
+                </div>
+              </form>
+            )}
+
             <div className="space-y-3 pt-2">
               {(client.passwords || []).map(pwd => {
                 const isRevealed = revealedPasswords[pwd.id];
@@ -738,6 +1084,15 @@ export const ClientPortalView: React.FC = () => {
                           {copiedId === pwd.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
+                      {podeEditar && (
+                        <button
+                          onClick={() => deleteClientPassword(client.id, pwd.id)}
+                          className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition shadow-xs cursor-pointer"
+                          title="Remover credencial"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -804,47 +1159,98 @@ export const ClientPortalView: React.FC = () => {
         {/* Tab 6: Briefing */}
         {activeTab === 'briefing' && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Briefing & Posicionamento da Sua Marca</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Guia de conteúdo, personas e regras editoriais alinhadas com a agência.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  Briefing &amp; Posicionamento da Sua Marca
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Guia de conteúdo, personas e regras editoriais. É daqui que a agência tira o
+                  tom de cada publicação.
+                </p>
+              </div>
+              {podeEditar && (
+                briefingEmEdicao ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setBriefingEmEdicao(null)}
+                      className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={salvarBriefing}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      Salvar briefing
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setBriefingEmEdicao(client.briefing ? { ...client.briefing } : {})}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                  >
+                    Editar briefing
+                  </button>
+                )
+              )}
             </div>
 
+            {/*
+              Os textos de exemplo saíram daqui.
+              A tela trazia "Acolhedor, especialista, dinâmico" e outros três
+              parágrafos como se fossem o briefing do cliente — eram
+              constantes no código. Quem lia concluía que a agência tinha
+              alinhado um posicionamento que ninguém escreveu. Campo vazio
+              agora diz que está vazio, e quem pode preencher vê o botão.
+            */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[11px] font-bold uppercase text-purple-600">Tom de Voz & Personalidade</span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {client.briefing?.brandVoice || 'Acolhedor, especialista, dinâmico e focado em alta qualidade.'}
-                </p>
-              </div>
+              {CAMPOS_DO_BRIEFING.map((campo) => {
+                const valor = briefingEmEdicao
+                  ? briefingEmEdicao[campo.id] ?? ''
+                  : client.briefing?.[campo.id] ?? '';
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[11px] font-bold uppercase text-purple-600">Público-Alvo & Personas</span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {client.briefing?.targetAudience || 'Profissionais liberais, executivos e entusiastas do segmento.'}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[11px] font-bold uppercase text-purple-600">Dores e Desejos Solucionados</span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {client.briefing?.painPoints || 'Necessidade de conveniência, confiabilidade e excelência sem atritos.'}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[11px] font-bold uppercase text-purple-600">Concorrentes & Inspirações</span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {client.briefing?.competitors || 'Principais marcas nacionais e referências estéticas globais do setor.'}
-                </p>
-              </div>
-
-              <div className="md:col-span-2 p-4 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 space-y-1">
-                <span className="text-[11px] font-bold uppercase text-purple-700 dark:text-purple-400">Regras e Restrições de Marca</span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {client.briefing?.brandGuidelines || 'Manter a paleta de cores institucional estrita. Proibido o uso de linguagem informal excessiva ou gírias descontextualizadas.'}
-                </p>
-              </div>
+                return (
+                  <div
+                    key={campo.id}
+                    className={`p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 ${
+                      campo.largo ? 'md:col-span-2' : ''
+                    }`}
+                  >
+                    <span className="text-[11px] font-bold uppercase text-purple-600">
+                      {campo.rotulo}
+                    </span>
+                    {briefingEmEdicao ? (
+                      <textarea
+                        value={valor}
+                        onChange={(e) =>
+                          setBriefingEmEdicao((antes) => ({ ...antes, [campo.id]: e.target.value }))
+                        }
+                        rows={4}
+                        placeholder={campo.dica}
+                        className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800 text-slate-700 dark:text-slate-200 leading-relaxed resize-y"
+                      />
+                    ) : valor ? (
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                        {valor}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed italic">
+                        Ainda não preenchido.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+
+            {!podeEditar && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Seu acesso é de aprovador: você lê o briefing, mas quem altera é um editor
+                da sua empresa ou a própria agência.
+              </p>
+            )}
           </div>
         )}
 
@@ -1073,10 +1479,160 @@ export const ClientPortalView: React.FC = () => {
                 <div className="col-span-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400 space-y-2">
                   <Upload className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600" />
                   <p className="text-xs font-medium">Nenhum material enviado por este cliente até o momento.</p>
-                  <p className="text-[11px] text-slate-500">Clique no botão "Enviar Novo Material" acima para testar o upload.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Use o botão &quot;Enviar Novo Material&quot; acima para mandar fotos e
+                    arquivos para a agência.
+                  </p>
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab 8: Usuários do portal — só o editor chega aqui */}
+        {activeTab === 'usuarios' && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Quem da sua empresa acessa este portal
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                O aprovador vê o conteúdo e aprova. O editor faz isso e mais: anexa arquivos,
+                cadastra senhas, vê as notas fiscais, altera o briefing e convida outras
+                pessoas.
+              </p>
+            </div>
+
+            {erroUsuarios && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+                {erroUsuarios}
+              </div>
+            )}
+
+            <form
+              onSubmit={criarUsuario}
+              className="p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 bg-slate-50 dark:bg-slate-950 space-y-4"
+            >
+              <h5 className="text-xs font-bold uppercase tracking-wider text-purple-600">
+                Convidar alguém
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">E-mail</label>
+                  <input
+                    type="email"
+                    placeholder="pessoa@empresa.com.br"
+                    value={novoUsuEmail}
+                    onChange={(e) => setNovoUsuEmail(e.target.value)}
+                    className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                    Nome (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Como aparece no histórico"
+                    value={novoUsuNome}
+                    onChange={(e) => setNovoUsuNome(e.target.value)}
+                    className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Papel</label>
+                  <select
+                    value={novoUsuPapel}
+                    onChange={(e) => setNovoUsuPapel(e.target.value as ClientUserRole)}
+                    className="w-full p-2 text-xs border rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800 cursor-pointer"
+                  >
+                    <option value="aprovador">Aprovador</option>
+                    <option value="editor">Editor</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Dar acesso
+                </button>
+              </div>
+            </form>
+
+            {carregandoUsuarios ? (
+              <div className="p-10 flex justify-center">
+                <div className="w-6 h-6 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {usuariosDoPortal.map((u) => (
+                  <div
+                    key={u.id}
+                    className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4 text-xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                          u.papel === 'editor'
+                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 border-purple-100 dark:border-purple-900/40'
+                            : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {u.papel === 'editor' ? (
+                          <ShieldCheck className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 dark:text-white block truncate">
+                          {u.nome || u.email}
+                          {u.id === portalUsuario?.id && (
+                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                              você
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
+                          {u.nome ? `${u.email} • ` : ''}
+                          {u.ultimoAcesso
+                            ? `último acesso em ${safeDateFormat(u.ultimoAcesso)}`
+                            : 'nunca entrou'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500">
+                        {u.papel}
+                      </span>
+                      {!u.ativo && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          suspenso
+                        </span>
+                      )}
+                      {/* Ninguém remove o próprio acesso: o último editor
+                          faria isso por engano e ficaria do lado de fora,
+                          sem tela de recuperação. A RPC também recusa. */}
+                      {u.id !== portalUsuario?.id && (
+                        <button
+                          onClick={() => void removerUsuario(u.id, u.email)}
+                          className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                          title="Remover do portal"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

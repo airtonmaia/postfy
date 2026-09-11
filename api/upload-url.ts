@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { rota } from './_lib/rota.js';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -10,6 +10,7 @@ import {
   textoValido,
   excedeuLimite,
 } from './_lib/auth.js';
+import { r2Configurado, clienteR2 } from './_lib/r2.js';
 
 
 /**
@@ -39,24 +40,6 @@ const TAMANHO_MAXIMO = 100 * 1024 * 1024; // 100 MB
  */
 const PASTA_DA_PLATAFORMA = 'plataforma';
 
-const configurado = () =>
-  Boolean(
-    process.env.R2_ACCOUNT_ID &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET
-  );
-
-const cliente = () =>
-  new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-  });
-
 /** Nome de arquivo seguro: sem caminho, sem caractere de controle. */
 const nomeSeguro = (nome: string): string =>
   nome
@@ -74,7 +57,7 @@ async function handler(request: Request): Promise<Response> {
   const usuario = await usuarioDaRequisicao(request);
   if (!usuario) return naoAutenticado();
 
-  if (!configurado()) {
+  if (!r2Configurado()) {
     return json(
       {
         error:
@@ -162,7 +145,7 @@ async function handler(request: Request): Promise<Response> {
     const chave = `${workspaceId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${nomeSeguro(fileName)}`;
 
     const urlDeUpload = await getSignedUrl(
-      cliente(),
+      clienteR2(),
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET!,
         Key: chave,
