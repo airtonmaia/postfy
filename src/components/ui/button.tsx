@@ -11,16 +11,26 @@ import { cn } from '../../lib/utils';
  * `size` e `asChild`), então `npx shadcn add <componente>` gera peças que
  * conversam com esta.
  *
- * **As variantes não são as do shadcn.** O padrão dele pinta tudo com
- * variáveis de tema (`--primary`, `--ring`, `--background`) e assume a paleta
- * neutra que o `init` instala. Este projeto nunca teve essas variáveis: ele
- * usa cor direta do Tailwind, e o roxo vira a cor da agência em tempo de
- * execução. Trazer o tema do shadcn trocaria o visual inteiro do produto —
- * é por isso que `components.json` tem `cssVariables: false`.
+ * **As variantes ainda não são as do shadcn, mas as cores agora são
+ * variáveis.** O padrão do shadcn pinta com `--primary`, `--ring`,
+ * `--destructive`; o projeto pintava com classe direta (`bg-purple-600`) e
+ * dependia da folha de `!important` do `DynamicThemeProvider` para virar a cor
+ * da agência. As duas formas chegam na mesma tela, e a diferença só aparece no
+ * que vem depois: peça gerada por `npx shadcn add` nasce escrita contra as
+ * variáveis, e sem elas cada uma precisaria de tradução à mão — ou nasceria
+ * roxa num portal que não é roxo.
  *
- * Cada variante abaixo saiu do que já estava em tela, não de gosto: a
- * `primary` é a combinação que aparece em 13 botões do app, e as outras
- * seguem o mesmo levantamento.
+ * O valor de cada variável é o que já estava em tela, levantado por contagem
+ * (`src/index.css`): `--primary` é o roxo dos 13 botões, `--border` é o
+ * `slate-200` das 87 bordas de card. Nada muda de cor aqui — muda de onde a
+ * cor vem.
+ *
+ * **O neutro continua em `slate` de propósito.** `--foreground` é
+ * `slate-900` e `--muted-foreground` é `slate-500`; os tons intermediários
+ * que estes botões usam (`slate-600`, `slate-700`) não têm variável no
+ * conjunto do shadcn, e inventar uma para cada degrau traria de volta o
+ * problema que o levantamento resolveu. `baseColor: "slate"` no
+ * `components.json` é o que mantém os dois lados na mesma escala.
  */
 const variantesDoBotao = cva(
   // Base comum. `cursor-pointer` porque o projeto marca clicável em todo
@@ -28,30 +38,50 @@ const variantesDoBotao = cva(
   'inline-flex items-center justify-center gap-1.5 font-bold whitespace-nowrap ' +
     'transition cursor-pointer select-none ' +
     'disabled:opacity-50 disabled:cursor-not-allowed ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-1 ' +
-    'dark:focus-visible:ring-offset-slate-900 ' +
+    // O anel se afasta da **superfície do card**, não do fundo da tela: é
+    // sobre card que quase todo botão do produto fica. `ring-offset-background`
+    // seria o slate-50 da página, e no escuro o anel ganharia um halo claro
+    // em volta.
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ' +
+    'focus-visible:ring-offset-card ' +
     '[&_svg]:shrink-0',
   {
     variants: {
       variant: {
         /** Ação principal da tela. */
-        primary: 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs',
-        /** Roxo suave com borda: ação secundária que ainda é do fluxo. */
+        primary: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs',
+        /**
+         * Marca suave com borda: ação secundária que ainda é do fluxo.
+         *
+         * **Esta continua em classe roxa, e é decisão medida.** `bg-primary/10
+         * text-primary` seria o equivalente em variável, e no escuro piora: o
+         * texto viraria a marca no tom cheio sobre o card escuro — 2,7:1 de
+         * contraste, abaixo do mínimo legível. A folha de `!important` já
+         * resolve isso melhor, porque ela tem uma linha só para
+         * `.dark .text-purple-300` e a manda para o tom claro da marca
+         * (9,9:1).
+         *
+         * Migrar aqui seria trocar algo que funciona por algo que parece mais
+         * moderno e lê pior. Sai quando houver variável para o tom claro da
+         * marca — hoje não há, e inventar uma é o que a regra de desenho
+         * proíbe.
+         */
         soft:
           'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 ' +
           'hover:bg-purple-100 dark:hover:bg-purple-900/50 ' +
           'border border-purple-200 dark:border-purple-800',
         /** Sem fundo até o hover: barras de ação e ícones. */
         ghost:
-          'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 ' +
+          'text-slate-600 dark:text-slate-400 ' +
+          'hover:text-purple-600 dark:hover:text-purple-400 ' +
           'hover:bg-slate-100 dark:hover:bg-slate-800',
         /** Neutro com borda, para "Cancelar" e afins. */
         outline:
-          'border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 ' +
+          'border border-border text-slate-700 dark:text-slate-300 ' +
           'hover:bg-slate-50 dark:hover:bg-slate-800',
         /** Apagar e remover. Rosa, como o resto do app. */
         destructive:
-          'text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40',
+          'text-slate-400 hover:text-destructive hover:bg-destructive/10',
       },
       size: {
         sm: 'text-[11px] px-2.5 py-1 rounded-lg',

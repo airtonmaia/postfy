@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.29.0',
+    data: '2026-09-11',
+    resumo:
+      'A cor da sua agência passou a valer para as peças novas da interface — e ficou legível em marcas claras.',
+    melhorias: [
+      'A cor da agência agora chega às peças da biblioteca de interface, e não só aos botões escritos um a um. Na prática: as telas que forem sendo refeitas já nascem com a sua marca, em vez de precisarem ser pintadas à mão.',
+    ],
+    corrigido: [
+      'Agência com marca clara — amarelo, lima, ciano — tinha texto branco sobre botão claro, praticamente ilegível. Agora o texto do botão escurece sozinho quando a cor pede.',
+    ],
+  },
+  {
     versao: '2.28.0',
     data: '2026-09-11',
     resumo: 'A barra lateral recolhe, e a marca voltou a alinhar com o cabeçalho.',

@@ -1100,19 +1100,84 @@ levantado por contagem. Nunca inventada.
 forwardRef, mesma API de `variant`, `size` e `asChild` — para `npx shadcn add`
 gerar peças que conversam com o que já existe.
 
-**As variantes não são as do shadcn, e isso é decisão, não descuido.** O
-padrão dele pinta tudo com variáveis de tema (`--primary`, `--ring`,
-`--background`) e assume a paleta neutra que o `init` instala. Este projeto
-nunca teve essas variáveis: usa cor direta do Tailwind, e o roxo é substituído
-pela cor da agência em tempo de execução — o portal é whitelabel.
+#### As variáveis do shadcn existem, e o valor delas saiu da contagem
 
-Por isso `components.json` tem **`cssVariables: false`**. Rodar
-`npx shadcn init` reescreveria o `src/index.css` com o tema dele e trocaria o
-visual do produto inteiro.
+O projeto nasceu com **`cssVariables: false`**, e o motivo era real: o padrão
+do shadcn pinta tudo com `--primary`, `--ring` e `--background`, assumindo a
+paleta neutra que o `init` instala — enquanto aqui o roxo vira a cor da agência
+em tempo de execução, porque o portal é whitelabel. Rodar `npx shadcn init`
+teria reescrito o `src/index.css` com o tema dele e trocado o visual inteiro.
 
-As variantes saíram do que já estava em tela, levantado por contagem: a
-`primary` é a combinação repetida em 13 botões do app. Ao adicionar variante
-nova, faça o mesmo — não invente cor.
+O custo disso só apareceu depois: **peça gerada por `npx shadcn add` nasce
+escrita contra as variáveis.** Sem elas, cada componente novo precisava de
+tradução à mão — ou nascia roxo num portal que não é roxo. Com três peças em
+`src/components/ui` e 339 `<button>` escritos à mão, a conta ainda fechava;
+com a casca e os diálogos entrando, não fecha mais.
+
+A saída não foi adotar a paleta do shadcn, foi **declarar as variáveis com os
+valores que já estavam em tela**, levantados por contagem: `--background` é o
+`slate-50` de 175 usos, `--card` é o `bg-white` de 200, `--border` é o
+`slate-200` de 87, `--primary` é o roxo dos 13 botões. `--radius` é `0.75rem`,
+que é o `rounded-xl` do projeto — assim peça nova nasce no canto certo em vez
+do `0.625rem` do padrão. Nada mudou de cor: mudou de onde a cor vem.
+
+Duas coisas seguram isso de pé, e nenhuma delas quebra o build quando falha:
+
+- **`@theme inline` é o que transforma variável em classe.** O Tailwind v4 gera
+  utilitário a partir do que está em `@theme`; uma variável declarada no
+  `:root` e ausente dali não vira `bg-primary`, e o botão sai **transparente**
+  com `tsc`, vitest e `vite build` os três verdes. É a armadilha 0 de novo.
+- **`DynamicThemeProvider` escreve os dois conjuntos de nomes**: `--brand-*`,
+  que alimenta a folha de `!important` dos botões escritos à mão, e
+  `--primary`/`--ring`/`--sidebar-primary`, que é o que as peças do shadcn
+  leem. Saem da mesma `currentWorkspace.primaryColor`, então não podem
+  divergir. **Apagar um dos lados antes da hora é o erro caro:** a tela
+  continua pintada, com o roxo do Orquesia no lugar da marca do cliente, e
+  ninguém abre chamado porque *parece* certo.
+
+**A marca tem o mesmo tom no claro e no escuro, e isso é decisão.** O shadcn
+clareia o `--primary` no escuro porque o primário dele é um neutro; aqui ele é
+a cor da agência, e os 99 `bg-purple-600` escritos à mão seguem no tom cheio
+nos dois modos. Clarear só o lado do shadcn colocaria dois roxos diferentes na
+mesma tela — o oposto do que a padronização veio resolver.
+
+Por isso a folha injetada escreve **só `:root`**, sem um `.dark` ao lado, e
+ainda assim vale no escuro: `@layer base` guarda as duas versões no
+`index.css`, e **fora de camada vence dentro de camada independente de
+especificidade**. Isso foi medido no Chromium, não deduzido — com `.dark` no
+`<html>` e a folha trazendo só `:root`, é o valor injetado que
+`getComputedStyle` devolve.
+
+`--primary-foreground` é decidido por luminância, não fixo em branco. A folha
+de `!important` não conseguia fazer isso: fundo e texto são classes separadas
+(`bg-purple-600` e `text-white`), então uma agência de marca clara ficava com
+texto branco sobre fundo claro, ilegível, e nada avisava. A variável carrega o
+par; a classe carregava só a cor.
+
+**Migrar só onde a variável é pelo menos tão boa.** A variante `soft` do botão
+continua em classe roxa de propósito: `text-primary` sobre card escuro dá 2,7:1
+de contraste, e a folha de `!important` já entrega 9,9:1 porque tem uma linha
+para `.dark .text-purple-300`. Não há variável para o tom claro da marca, e
+inventar uma é o que a regra de desenho proíbe. Trocar ali seria deixar mais
+moderno e menos legível.
+
+**O neutro continua escrito em `slate`.** `--foreground` é `slate-900` e
+`--muted-foreground` é `slate-500`; os degraus intermediários que os botões
+usam (`slate-600`, `slate-700`) não têm variável no conjunto do shadcn, e
+inventar uma para cada um traria de volta o problema que a contagem resolveu.
+`baseColor: "slate"` no `components.json` é o que mantém peça gerada e peça à
+mão na mesma escala.
+
+A migração é **tela por tela**, e é isso que as duas formas convivendo
+permitem. Ao mexer numa tela, troque o roxo à mão pela variável; a folha de
+`!important` sai sozinha quando o último `bg-purple-` sair — a guarda que a
+exige se aposenta no mesmo instante.
+
+Protegido por `tests/tema-shadcn.test.ts`.
+
+As variantes de `button.tsx` saíram do que já estava em tela, levantado por
+contagem: a `primary` é a combinação repetida em 13 botões do app. Ao
+adicionar variante nova, faça o mesmo — não invente cor.
 
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
