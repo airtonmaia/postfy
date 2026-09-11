@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.23.0',
+    data: '2026-09-11',
+    resumo:
+      'O agendador passou a ser pontual: o horário que você escolhe é o horário em que o post sai.',
+    corrigido: [
+      'O agendamento atrasava horas. Quem chamava o publicador era o agendador do GitHub, que em 52 horas rodou 15 vezes em vez de 631 — na prática, uma passada a cada 2 a 5 horas. Um post marcado para as 10:00 podia sair às 14:00, no perfil do cliente.',
+      'Pelo mesmo motivo, o e-mail de aviso ao cliente também saía com horas de atraso: ele sai na mesma passada da publicação.',
+    ],
+    melhorias: [
+      'Quem agenda agora é o próprio banco de dados, a cada 5 minutos de verdade. Não entrou nenhum serviço novo, e a chave do agendador não sai do nosso ambiente.',
+      'O histórico de cada passada fica gravado e consultável, então dá para responder "o agendador rodou?" com data e hora em vez de suposição.',
+    ],
+  },
+  {
     versao: '2.22.0',
     data: '2026-09-11',
     resumo:

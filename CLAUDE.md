@@ -200,8 +200,8 @@ que só é validado no deploy de verdade.
 
 Já passou um cron de 5 minutos com o CI verde: contas Hobby da Vercel só
 aceitam cron diário, e isso derruba o deploy inteiro. Por isso o agendamento
-da fila de publicação vive em `.github/workflows/publicar.yml`, e não no
-`vercel.json`.
+da fila de publicação nunca morou no `vercel.json` — ele mora no `pg_cron`,
+dentro do Postgres (ver **O agendador mora no banco**, abaixo).
 
 O `rewrite` para `/index.html` também mora ali, e é **ele** que faz o F5
 funcionar fora da raiz: agora que cada menu tem URL própria, sem o rewrite
@@ -313,9 +313,13 @@ mudança estar gravada. Fechar a aba no mesmo segundo interrompia o envio: o
 conteúdo ficava aprovado e o aviso não saía, sem erro em lugar nenhum.
 
 Agora `dispararAutomacoes` só faz um insert em `email_queue` — que acaba
-antes de a aba fechar — e quem envia é `api/publicar.ts`, o cron que já roda
-de 5 em 5 minutos. Três tentativas por item; depois disso fica em `falhou`
-com o motivo à vista, em vez de ser retentado para sempre.
+antes de a aba fechar — e quem envia é `api/publicar.ts`, a mesma rota que o
+agendador chama de 5 em 5 minutos. Três tentativas por item; depois disso
+fica em `falhou` com o motivo à vista, em vez de ser retentado para sempre.
+
+Note que o e-mail depende do agendador, então **tudo o que atrasa a
+publicação atrasa o aviso junto** — foi o que aconteceu enquanto o cron
+morava no GitHub Actions (ver a seção do agendador, abaixo).
 
 **O destinatário é congelado no insert.** O modelo diz "cliente" ou
 "agência", e quando é a agência o destino é quem está na sessão — o cron não
@@ -440,6 +444,76 @@ resposta traz `adiados`: diferente de zero de forma seguida é o sinal de que
 cinco minutos já não bastam.
 
 Protegido por `tests/carregamento.test.ts`.
+
+---
+
+## O agendador mora no banco, e isso foi medido
+
+`/api/publicar` é a rota que publica a fila, renova os tokens do Instagram e
+esvazia `email_queue`. Ela não se chama sozinha — alguém precisa bater nela
+de 5 em 5 minutos.
+
+Esse alguém **já foi o `schedule` do GitHub Actions**, e o número que tirou
+ele de lá:
+
+| | |
+|---|---|
+| workflow ativo | 52,6 horas |
+| passadas que `*/5` pedia | 631 |
+| passadas reais | **15** |
+| taxa | **2,4%** |
+
+Intervalos reais de 2 a 5 horas entre uma passada e outra. O comentário que
+estava no workflow assumia o contrário — "pode atrasar sob carga, aceitável
+para post agendado, que já tolera minutos". Tolera minutos; não tolera horas.
+Um post marcado para as 10:00 saindo às 14:00 é a agência explicando ao
+cliente dela.
+
+**Não era erro de configuração.** O `schedule` do GitHub é best-effort por
+definição, e a documentação deles diz isso. Para CI não custa nada; para hora
+de publicação, custa tudo. A lição que fica é mais ampla: *serviço grátis
+best-effort não vira compromisso de produto porque o cron está escrito
+certo.*
+
+Quem agenda agora é o **`pg_cron`**, no Postgres que já é nosso — sem
+fornecedor novo e sem o segredo sair de casa. O cron da Vercel seria o lugar
+natural e não serve: conta Hobby só aceita cron diário, e `*/5` derruba o
+deploy inteiro (armadilha 6).
+
+Três coisas que não são detalhe:
+
+- **O `CRON_SECRET` vive no Vault do Supabase, nunca na migração.** Migração
+  é arquivo versionado, e o projeto já carrega uma senha no histórico do git
+  por ter esquecido isso uma vez. `private.disparar_publicador()` lê
+  `vault.decrypted_secrets` pelo nome; quem cadastra o valor é uma pessoa, no
+  SQL Editor, fora do git. O comando está no cabeçalho da migração.
+- **Um agendador só.** O `schedule:` saiu de `publicar.yml` de propósito —
+  deixá-lo "como reserva" faria os dois esconderem a morte um do outro, e o
+  `pg_cron` parado passaria despercebido enquanto posts saíssem atrasados.
+  Com um só, a parada aparece na fila da tela de Publicações, em pendente. O
+  `workflow_dispatch` continua, para disparar à mão ao testar.
+- **A passada é assíncrona.** `net.http_get` enfileira e volta na hora, então
+  o cron não fica preso nos 45 s de orçamento da função. A resposta cai em
+  `net._http_response`.
+
+Onde olhar quando a publicação não sai:
+
+```sql
+select start_time, status, return_message
+  from cron.job_run_details
+ where jobid = (select jobid from cron.job where jobname = 'publicar-fila')
+ order by start_time desc limit 20;
+
+select created, status_code, content::text
+  from net._http_response order by created desc limit 20;
+```
+
+`status_code` 401 significa que o valor no Vault e o da Vercel divergiram —
+o mesmo sintoma que derrubava o workflow.
+
+Protegido por `tests/agendador.test.ts`, que confere que existe **um**
+agendamento, que o workflow não agenda mais, que o `vercel.json` continua sem
+`crons`, e que nenhuma migração embute segredo.
 
 ---
 
