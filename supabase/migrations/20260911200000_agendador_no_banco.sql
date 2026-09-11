@@ -29,6 +29,23 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 
 -- ---------------------------------------------------------------------
+-- `with schema extensions` registra a extensão ali, mas as funções do
+-- pg_net **não** vão junto: ele fixa o schema `net` no próprio control
+-- file, e é em `net.http_get` que elas ficam. Escrever
+-- `extensions.net.http_get(...)` não é um schema errado — é um nome de três
+-- partes, que o Postgres lê como *banco*.*schema*.*função* e recusa com
+--
+--     0A000: cross-database references are not implemented
+--
+-- O custo disso é o que importa: `create or replace function` **aceita** o
+-- corpo sem conferir nada, porque PL/pgSQL só resolve nomes na execução.
+-- A migração aplica limpa, o `cron.schedule` grava, e a falha só aparece na
+-- primeira passada — como uma linha em `cron.job_run_details` que ninguém
+-- está olhando. Nada publica, e a fila fica cheia de `pendente` sem
+-- explicação.
+-- ---------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------
 -- O segredo NÃO mora aqui.
 --
 -- `CRON_SECRET` é lido do Vault do Supabase, pelo nome. Escrevê-lo nesta
@@ -56,7 +73,7 @@ create or replace function private.disparar_publicador()
 returns void
 language plpgsql
 security definer
-set search_path = public, extensions, vault
+set search_path = public, extensions, net, vault
 as $$
 declare
     segredo text;
@@ -86,7 +103,7 @@ begin
     -- `net.http_get` é assíncrono: enfileira e volta na hora. A resposta cai
     -- em `net._http_response` — a passada do cron não fica presa esperando
     -- os 45s de orçamento que a função serverless usa.
-    perform extensions.net.http_get(
+    perform net.http_get(
         url     := rtrim(base, '/') || '/api/publicar',
         headers := jsonb_build_object('Authorization', 'Bearer ' || segredo),
         timeout_milliseconds := 55000

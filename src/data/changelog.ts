@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.24.0',
+    data: '2026-09-11',
+    resumo:
+      'O agendador da 2.23.0 estava escrito mas não ligado. Agora está de pé, conferido, e roda a cada 5 minutos.',
+    corrigido: [
+      'A troca do agendador do GitHub pelo do banco não tinha sido aplicada — e o antigo já havia sido desligado. Entre uma coisa e outra o sistema ficou sem agendador nenhum: um post marcado não sairia nunca, e a fila só encheria de "pendente".',
+      'O disparo tinha um erro de endereço que só apareceria quando o agendador rodasse pela primeira vez. Corrigido e conferido de ponta a ponta: o agendador chamou o publicador e recebeu resposta.',
+    ],
+    melhorias: [
+      'A verificação do agendador virou teste automático: quem mexer nele não consegue mais deixar dois agendadores ligados, nenhum ligado, ou o endereço errado sem o CI acusar.',
+    ],
+  },
+  {
     versao: '2.23.0',
     data: '2026-09-11',
     resumo:
