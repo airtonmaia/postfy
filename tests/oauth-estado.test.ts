@@ -22,6 +22,44 @@ describe('estado assinado do OAuth', () => {
     });
   });
 
+  // O cliente entra no estado porque no retorno não há sessão para conferir
+  // nada: um `clientId` na query da volta seria escolhido por quem quisesse,
+  // e ligaria a conta de um cliente ao perfil de outro.
+  it('leva também de quem é a conta', () => {
+    const CLIENTE = '6e5f2f2a-1f4b-4a2e-9f35-3b1a0d7c8e11';
+    const estado = montarEstado(AGENCIA, USUARIO, SEGREDO, CLIENTE);
+    expect(conferirEstado(estado, SEGREDO)).toEqual({
+      workspaceId: AGENCIA,
+      userId: USUARIO,
+      clientId: CLIENTE,
+    });
+  });
+
+  // Estado emitido antes de o cliente existir aqui: continua válido, e a
+  // conexão fica sem cliente — que a tela mostra como "não publica".
+  it('aceita estado antigo, de três campos', () => {
+    const corpo = `${AGENCIA}.${USUARIO}.${Date.now()}`;
+    const estado = `${Buffer.from(corpo).toString('base64url')}.${assinarEstado(corpo, SEGREDO)}`;
+    expect(conferirEstado(estado, SEGREDO)).toEqual({
+      workspaceId: AGENCIA,
+      userId: USUARIO,
+      clientId: undefined,
+    });
+  });
+
+  it('recusa o cliente trocado no meio do caminho', () => {
+    const CLIENTE = '6e5f2f2a-1f4b-4a2e-9f35-3b1a0d7c8e11';
+    const estado = montarEstado(AGENCIA, USUARIO, SEGREDO, CLIENTE);
+    const [corpoB64, assinatura] = estado.split('.');
+    const corpo = Buffer.from(corpoB64, 'base64url').toString();
+
+    const forjado = Buffer.from(
+      corpo.replace(CLIENTE, '00000000-0000-4000-8000-000000000999')
+    ).toString('base64url');
+
+    expect(conferirEstado(`${forjado}.${assinatura}`, SEGREDO)).toBeNull();
+  });
+
   it('recusa estado assinado com outro segredo', () => {
     const estado = montarEstado(AGENCIA, USUARIO, 'outro-segredo');
     expect(conferirEstado(estado, SEGREDO)).toBeNull();

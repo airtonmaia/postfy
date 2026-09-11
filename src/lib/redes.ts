@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { ApiError } from './api';
+import type { JobPlatform } from '../types';
 
 /**
  * Contas de rede social conectadas e fila de publicação.
@@ -9,9 +10,49 @@ import { ApiError } from './api';
  * função serverless o lê. Não existe caminho daqui até ele — de propósito.
  */
 
+/**
+ * Quais redes o servidor publica sozinho — a lista é esta, e só esta.
+ *
+ * `JobPlatform` tem seis redes, e a tela deixava marcar todas. Mas
+ * `api/publicar.ts` só fala com o Instagram: para as outras cinco o conteúdo
+ * ficava "Agendado" no quadro e **não publicava nunca**, sem erro em lugar
+ * nenhum. Com o multicanal isso piorou — dá para marcar três redes num
+ * conteúdo e duas ficarem mudas.
+ *
+ * Prometer agendamento que não acontece é a armadilha 9 no pior lugar: o
+ * cliente aprovou, a agência confiou na data, e a peça não foi ao ar.
+ *
+ * Esta constante é a fonte única. A tela deriva dela o que dizer, e
+ * `tests/publicacao.test.ts` confere que ela não afirma mais do que o
+ * servidor implementa — acrescentar uma rede aqui sem escrever o publicador
+ * faz o teste falhar.
+ */
+export const REDES_QUE_PUBLICAM: readonly JobPlatform[] = ['instagram'] as const;
+
+export const publicaSozinho = (rede: JobPlatform): boolean =>
+  REDES_QUE_PUBLICAM.includes(rede);
+
+/**
+ * O que dizer sobre uma rede que não publica sozinha.
+ *
+ * Não é "em breve": não há data, e prometer prazo que ninguém assumiu é a
+ * mesma mentira com outra roupa. O conteúdo continua sendo planejado,
+ * aprovado e agendado aqui — só a postagem é manual.
+ */
+export const COMO_PUBLICA: Record<JobPlatform, string> = {
+  instagram: 'Publica sozinho na data, se a conta estiver conectada.',
+  facebook: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+  linkedin: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+  tiktok: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+  youtube: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+  twitter: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+};
+
 export interface ContaConectada {
   id: string;
   workspaceId: string;
+  /** A qual cliente esta conta pertence. Nulo = conta da própria agência. */
+  clientId?: string;
   platform: 'instagram' | 'facebook';
   accountId: string;
   accountName: string;
@@ -39,6 +80,7 @@ export const listarContas = async (): Promise<ContaConectada[]> => {
   return (data || []).map((l: any) => ({
     id: l.id,
     workspaceId: l.workspace_id,
+    clientId: l.client_id ?? undefined,
     platform: l.platform,
     accountId: l.account_id,
     accountName: l.account_name,
@@ -57,8 +99,16 @@ export const desconectarConta = async (id: string): Promise<void> => {
  *
  * A URL é montada no servidor porque leva o `state` assinado. Montá-la aqui
  * significaria mandar o segredo da assinatura para o navegador.
+ *
+ * `clientId` é obrigatório e diz de quem é a conta. É o que permite ao
+ * agendador escolher o perfil certo na hora de publicar: todo conteúdo tem
+ * cliente, então uma conexão sem cliente nunca publica coisa alguma — foi
+ * assim que `social_connections.client_id` ficou vazia desde o começo.
  */
-export const conectarConta = async (workspaceId: string): Promise<void> => {
+export const conectarConta = async (
+  workspaceId: string,
+  clientId: string
+): Promise<void> => {
   const { data: sessao } = await supabase.auth.getSession();
   const token = sessao.session?.access_token;
   if (!token) throw new ApiError('Faça login para conectar uma conta.', 401);
@@ -66,7 +116,7 @@ export const conectarConta = async (workspaceId: string): Promise<void> => {
   const resposta = await fetch('/api/social-connect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ workspaceId }),
+    body: JSON.stringify({ workspaceId, clientId }),
   });
 
   const ehJson = resposta.headers.get('content-type')?.includes('application/json');

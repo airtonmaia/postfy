@@ -418,6 +418,54 @@ Protegido por `tests/instagram.test.ts`, que varre os arquivos **depois de
 remover os comentários** — o porquê de cada host do Facebook ter saído está
 registrado neles.
 
+### O agendador tinha tudo, menos as duas pontas
+
+Publicar de verdade precisa de três peças, e por meses existiam só a do meio:
+
+1. **Alguém põe na fila.** `agendarPublicacao` existia **sem nenhum chamador**.
+   A `publish_queue` nunca recebeu uma linha, então `api/publicar.ts` rodava de
+   cinco em cinco minutos sobre uma fila vazia e não publicava nada — nem no
+   Instagram. O card ficava "Agendado", a data passava, e a peça não ia ao ar.
+   A tela ainda chamava de "fila de disparos" a lista de jobs com status
+   `scheduled`, que é outra coisa: uma fila de mentira em cima de uma fila
+   vazia.
+2. **O cron publica.** Esta parte estava pronta desde o começo.
+3. **A conta tem dono.** `social_connections.client_id` estava no schema e
+   **ninguém escrevia** — toda conexão nascia órfã. Sem saber de quem é a
+   conta, não há como escolher o perfil: todo conteúdo tem cliente, e uma
+   conexão sem cliente não publica coisa nenhuma. É a mesma classe de bug de
+   `trial_ends_at`: coluna que parece uma regra e não é.
+
+Três decisões que saíram disso:
+
+- **Enfileirar é um clique, nunca um efeito.** Não sai de `useEffect`, nem de
+  arrastar o card para "Agendado". Postagem publicada no perfil do cliente não
+  volta, e um disparo automático a partir de um render é a forma mais barata de
+  publicar o que ninguém decidiu publicar. O botão mostra em qual `@conta` e em
+  que data.
+- **E tem porta de saída.** `cancelarPublicacao` também existia sem chamador;
+  agora a fila tem "tirar da fila" enquanto o item não foi ao ar. Só para
+  `pendente` e `falhou` — apagar um `publicado` apagaria o histórico.
+- **O cliente da conta viaja no `state` assinado**, nunca na query do retorno.
+  Quem chega em `api/social-callback.ts` veio da Meta, sem sessão: um
+  `clientId` na URL seria escolhido por quem quisesse, e postaria o conteúdo de
+  um cliente no perfil de outro. A rota confere pela RLS que o cliente é da
+  agência **antes** de assinar.
+
+`REDES_QUE_PUBLICAM` em `src/lib/redes.ts` é a fonte única de quem publica
+sozinho, e hoje tem **só o Instagram**. `tests/publicacao.test.ts` falha se uma
+rede entrar nessa lista sem `publicarNo<Rede>` existir no servidor — a tela
+deriva dela o que dizer, então acrescentar um nome ali é prometer disparo.
+
+**O Facebook não é "mais um nome na lista".** É outro fluxo de OAuth, outro app
+id, e outra revisão na Meta: quem publica numa Página é o token **da Página**,
+obtido por `/me/accounts` no login do Facebook, com `pages_show_list`,
+`pages_read_engagement` e `pages_manage_posts`. Esses escopos **invalidam a
+autorização do Instagram** se forem misturados no fluxo atual (armadilha 2 da
+tabela acima), e `api/_lib/meta.ts` — que tinha esse caminho — foi apagado de
+propósito em `e9e7792`. Fazer os dois é ter dois fluxos convivendo, não um
+parâmetro a mais.
+
 ---
 
 ## Cobrança: `subscriptions` é a agência com o produto, `plans` é outra coisa

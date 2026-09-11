@@ -10,6 +10,7 @@ import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
 import { camposVisiveis, type CampoDoCanal } from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
+import { publicaSozinho, COMO_PUBLICA, REDES_QUE_PUBLICAM } from '../../lib/redes';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -385,8 +386,8 @@ export const CreateJobModal: React.FC = () => {
                       key={canal.valor}
                       type="button"
                       onClick={() => alternarCanal(canal.valor)}
-                      title={canal.rotulo}
-                      aria-label={canal.rotulo}
+                      title={`${canal.rotulo} — ${COMO_PUBLICA[canal.valor]}`}
+                      aria-label={`${canal.rotulo}. ${COMO_PUBLICA[canal.valor]}`}
                       aria-pressed={ativo}
                       className={`w-9 h-9 rounded-xl flex items-center justify-center border transition cursor-pointer ${
                         ativo
@@ -399,6 +400,19 @@ export const CreateJobModal: React.FC = () => {
                   );
                 })}
               </div>
+
+              {/*
+                Quem marca LinkedIn precisa saber, aqui, que ninguém vai
+                publicar por ele. Descobrir isso na data agendada é tarde: o
+                cliente aprovou e a peça não foi ao ar.
+              */}
+              {canais.some((c) => !publicaSozinho(c)) && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 leading-relaxed">
+                  {canais.filter((c) => !publicaSozinho(c)).join(', ')}:{' '}
+                  <strong>você publica</strong> na data. O disparo automático hoje é só{' '}
+                  {REDES_QUE_PUBLICAM.join(', ')}.
+                </p>
+              )}
             </div>
           </div>
 

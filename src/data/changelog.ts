@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.19.0',
+    data: '2026-09-11',
+    resumo:
+      'O agendamento saiu do papel: o conteúdo aprovado vai para a fila e o Instagram publica sozinho na data.',
+    novidades: [
+      'Botão "Publicar na data" no Agendamento: é ele que coloca o conteúdo na fila do servidor. Continua sendo um clique seu, de propósito — post publicado no perfil do cliente não volta.',
+      'Cada conta do Instagram agora é conectada a um cliente. É assim que o agendador sabe em qual perfil postar.',
+      'Dá para tirar da fila enquanto não foi ao ar, sem precisar mexer no banco.',
+      'Cada card diz o que vai acontecer de verdade na data: o que publica sozinho, o que fica para você postar, e se a conta do cliente não está conectada.',
+    ],
+    corrigido: [
+      'O agendamento não publicava nada. A fila do servidor existia e nenhuma tela colocava conteúdo nela — o card ficava "Agendado", a data passava, e a peça não ia ao ar. Sem erro em lugar nenhum.',
+      'Toda conexão do Instagram nascia sem dono: a conta ficava ligada à agência e não ao cliente, então não havia como escolher o perfil na hora de publicar.',
+      'A tela chamava de "fila de disparos" a lista de conteúdos com status Agendado, que é outra coisa. Agora ela mostra a fila de verdade, com pendente, publicado e falhou.',
+      'O seletor de canais deixava marcar seis redes como se todas fossem publicar sozinhas. Só o Instagram publica; as outras agora dizem, na hora da escolha, que a postagem é manual.',
+    ],
+  },
+  {
     versao: '2.18.0',
     data: '2026-09-11',
     resumo: 'Um conteúdo agora vai para mais de uma rede, e a prévia mostra como ele fica em cada uma.',

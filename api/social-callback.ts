@@ -100,6 +100,10 @@ async function handler(request: Request): Promise<Response> {
       .upsert(
         {
           workspace_id: dados.workspaceId,
+          // De quem é esta conta. Sem isto o agendador não sabe em qual
+          // perfil publicar o conteúdo de cada cliente — a coluna existia e
+          // ninguém escrevia nela.
+          client_id: dados.clientId ?? null,
           platform: 'instagram',
           account_id: conta.accountId,
           account_name: conta.accountName,
