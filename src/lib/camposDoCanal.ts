@@ -42,7 +42,53 @@ export interface CampoDoCanal {
    * ferramenta certa no lugar errado ainda é ruído.
    */
   barra?: boolean;
+  /**
+   * Sai da linha do formulário e vira ícone ao lado da legenda, abrindo em
+   * modal.
+   *
+   * Localização, primeiro comentário e marcação são acessórios: a maioria dos
+   * conteúdos não usa nenhum deles, e os três ocupavam quase metade da altura
+   * do formulário empurrando a legenda — que é o campo onde o trabalho
+   * realmente acontece — para fora da tela.
+   *
+   * Atrás de ícone eles continuam a um clique, e a tela volta a mostrar o que
+   * importa primeiro. O preenchido é sinalizado no próprio ícone: acessório
+   * escondido que ninguém vê preenchido é acessório esquecido.
+   */
+  atalho?: {
+    /** Chave do ícone. O mapa para o componente mora na tela, não aqui. */
+    icone: 'localizacao' | 'comentario' | 'marcacao';
+    /** Vai no tooltip. Ícone sozinho não se explica — é a regra do projeto. */
+    dica: string;
+  };
 }
+
+/**
+ * Quantas hashtags a rede aceita, somando legenda e primeiro comentário.
+ *
+ * É assim que o Instagram conta: passar as hashtags para o comentário deixa a
+ * legenda limpa, mas **não aumenta o teto**. Quem não sabe disso divide 40
+ * hashtags entre os dois campos achando que resolveu.
+ *
+ * Só entra rede cujo limite foi conferido. Inventar um número para as outras
+ * seria a armadilha 9 num contador.
+ */
+export const LIMITE_DE_HASHTAGS: Partial<Record<JobPlatform, number>> = {
+  instagram: 30,
+};
+
+/** Conta as hashtags de vários campos de uma vez, sem repetir as iguais. */
+export const contarHashtags = (...textos: (string | undefined)[]): number => {
+  const achadas = new Set<string>();
+
+  for (const texto of textos) {
+    for (const t of (texto || '').match(/#[\p{L}\p{N}_]+/gu) || []) {
+      // O Instagram trata #Marketing e #marketing como a mesma hashtag.
+      achadas.add(t.toLowerCase());
+    }
+  }
+  return achadas.size;
+};
 
 /**
  * Quantos caracteres cada rede aceita no texto principal.
@@ -105,6 +151,12 @@ export const CAMPOS_POR_CANAL: Record<JobPlatform, CampoDoCanal[]> = {
       tipo: 'texto',
       destino: 'config',
       exemplo: 'Ex: São Paulo, Brasil',
+      /* Sem busca de estabelecimento: isso exige um provedor de lugares que o
+         projeto não tem. O nome digitado é o que a equipe procura na hora de
+         publicar — um botão "Buscar" que não busca seria pior que campo
+         simples. */
+      ajuda: 'O nome do lugar como ele aparece na rede.',
+      atalho: { icone: 'localizacao', dica: 'Localização' },
     },
     {
       chave: 'firstComment',
@@ -112,7 +164,24 @@ export const CAMPOS_POR_CANAL: Record<JobPlatform, CampoDoCanal[]> = {
       tipo: 'textoLongo',
       destino: 'job',
       exemplo: 'Costuma levar as hashtags, para não poluir a legenda.',
-      linhas: 3,
+      linhas: 6,
+      atalho: { icone: 'comentario', dica: 'Primeiro comentário' },
+    },
+    {
+      chave: 'marcacoes',
+      /* Campo simples de propósito, e não `textoLongo`: uma lista de @perfis
+         não tem o que formatar. Barra de negrito e emoji ali seria ferramenta
+         para um texto que não existe. */
+      tipo: 'texto',
+      rotulo: 'Marcar pessoas',
+      destino: 'config',
+      exemplo: '@perfil1 @perfil2',
+      /* Anotação para quem publica, não marcação automática: publicar pela
+         API já depende de revisão da Meta, e marcar terceiros depende de
+         outra permissão ainda. Prometer o automático aqui seria a armadilha 9
+         — a agência confiaria e ninguém seria marcado. */
+      ajuda: 'Os perfis a marcar na publicação. A marcação é feita na hora de publicar.',
+      atalho: { icone: 'marcacao', dica: 'Marcar pessoas' },
     },
     {
       chave: 'capaDoReel',

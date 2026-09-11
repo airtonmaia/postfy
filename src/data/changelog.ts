@@ -38,6 +38,12 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'A legenda ganhou barra de ferramentas: negrito, itálico, hashtag, menção, link e emoji — tudo inserido onde o cursor está, não no fim do texto.',
       'Botão de IA na legenda. Ele usa o título do conteúdo e o briefing do cliente (tom de voz, público-alvo, dores e objetivo do mês) para escrever a primeira versão.',
       'Contador de caracteres com o limite da rede escolhida. Com mais de uma rede marcada, vale o limite da mais apertada — e a tela diz qual é: com Instagram e X juntos, o teto é 280.',
+      'Localização e primeiro comentário saíram do meio do formulário e viraram ícones ao lado da legenda, cada um abrindo numa janela própria. O ícone acende quando o campo tem conteúdo.',
+      'Novo campo Marcar pessoas, no mesmo lugar: os perfis a marcar ficam anotados no conteúdo em vez de combinados por fora.',
+      'O primeiro comentário passou a contar as hashtags somando com as da legenda — que é como o Instagram conta. Mandar as hashtags para o comentário limpa a legenda, mas não aumenta o teto de 30.',
+    ],
+    melhorias: [
+      'Todo botão que é só ícone ganhou explicação ao passar o mouse.',
     ],
     corrigido: [
       'O texto do conteúdo passava do limite da rede sem nenhum aviso. O erro só aparecia na hora de publicar, depois de o cliente já ter aprovado.',

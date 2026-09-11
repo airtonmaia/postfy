@@ -18,15 +18,24 @@ export const CampoDinamico: React.FC<{
   limite?: number;
   donoDoLimite?: string;
   aoGerarComIA?: () => Promise<string>;
-}> = ({ campo, valor, onChange, limite, donoDoLimite, aoGerarComIA }) => {
+  /**
+   * Encostado à direita, na mesma linha do rótulo. É onde entram os ícones
+   * dos acessórios: ao lado do nome do campo a que pertencem, e não soltos
+   * numa barra própria que não diria a que se referem.
+   */
+  acoes?: React.ReactNode;
+}> = ({ campo, valor, onChange, limite, donoDoLimite, aoGerarComIA, acoes }) => {
   // Declarado fora dos desvios: hook não pode nascer dentro de `if`, e só o
   // campo com barra chega a usá-lo.
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
   const rotulo = (
-    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-      {campo.rotulo}
-    </label>
+    <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
+      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+        {campo.rotulo}
+      </label>
+      {acoes}
+    </div>
   );
 
   const ajuda = campo.ajuda ? (

@@ -15,6 +15,7 @@ import {
 } from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
 import { BarraDeTexto } from '../common/BarraDeTexto';
+import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -236,6 +237,10 @@ export const CreateJobModal: React.FC = () => {
     });
   };
   const campos = camposVisiveis(platform, format);
+
+  // Os acessórios saem da lista e viram ícones na linha do rótulo da legenda.
+  const camposEmLinha = campos.filter((c) => !c.atalho);
+  const camposEmAtalho = campos.filter((c) => c.atalho);
 
   /**
    * O limite vem da rede mais apertada entre as escolhidas, não da principal.
@@ -541,7 +546,7 @@ export const CreateJobModal: React.FC = () => {
           */}
           {tipo.pedeArte ? (
             <div className="space-y-4">
-              {campos.map((campo) => (
+              {camposEmLinha.map((campo) => (
                 <CampoDinamico
                   key={campo.chave}
                   campo={campo}
@@ -550,6 +555,20 @@ export const CreateJobModal: React.FC = () => {
                   limite={limite?.limite}
                   donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
                   aoGerarComIA={gerarTextoComIA}
+                  /* Os acessórios pertencem ao texto principal, então moram
+                     na linha do rótulo dele — não numa barra solta que não
+                     diria a que campo se referem. */
+                  acoes={
+                    campo.barra ? (
+                      <AtalhosDoConteudo
+                        campos={camposEmAtalho}
+                        valorDoCampo={valorDoCampo}
+                        definirCampo={definirCampo}
+                        legenda={caption}
+                        canalPrincipal={platform}
+                      />
+                    ) : undefined
+                  }
                 />
               ))}
             </div>

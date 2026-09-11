@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import {
   CAMPOS_POR_CANAL,
+  LIMITE_DE_HASHTAGS,
   LIMITE_DO_CANAL,
+  contarHashtags,
   limiteMaisApertado,
 } from '../src/lib/camposDoCanal';
 import { TIPOS_DE_JOB, definicaoDoTipo } from '../src/lib/tiposDeJob';
@@ -78,6 +80,81 @@ describe('limite do texto por rede', () => {
     const direto = limiteMaisApertado(['instagram', 'twitter', 'youtube']);
     const invertido = limiteMaisApertado(['youtube', 'twitter', 'instagram']);
     expect(direto).toEqual(invertido);
+  });
+});
+
+describe('acessórios atrás de ícone', () => {
+  const ICONES_QUE_A_TELA_DESENHA = ['localizacao', 'comentario', 'marcacao'];
+
+  /**
+   * A regra do projeto: ícone sozinho tem tooltip.
+   *
+   * Sem rótulo a pessoa descobre clicando, o que num formulário significa
+   * abrir três modais até achar o certo. A guarda existe para o quarto ícone
+   * não nascer sem — nada quebra quando ele nasce, ele só fica mudo.
+   */
+  it('todo atalho tem dica para o tooltip', () => {
+    for (const campos of Object.values(CAMPOS_POR_CANAL)) {
+      for (const campo of campos.filter((c) => c.atalho)) {
+        expect(campo.atalho!.dica.trim(), campo.chave).not.toBe('');
+      }
+    }
+  });
+
+  it('todo ícone de atalho é um que a tela sabe desenhar', () => {
+    for (const campos of Object.values(CAMPOS_POR_CANAL)) {
+      for (const campo of campos.filter((c) => c.atalho)) {
+        expect(ICONES_QUE_A_TELA_DESENHA, campo.chave).toContain(
+          campo.atalho!.icone
+        );
+      }
+    }
+  });
+
+  it('acessório nunca é o texto principal', () => {
+    // Os dois juntos poriam a fileira de ícones dentro do próprio campo que
+    // ela abre, e o campo sumiria do formulário sem nada no lugar.
+    for (const campos of Object.values(CAMPOS_POR_CANAL)) {
+      for (const campo of campos.filter((c) => c.atalho)) {
+        expect(campo.barra, campo.chave).toBeFalsy();
+      }
+    }
+  });
+});
+
+describe('hashtags somam entre legenda e primeiro comentário', () => {
+  /**
+   * É assim que o Instagram conta. Passar as hashtags para o comentário
+   * limpa a legenda e não aumenta o teto — quem não sabe divide 40 entre os
+   * dois campos achando que resolveu.
+   */
+  it('soma os dois campos', () => {
+    expect(contarHashtags('#a #b', '#c')).toBe(3);
+  });
+
+  it('a mesma hashtag nos dois campos conta uma vez', () => {
+    expect(contarHashtags('#marketing', '#marketing')).toBe(1);
+    expect(contarHashtags('#Marketing', '#marketing')).toBe(1);
+  });
+
+  it('acento e número entram; pontuação encerra a hashtag', () => {
+    expect(contarHashtags('#promoção #ano2026')).toBe(2);
+    expect(contarHashtags('#fim, #outra.')).toBe(2);
+  });
+
+  it('campo vazio ou ausente não conta nada', () => {
+    expect(contarHashtags('', undefined)).toBe(0);
+    expect(contarHashtags('texto sem hashtag')).toBe(0);
+  });
+
+  it('só entra rede cujo teto foi conferido', () => {
+    expect(LIMITE_DE_HASHTAGS.instagram).toBe(30);
+
+    // Inventar número para as outras seria a armadilha 9 num contador: a tela
+    // diria "12 de 30" numa rede que não tem esse teto.
+    for (const [canal, teto] of Object.entries(LIMITE_DE_HASHTAGS)) {
+      expect(teto, canal).toBeGreaterThan(0);
+    }
   });
 });
 
