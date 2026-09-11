@@ -38,10 +38,32 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /*
+    **Nenhum `--radius-*` aqui, e isso é o conserto de um bug que foi ao ar.**
+
+    A 2.29.0 declarou o bloco de raio que o `shadcn init` instala:
+
+        --radius-sm: calc(var(--radius) - 4px);
+        --radius-md: calc(var(--radius) - 2px);
+        --radius-lg: var(--radius);
+        --radius-xl: calc(var(--radius) + 4px);
+
+    Parece inofensivo e não é: **`--radius-sm|md|lg|xl` são os nomes da escala
+    nativa do Tailwind**, não nomes novos do shadcn. Redefinir um deles move
+    toda classe `rounded-*` que já existia no projeto — 444 `rounded-xl`
+    passaram de 12px para 16px e 191 `rounded-lg` de 8px para 12px.
+
+    O estrago foi justamente na regra de desenho: `rounded-xl` é o canto
+    interno (campo, botão, item de menu) e `rounded-2xl` é o canto do card, e
+    o CLAUDE.md diz que os dois convivem e um terceiro não. Com o `xl` em
+    16px os dois viraram o mesmo canto — a distinção sumiu de uma vez, em
+    649 lugares, enquanto `tsc`, vitest e `vite build` ficavam os três
+    verdes. Mesma família da armadilha 0.
+
+    Peça do shadcn que chega escrita em `rounded-md` tem o canto trocado por
+    `rounded-xl` na hora de entrar, um por um. É mais trabalho que uma
+    variável global, e é o único jeito que não mexe no que já está em tela.
+  */
 }
 
 /*
@@ -58,15 +80,20 @@
   `border-slate-200` na borda, `bg-purple-600` no primário). Nada muda de cor
   ao ligar isto — muda só de onde a cor vem.
 
-  `--radius` é 0.75rem, que é o `rounded-xl` do projeto: o canto interno de
-  campo, botão e item de menu. Assim toda peça nova do shadcn nasce no canto
-  certo, em vez do 0.625rem que o padrão dele instala.
+  **Só cor.** O canto não entra aqui — ver o bloco do `@theme inline` acima:
+  os nomes de raio do shadcn são os mesmos da escala nativa do Tailwind, e
+  declará-los moveu 649 `rounded-*` que já existiam. O canto do projeto
+  continua escrito como classe, `rounded-xl` por dentro e `rounded-2xl` no
+  card.
 */
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
-    --radius: 0.75rem;
+    /* `--radius` saiu junto. Sem os `--radius-*` no `@theme inline` ela não
+       tem leitor nenhum, e variável que parece uma regra e não é engana mais
+       que a ausência dela — a mesma lição de `trial_ends_at` e de
+       `workspaces.timezone`. */
 
     --background: #f8fafc;          /* slate-50  — fundo de tela */
     --foreground: #0f172a;          /* slate-900 — texto */

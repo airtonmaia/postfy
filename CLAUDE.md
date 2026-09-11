@@ -1117,11 +1117,35 @@ com a casca e os diálogos entrando, não fecha mais.
 A saída não foi adotar a paleta do shadcn, foi **declarar as variáveis com os
 valores que já estavam em tela**, levantados por contagem: `--background` é o
 `slate-50` de 175 usos, `--card` é o `bg-white` de 200, `--border` é o
-`slate-200` de 87, `--primary` é o roxo dos 13 botões. `--radius` é `0.75rem`,
-que é o `rounded-xl` do projeto — assim peça nova nasce no canto certo em vez
-do `0.625rem` do padrão. Nada mudou de cor: mudou de onde a cor vem.
+`slate-200` de 87, `--primary` é o roxo dos 13 botões. Nada mudou de cor:
+mudou de onde a cor vem.
 
-Duas coisas seguram isso de pé, e nenhuma delas quebra o build quando falha:
+#### O `@theme inline` leva cor, nunca raio
+
+A 2.29.0 declarou também o bloco de raio que o `shadcn init` instala —
+`--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl` derivados de um
+`--radius: 0.75rem`. Parece inofensivo e não é: **esses são os nomes da escala
+nativa do Tailwind**, não nomes novos do shadcn. Redefinir um deles move toda
+classe `rounded-*` que já existe.
+
+O resultado foi de produção: 444 `rounded-xl` passaram de 12px para 16px e 191
+`rounded-lg` de 8px para 12px — 649 elementos. E o estrago caiu exatamente na
+regra de desenho desta seção: `rounded-xl` é o canto interno e `rounded-2xl` é
+o do card, "os dois convivem; um terceiro não". Com o `xl` em 16px os dois
+viraram o mesmo canto, e a distinção sumiu de uma vez.
+
+`tsc`, vitest e `vite build` ficaram os três verdes — é a armadilha 0 de novo.
+O teste de guarda da época conferia `--radius: 0.75rem`, o que está certo
+isolado e não diz nada sobre o que aquilo faz com `rounded-xl`. **Guarda de
+variável de tema tem que afirmar o efeito, não o valor.**
+
+Então: nada de `--radius*` em lugar nenhum. Peça do shadcn chega escrita em
+`rounded-md` e tem o canto trocado por `rounded-xl` na hora de entrar, uma por
+uma. É mais trabalho que uma variável global, e é o único jeito que não mexe
+no que já está em tela.
+
+Duas coisas seguram a parte de cor de pé, e nenhuma delas quebra o build
+quando falha:
 
 - **`@theme inline` é o que transforma variável em classe.** O Tailwind v4 gera
   utilitário a partir do que está em `@theme`; uma variável declarada no
