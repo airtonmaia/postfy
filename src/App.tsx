@@ -79,6 +79,7 @@ import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
 import { marcarCargaBemSucedida } from './lib/atualizacao';
 import { tela } from './lib/telaSobDemanda';
 import { ehAbaDeAdmin } from './lib/rotas';
+import { AcessoBloqueado } from './components/common/AcessoBloqueado';
 import { diasAteOExpurgo } from './lib/lixeira';
 
 const MainLayout: React.FC = () => {
@@ -110,6 +111,7 @@ const MainLayout: React.FC = () => {
     isPlatformAdmin,
       isProfileModalOpen,
     setIsProfileModalOpen,
+      acessoDaAgencia,
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -224,6 +226,22 @@ const MainLayout: React.FC = () => {
         </Suspense>
       </div>
     );
+  }
+
+  /**
+   * Teste vencido, assinatura cancelada ou pagamento recusado.
+   *
+   * Depois do `/admin` e do portal de propósito. O admin da plataforma não
+   * pode perder a própria área por causa de uma agência de teste dele, e o
+   * cliente que entra no portal não tem nada a ver com a cobrança da agência
+   * — bloqueá-lo puniria quem não decide nada.
+   *
+   * `acessoDaAgencia` em `null` — consulta pendente ou que falhou — passa
+   * direto. Derrubar quem está trabalhando porque a rede oscilou é pior que
+   * deixar passar alguns segundos de quem não pagou.
+   */
+  if (acessoDaAgencia && !acessoDaAgencia.liberado) {
+    return <AcessoBloqueado acesso={acessoDaAgencia} />;
   }
 
   return (

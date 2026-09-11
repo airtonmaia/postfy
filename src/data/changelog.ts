@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.17.0',
+    data: '2026-09-11',
+    resumo: 'O teste grátis passou a ter prazo de verdade — com data de fim e uma tela que avisa quando acaba.',
+    novidades: [
+      'Agência nova nasce com 14 dias de teste. A data existia no cadastro desde sempre e ninguém escrevia nela: nenhuma agência tinha prazo, e o teste não terminava nunca.',
+      'Quando o teste acaba (ou a assinatura é cancelada, ou o cartão é recusado), o app mostra uma tela explicando o que houve e o caminho para resolver — em vez de simplesmente parar de funcionar.',
+      'Quem pode assinar vê o botão ali mesmo; quem não pode vê de quem cobrar. Sair da conta continua disponível em qualquer caso.',
+      'Voltando do pagamento, a tela espera a confirmação do Stripe e se atualiza sozinha, em vez de dizer "em teste" para quem acabou de pagar.',
+    ],
+    corrigido: [
+      'A versão anterior anunciava que o teste grátis passava a terminar. Não passava: faltavam a data no cadastro e o bloqueio no app. Agora existem os dois.',
+    ],
+    melhorias: [
+      'As agências que já existem continuam sem prazo, de propósito: ninguém é interrompido por uma regra que não existia quando começou a usar. Para encerrar o teste de uma delas, defina a data em Admin → Agências.',
+    ],
+  },
+  {
     versao: '2.16.0',
     data: '2026-09-11',
     resumo: 'O Orquesia passou a saber cobrar, e o aviso por e-mail parou de depender da aba ficar aberta.',
@@ -39,7 +56,6 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'Quem já assina gerencia tudo pelo portal de cobrança do Stripe: trocar cartão, ver as faturas, cancelar.',
       'Admin → Financeiro mostra receita de verdade: o MRR é a soma das assinaturas ativas, com inadimplentes e cancelamentos agendados contados à parte.',
       'Admin → Integrações ganhou o bloco do Stripe: quais chaves faltam e a URL exata do webhook, com botão de copiar.',
-      'O teste grátis agora termina. A data já existia no cadastro e ninguém a lia — quem estava em teste usava para sempre.',
     ],
     melhorias: [
       'O e-mail de aviso não some mais se você fechar a aba logo depois de aprovar. Ele entra numa fila e sai pelo agendador, com três tentativas.',

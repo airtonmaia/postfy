@@ -457,6 +457,40 @@ que gravamos é a verdade do Stripe de qualquer jeito.
 
 Quando o corpo cru sobrevive, a assinatura é conferida também. Não custa nada.
 
+### O teste grátis: duas metades, e as duas precisam existir
+
+`workspaces.trial_ends_at` ficou no schema desde o começo **sem ninguém
+escrever nem ler**. Nenhuma agência tinha data, `criar_agencia` inseria só
+nome e slug, e nada no app bloqueava. Quem lesse o schema concluiria que
+havia limite de teste — e a 2.16.0 chegou a anunciar que o teste passava a
+terminar, sem que terminasse.
+
+Uma coluna que parece uma regra e não é engana mais que a ausência dela. Para
+o teste existir de verdade são necessárias as duas metades:
+
+1. `criar_agencia` carimba `trial_ends_at = now() + 14 dias` e `is_trial`.
+2. `App.tsx` consulta `acesso_da_agencia()` e monta `AcessoBloqueado` quando
+   `liberado` é falso.
+
+Três regras do bloqueio, todas na mesma direção:
+
+- **Só bloqueia com resposta do banco.** `acessoDaAgencia` em `null` — consulta
+  pendente ou que falhou — passa direto. Derrubar quem está trabalhando porque
+  a rede oscilou é pior que deixar passar quem não pagou. O guard é
+  `acessoDaAgencia && !acessoDaAgencia.liberado`, nunca `!…?.liberado`.
+- **Depois do `/admin` e do portal.** O dono do produto não pode perder a
+  própria área por causa de uma agência de teste dele, e o cliente que entra no
+  portal não decide nada sobre a cobrança da agência.
+- **Sempre há porta de saída.** Quem pode assinar vê o botão, quem não pode vê
+  de quem cobrar, e sair da conta está sempre disponível. Bloqueio sem saída é
+  armadilha, não cobrança.
+
+**Agências criadas antes disto continuam sem data, e é decisão.**
+`trial_ends_at` nulo vale como teste aberto. Carimbar uma data retroativa
+derrubaria de uma vez gente que nunca foi avisada de que havia prazo.
+
+Protegido por `tests/assinatura.test.ts`.
+
 ### Uma rota para três coisas
 
 `api/assinatura.ts` é checkout, portal de cobrança **e** webhook, separados
@@ -653,6 +687,7 @@ src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_setting
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
 src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre
 src/lib/assinatura.ts      acesso da agência ao produto, e o link do checkout
+src/components/common/AcessoBloqueado.tsx  a tela de teste vencido, com a saída à mão
 src/components/admin/      a área /admin: casca própria + as nove telas
 src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
 src/lib/automacoes.ts      motor: evento tipado → ação
@@ -668,7 +703,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 32 migrações
+supabase/migrations/       schema é a fonte de verdade; 33 migrações
 ```
 
 ---

@@ -66,6 +66,7 @@ import {
   urlDaPreviaDoPortal,
   agenciaDoCaminho,
 } from '../lib/rotas';
+import { carregarAcessoDaAgencia, type AcessoDaAgencia } from '../lib/assinatura';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -116,6 +117,17 @@ interface PostfyContextType {
    */
   isProfileModalOpen: boolean;
   setIsProfileModalOpen: (open: boolean) => void;
+
+  /**
+   * A agência pode usar o produto agora?
+   *
+   * `null` enquanto a resposta não chegou — e a tela **não bloqueia nesse
+   * estado**: derrubar quem está trabalhando porque a consulta demorou é pior
+   * que deixar passar alguns segundos de quem não pagou.
+   */
+  acessoDaAgencia: AcessoDaAgencia | null;
+  /** Refaz a consulta — usado ao voltar do checkout do Stripe. */
+  recarregarAcesso: () => Promise<void>;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
   currentUser: User;
@@ -384,6 +396,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [acessoDaAgencia, setAcessoDaAgencia] = useState<AcessoDaAgencia | null>(null);
 
   /**
    * Cria a agência no banco, pela RPC.
@@ -829,6 +842,31 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Workspace ativo: recorta todas as views derivadas abaixo.
   const currentWsId = currentWorkspace?.id || '';
+
+  /**
+   * Consulta se esta agência pode usar o produto.
+   *
+   * Vem do banco, e não de `workspaces.trial_ends_at` lido aqui, porque a
+   * resposta depende de `subscriptions` — que a agência **lê** mas não
+   * escreve. Decidir isso no navegador seria decidir com metade do dado, e
+   * com a metade que o próprio interessado controla.
+   */
+  const recarregarAcesso = async () => {
+    if (!currentWsId || !isAuthenticated) return;
+    try {
+      setAcessoDaAgencia(await carregarAcessoDaAgencia(currentWsId));
+    } catch {
+      // Falha de rede não bloqueia ninguém: `null` é "ainda não sei", e a
+      // tela trata isso como liberado. Um erro de consulta derrubando a
+      // agência inteira seria pior que o problema que isto resolve.
+      setAcessoDaAgencia(null);
+    }
+  };
+
+  useEffect(() => {
+    void recarregarAcesso();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWsId, isAuthenticated]);
 
   // ============================================================
   // Estado das entidades
@@ -2156,6 +2194,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCreateWorkspaceModalOpen,
         isProfileModalOpen,
         setIsProfileModalOpen,
+        acessoDaAgencia,
+        recarregarAcesso,
         setIsCreateWorkspaceModalOpen,
         users,
         currentUser,

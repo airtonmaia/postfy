@@ -110,20 +110,57 @@ export const SettingsOverview: React.FC = () => {
 
   const podeAssinar = pode(currentUser?.role, 'gerenciar_workspace');
 
+  /**
+   * Voltando do checkout.
+   *
+   * O Stripe devolve a pessoa antes de o webhook necessariamente ter chegado
+   * — são dois caminhos diferentes, e o dela costuma ser mais rápido. Sem
+   * isto, quem acabou de pagar veria "em teste grátis" e concluiria que o
+   * pagamento não passou.
+   */
+  const voltandoDoCheckout = (() => {
+    try {
+      return new URLSearchParams(window.location.search).get('assinatura') === 'ok';
+    } catch {
+      return false;
+    }
+  })();
+
+  const [esperandoWebhook, setEsperandoWebhook] = useState(voltandoDoCheckout);
+
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     let cancelado = false;
-    void (async () => {
+    let tentativas = 0;
+
+    const consultar = async () => {
       try {
         const dados = await carregarAcessoDaAgencia(currentWorkspace.id);
-        if (!cancelado) setAcesso(dados);
+        if (cancelado) return;
+        setAcesso(dados);
+
+        // Insiste enquanto a assinatura não aparece, e desiste depois de
+        // ~15s: o webhook pode falhar, e ficar consultando para sempre
+        // esconderia isso de quem precisa saber.
+        if (voltandoDoCheckout && !dados.temAssinatura && tentativas < 5) {
+          tentativas++;
+          setTimeout(() => void consultar(), 3000);
+        } else {
+          setEsperandoWebhook(false);
+        }
       } catch (e) {
-        if (!cancelado) setErro(e instanceof Error ? e.message : 'Não foi possível consultar.');
+        if (!cancelado) {
+          setErro(e instanceof Error ? e.message : 'Não foi possível consultar.');
+          setEsperandoWebhook(false);
+        }
       }
-    })();
+    };
+
+    void consultar();
     return () => {
       cancelado = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWorkspace?.id]);
 
   const irParaOStripe = async (acao: 'checkout' | 'portal') => {
@@ -153,6 +190,14 @@ export const SettingsOverview: React.FC = () => {
           <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-bold">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
             {erro}
+          </div>
+        )}
+
+        {esperandoWebhook && (
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
+            Pagamento recebido. A confirmação do Stripe chega em instantes — esta tela
+            atualiza sozinha.
           </div>
         )}
 
