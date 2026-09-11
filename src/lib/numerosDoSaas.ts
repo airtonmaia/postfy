@@ -100,3 +100,45 @@ export const carregarContagensPorAgencia = async (): Promise<
   }
   return saida;
 };
+
+/**
+ * O que de fato entra: assinaturas ativas, inadimplentes e canceladas.
+ *
+ * Estes números **são medidos**, ao contrário dos que a tela mostrava antes
+ * (`agências × R$ 197`). Zero aqui é um zero apurado — nenhuma assinatura
+ * ativa —, e não a ausência do dado. A diferença importa: um é resposta, o
+ * outro era chute.
+ */
+export interface NumerosDeCobranca {
+  mrrCentavos: number;
+  assinaturas: {
+    ativas: number;
+    inadimplentes: number;
+    canceladas: number;
+    cancelamNoFim: number;
+  };
+  agencias: { total: number; semAssinatura: number; testeVencido: number };
+  apuradoEm: string;
+}
+
+export const carregarNumerosDeCobranca = async (): Promise<NumerosDeCobranca> => {
+  const { data, error } = await supabase.rpc('admin_numeros_de_cobranca');
+  if (error) throw new Error(error.message);
+
+  const b = (data || {}) as any;
+  return {
+    mrrCentavos: n(b.mrr_centavos),
+    assinaturas: {
+      ativas: n(b.assinaturas?.ativas),
+      inadimplentes: n(b.assinaturas?.inadimplentes),
+      canceladas: n(b.assinaturas?.canceladas),
+      cancelamNoFim: n(b.assinaturas?.cancelam_no_fim),
+    },
+    agencias: {
+      total: n(b.agencias?.total),
+      semAssinatura: n(b.agencias?.sem_assinatura),
+      testeVencido: n(b.agencias?.teste_vencido),
+    },
+    apuradoEm: String(b.apurado_em || ''),
+  };
+};

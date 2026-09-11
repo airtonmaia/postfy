@@ -108,6 +108,8 @@ const MainLayout: React.FC = () => {
     syncState,
     syncError,
     isPlatformAdmin,
+      isProfileModalOpen,
+    setIsProfileModalOpen,
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -231,7 +233,16 @@ const MainLayout: React.FC = () => {
       <CreateJobModal />
       <CreateWorkspaceModal />
       <SearchModal />
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      {/* Aberto pelo card do usuário na barra lateral e por
+          Configurações → Visão Geral, que antes tinha um formulário de
+          perfil próprio — decorativo, e que não salvava nada. */}
+      <AuthModal
+        isOpen={isAuthModalOpen || isProfileModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setIsProfileModalOpen(false);
+        }}
+      />
       <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
 
       {/* Left Sidebar (Desktop + Mobile responsive) */}

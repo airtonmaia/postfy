@@ -118,6 +118,21 @@ async function handler(request: Request): Promise<Response> {
     // jeito por social-connect e social-callback; divergir num caractere faz
     // a autorização falhar só depois de a pessoa digitar a senha.
     urlDeRetorno: `${(process.env.APP_URL || 'https://app.orquesia.com.br').replace(/\/+$/, '')}/api/social-callback`,
+
+    // Stripe, em três respostas pelo mesmo motivo do Instagram: cada falta
+    // se resolve num lugar diferente.
+    //
+    // A chave secreta abre a API; o preço é o que o checkout cobra; o
+    // segredo do webhook é o único que **não** se resolve só na Vercel —
+    // ele nasce no painel do Stripe quando o endpoint é cadastrado lá.
+    cobranca: temTodas('STRIPE_SECRET_KEY'),
+    cobrancaPreco: temTodas('STRIPE_PRICE_ID'),
+    cobrancaWebhook: temTodas('STRIPE_WEBHOOK_SECRET'),
+
+    // A URL para colar em Stripe → Developers → Webhooks. Vem do servidor
+    // pelo mesmo motivo da URL de retorno da Meta: escrita à mão na tela ela
+    // envelheceria, e o valor certo depende de APP_URL.
+    urlDoWebhook: `${(process.env.APP_URL || 'https://app.orquesia.com.br').replace(/\/+$/, '')}/api/assinatura`,
   });
 }
 

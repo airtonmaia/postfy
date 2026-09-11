@@ -420,6 +420,57 @@ registrado neles.
 
 ---
 
+## Cobrança: `subscriptions` é a agência com o produto, `plans` é outra coisa
+
+Os dois nomes parecem a mesma coisa e não são. Confundi-los é o caminho mais
+curto para um número errado numa tela financeira:
+
+| | o que é | quem escreve |
+|---|---|---|
+| `plans` | o catálogo que **cada agência** monta para os clientes dela | a agência, pela tela de Planos |
+| `subscriptions` | a assinatura **da agência com o Orquesia** | só o webhook do Stripe |
+
+`subscriptions` tem RLS ligada e **nenhuma política de escrita** para sessão
+autenticada — só SELECT, para a agência ver a própria e o admin da plataforma
+ver todas. Uma política de update aqui deixaria qualquer dono de agência se
+marcar como pagante. Quem escreve é `api/assinatura.ts`, com a chave de
+serviço, a partir do que o Stripe responde.
+
+**O MRR é somado no banco** (`admin_numeros_de_cobranca`), nunca calculado na
+tela. Era o cálculo local — `agências × R$ 197` — que dizia R$ 591,00 num dia
+de R$ 0,00. `tests/telas-honestas.test.ts` falha se um `const mrr =` voltar
+ao componente.
+
+### O webhook não confere a assinatura do jeito padrão, e isso é de propósito
+
+`stripe.webhooks.constructEvent` exige o corpo **byte a byte** como o Stripe
+assinou. Não temos isso: a Vercel entrega o corpo já parseado e
+`api/_lib/rota.ts` o re-serializa com `JSON.stringify` (armadilha 1). Ordem de
+chaves e espaços mudam, e a conferência falharia em 100% das chamadas — o
+pior tipo de falha, porque pareceria ataque.
+
+A saída é **mais forte**, não mais fraca: nada do corpo é gravado. O corpo só
+diz "olhe a assinatura X"; em seguida a rota busca essa assinatura na API do
+Stripe, autenticada com a nossa chave, e grava o que **eles** responderem. Um
+corpo forjado não escreve dado falso — ou o id não existe lá, ou existe e o
+que gravamos é a verdade do Stripe de qualquer jeito.
+
+Quando o corpo cru sobrevive, a assinatura é conferida também. Não custa nada.
+
+### Uma rota para três coisas
+
+`api/assinatura.ts` é checkout, portal de cobrança **e** webhook, separados
+pelo cabeçalho `stripe-signature` e pelo campo `acao`. É o limite de 12
+funções da armadilha 6: o webhook precisa de URL fixa (é ela que vai
+cadastrada no painel do Stripe), então é ele quem define o caminho.
+
+`STRIPE_WEBHOOK_SECRET` é o único que **não se resolve na Vercel** — ele nasce
+no painel do Stripe no momento em que o endpoint é cadastrado lá. Por isso
+`Admin → Integrações` mostra a URL exata com botão de copiar, como faz com a
+URL de retorno da Meta.
+
+---
+
 ## Duas marcas, e elas não se misturam
 
 `saas_settings` (uma linha só) é a cara do **produto**: a marca do Orquesia, a
@@ -601,6 +652,7 @@ src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
 src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre
+src/lib/assinatura.ts      acesso da agência ao produto, e o link do checkout
 src/components/admin/      a área /admin: casca própria + as nove telas
 src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
 src/lib/automacoes.ts      motor: evento tipado → ação
@@ -609,12 +661,14 @@ src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServico
 api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
+api/_lib/stripe.ts         cliente do Stripe e a tradução do status dele para o nosso
+api/assinatura.ts          checkout, portal de cobrança e webhook, numa função só
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 30 migrações
+supabase/migrations/       schema é a fonte de verdade; 32 migrações
 ```
 
 ---

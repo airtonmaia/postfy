@@ -31,6 +31,27 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.16.0',
+    data: '2026-09-11',
+    resumo: 'O Orquesia passou a saber cobrar, e o aviso por e-mail parou de depender da aba ficar aberta.',
+    novidades: [
+      'Assinatura com o Stripe: a agência assina em Configurações → Visão Geral, e o pagamento acontece na página do próprio Stripe — nenhum dado de cartão passa pelo Orquesia.',
+      'Quem já assina gerencia tudo pelo portal de cobrança do Stripe: trocar cartão, ver as faturas, cancelar.',
+      'Admin → Financeiro mostra receita de verdade: o MRR é a soma das assinaturas ativas, com inadimplentes e cancelamentos agendados contados à parte.',
+      'Admin → Integrações ganhou o bloco do Stripe: quais chaves faltam e a URL exata do webhook, com botão de copiar.',
+      'O teste grátis agora termina. A data já existia no cadastro e ninguém a lia — quem estava em teste usava para sempre.',
+    ],
+    melhorias: [
+      'O e-mail de aviso não some mais se você fechar a aba logo depois de aprovar. Ele entra numa fila e sai pelo agendador, com três tentativas.',
+      'A tela diz "e-mail na fila" em vez de "enviado", que é o que de fato aconteceu naquele instante.',
+      'Configurações → Visão Geral mostra os dados reais da conta e leva ao editor de perfil que funciona.',
+    ],
+    corrigido: [
+      'Configurações → Visão Geral era decorativa: nenhum campo salvava, o botão "Atualizar Perfil" não fazia nada, e o telefone e a data de registro eram valores fixos iguais para toda conta.',
+      'O botão de baixar nota fiscal no portal do cliente não baixava nada — mostrava um aviso e pronto. Agora abre o arquivo, e quando não há arquivo o botão nem aparece.',
+    ],
+  },
+  {
     versao: '2.15.0',
     data: '2026-09-11',
     resumo: 'Excluir agência passou a excluir de verdade — com sete dias de lixeira antes de não ter mais volta.',

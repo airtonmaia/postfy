@@ -69,14 +69,63 @@ describe('telas não inventam dado', () => {
       readFileSync('src/components/admin/AdminFinanceiroView.tsx', 'utf-8')
     );
 
-    // Não há assinatura nem cobrança no banco: qualquer MRR aqui é chute.
+    // O MRR agora existe, mas **vem somado do banco** — nunca calculado aqui.
+    // Era o cálculo local (`agências × R$ 197`) que dizia R$ 591,00 num dia
+    // de R$ 0,00, e ele volta fácil: basta alguém multiplicar duas variáveis
+    // que já estão em tela.
     expect(financeiro).not.toMatch(/const\s+mrr\s*=/);
     expect(financeiro).not.toMatch(/const\s+arr\s*=/);
-    expect(financeiro).not.toMatch(/adimplentes/);
+    expect(financeiro).toMatch(/carregarNumerosDeCobranca/);
 
-    // E diz o que falta, com nome — a convenção do projeto para tela que
-    // depende de algo que ainda não existe.
-    expect(financeiro).toMatch(/não há cobrança ligada ao produto/i);
+    // "100% adimplentes" era texto fixo. Contar inadimplentes agora é
+    // legítimo — o que não pode voltar é a **taxa afirmada**, que ninguém
+    // media. Por isso o que se proíbe é o número colado na palavra, não a
+    // palavra (o rótulo do card é honesto).
+    expect(financeiro).not.toMatch(/\d\s*%\s*(de\s+)?a?dimplent/i);
+
+    // E continua dizendo o que falta, com o nome da variável — a convenção
+    // do projeto para tela que depende de configuração externa.
+    expect(financeiro).toMatch(/STRIPE_SECRET_KEY/);
+    expect(financeiro).toMatch(/A cobrança ainda não está ligada/i);
+  });
+
+  it('nenhum botão promete uma ação que ele não faz', () => {
+    // "Baixar NFS-e" no portal chamava `alert("Baixando comprovante...")` e
+    // não baixava nada. O padrão é o mesmo de sempre: a tela afirmando uma
+    // coisa que não aconteceu — só que aqui a pessoa fica esperando um
+    // arquivo que nunca chega.
+    const culpados = telas
+      .filter(({ texto }) => /alert\(\s*[`'"][^`'"]*(Baixando|Enviando|Salvando|Gerando)/i.test(texto))
+      .map(({ arquivo }) => arquivo);
+
+    expect(culpados).toEqual([]);
+  });
+
+  it('Configurações → Visão Geral não volta a ser decorativa', () => {
+    const visao = semComentarios(
+      readFileSync('src/components/settings/tabs/SettingsOverview.tsx', 'utf-8')
+    );
+
+    // Seis campos com `defaultValue`, nenhum controlado, e um botão
+    // "Atualizar Perfil" sem `onClick`: quem digitava e clicava não salvava
+    // nada e não via erro.
+    expect(visao).not.toMatch(/defaultValue=/);
+
+    // Dois dos valores eram literais iguais para toda conta.
+    expect(visao).not.toMatch(/99999-9999/);
+    expect(visao).not.toMatch(/01\/01\/2026/);
+  });
+
+  it('o Financeiro distingue "zero" de "ainda não apurei"', () => {
+    const financeiro = semComentarios(
+      readFileSync('src/components/admin/AdminFinanceiroView.tsx', 'utf-8')
+    );
+
+    // Numa tela financeira, mostrar R$ 0,00 enquanto a resposta não chegou é
+    // inventar de novo — só que para baixo. O estado de carregamento tem que
+    // ter um símbolo próprio.
+    expect(financeiro).toMatch(/cobranca \? /);
+    expect(financeiro).toContain("'—'");
   });
 
   it('a lista de agências não inventa plano nem contagem de usuários', () => {

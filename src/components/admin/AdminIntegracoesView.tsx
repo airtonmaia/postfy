@@ -11,6 +11,7 @@ import {
   Instagram,
   Copy,
   Check,
+  CreditCard,
   ExternalLink,
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
@@ -68,6 +69,7 @@ export const AdminIntegracoesView: React.FC = () => {
   const [msgWebhook, setMsgWebhook] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const [copiado, setCopiado] = useState(false);
+  const [copiadoWebhook, setCopiadoWebhook] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -179,6 +181,21 @@ export const AdminIntegracoesView: React.FC = () => {
           : !status.estadoDoOauth
             ? 'Falta OAUTH_STATE_SECRET, que assina qual agência está conectando. Sem ele a conexão nem começa.'
             : 'As credenciais estão no servidor. A agência conecta a conta em Configurações → Integrações.',
+    },
+    {
+      nome: 'Cobrança das agências (Stripe)',
+      status: status
+        ? (status.cobranca && status.cobrancaPreco ? 'ativa' : 'opcional')
+        : null,
+      desc: !status
+        ? 'Consultando o servidor...'
+        : !status.cobranca
+          ? 'Falta STRIPE_SECRET_KEY. Ninguém consegue assinar, e o Financeiro mostra R$ 0,00 — que é a verdade enquanto não houver cobrança.'
+          : !status.cobrancaPreco
+            ? 'Falta STRIPE_PRICE_ID: o id do preço recorrente (price_…), não o do produto (prod_…).'
+            : !status.cobrancaWebhook
+              ? 'Funciona, mas sem STRIPE_WEBHOOK_SECRET. O evento é conferido buscando-o na API do Stripe — vale cadastrar o segredo mesmo assim.'
+              : 'Checkout, portal de cobrança e webhook prontos.',
     },
     {
       nome: 'Agendador da fila de publicação',
@@ -361,6 +378,117 @@ export const AdminIntegracoesView: React.FC = () => {
           className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline"
         >
           Abrir o painel de apps da Meta
+          <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+
+      {/*
+        Stripe.
+
+        Cartão próprio pela mesma razão do Instagram: o que trava aqui não é
+        só variável faltando. O `STRIPE_WEBHOOK_SECRET` **não nasce na
+        Vercel** — ele é gerado no painel do Stripe no momento em que o
+        endpoint é cadastrado lá, e para cadastrar é preciso ter a URL exata
+        à mão. Sem o webhook, o pagamento acontece no Stripe e o app nunca
+        fica sabendo: a agência paga e continua bloqueada.
+      */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-xs">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+              Cobrança (Stripe)
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              A assinatura de cada agência com o Orquesia. Não confundir com{' '}
+              <strong>Planos</strong>, que é o catálogo que cada agência monta para os
+              clientes dela.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            URL do webhook
+          </span>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            Cole em <strong>Stripe → Developers → Webhooks → Add endpoint</strong> e
+            marque os eventos <code className="font-mono">checkout.session.completed</code>,{' '}
+            <code className="font-mono">customer.subscription.*</code> e{' '}
+            <code className="font-mono">invoice.paid</code> /{' '}
+            <code className="font-mono">invoice.payment_failed</code>. O “Signing secret”
+            que aparecer depois é o <code className="font-mono">STRIPE_WEBHOOK_SECRET</code>.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
+              {status?.urlDoWebhook || 'consultando o servidor...'}
+            </code>
+            <button
+              type="button"
+              disabled={!status?.urlDoWebhook}
+              onClick={async () => {
+                if (!status?.urlDoWebhook) return;
+                try {
+                  await navigator.clipboard.writeText(status.urlDoWebhook);
+                  setCopiadoWebhook(true);
+                  setTimeout(() => setCopiadoWebhook(false), 2500);
+                } catch {
+                  /* Sem permissão de área de transferência, o texto está à vista. */
+                }
+              }}
+              className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {copiadoWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiadoWebhook ? 'Copiado' : 'Copiar'}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+            Credenciais no servidor
+          </span>
+          <code className="text-[11px] text-slate-700 dark:text-slate-300 font-mono block mt-1 leading-relaxed">
+            STRIPE_SECRET_KEY {status ? (status.cobranca ? '✓' : '✗') : '…'}<br />
+            STRIPE_PRICE_ID {status ? (status.cobrancaPreco ? '✓' : '✗') : '…'}<br />
+            STRIPE_WEBHOOK_SECRET {status ? (status.cobrancaWebhook ? '✓' : '✗') : '…'}
+          </code>
+        </div>
+
+        {status && status.cobranca && !status.cobrancaPreco && (
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              Falta <code className="font-mono">STRIPE_PRICE_ID</code>. É o id do{' '}
+              <strong>preço</strong> (<code className="font-mono">price_…</code>), não o do
+              produto (<code className="font-mono">prod_…</code>) — trocar os dois faz o
+              checkout recusar sem dizer o motivo.
+            </p>
+          </div>
+        )}
+
+        {status && status.cobranca && !status.cobrancaWebhook && (
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              Falta <code className="font-mono">STRIPE_WEBHOOK_SECRET</code>. O webhook
+              ainda funciona — cada evento é conferido buscando-o na API do Stripe, o que
+              é mais forte que a assinatura —, mas cadastrar o segredo acrescenta a
+              conferência padrão e é um passo a menos para depurar depois.
+            </p>
+          </div>
+        )}
+
+        <a
+          href="https://dashboard.stripe.com/apikeys"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline"
+        >
+          Abrir as chaves de API do Stripe
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>

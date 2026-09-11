@@ -29,7 +29,7 @@ export class ApiError extends Error {
   }
 }
 
-const chamar = async <T>(caminho: string, corpo: unknown): Promise<T> => {
+export const chamar = async <T>(caminho: string, corpo: unknown): Promise<T> => {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
@@ -170,6 +170,18 @@ export interface StatusDoServidor {
   midiaPublica: boolean;
   /** A URL de retorno que precisa estar cadastrada na Meta, igual. */
   urlDeRetorno: string;
+
+  /** STRIPE_SECRET_KEY — abre a API do Stripe. */
+  cobranca: boolean;
+  /** STRIPE_PRICE_ID — o preço que o checkout cobra. */
+  cobrancaPreco: boolean;
+  /**
+   * STRIPE_WEBHOOK_SECRET. É o único que não nasce na Vercel: o Stripe o
+   * gera quando o endpoint é cadastrado no painel dele.
+   */
+  cobrancaWebhook: boolean;
+  /** A URL para colar em Stripe → Developers → Webhooks. */
+  urlDoWebhook: string;
 }
 
 /**

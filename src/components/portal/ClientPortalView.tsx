@@ -1137,13 +1137,34 @@ export const ClientPortalView: React.FC = () => {
                     }`}>
                       {inv.status}
                     </span>
-                    <button 
-                      onClick={() => alert(`Baixando comprovante da NFS-e ${inv.number}`)}
-                      className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition shadow-xs cursor-pointer"
-                      title="Baixar NFS-e"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
+                    {/*
+                      Era um botão com `alert("Baixando comprovante...")` —
+                      não baixava nada, e dizia que sim. A nota tem
+                      `fileUrl`; quando ele existe isto é um link de verdade,
+                      e quando não existe o botão **não aparece**, em vez de
+                      aparecer sem funcionar.
+
+                      `'#'` conta como ausente: era o padrão que o cadastro
+                      gravava quando ninguém anexava arquivo.
+                    */}
+                    {inv.fileUrl && inv.fileUrl !== '#' ? (
+                      <a
+                        href={inv.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition shadow-xs cursor-pointer"
+                        title={`Abrir a NFS-e ${inv.number}`}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    ) : (
+                      <span
+                        className="text-[10px] font-bold text-slate-400 px-2"
+                        title="A agência ainda não anexou o arquivo desta nota."
+                      >
+                        sem arquivo
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

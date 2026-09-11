@@ -157,7 +157,9 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       value: Number(invValue) || 0,
       issueDate: invDate,
       status: invStatus,
-      fileUrl: invFileUrl || '#'
+      // Sem arquivo é `undefined`, não `'#'`. O `'#'` fazia a nota parecer
+      // ter anexo e levava a lugar nenhum quando clicada no portal.
+      fileUrl: invFileUrl || undefined
     });
     setInvNumber('');
     setInvFileUrl('');

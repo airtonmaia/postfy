@@ -106,6 +106,16 @@ interface PostfyContextType {
   /** Tira da lixeira, antes de os 7 dias passarem. */
   restaurarAgenciaDaLixeira: (workspaceId: string) => Promise<void>;
   isCreateWorkspaceModalOpen: boolean;
+  /**
+   * Abre o editor de perfil (nome, avatar, senha, e-mail).
+   *
+   * Mesmo padrão do modal de nova agência: o modal mora no App, e o
+   * sinalizador vive aqui para qualquer tela poder chamá-lo. Sem isto, o
+   * botão em Configurações → Visão Geral não teria como abri-lo — e um
+   * botão que não abre nada é o bug que aquela tela inteira era.
+   */
+  isProfileModalOpen: boolean;
+  setIsProfileModalOpen: (open: boolean) => void;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
   currentUser: User;
@@ -373,6 +383,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   /**
    * Cria a agência no banco, pela RPC.
@@ -2143,6 +2154,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         moverAgenciaParaLixeira,
         restaurarAgenciaDaLixeira,
         isCreateWorkspaceModalOpen,
+        isProfileModalOpen,
+        setIsProfileModalOpen,
         setIsCreateWorkspaceModalOpen,
         users,
         currentUser,

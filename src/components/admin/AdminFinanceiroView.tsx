@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { DollarSign, Building2, Clock, AlertTriangle, Plug } from 'lucide-react';
+import { DollarSign, Building2, Clock, AlertTriangle, Plug, CreditCard } from 'lucide-react';
+import { carregarNumerosDeCobranca, type NumerosDeCobranca } from '../../lib/numerosDoSaas';
+import { statusApi, type StatusDoServidor } from '../../lib/api';
 
 /**
  * Financeiro do SaaS.
@@ -16,8 +18,13 @@ import { DollarSign, Building2, Clock, AlertTriangle, Plug } from 'lucide-react'
  * No dia em que isso foi corrigido, a realidade era: três agências, todas em
  * teste, nenhuma pagante, R$ 0,00 de receita. A tela mostrava R$ 591,00.
  *
- * Número inventado em tela financeira é pior que tela vazia: ele é usado para
- * decidir. Enquanto não houver cobrança de verdade, aqui só entra o que o
+ * Agora existe cobrança: `subscriptions` guarda a assinatura de cada agência
+ * com o produto, e o MRR é a **soma do que está assinado e ativo**, vinda de
+ * `admin_numeros_de_cobranca()`. Zero aqui passou a ser um zero apurado.
+ *
+ * O que não mudou é a regra: número inventado em tela financeira é pior que
+ * tela vazia, porque é usado para decidir. Enquanto não houver cobrança de
+ * verdade, aqui só entra o que o
  * banco sabe — quantas agências existem, quais estão em teste e desde quando.
  *
  * O que falta para esta tela ter faturamento está escrito nela, com nome:
@@ -34,15 +41,51 @@ const formatarData = (iso?: string | null): string => {
     : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+/** Centavos → "R$ 1.234,56". Zero é zero, e é dito assim. */
+const emReais = (centavos: number): string =>
+  (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export const AdminFinanceiroView: React.FC = () => {
   const { workspaces } = usePostfy();
 
-  const total = workspaces.length;
-  const emTeste = workspaces.filter((w) => w.isTrial).length;
-  // "Pagante" é o que sobra de quem não está em teste. Não é cobrança
-  // confirmada — é o mais perto disso que o banco permite dizer hoje, e o
-  // rótulo abaixo não promete mais do que isso.
-  const foraDoTeste = total - emTeste;
+  /**
+   * Os números de cobrança, medidos.
+   *
+   * `null` = a RPC ainda não respondeu. A distinção importa nesta tela mais
+   * que em qualquer outra: "carregando" e "R$ 0,00" são coisas diferentes, e
+   * mostrar zero enquanto a resposta não chegou seria inventar de novo — só
+   * que para baixo.
+   */
+  const [cobranca, setCobranca] = useState<NumerosDeCobranca | null>(null);
+  const [status, setStatus] = useState<StatusDoServidor | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    void (async () => {
+      try {
+        const [numeros, servidor] = await Promise.all([
+          carregarNumerosDeCobranca(),
+          statusApi.consultar().catch(() => null),
+        ]);
+        if (cancelado) return;
+        setCobranca(numeros);
+        setStatus(servidor);
+      } catch (e) {
+        if (!cancelado) setErro(e instanceof Error ? e.message : 'Não foi possível apurar.');
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  const total = workspaces.filter((w) => !w.deletedAt).length;
+  const emTeste = workspaces.filter((w) => !w.deletedAt && w.isTrial).length;
+
+  // Enquanto o Stripe não está configurado, ninguém consegue assinar — e
+  // dizer isso é diferente de dizer "R$ 0,00 de receita".
+  const cobrancaLigada = Boolean(status?.cobranca && status?.cobrancaPreco);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
@@ -61,39 +104,105 @@ export const AdminFinanceiroView: React.FC = () => {
         </p>
       </div>
 
-      {/* O aviso vem antes dos números, e não num rodapé: quem abre uma tela
-          chamada "Financeiro" espera receita, e precisa saber que ela ainda
-          não é medida aqui antes de ler qualquer coisa. */}
-      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-5 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <div className="space-y-1.5">
-          <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-            Ainda não há cobrança ligada ao produto
-          </p>
-          <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed max-w-3xl">
-            Não existe MRR, ARR nem histórico de pagamentos para mostrar: falta a
-            assinatura de cada agência com o SaaS e o registro das cobranças — nenhuma
-            das duas coisas existe no banco hoje. A tabela <code className="font-mono">plans</code> é
-            outra coisa: é o catálogo que cada agência monta para os clientes dela.
-          </p>
-          <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed max-w-3xl">
-            Até isso existir, esta tela mostra só o que o banco sabe. Antes ela
-            estimava a receita multiplicando o número de agências por R$ 197 e listava
-            pagamentos de agências que não existem.
-          </p>
+      {erro && (
+        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-2xl p-5 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed">{erro}</p>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/*
+        O aviso vem antes dos números, e não num rodapé: quem abre uma tela
+        chamada "Financeiro" espera receita, e precisa saber de onde ela vem
+        antes de ler qualquer coisa.
+
+        Agora há dois avisos possíveis, e eles dizem coisas diferentes: sem
+        Stripe configurado **ninguém consegue assinar**, e um zero aqui não é
+        medida de nada. Com Stripe ligado, zero é um zero apurado.
+      */}
+      {status && !cobrancaLigada && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-5 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1.5">
+            <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+              A cobrança ainda não está ligada
+            </p>
+            <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed max-w-3xl">
+              Falta{' '}
+              <code className="font-mono">
+                {!status.cobranca ? 'STRIPE_SECRET_KEY' : 'STRIPE_PRICE_ID'}
+              </code>{' '}
+              no servidor. Enquanto isso, nenhuma agência consegue assinar e os números
+              abaixo são todos zero — zero porque não há assinatura, não porque a receita
+              não foi apurada. <strong>Admin → Integrações</strong> mostra o que falta e a
+              URL do webhook para cadastrar no Stripe.
+            </p>
+            <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed max-w-3xl">
+              Não confundir com <code className="font-mono">plans</code>: aquele é o
+              catálogo que cada agência monta para os clientes dela.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/*
+        Quatro números, todos medidos.
+
+        O MRR é a soma de `preco_centavos` das assinaturas ativas — não
+        `agências × preço de tabela`, que era o cálculo que dizia R$ 591,00
+        num dia de R$ 0,00. "—" enquanto a RPC não responde: zero e
+        "ainda não sei" não são a mesma resposta numa tela financeira.
+      */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Agências cadastradas</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Building2 className="w-4 h-4" />
+            <span className="text-xs font-semibold">Receita recorrente (MRR)</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white">{total}</div>
-          <span className="text-[11px] text-slate-400 block mt-1">Total na base</span>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
+            {cobranca ? emReais(cobranca.mrrCentavos) : '—'}
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            {cobranca
+              ? `soma de ${cobranca.assinaturas.ativas} assinatura${cobranca.assinaturas.ativas === 1 ? '' : 's'} ativa${cobranca.assinaturas.ativas === 1 ? '' : 's'}`
+              : 'apurando...'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-xs font-semibold">Assinaturas ativas</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <CreditCard className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
+            {cobranca ? cobranca.assinaturas.ativas : '—'}
+          </div>
+          <span className="text-[11px] text-slate-400 block mt-1">
+            {cobranca && cobranca.assinaturas.cancelamNoFim > 0
+              ? `${cobranca.assinaturas.cancelamNoFim} cancela no fim do período`
+              : 'nenhuma cancelando'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span className="text-xs font-semibold">Inadimplentes</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
+            {cobranca ? cobranca.assinaturas.inadimplentes : '—'}
+          </div>
+          {/* O rótulo não diz "0% de inadimplência": a tela antiga trazia
+              "100% adimplentes" como texto fixo. */}
+          <span className="text-[11px] text-slate-400 block mt-1">
+            pagamento recusado no Stripe
+          </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -105,22 +214,11 @@ export const AdminFinanceiroView: React.FC = () => {
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white">{emTeste}</div>
           <span className="text-[11px] text-slate-400 block mt-1">
-            {total > 0 ? `${Math.round((emTeste / total) * 100)}% da base` : 'Nenhuma agência ainda'}
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Fora do teste</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white">{foraDoTeste}</div>
-          {/* O rótulo não diz "pagantes": sair do teste e pagar são coisas
-              diferentes, e o banco não sabe a segunda. */}
-          <span className="text-[11px] text-slate-400 block mt-1">
-            Sem cobrança confirmada
+            {cobranca && cobranca.agencias.testeVencido > 0
+              ? `${cobranca.agencias.testeVencido} com o teste já vencido`
+              : total > 0
+                ? `de ${total} agências na base`
+                : 'nenhuma agência ainda'}
           </span>
         </div>
       </div>
