@@ -143,9 +143,17 @@ export const BotaoDoPortal: React.FC<Props> = ({
         size={tamanho}
         onClick={copiar}
         disabled={!slug}
+        /* A borda da esquerda é o risco que separa os dois botões colados.
+           Na `destaque` o fundo já é a marca, então o risco sai da cor do
+           texto dela — antes era um `purple-500` fixo, que numa agência de
+           marca verde aparecia como um traço roxo no meio do par. */
         className={`${lateral ? 'p-2.5' : ''} ${
           !lateral
-            ? `${juntarDireita} ${destaque ? 'border-purple-500' : 'border-purple-200 dark:border-purple-800'}`
+            ? `${juntarDireita} ${
+                destaque
+                  ? 'border-primary-foreground/25'
+                  : 'border-purple-200 dark:border-purple-800'
+              }`
             : ''
         }`}
         /* O title diz o que o link É, não o que o botão faz: o risco aqui é

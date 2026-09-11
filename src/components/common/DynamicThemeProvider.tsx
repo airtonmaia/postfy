@@ -15,6 +15,37 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * Branco ou quase-preto, o que ler melhor sobre a cor.
+ *
+ * A folha de `!important` abaixo não consegue decidir isto: ali a cor de fundo
+ * e a do texto são classes diferentes (`bg-purple-600` e `text-white`), então
+ * uma agência de marca clara — amarelo, lima, ciano — ficava com texto branco
+ * sobre fundo claro, ilegível, e nada no produto avisava.
+ *
+ * Com `--primary-foreground` a decisão passa a existir num lugar só, e é por
+ * isso que a variável vale mais que a folha: ela carrega o par, não a cor
+ * solta.
+ *
+ * O peso de cada canal é o da luminância percebida (o olho lê verde muito mais
+ * que azul); o corte em 150 é o usual para esta fórmula.
+ */
+function textoLegivelSobre(hex: string): string {
+  let c = (hex || '').replace('#', '').trim();
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  if (c.length !== 6) return '#ffffff';
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return '#ffffff';
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  const luminancia = 0.299 * r + 0.587 * g + 0.114 * b;
+  // slate-900, que é o texto escuro do produto — não preto puro.
+  return luminancia > 150 ? '#0f172a' : '#ffffff';
+}
+
 function adjustHexBrightness(hex: string, percent: number): string {
   let c = (hex || '').replace('#', '').trim();
   if (c.length === 3) {
@@ -67,6 +98,39 @@ export const DynamicThemeProvider: React.FC = () => {
       document.head.appendChild(styleEl);
     }
 
+    const textoSobrePrimario = textoLegivelSobre(primary);
+
+    /**
+     * O bloco abaixo escreve a mesma cor com dois conjuntos de nomes.
+     *
+     * `--brand-*` alimenta a folha de `!important` que vem depois, e é o que
+     * pinta os 984 utilitários roxos escritos à mão em 61 arquivos —
+     * `bg-purple-600` e companhia. `--primary`, `--ring` e
+     * `--sidebar-primary` são os nomes que o shadcn
+     * usa, e é por eles que toda peça gerada por `npx shadcn add` vai
+     * perguntar a cor.
+     *
+     * As duas saem de `currentWorkspace.primaryColor`, então não podem
+     * divergir: trocar a cor da agência move as duas juntas. É isso que
+     * permite migrar tela por tela em vez de num fôlego só.
+     *
+     * **Apagar um dos lados antes da hora é o erro caro.** A tela continua
+     * pintada — com o roxo do Orquesia no lugar da marca do cliente — e
+     * ninguém abre chamado, porque *parece* certo.
+     *
+     * **A marca não muda de tom entre claro e escuro.** O shadcn clareia o
+     * `--primary` no escuro porque o primário dele é um neutro; aqui ele é a
+     * cor da agência, e os 99 `bg-purple-600` escritos à mão continuam no tom
+     * cheio nos dois modos. Clarear só este lado colocaria dois roxos
+     * diferentes na mesma tela — exatamente o que a padronização veio tirar.
+     *
+     * Por isso há só `:root`, e não um `.dark` junto. O `index.css` declara as
+     * duas versões dentro de `@layer base`, e **fora de camada vence dentro de
+     * camada independente de especificidade** — então este `:root` sobrepõe
+     * também o `.dark` de lá. Medido no Chromium, não deduzido: com `.dark` no
+     * `<html>` e a folha injetada trazendo só `:root`, é o valor injetado que
+     * `getComputedStyle` devolve.
+     */
     const css = `
       :root {
         --brand-primary: ${primary};
@@ -78,6 +142,14 @@ export const DynamicThemeProvider: React.FC = () => {
         --brand-primary-border: ${borderPrimary};
         --brand-primary-glow: ${glowPrimary};
         --brand-secondary: ${secondary};
+
+        /* As mesmas cores, nos nomes que o shadcn usa. */
+        --primary: ${primary};
+        --primary-foreground: ${textoSobrePrimario};
+        --ring: ${primary};
+        --sidebar-primary: ${primary};
+        --sidebar-primary-foreground: ${textoSobrePrimario};
+        --sidebar-ring: ${primary};
       }
 
       /* Primary Background Buttons & Chips */
