@@ -66,7 +66,7 @@ a tela já mostrou o resultado antes de o banco responder.
 
 ## Armadilhas
 
-Dez regras. Todas vieram de bugs que chegaram a produção.
+Onze regras. Todas vieram de bugs que chegaram a produção.
 
 ### 0. Import relativo em `api/` precisa da extensão `.js`
 
@@ -303,6 +303,39 @@ decidir. Enquanto o dado não existir, a tela mostra o que o banco sabe e
 Protegido por `tests/telas-honestas.test.ts`, que varre `src/components`
 depois de remover os comentários: o projeto registra o bug nos comentários, e
 sem essa limpeza a guarda acusaria a própria memória do bug.
+
+---
+
+### 9.1 O navegador enfileira, o cron envia
+
+O e-mail automático saía do navegador (`emailApi.disparar`) logo depois de a
+mudança estar gravada. Fechar a aba no mesmo segundo interrompia o envio: o
+conteúdo ficava aprovado e o aviso não saía, sem erro em lugar nenhum.
+
+Agora `dispararAutomacoes` só faz um insert em `email_queue` — que acaba
+antes de a aba fechar — e quem envia é `api/publicar.ts`, o cron que já roda
+de 5 em 5 minutos. Três tentativas por item; depois disso fica em `falhou`
+com o motivo à vista, em vez de ser retentado para sempre.
+
+**O destinatário é congelado no insert.** O modelo diz "cliente" ou
+"agência", e quando é a agência o destino é quem está na sessão — o cron não
+tem sessão para perguntar isso depois.
+
+Duas coisas que parecem detalhe e não são:
+
+- A tela diz **"e-mail na fila"**, não "enviado". Quem envia é o cron, daqui
+  a alguns minutos, e um endereço inválido só se revela lá.
+- O **webhook continua saindo do navegador**: ele é ida e volta que a tela
+  mostra na hora ("destino respondeu 200"). Enfileirá-lo trocaria uma
+  resposta útil por um "na fila" que não diz nada.
+
+`email_queue` não tem política de UPDATE para sessão autenticada, de
+propósito: quem marca como enviado é o cron, com a chave de serviço. Uma
+política aqui deixaria o navegador afirmar que enviou o que nunca saiu.
+
+A rota `api/send-email.ts` deixou de existir — o corpo dela virou
+`api/_lib/emails.ts`, chamável dos dois lados. Isso também devolveu um slot
+de função, que é o que o Stripe ocupou (ver armadilha 6).
 
 ---
 
@@ -577,6 +610,7 @@ api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServi
 api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
+api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
@@ -595,8 +629,5 @@ supabase/migrations/       schema é a fonte de verdade; 30 migrações
   semanas cada. Com o app em modo de desenvolvimento dá para publicar nas
   contas adicionadas como testador do Instagram, que é como o fluxo foi
   conferido de ponta a ponta.
-- **Os e-mails disparam do navegador**, depois de a mudança estar gravada.
-  Fechar a aba no meio interrompe o envio. A correção definitiva é um gatilho
-  no Postgres chamando a função; fica para quando houver volume.
 - **Variáveis de ambiente na Vercel** — veja `.env.example`. A aba Integrações
   mostra quais estão faltando, lendo do servidor.

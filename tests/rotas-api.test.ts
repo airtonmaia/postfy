@@ -6,7 +6,6 @@ import * as uploadUrl from '../api/upload-url';
 import * as sendInvite from '../api/send-invite';
 import * as webhookTest from '../api/webhook-test';
 import * as status from '../api/status';
-import * as sendEmail from '../api/send-email';
 import * as socialConnect from '../api/social-connect';
 import * as publicar from '../api/publicar';
 
@@ -42,7 +41,6 @@ const rotas = {
   'api/send-invite.ts': sendInvite,
   'api/webhook-test.ts': webhookTest,
   'api/status.ts': status,
-  'api/send-email.ts': sendEmail,
   'api/social-connect.ts': socialConnect,
   'api/publicar.ts': publicar,
 } as Record<string, Record<string, unknown>>;

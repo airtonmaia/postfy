@@ -1,6 +1,7 @@
 import { clienteDeServico, json, autorizadoPeloCron } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.js';
+import { esvaziarFilaDeEmail } from './_lib/emails.js';
 
 
 /**
@@ -40,6 +41,16 @@ async function handler(request: Request): Promise<Response> {
   // publicação falhar, gastar tentativa e só então alguém descobrir.
   const renovadas = await renovarTokensQuePodemVencer(supabase);
 
+  // A fila de e-mail pega carona nesta passada, e não numa rota própria: o
+  // plano Hobby da Vercel aceita 12 funções e já estamos em 12 (armadilha
+  // 6). As duas filas são a mesma ideia — o navegador enfileira, o cron
+  // esvazia —, e de cinco em cinco minutos é tempo de sobra para um e-mail
+  // de aviso.
+  //
+  // Antes do resto de propósito: é a parte barata, e se a publicação
+  // estourar no meio o e-mail já saiu.
+  const email = await esvaziarFilaDeEmail(supabase);
+
   const { data: itens, error } = await supabase
     .from('publish_queue')
     .select('id, job_id, connection_id, attempts, workspace_id')
@@ -54,7 +65,7 @@ async function handler(request: Request): Promise<Response> {
   }
 
   if (!itens || itens.length === 0) {
-    return json({ processados: 0, renovadas });
+    return json({ processados: 0, renovadas, email });
   }
 
   const resultados: { id: string; ok: boolean; detalhe: string }[] = [];
@@ -112,6 +123,7 @@ async function handler(request: Request): Promise<Response> {
     publicados: resultados.filter((r) => r.ok).length,
     falhas: resultados.filter((r) => !r.ok).length,
     renovadas,
+    email,
   });
 }
 
