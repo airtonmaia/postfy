@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { ConexoesSociais } from './ConexoesSociais';
-import { safeDateTimeFormat, safeDateFormat } from '../../lib/utils';
+import { safeDateTimeFormat, safeDateFormat, safeTimeFormat } from '../../lib/utils';
 import { 
 
   CheckCircle2, 
@@ -23,6 +23,7 @@ import {
   listarContas,
   agendarPublicacao,
   cancelarPublicacao,
+  quandoDeveSair,
   type ItemDaFila,
   type ContaConectada,
 } from '../../lib/redes';
@@ -242,7 +243,9 @@ export const PublicationsView: React.FC = () => {
                               }`}
                               title={item.lastError || undefined}
                             >
-                              {item.status === 'falhou' ? 'falhou' : item.status}
+                              {item.status === 'pendente'
+                                ? `sai até ${safeTimeFormat(quandoDeveSair(item.scheduledFor))}`
+                                : item.status}
                             </span>
                             {podeTirar && (
                               <button
