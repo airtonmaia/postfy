@@ -50,7 +50,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
           <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 Simulador Visual de Feed (Grid 3x3)
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold">
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold">
                   Instagram
                 </span>
               </h3>
@@ -192,12 +192,12 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                     {/* Format Badge Top Right */}
                     <div className="absolute top-1 right-1">
                       {job.format === 'carousel' && (
-                        <div className="p-1 rounded-sm bg-black/60 text-white backdrop-blur-xs">
+                        <div className="p-1 rounded-md bg-black/60 text-white backdrop-blur-xs">
                           <Layers className="w-2.5 h-2.5" />
                         </div>
                       )}
                       {job.format === 'reel' && (
-                        <div className="p-1 rounded-sm bg-black/60 text-white backdrop-blur-xs">
+                        <div className="p-1 rounded-md bg-black/60 text-white backdrop-blur-xs">
                           <Film className="w-2.5 h-2.5" />
                         </div>
                       )}
@@ -224,7 +224,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
           </div>
 
           {/* Right Column: Active Post Inspector */}
-          <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 w-full">
+          <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 w-full">
             {previewJob ? (
               <>
                 <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -274,10 +274,10 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                     <div>
                       <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Formato & Status</span>
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 uppercase text-[10px]">
+                        <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 uppercase text-[10px]">
                           {previewJob.format}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold uppercase text-[10px]">
+                        <span className="px-2.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold uppercase text-[10px]">
                           {previewJob.status}
                         </span>
                       </div>

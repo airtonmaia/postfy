@@ -303,7 +303,7 @@ export const AdminLayout: React.FC = () => {
             </button>
             {/* A faixa existe para não haver dúvida de onde a pessoa está: as
                 telas daqui mexem em toda a base, não numa agência. */}
-            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-900 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-900 px-2.5 py-1 rounded-md">
               Administração do produto
             </span>
           </div>

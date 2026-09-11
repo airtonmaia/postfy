@@ -185,21 +185,94 @@ describe('as variáveis do shadcn existem e viram classe', () => {
     }
   });
 
-  it('o canto do projeto continua sendo dois, e escrito como classe', () => {
-    // A regra do CLAUDE.md: `rounded-xl` por dentro, `rounded-2xl` no card,
-    // "os dois convivem; um terceiro não". Peça do shadcn chega em
-    // `rounded-md` e tem o canto trocado na hora de entrar — por isso não
-    // pode haver `rounded-md` nem `rounded-sm` em `src/components/ui`.
-    const { readdirSync } = require('node:fs') as typeof import('node:fs');
-    const dirUi = join(RAIZ, 'src', 'components', 'ui');
+  it('o vocabulário de canto é fechado, e escrito como classe', () => {
+    /**
+     * O CLAUDE.md dizia "dois cantos, um terceiro não", e a contagem mostrou
+     * que nunca foi verdade: o projeto sempre teve quatro degraus reais. A
+     * regra vale — cada valor solto custa pouco sozinho e fica —, mas ela
+     * tem que nomear o que existe, não o que se pretendia.
+     *
+     * Cinco passos, cada um com um papel:
+     *
+     *   rounded-md    chip e badge retangular
+     *   rounded-lg    controle pequeno (botão `sm`, botão de ícone)
+     *   rounded-xl    controle normal (botão, campo, item de menu)
+     *   rounded-2xl   card e modal
+     *   rounded-full  o que é círculo de verdade, e o `Badges.tsx`
+     *
+     * Fora dessa lista sobram duas exceções nomeadas, e nenhuma é canto de
+     * interface: `rounded-none rounded-r-lg` é composição de campo colado ao
+     * vizinho, e `rounded-[40px]` é a moldura do mockup de celular, que
+     * imita um objeto físico.
+     *
+     * Um passo novo aparecendo aqui é o sintoma que a regra existe para
+     * pegar — inclusive `rounded-3xl`, que tinha cinco usos em superfície de
+     * modal e virou `rounded-2xl`: modal lendo diferente de card é o mesmo
+     * problema visto de perto.
+     */
+    const permitidos = new Set(['md', 'lg', 'xl', '2xl', 'full', 'none']);
+    const achados = new Map<string, string[]>();
 
-    for (const arquivo of readdirSync(dirUi).filter((f) => f.endsWith('.tsx'))) {
-      const fonte = semComentarios(readFileSync(join(dirUi, arquivo), 'utf-8'));
-      expect(
-        fonte,
-        `${arquivo}: veio com o canto do shadcn; troque rounded-md/rounded-sm ` +
-          `pelo rounded-xl do projeto`
-      ).not.toMatch(/\brounded-(?:md|sm)\b/);
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const [, passo] of fonte.matchAll(
+        /\brounded-(?:[tblrse]{1,2}-)?([a-z0-9]+|\[[^\]]+\])\b/g
+      )) {
+        if (permitidos.has(passo)) continue;
+        if (passo === '[40px]') continue; // a moldura do mockup
+        const onde = achados.get(passo) ?? [];
+        onde.push(arquivo.replace(`${RAIZ}/`, ''));
+        achados.set(passo, onde);
+      }
+    }
+
+    expect(
+      [...achados].map(([passo, onde]) => `rounded-${passo} em ${onde.join(', ')}`),
+      'canto fora do vocabulário medido — se é papel novo, some à lista aqui e ao CLAUDE.md; ' +
+        'se não, use o passo que já existe'
+    ).toEqual([]);
+  });
+
+  it('chip não usa raio maior que metade da própria altura', () => {
+    /**
+     * Medido no Chromium, e foi o que derrubou a primeira tentativa desta
+     * entrega: o CSS reduz o raio proporcionalmente quando ele passa de
+     * metade do lado, então num chip de 15px de altura `rounded-xl` (12px),
+     * `rounded-lg` (8px) e `rounded-full` renderizam **os mesmos 7,5px**.
+     *
+     * Trocar a classe sem olhar a altura produz um diff grande e uma tela
+     * idêntica — pior que não mexer, porque o changelog passa a afirmar uma
+     * mudança que ninguém vê. O único passo que lê diferente num chip curto
+     * é o `rounded-md` (6px), que é justamente o que o `Badge` do shadcn usa.
+     *
+     * A guarda é indireta porque o vitest não monta componente: nenhum chip
+     * de texto (tem `px-` e `py-` pequenos) pode estar em `rounded-xl` ou
+     * maior.
+     */
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const linha of fonte.split('\n')) {
+        /**
+         * Chip de texto: tem padding lateral e vertical de no máximo `py-1`.
+         *
+         * O `(?![.\d])` não é enfeite — sem ele `py-1` casa dentro de
+         * `py-1.5`, porque entre o `1` e o `.` existe fronteira de palavra.
+         * Foi assim que a primeira versão desta guarda acusou os botões
+         * "Admin" e "Novidades" do cabeçalho, que são `py-1.5`: 26px de
+         * altura, onde `rounded-xl` cabe sem ser cortado.
+         */
+        const ehChip =
+          /\bpx-[0-9.]+\b/.test(linha) && /\bpy-(?:0\.5|1)(?![.\d])/.test(linha);
+        if (!ehChip) continue;
+
+        expect(
+          linha.match(/\brounded-(?:xl|2xl)\b/)?.[0] ?? null,
+          `${arquivo.replace(`${RAIZ}/`, '')}: chip curto em ${
+            linha.match(/\brounded-\S+/)?.[0]
+          } — o CSS corta isso a metade da altura e ele volta a parecer pílula; ` +
+            `use rounded-md`
+        ).toBeNull();
+      }
     }
   });
 });

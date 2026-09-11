@@ -278,7 +278,7 @@ export const ClientsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${healthConfig.bg} ${healthConfig.text}`}>
+                  <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-md ${healthConfig.bg} ${healthConfig.text}`}>
                     {healthConfig.label}
                   </span>
                 </div>

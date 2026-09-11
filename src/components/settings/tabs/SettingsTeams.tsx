@@ -142,7 +142,7 @@ export const SettingsTeams: React.FC = () => {
                   <h5 className="text-sm font-extrabold text-slate-900 dark:text-white">
                     {squad.name}
                   </h5>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200">
                     Célula Ativa
                   </span>
                 </div>

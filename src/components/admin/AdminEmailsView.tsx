@@ -157,7 +157,7 @@ export const AdminEmailsView: React.FC = () => {
                       {modelo.nome}
                     </h4>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
                         paraCliente
                           ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                           : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'

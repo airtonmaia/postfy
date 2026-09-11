@@ -55,14 +55,15 @@
 
     O estrago foi justamente na regra de desenho: `rounded-xl` é o canto
     interno (campo, botão, item de menu) e `rounded-2xl` é o canto do card, e
-    o CLAUDE.md diz que os dois convivem e um terceiro não. Com o `xl` em
-    16px os dois viraram o mesmo canto — a distinção sumiu de uma vez, em
-    649 lugares, enquanto `tsc`, vitest e `vite build` ficavam os três
-    verdes. Mesma família da armadilha 0.
+    com o `xl` em 16px ele encostou no `rounded-2xl` do card, e a distinção
+    entre controle e superfície sumiu de uma vez, em 649 lugares — enquanto
+    `tsc`, vitest e `vite build` ficavam os três verdes. Mesma família da
+    armadilha 0.
 
-    Peça do shadcn que chega escrita em `rounded-md` tem o canto trocado por
-    `rounded-xl` na hora de entrar, um por um. É mais trabalho que uma
-    variável global, e é o único jeito que não mexe no que já está em tela.
+    Peça do shadcn tem o canto traduzido na hora de entrar, pelo papel do
+    pedaço: `rounded-md` em chip e badge já está certo e fica; em botão,
+    campo e item de menu vira `rounded-xl`; em card e modal, `rounded-2xl`.
+    O vocabulário inteiro está no CLAUDE.md, levantado por contagem.
   */
 }
 

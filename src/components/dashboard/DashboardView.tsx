@@ -124,7 +124,7 @@ export const DashboardView: React.FC = () => {
                   </h3>
                 </div>
                 <span 
-                  className="text-[10px] sm:text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-md text-white shadow-sm border"
+                  className="text-[10px] sm:text-xs font-semibold px-2.5 py-1 rounded-md backdrop-blur-md text-white shadow-sm border"
                   style={{ backgroundColor: `${secondary}CC`, borderColor: `${secondary}4D` }}
                 >
                   Score Algorítmico 0–100
@@ -182,7 +182,7 @@ export const DashboardView: React.FC = () => {
                 <Sparkles className="w-4 h-4 text-purple-600" />
                 Postfy Insights
               </span>
-              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
                 IA Operacional
               </span>
             </div>
@@ -353,7 +353,7 @@ export const DashboardView: React.FC = () => {
                       </span>
                     </div>
 
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${healthColors.bg} ${healthColors.text}`}>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${healthColors.bg} ${healthColors.text}`}>
                       <span className={`w-2 h-2 rounded-full ${healthColors.dot}`} />
                       {healthColors.label}
                     </span>

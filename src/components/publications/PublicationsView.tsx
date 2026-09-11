@@ -130,7 +130,7 @@ export const PublicationsView: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* O que o servidor consegue fazer hoje, derivado de REDES_QUE_PUBLICAM. */}
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
             <CircleDashed className="w-3.5 h-3.5" />
             Disparo automático: {REDES_QUE_PUBLICAM.join(', ')}
           </span>
@@ -234,7 +234,7 @@ export const PublicationsView: React.FC = () => {
                         return (
                           <div className="flex items-center gap-2 shrink-0">
                             <span
-                              className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+                              className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-md border ${
                                 item.status === 'publicado'
                                   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                                   : item.status === 'falhou'

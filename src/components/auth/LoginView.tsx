@@ -143,7 +143,7 @@ export const LoginView: React.FC = () => {
 
         {/* Bottom Caption inside Banner */}
         <div className="relative z-10 space-y-3 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold text-white shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold text-white shadow-sm">
             <Sparkles className="w-4 h-4 text-indigo-300" />
             <span>Gestão Inteligente de Agências</span>
           </div>
@@ -184,7 +184,7 @@ export const LoginView: React.FC = () => {
           </div>
 
           {/* Security Badge */}
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600 border border-slate-200">
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-slate-100 text-xs font-semibold text-slate-600 border border-slate-200">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             Ambiente Seguro
           </span>

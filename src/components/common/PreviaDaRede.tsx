@@ -264,7 +264,7 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
-              <span className="absolute top-2 right-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900/70 text-white">
+              <span className="absolute top-2 right-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900/70 text-white">
                 {pagina + 1} / {total}
               </span>
             </>

@@ -1078,8 +1078,42 @@ O que "o desenho do dashboard" significa, levantado por contagem no `src`:
 | item de menu | `px-3 py-2 rounded-xl text-xs font-semibold` | idem |
 | botão primário | `bg-purple-600 hover:bg-purple-700 text-white` | 13 botões |
 
-`rounded-xl` é o canto **interno** — campo, botão, item de menu. `rounded-2xl`
-é o canto do card. Os dois convivem; um terceiro não.
+#### O vocabulário de canto é fechado, e tem cinco passos
+
+Esta seção dizia "`rounded-xl` por dentro, `rounded-2xl` no card, os dois
+convivem e um terceiro não". **A contagem mostrou que nunca foi verdade** — o
+projeto sempre teve quatro degraus reais, e `rounded-lg` já aparecia em 191
+lugares. A regra vale; o que estava errado era ela descrever o que se
+pretendia em vez do que existe. Levantado por contagem:
+
+| passo | papel | usos |
+|---|---|---|
+| `rounded-md` | chip e badge retangular | 67 |
+| `rounded-lg` | controle pequeno — botão `sm`, botão de ícone | 191 |
+| `rounded-xl` | controle normal — botão, campo, item de menu | 445 |
+| `rounded-2xl` | card **e modal** | 208 |
+| `rounded-full` | o que é círculo de verdade, e o `Badges.tsx` | 67 |
+
+Duas exceções nomeadas, e nenhuma é canto de interface: `rounded-none
+rounded-r-lg` é composição de campo colado ao vizinho, e `rounded-[40px]` é a
+moldura do mockup de celular, que imita um objeto físico.
+
+Um sexto passo é o sintoma que a regra existe para pegar. Foi o caso do
+`rounded-3xl`, que tinha cinco usos em superfície de modal: modal lendo
+diferente de card é a mesma inconsistência vista de perto, e ele virou
+`rounded-2xl`.
+
+**Chip curto não obedece à classe que você escreveu.** O CSS reduz o raio
+proporcionalmente quando ele passa de metade do lado, então num chip de 15px
+de altura `rounded-xl` (12px), `rounded-lg` (8px) e `rounded-full` renderizam
+**os mesmos 7,5px** — medido no Chromium. Trocar a classe sem olhar a altura
+produz um diff de 53 linhas e uma tela idêntica, o que é pior que não mexer:
+o changelog passa a afirmar uma mudança que ninguém vê. O único passo que lê
+diferente num chip curto é o `rounded-md`, que é também o que o `Badge` do
+shadcn usa.
+
+Protegido por `tests/tema-shadcn.test.ts`, que fecha o vocabulário e reprova
+chip curto em `rounded-xl` ou maior.
 
 A regra vale para casca também: a área `/admin` tem barra lateral e cabeçalho
 próprios porque o **conteúdo** é outro, e nenhum pixel de medida foi mudado
@@ -1129,20 +1163,21 @@ nativa do Tailwind**, não nomes novos do shadcn. Redefinir um deles move toda
 classe `rounded-*` que já existe.
 
 O resultado foi de produção: 444 `rounded-xl` passaram de 12px para 16px e 191
-`rounded-lg` de 8px para 12px — 649 elementos. E o estrago caiu exatamente na
-regra de desenho desta seção: `rounded-xl` é o canto interno e `rounded-2xl` é
-o do card, "os dois convivem; um terceiro não". Com o `xl` em 16px os dois
-viraram o mesmo canto, e a distinção sumiu de uma vez.
+`rounded-lg` de 8px para 12px — 649 elementos. E o estrago caiu exatamente no
+vocabulário de canto: com o `xl` em 16px ele encostou no `rounded-2xl` do
+card, e a distinção entre controle e superfície sumiu de uma vez.
 
 `tsc`, vitest e `vite build` ficaram os três verdes — é a armadilha 0 de novo.
 O teste de guarda da época conferia `--radius: 0.75rem`, o que está certo
 isolado e não diz nada sobre o que aquilo faz com `rounded-xl`. **Guarda de
 variável de tema tem que afirmar o efeito, não o valor.**
 
-Então: nada de `--radius*` em lugar nenhum. Peça do shadcn chega escrita em
-`rounded-md` e tem o canto trocado por `rounded-xl` na hora de entrar, uma por
-uma. É mais trabalho que uma variável global, e é o único jeito que não mexe
-no que já está em tela.
+Então: nada de `--radius*` em lugar nenhum. Peça do shadcn tem o canto
+traduzido para o vocabulário da seção acima **na hora de entrar**, pelo papel
+que aquele pedaço cumpre: o `rounded-md` que ele usa em chip e badge já está
+certo e fica; o que ele usa em botão, campo e item de menu vira `rounded-xl`;
+o de card e modal vira `rounded-2xl`. É mais trabalho que uma variável global,
+e é o único jeito que não mexe no que já está em tela.
 
 Duas coisas seguram a parte de cor de pé, e nenhuma delas quebra o build
 quando falha:

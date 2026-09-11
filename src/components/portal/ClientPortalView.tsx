@@ -564,7 +564,7 @@ export const ClientPortalView: React.FC = () => {
               <span className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">
                 {currentWorkspace.name || 'Portal do Cliente'}
               </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hidden md:inline-flex items-center gap-1">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hidden md:inline-flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
                 Acesso Seguro
               </span>
@@ -725,7 +725,7 @@ export const ClientPortalView: React.FC = () => {
                       </div>
 
                       <span
-                        className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
+                        className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md ${
                           definicaoDoTipo(job.tipo).pedeArte
                             ? 'absolute top-3 right-3 bg-slate-900/80 text-white backdrop-blur-xs'
                             : 'absolute top-1/2 right-3 -translate-y-1/2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
@@ -1130,7 +1130,7 @@ export const ClientPortalView: React.FC = () => {
                     <span className="font-bold font-mono text-slate-900 dark:text-white">
                       R$ {inv.value.toLocaleString('pt-BR')}
                     </span>
-                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md ${
                       inv.status === 'pago' 
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200' 
                         : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200'
@@ -1439,12 +1439,12 @@ export const ClientPortalView: React.FC = () => {
                         </div>
                       )}
                       <div className="absolute top-2 left-2">
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-white backdrop-blur-xs">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-slate-900/80 text-white backdrop-blur-xs">
                           {mat.category}
                         </span>
                       </div>
                       <div className="absolute top-2 right-2">
-                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
                           mat.status === 'utilized'
                             ? 'bg-emerald-500 text-white'
                             : mat.status === 'in_review'
@@ -1629,11 +1629,11 @@ export const ClientPortalView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500">
                         {u.papel}
                       </span>
                       {!u.ativo && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500">
                           suspenso
                         </span>
                       )}
