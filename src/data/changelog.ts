@@ -44,9 +44,11 @@ export const CHANGELOG: EntradaDoChangelog[] = [
     ],
     melhorias: [
       'Todo botão que é só ícone ganhou explicação ao passar o mouse.',
+      'A marca enviada em Admin → Design passou a aparecer também na barra lateral da administração — que era o que aquela tela já prometia em texto.',
     ],
     corrigido: [
       'O texto do conteúdo passava do limite da rede sem nenhum aviso. O erro só aparecia na hora de publicar, depois de o cliente já ter aprovado.',
+      'Admin → Integrações não rolava: tudo abaixo do Estado da infraestrutura ficava inalcançável. A tela também estava sem o respiro das bordas — era a única das nove telas da administração sem a casca padrão.',
     ],
   },
   {
