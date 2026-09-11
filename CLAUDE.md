@@ -306,6 +306,45 @@ sem essa limpeza a guarda acusaria a própria memória do bug.
 
 ---
 
+### 8.1 Hook depois do `return null` derruba o app inteiro
+
+```tsx
+const [aberto, setAberto] = useState(false);   // ✅ todos aqui em cima
+if (!isOpen) return null;
+// const [texto, setTexto] = useState('');     // ❌ erro #310, tela branca
+```
+
+O React exige a **mesma lista de hooks em toda renderização**. Um componente
+que faz `if (!isOpen) return null;` e declara `useState` depois disso roda
+dois conjuntos diferentes — poucos com a modal fechada, todos quando ela abre
+— e o React não degrada: derruba a árvore com `Rendered more hooks than
+during the previous render`, que em produção chega minificado como
+**`Minified React error #310`**, na tela de erro genérica.
+
+O que torna a armadilha cara é que **nada local acusa**: `tsc` não sabe o que
+é hook, o vitest não monta componente, e o `vite build` compila feliz. É a
+mesma família da armadilha 0 — tudo verde, produção morta. O projeto não roda
+eslint (`bun run lint` é `tsc --noEmit`), então a regra
+`react-hooks/rules-of-hooks`, que pegaria isso de graça, não existe aqui.
+
+Só acontece quando o componente **fica montado** com a prop falsa. Se o pai
+escreve `{aberto && <Modal/>}`, ele monta e desmonta, e a contagem nunca
+diverge. Escrevendo `<Modal isOpen={aberto}/>`, que é o padrão aqui, diverge
+sempre. Foi assim nos dois casos que existiram: o botão de teste da
+publicação em `CreateJobModal`, e o `useState(defaultMessage)` do
+`WhatsAppShareModal` — este último quebrava "compartilhar no WhatsApp" desde
+que foi escrito, e ninguém tinha percebido.
+
+A ordem certa é sempre a mesma: **todos os hooks no topo, antes de qualquer
+`return`**. Quando o valor inicial depende de algo que só existe depois da
+guarda, o estado nasce vazio e um `useEffect` o preenche — que também
+conserta o valor velho preso do `useState(x)`, lido só na primeira
+renderização.
+
+Protegido por `tests/hooks-antes-do-return.test.ts`.
+
+---
+
 ### 9.1 O navegador enfileira, o cron envia
 
 O e-mail automático saía do navegador (`emailApi.disparar`) logo depois de a

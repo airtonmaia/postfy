@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
@@ -19,9 +19,15 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   const { clients, currentWorkspace } = usePostfy();
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen || !job) return null;
+  // Todos os hooks vêm antes do `return null` lá embaixo, e `message` nascia
+  // depois dele. O componente fica montado com `isOpen` falso — quem o
+  // renderiza passa a prop, não o monta condicionalmente —, então abrir a
+  // modal ia de dois hooks para três e o React derrubava o app inteiro com
+  // "rendered more hooks than during the previous render". Compartilhar no
+  // WhatsApp simplesmente quebrava a tela.
+  const [message, setMessage] = useState('');
 
-  const client = clients.find(c => c.id === job.clientId);
+  const client = job ? clients.find(c => c.id === job.clientId) : undefined;
   const contact = client?.contacts[0];
   const phone = contact?.phone || client?.phone || '';
   const cleanPhone = phone.replace(/\D/g, '');
@@ -30,16 +36,28 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   // sobrando dos dados de exemplo. O link nunca abriu portal nenhum.
   const portalLink = urlDoPortalDaAgencia(currentWorkspace.slug, window.location.origin);
 
-  const defaultMessage = `Olá, ${contact?.name || client?.name || 'Cliente'}! Tudo bem? 👋
+  const defaultMessage = job
+    ? `Olá, ${contact?.name || client?.name || 'Cliente'}! Tudo bem? 👋
 
 Seu novo conteúdo "${job.title}" (${job.format.toUpperCase()}) já está pronto para sua revisão e aprovação! 🚀
 
 👉 Acesse pelo link abaixo para conferir o criativo e a legenda completa:
 ${portalLink}
 
-Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia. Qualquer dúvida, estou à disposição! ✨`;
+Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia. Qualquer dúvida, estou à disposição! ✨`
+    : '';
 
-  const [message, setMessage] = useState(defaultMessage);
+  // Preenche ao abrir, e a cada conteúdo diferente. Com `useState(texto)` o
+  // valor só era lido na primeira renderização: abrir a modal para um segundo
+  // conteúdo mostraria a mensagem do primeiro.
+  useEffect(() => {
+    if (isOpen && job) setMessage(defaultMessage);
+    // `job.id` e não `job`: o objeto é recriado a cada render do pai, e o
+    // efeito sobrescreveria o que a pessoa estivesse digitando.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, job?.id]);
+
+  if (!isOpen || !job) return null;
 
   const handleCopy = async () => {
     await copyToClipboard(message);

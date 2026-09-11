@@ -156,6 +156,17 @@ export const CreateJobModal: React.FC = () => {
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
 
+  // TEMPORÁRIO — estado do botão de teste da publicação. Mora aqui em cima,
+  // junto dos outros, e não perto da função que os usa: abaixo há um
+  // `return null` quando a modal está fechada, e hook declarado depois dele
+  // só roda em parte das renderizações. O React derruba a tela inteira com
+  // "rendered more hooks than during the previous render" — que foi
+  // exatamente o que aconteceu.
+  const [publicandoAgora, setPublicandoAgora] = useState(false);
+  const [resultadoDoTeste, setResultadoDoTeste] = useState<
+    { ok: boolean; texto: string } | null
+  >(null);
+
   // O campo de copy e roteiro é desenhado aqui, e não pelo catálogo da rede,
   // então a barra precisa da referência dele para escrever no cursor.
   const areaDoTexto = useRef<HTMLTextAreaElement>(null);
@@ -403,15 +414,10 @@ export const CreateJobModal: React.FC = () => {
    * e aí a falha aparece cinco minutos depois, escrita em `last_error`, num
    * canto do banco. Aqui a resposta da Meta volta na hora, com o texto dela.
    *
-   * Para remover: apague este bloco, o botão marcado no rodapé, e
-   * `publicarAgora` em `src/lib/redes.ts`. O caminho de sessão em
-   * `api/publicar.ts` some junto.
+   * Para remover: apague esta função, os dois estados lá em cima (marcados
+   * com o mesmo TEMPORÁRIO), o botão no rodapé, e `publicarAgora` em
+   * `src/lib/redes.ts`. O caminho de sessão em `api/publicar.ts` some junto.
    */
-  const [publicandoAgora, setPublicandoAgora] = useState(false);
-  const [resultadoDoTeste, setResultadoDoTeste] = useState<
-    { ok: boolean; texto: string } | null
-  >(null);
-
   const testarPublicacao = async (e: React.FormEvent) => {
     const novo = salvar(e, 'scheduled', { fecharDepois: false });
     if (!novo) return;
