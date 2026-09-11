@@ -163,6 +163,28 @@ const enfileirarEmail = async (
 
   if (!job) return { ok: false, detalhe: 'Conteúdo não encontrado.' };
 
+  // Agência que escolheu agrupar não recebe o disparo por arte — é
+  // exatamente o que ela pediu para não acontecer. O aviso sai uma vez só,
+  // pelo botão "Aprovação em massa" do quadro.
+  //
+  // A checagem é aqui, e não na tela: o evento é disparado de vários lugares
+  // (mudar o status no card, no detalhe, pelo botão da modal), e filtrar em
+  // cada um garantiria esquecer um deles.
+  if (evento === 'conteudo_aguardando_aprovacao') {
+    const { data: agencia } = await supabase
+      .from('workspaces')
+      .select('notificacao_aprovacao')
+      .eq('id', job.workspace_id)
+      .maybeSingle();
+
+    if (agencia?.notificacao_aprovacao === 'lote') {
+      return {
+        ok: false,
+        detalhe: 'Agência agrupa os avisos: use "Aprovação em massa" no quadro.',
+      };
+    }
+  }
+
   const { data: modelo } = await supabase
     .from('email_templates')
     .select('ativo, destinatario')
@@ -226,3 +248,53 @@ export const ACOES_DISPONIVEIS: { valor: Automation['actionType']; rotulo: strin
   { valor: 'email', rotulo: 'Enviar o e-mail do sistema' },
   { valor: 'webhook', rotulo: 'Chamar um webhook' },
 ];
+
+
+/**
+ * O aviso único, de tudo que aquele cliente tem para aprovar.
+ *
+ * É o outro lado da preferência `lote`: sem o disparo por arte, o cliente só
+ * fica sabendo quando a agência decide avisar. Uma linha na fila, com a
+ * contagem congelada — o cron envia depois, e a contagem de "depois" já seria
+ * outra se alguém aprovasse nesse meio-tempo.
+ *
+ * Devolve quantos conteúdos entraram no aviso, para a tela dizer o número em
+ * vez de um "pronto" que não informa nada.
+ */
+export const enviarAprovacaoEmLote = async (
+  workspaceId: string,
+  clientId: string
+): Promise<{ enviados: number; destinatario: string }> => {
+  const { data: aguardando, error: erroJobs } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('status', 'for_approval');
+
+  if (erroJobs) throw new Error(erroJobs.message);
+  if (!aguardando?.length) {
+    throw new Error('Este cliente não tem conteúdo aguardando aprovação.');
+  }
+
+  const { data: cliente } = await supabase
+    .from('clients')
+    .select('email')
+    .eq('id', clientId)
+    .maybeSingle();
+
+  const destinatario = cliente?.email?.trim() || '';
+  if (!destinatario) throw new Error('Este cliente não tem e-mail cadastrado.');
+
+  const { error } = await supabase.from('email_queue').insert({
+    workspace_id: workspaceId,
+    evento: 'lote_aguardando_aprovacao',
+    // Sem `job_id`: o aviso fala de vários. É o `client_id` que endereça.
+    client_id: clientId,
+    quantidade: aguardando.length,
+    destinatario,
+  });
+
+  if (error) throw new Error(error.message);
+
+  return { enviados: aguardando.length, destinatario };
+};

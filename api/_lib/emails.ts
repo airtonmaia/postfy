@@ -92,19 +92,36 @@ export interface ResultadoDoEnvio {
  */
 export const enviarEmailDoSistema = async (
   supabase: SupabaseClient,
-  entrada: { evento: string; jobId: string; destino: string }
+  entrada: {
+    evento: string;
+    jobId?: string | null;
+    clientId?: string | null;
+    quantidade?: number | null;
+    destino: string;
+  }
 ): Promise<ResultadoDoEnvio> => {
   if (!process.env.RESEND_API_KEY) {
     return { enviado: false, motivo: 'RESEND_API_KEY não configurada no servidor.' };
   }
 
-  const { data: job } = await supabase
-    .from('jobs')
-    .select('id, title, workspace_id, client_id, last_feedback')
-    .eq('id', entrada.jobId)
-    .maybeSingle();
+  // O aviso de lote fala de vários conteúdos, então não tem `job_id`: o que
+  // ele carrega é o cliente e a contagem. Sem este desvio, buscar o job com
+  // `.eq('id', null)` não acha nada e o e-mail morreria em "Conteúdo não
+  // encontrado" — um erro que não diz nada sobre a causa.
+  const ehLote = !entrada.jobId;
 
-  if (!job) return { enviado: false, motivo: 'Conteúdo não encontrado.' };
+  const { data: job } = entrada.jobId
+    ? await supabase
+        .from('jobs')
+        .select('id, title, workspace_id, client_id, last_feedback')
+        .eq('id', entrada.jobId)
+        .maybeSingle()
+    : { data: null };
+
+  if (!ehLote && !job) return { enviado: false, motivo: 'Conteúdo não encontrado.' };
+
+  const clientId = job?.client_id ?? entrada.clientId ?? null;
+  if (!clientId) return { enviado: false, motivo: 'E-mail sem conteúdo e sem cliente.' };
 
   const { data: modelo } = await supabase
     .from('email_templates')
@@ -119,23 +136,24 @@ export const enviarEmailDoSistema = async (
 
   const { data: cliente } = await supabase
     .from('clients')
-    .select('name')
-    .eq('id', job.client_id)
+    .select('name, workspace_id')
+    .eq('id', clientId)
     .maybeSingle();
 
   const { data: agencia } = await supabase
     .from('workspaces')
     .select('name')
-    .eq('id', job.workspace_id)
+    .eq('id', job?.workspace_id ?? cliente?.workspace_id)
     .maybeSingle();
 
-  const link = linkDoEmail(modelo.destinatario, job.id);
+  const link = linkDoEmail(modelo.destinatario, job?.id ?? '');
 
   const valores: Record<string, string> = {
     cliente: cliente?.name || 'cliente',
     agencia: agencia?.name || 'sua agência',
-    titulo: job.title,
-    feedback: job.last_feedback || '',
+    titulo: job?.title || '',
+    feedback: job?.last_feedback || '',
+    quantidade: String(entrada.quantidade ?? 0),
     link,
   };
 
@@ -169,7 +187,7 @@ export const esvaziarFilaDeEmail = async (
 ): Promise<{ enviados: number; falhas: number }> => {
   const { data: pendentes, error } = await supabase
     .from('email_queue')
-    .select('id, evento, job_id, destinatario, tentativas')
+    .select('id, evento, job_id, client_id, quantidade, destinatario, tentativas')
     .eq('status', 'pendente')
     .lt('tentativas', MAX_TENTATIVAS)
     .order('created_at')
@@ -190,6 +208,8 @@ export const esvaziarFilaDeEmail = async (
       const res = await enviarEmailDoSistema(supabase, {
         evento: item.evento,
         jobId: item.job_id,
+        clientId: item.client_id,
+        quantidade: item.quantidade,
         destino: item.destinatario,
       });
 

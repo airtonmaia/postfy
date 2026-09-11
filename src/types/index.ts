@@ -55,6 +55,14 @@ export interface Workspace {
   customDomain?: string;
   whiteLabel: boolean;
   timezone: string;
+  /**
+   * Como o cliente é avisado de conteúdo esperando aprovação.
+   *
+   * `cada` — um e-mail por arte, que é o comportamento de sempre.
+   * `lote`  — nenhum e-mail automático; a agência dispara um aviso só,
+   *           pelo botão "Aprovação em massa" no quadro.
+   */
+  notificacaoAprovacao?: 'cada' | 'lote';
   isTrial?: boolean;
   trialEndsAt?: string;
   /**

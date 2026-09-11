@@ -439,6 +439,40 @@ de função, que é o que o Stripe ocupou (ver armadilha 6).
 
 ---
 
+### 9.2 O aviso ao cliente tem dois modos, e o motor é quem decide
+
+Dez peças enviadas na segunda-feira viravam dez e-mails em quinze minutos. O
+efeito não é o cliente ficar bem informado — é ele parar de abrir todos, e aí
+o aviso que importa se perde junto.
+
+`workspaces.notificacao_aprovacao` escolhe entre `cada` (o de sempre, e o
+padrão) e `lote`. No modo de lote **nenhum e-mail automático sai**; quem
+avisa é a agência, pelo botão "Aprovação em massa" no quadro.
+
+**A checagem mora em `enfileirarEmail`, não nas telas.** O evento
+`conteudo_aguardando_aprovacao` é disparado de vários lugares — o seletor do
+card, o detalhe do conteúdo, o botão da modal —, e filtrar em cada um
+garantiria esquecer um. Esquecer aqui é o pior caso: o cliente recebe os dois
+avisos, e a preferência vira enfeite.
+
+`email_queue` passou a aceitar uma linha que fala de **vários** conteúdos:
+`job_id` deixou de ser obrigatório, e entraram `client_id` e `quantidade`. O
+check `job_id is not null or client_id is not null` é o que impede a linha
+órfã — sem ele, uma linha sem os dois só revelaria o problema na hora de
+enviar, tarde demais.
+
+**A contagem é congelada no insert**, pela mesma razão que o destinatário já
+era: o cron envia minutos depois, e o número de "depois" já seria outro se
+alguém aprovasse no meio-tempo.
+
+O botão exige **um cliente escolhido** no filtro. Com "todos", o lote
+misturaria clientes e o aviso iria para quem não deveria ver o conteúdo dos
+outros.
+
+Protegido por `tests/fluxo-de-aprovacao.test.ts`.
+
+---
+
 ### 10. No portal não há sessão — logo, não há persistência por diff
 
 `useColecaoSincronizada` sai cedo quando `isAuthenticated` é falso. **Toda

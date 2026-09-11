@@ -14,11 +14,13 @@ import {
   ChevronDown,
   Image as ImageIcon,
   PenLine,
-  Clapperboard
+  Clapperboard,
+  MailCheck
 } from 'lucide-react';
 import { Job, JobStatus, Client, JobTipo } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
+import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 
 /** Um ícone por tipo. Fica aqui e não no catálogo: lá é dado, aqui é desenho. */
 const ICONE_DO_TIPO: Record<JobTipo, React.FC<{ className?: string }>> = {
@@ -37,20 +39,88 @@ export const KanbanBoard: React.FC = () => {
     setPlatformFilter, 
     moveJobStatus, 
     setSelectedJob, 
-    openCreateJobModal 
+    openCreateJobModal,
+    currentWorkspace
   } = usePostfy();
 
   const [search, setSearch] = useState('');
   const [menuDeTipoAberto, setMenuDeTipoAberto] = useState(false);
 
-  const columns: { id: JobStatus; title: string; color: string; border: string }[] = [
-    { id: 'ideas', title: 'Ideias', color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', border: 'border-slate-300' },
-    { id: 'in_production', title: 'Em Produção', color: 'bg-blue-50 text-blue-800', border: 'border-blue-300' },
-    { id: 'for_approval', title: 'Para Aprovação', color: 'bg-amber-50 text-amber-900', border: 'border-amber-300' },
-    { id: 'in_adjustment', title: 'Em Ajuste', color: 'bg-rose-50 text-rose-900', border: 'border-rose-300' },
-    { id: 'approved', title: 'Aprovado', color: 'bg-emerald-50 text-emerald-900', border: 'border-emerald-300' },
-    { id: 'scheduled', title: 'Agendado', color: 'bg-purple-50 text-purple-900', border: 'border-purple-300' },
-    { id: 'published', title: 'Publicado', color: 'bg-teal-50 text-teal-900', border: 'border-teal-300' },
+  /**
+   * Aprovação em massa — só existe para quem escolheu agrupar os avisos.
+   *
+   * Na agência que avisa a cada arte o botão seria ruído: o cliente já foi
+   * avisado uma vez por peça, e um segundo aviso repetiria tudo.
+   *
+   * Ele **exige um cliente selecionado** de propósito. O e-mail vai para uma
+   * caixa só; com o filtro em "todos", o lote misturaria clientes e o aviso
+   * iria para quem não deveria ver o conteúdo dos outros.
+   */
+  const [enviandoLote, setEnviandoLote] = useState(false);
+  const [avisoDoLote, setAvisoDoLote] = useState<{ ok: boolean; texto: string } | null>(null);
+  const agrupaAvisos = currentWorkspace.notificacaoAprovacao === 'lote';
+
+  const dispararLote = async () => {
+    if (clientFilter === 'all') {
+      setAvisoDoLote({
+        ok: false,
+        texto: 'Escolha um cliente no filtro acima: o aviso vai para a caixa dele.',
+      });
+      return;
+    }
+
+    setEnviandoLote(true);
+    setAvisoDoLote(null);
+    try {
+      const { enviados, destinatario } = await enviarAprovacaoEmLote(
+        currentWorkspace.id,
+        clientFilter
+      );
+      // "Na fila", não "enviado": quem envia é o cron, daqui a alguns minutos
+      // (armadilha 9.1). Dizer "enviado" aqui seria afirmar o que ainda não
+      // aconteceu.
+      setAvisoDoLote({
+        ok: true,
+        texto: `${enviados} conteúdo(s) no aviso, na fila para ${destinatario}.`,
+      });
+    } catch (e) {
+      setAvisoDoLote({
+        ok: false,
+        texto: e instanceof Error ? e.message : 'Não foi possível avisar.',
+      });
+    } finally {
+      setEnviandoLote(false);
+    }
+  };
+
+  /**
+   * As colunas, e por que "Aprovado" e "Agendado" viraram uma só.
+   *
+   * Eram duas etapas que a agência não vive separadas: aprovado é o que pode
+   * ir ao ar, agendado é o mesmo com data marcada. O card atravessava a
+   * fronteira sem ninguém decidir nada — e duas colunas quase sempre com o
+   * mesmo conteúdo ocupavam metade da tela para não dizer nada.
+   *
+   * **Aprovado sem data continua aqui**, e aparece como "sem data". Segurá-lo
+   * na coluna anterior até alguém agendar esconderia justamente o que precisa
+   * de atenção: quem aprovou não veria o resultado da própria ação.
+   *
+   * Cada coluna guarda a lista de status que a alimenta; o status continua
+   * distinto no banco, e é ele que o seletor do card muda.
+   */
+  const columns: {
+    id: string;
+    title: string;
+    statuses: JobStatus[];
+    color: string;
+    border: string;
+  }[] = [
+    { id: 'ideas', title: 'Ideias', statuses: ['ideas'], color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', border: 'border-slate-300' },
+    { id: 'in_production', title: 'Em Produção', statuses: ['in_production'], color: 'bg-blue-50 text-blue-800', border: 'border-blue-300' },
+    { id: 'for_approval', title: 'Para Aprovação', statuses: ['for_approval'], color: 'bg-amber-50 text-amber-900', border: 'border-amber-300' },
+    { id: 'in_adjustment', title: 'Em Ajuste', statuses: ['in_adjustment'], color: 'bg-rose-50 text-rose-900', border: 'border-rose-300' },
+    { id: 'aprovado_agendado', title: 'Aprovado / Agendado', statuses: ['approved', 'scheduled'], color: 'bg-emerald-50 text-emerald-900', border: 'border-emerald-300' },
+    { id: 'published', title: 'Publicado', statuses: ['published'], color: 'bg-teal-50 text-teal-900', border: 'border-teal-300' },
   ];
 
   // Filter jobs
@@ -151,10 +221,23 @@ export const KanbanBoard: React.FC = () => {
         </div>
       </div>
 
+      {avisoDoLote && (
+        <div
+          className={`mx-6 mt-4 flex items-start gap-2 text-xs p-3 rounded-xl border ${
+            avisoDoLote.ok
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
+              : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300'
+          }`}
+        >
+          <MailCheck className="w-4 h-4 shrink-0 mt-px" />
+          <span className="font-semibold leading-relaxed">{avisoDoLote.texto}</span>
+        </div>
+      )}
+
       {/* Kanban Horizontal Scroll Columns */}
       <div className="flex-1 flex overflow-x-auto p-6 gap-4 items-start min-h-0">
         {columns.map(col => {
-          const colJobs = filteredJobs.filter(j => j.status === col.id);
+          const colJobs = filteredJobs.filter(j => col.statuses.includes(j.status));
 
           return (
             <div
@@ -179,6 +262,18 @@ export const KanbanBoard: React.FC = () => {
                     title="Adicionar ideia"
                   >
                     <Plus className="w-4 h-4" />
+                  </button>
+                )}
+
+                {col.id === 'for_approval' && agrupaAvisos && colJobs.length > 0 && (
+                  <button
+                    onClick={() => void dispararLote()}
+                    disabled={enviandoLote}
+                    title="Manda um aviso só, com tudo que este cliente tem para aprovar."
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-900 text-[10px] font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-60 transition cursor-pointer"
+                  >
+                    <MailCheck className="w-3 h-3" />
+                    {enviandoLote ? 'Enviando...' : 'Aprovação em massa'}
                   </button>
                 )}
               </div>
@@ -233,9 +328,14 @@ export const KanbanBoard: React.FC = () => {
                       {/* Footer: Dates & Comments & Move Next */}
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                         <div className="flex items-center gap-2">
+                          {/* Sem data é um estado legítimo — aprovado antes de
+                              alguém marcar quando vai ao ar —, e dizê-lo é o
+                              que faz a pendência aparecer. */}
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
-                            {safeDateFormat(job.scheduledDate, { day: '2-digit', month: '2-digit' })}
+                            {job.scheduledDate
+                              ? safeDateFormat(job.scheduledDate, { day: '2-digit', month: '2-digit' })
+                              : 'sem data'}
                           </span>
                           {job.comments.length > 0 && (
                             <span className="flex items-center gap-1">

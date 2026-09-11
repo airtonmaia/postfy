@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.27.0',
+    data: '2026-09-11',
+    resumo:
+      'O cadastro de conteúdo ficou mais curto, o quadro mais enxuto, e o cliente pode ser avisado uma vez só em vez de a cada arte.',
+    novidades: [
+      'Quatro caminhos no fim do cadastro, em vez de um botão genérico: Criar ideia, Enviar para aprovação, Agendar e Publicar agora. O que você aperta é o que acontece.',
+      '"Agendar" agora coloca o conteúdo na fila de publicação de verdade, quando o cliente tem conta conectada. Quando não tem, ele diz que a postagem na data é sua.',
+      'Nova escolha em Configurações → Preferências: avisar o cliente a cada arte, ou juntar as artes e mandar um aviso só.',
+      'Quem escolher agrupar ganha o botão "Aprovação em massa" na coluna Para Aprovação. Um clique, um e-mail, com tudo que aquele cliente tem para aprovar.',
+    ],
+    melhorias: [
+      'O campo "Status Inicial" saiu do cadastro. Ele pedia uma decisão antes de o conteúdo existir, e desencontrava do botão apertado no fim — dava para escolher "Já Aprovado" e clicar em "Enviar para aprovação".',
+      'Formato e Prioridade ficaram lado a lado, e a data de publicação desceu para perto da legenda.',
+      '"Aprovado" e "Agendado" viraram uma coluna só no quadro. Eram duas etapas que a agência não vive separadas, e ocupavam metade da tela quase sempre com o mesmo conteúdo. Conteúdo aprovado sem data continua ali, marcado como "sem data".',
+      '"Publicar agora" deixou de ser botão de teste e virou parte do produto. Fica longe do botão principal e com cor de aviso: é a única ação do cadastro que não tem volta.',
+    ],
+  },
+  {
     versao: '2.26.0',
     data: '2026-09-11',
     resumo:

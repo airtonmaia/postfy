@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
-import { Moon, Sun, Globe, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Moon, Sun, Globe, Bell, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { atualizarWorkspace } from '../../../lib/db';
 import { FUSOS, cidadeDoFuso } from '../../../lib/fusoHorario';
 import { pode } from '../../../lib/permissions';
@@ -35,6 +35,9 @@ export const SettingsPreferences: React.FC = () => {
   const [timezone, setTimezone] = useState(
     currentWorkspace.timezone || 'America/Sao_Paulo'
   );
+  const [notificacao, setNotificacao] = useState<'cada' | 'lote'>(
+    currentWorkspace.notificacaoAprovacao === 'lote' ? 'lote' : 'cada'
+  );
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -50,8 +53,9 @@ export const SettingsPreferences: React.FC = () => {
     try {
       // O banco primeiro, a faixa verde depois — e só se ele confirmar. Era
       // exatamente a ordem invertida que fazia a tela mentir.
-      await atualizarWorkspace(currentWorkspace.id, { timezone });
-      updateWorkspace(currentWorkspace.id, { timezone });
+      const mudancas = { timezone, notificacaoAprovacao: notificacao };
+      await atualizarWorkspace(currentWorkspace.id, mudancas);
+      updateWorkspace(currentWorkspace.id, mudancas);
       setSalvo(true);
       setTimeout(() => setSalvo(false), 3000);
     } catch (e) {
@@ -61,7 +65,10 @@ export const SettingsPreferences: React.FC = () => {
     }
   };
 
-  const mudou = timezone !== (currentWorkspace.timezone || 'America/Sao_Paulo');
+  const fusoMudou = timezone !== (currentWorkspace.timezone || 'America/Sao_Paulo');
+  const mudou =
+    fusoMudou ||
+    notificacao !== (currentWorkspace.notificacaoAprovacao === 'lote' ? 'lote' : 'cada');
 
   return (
     <form onSubmit={(e) => void salvar(e)} className="space-y-6">
@@ -151,13 +158,75 @@ export const SettingsPreferences: React.FC = () => {
             ))}
           </select>
 
-          {mudou && (
+          {fusoMudou && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 leading-relaxed">
               Os conteúdos já agendados não mudam de horário — eles foram marcados
               num instante fixo. O que muda é como esse instante aparece na tela:
               passarão a ser mostrados no horário de <strong>{cidadeDoFuso(timezone)}</strong>.
             </p>
           )}
+        </div>
+      </div>
+
+      {/* Notificação de aprovação */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+        <div>
+          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <Bell className="w-4 h-4 text-purple-600" />
+            Aviso de Aprovação ao Cliente
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed max-w-2xl">
+            Como o cliente fica sabendo que tem conteúdo esperando aprovação.
+          </p>
+        </div>
+
+        <div className="space-y-2.5 pt-2">
+          {([
+            {
+              valor: 'cada' as const,
+              titulo: 'Avisar a cada arte',
+              detalhe:
+                'Um e-mail assim que o conteúdo entra em "Para Aprovação". Bom para quem manda poucas peças por vez.',
+            },
+            {
+              valor: 'lote' as const,
+              titulo: 'Agrupar e avisar de uma vez',
+              detalhe:
+                'Nenhum e-mail automático. Você junta as artes e dispara um aviso só, pelo botão "Aprovação em massa" no quadro. Dez peças na segunda-feira viram um e-mail, não dez.',
+            },
+          ]).map((opcao) => {
+            const ativo = notificacao === opcao.valor;
+            return (
+              <label
+                key={opcao.valor}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border transition ${
+                  !podeSalvar ? 'opacity-60' : 'cursor-pointer'
+                } ${
+                  ativo
+                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="notificacao"
+                  value={opcao.valor}
+                  checked={ativo}
+                  disabled={!podeSalvar}
+                  onChange={() => setNotificacao(opcao.valor)}
+                  className="w-4 h-4 mt-0.5 text-purple-600 focus:ring-purple-500 shrink-0"
+                />
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                    {opcao.titulo}
+                  </span>
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    {opcao.detalhe}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       </div>
 

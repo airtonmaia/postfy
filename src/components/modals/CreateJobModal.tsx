@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   X, ThumbsUp, Link as LinkIcon, Send, CheckCircle2, AlertTriangle,
+  Lightbulb, CalendarClock,
   Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
 } from 'lucide-react';
 import { Job, JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
@@ -20,10 +21,12 @@ import {
   fusoDoDispositivoDivergente,
   cidadeDoFuso,
 } from '../../lib/fusoHorario';
-import { safeDateFormat } from '../../lib/utils';
+import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import {
   publicaSozinho,
   publicarAgora,
+  agendarPublicacao,
+  listarContas,
   COMO_PUBLICA,
   REDES_QUE_PUBLICAM,
 } from '../../lib/redes';
@@ -163,16 +166,14 @@ export const CreateJobModal: React.FC = () => {
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
 
-  // TEMPORÁRIO — estado do botão de teste da publicação. Mora aqui em cima,
-  // junto dos outros, e não perto da função que os usa: abaixo há um
-  // `return null` quando a modal está fechada, e hook declarado depois dele
-  // só roda em parte das renderizações. O React derruba a tela inteira com
-  // "rendered more hooks than during the previous render" — que foi
-  // exatamente o que aconteceu.
-  const [publicandoAgora, setPublicandoAgora] = useState(false);
-  const [resultadoDoTeste, setResultadoDoTeste] = useState<
-    { ok: boolean; texto: string } | null
-  >(null);
+  // Mora aqui em cima, junto dos outros hooks, e não perto das funções que os
+  // usam: abaixo há um `return null` quando a modal está fechada, e hook
+  // declarado depois dele só roda em parte das renderizações. O React derruba
+  // a tela inteira com "rendered more hooks than during the previous render"
+  // (armadilha 8.1) — que foi exatamente o que aconteceu uma vez.
+  const [acao, setAcao] = useState<'nenhuma' | 'agendando' | 'publicando'>('nenhuma');
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+  const ocupado = acao !== 'nenhuma';
 
   // O campo de copy e roteiro é desenhado aqui, e não pelo catálogo da rede,
   // então a barra precisa da referência dele para escrever no cursor.
@@ -409,36 +410,80 @@ export const CreateJobModal: React.FC = () => {
   };
 
   /**
-   * TEMPORÁRIO — botão de teste da integração com o Instagram.
+   * Agendar: marca a data **e põe na fila de verdade**.
    *
-   * Existe para responder uma pergunta que nenhuma outra tela responde hoje:
-   * *a publicação funciona?* O caminho normal é enfileirar e esperar o cron,
-   * e aí a falha aparece cinco minutos depois, escrita em `last_error`, num
-   * canto do banco. Aqui a resposta da Meta volta na hora, com o texto dela.
+   * Só mudar o status para `scheduled` seria a armadilha que já custou caro —
+   * o card ficava em "Agendado", a data passava e nada publicava, porque
+   * `publish_queue` não tinha produtor. Um botão escrito "Agendar" que não
+   * agenda é pior que não ter o botão.
    *
-   * Para remover: apague esta função, os dois estados lá em cima (marcados
-   * com o mesmo TEMPORÁRIO), o botão no rodapé, e `publicarAgora` em
-   * `src/lib/redes.ts`. O caminho de sessão em `api/publicar.ts` some junto.
+   * Quando não há conta conectada para aquele cliente, o conteúdo ainda fica
+   * agendado: a data é combinada com o cliente de qualquer jeito, e a
+   * postagem passa a ser manual. A tela diz isso, em vez de fingir.
    */
-  const testarPublicacao = async (e: React.FormEvent) => {
+  const agendar = async (e: React.FormEvent) => {
     const novo = salvar(e, 'scheduled', { fecharDepois: false });
     if (!novo) return;
 
-    setPublicandoAgora(true);
-    setResultadoDoTeste(null);
+    setAcao('agendando');
+    setResultado(null);
     try {
-      const { conta, externalId } = await publicarAgora(novo.id);
-      setResultadoDoTeste({
+      const conta = (await listarContas()).find(
+        (c) => publicaSozinho(c.platform) && c.clientId === novo.clientId
+      );
+
+      if (!conta) {
+        setResultado({
+          ok: true,
+          texto:
+            'Agendado. Este cliente não tem conta conectada, então a postagem ' +
+            'na data é sua — conecte a conta dele para o disparo automático.',
+        });
+        return;
+      }
+
+      await agendarPublicacao(conta.workspaceId, novo.id, conta.id, novo.scheduledDate);
+      setResultado({
         ok: true,
-        texto: `Publicado em @${conta}. Id na Meta: ${externalId}`,
+        texto: `Na fila para @${conta.accountName}, em ${safeDateTimeFormat(novo.scheduledDate)}.`,
       });
     } catch (err) {
-      setResultadoDoTeste({
+      setResultado({
+        ok: false,
+        texto: err instanceof Error ? err.message : 'Não foi possível agendar.',
+      });
+    } finally {
+      setAcao('nenhuma');
+    }
+  };
+
+  /**
+   * Publicar agora: sai na hora, e a resposta da Meta volta junto.
+   *
+   * Nasceu como botão temporário de teste e ficou, porque resolve um problema
+   * que o caminho normal não resolve: enfileirar e esperar o cron faz a falha
+   * aparecer cinco minutos depois, escrita em `last_error`, num canto do
+   * banco. Aqui o erro da Meta aparece na tela, com o texto que ela mandou.
+   *
+   * É a única ação da modal sem volta, e por isso fica longe do primário e
+   * com a cor de aviso.
+   */
+  const publicarImediatamente = async (e: React.FormEvent) => {
+    const novo = salvar(e, 'scheduled', { fecharDepois: false });
+    if (!novo) return;
+
+    setAcao('publicando');
+    setResultado(null);
+    try {
+      const { conta, externalId } = await publicarAgora(novo.id);
+      setResultado({ ok: true, texto: `Publicado em @${conta}. Id na Meta: ${externalId}` });
+    } catch (err) {
+      setResultado({
         ok: false,
         texto: err instanceof Error ? err.message : 'Falha ao publicar.',
       });
     } finally {
-      setPublicandoAgora(false);
+      setAcao('nenhuma');
     }
   };
 
@@ -567,46 +612,6 @@ export const CreateJobModal: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Scheduled Date */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Data e Hora de Publicação</label>
-              <input
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
-              {/* O aviso só aparece quando os dois fusos divergem. Repetir
-                  "horário de Cuiabá" para quem está em Cuiabá seria ruído, e
-                  ruído treina a pessoa a ignorar avisos — mas quem agenda de
-                  outro estado precisa saber que o horário não é o do relógio
-                  dele. */}
-              {fusoDoDispositivoDivergente() && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
-                  Horário de <strong>{cidadeDoFuso()}</strong>, o fuso da agência — não o
-                  do seu aparelho.
-                </p>
-              )}
-            </div>
-
-            {/* Initial Status */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Status Inicial</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as JobStatus)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="ideas">Ideia / Pauta</option>
-                <option value="in_production">Em Produção</option>
-                <option value="for_approval">Para Aprovação</option>
-                <option value="approved">Já Aprovado</option>
-                <option value="scheduled">Agendado</option>
-              </select>
-            </div>
-          </div>
-
           {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
               upload neles seria pedir aprovação de algo que não existe. */}
           {tipo.pedeArte && (
@@ -690,74 +695,121 @@ export const CreateJobModal: React.FC = () => {
             </div>
           )}
 
+          {/* A data desceu para cá, logo abaixo da legenda.
+              Ela vinha no meio do formulário, ao lado de um "Status Inicial"
+              que decidia a coluna do quadro — dois campos que pediam decisão
+              antes de o conteúdo existir. O status saiu de vez: agora quem o
+              define é o botão que a pessoa aperta no fim, que é onde a decisão
+              realmente acontece. */}
+          <div className="max-w-xs">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Data e Hora de Publicação
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            />
+            {/* O aviso só aparece quando os dois fusos divergem. Repetir
+                "horário de Cuiabá" para quem está em Cuiabá seria ruído, e
+                ruído treina a pessoa a ignorar avisos — mas quem agenda de
+                outro estado precisa saber que o horário não é o do relógio
+                dele. */}
+            {fusoDoDispositivoDivergente() && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
+                Horário de <strong>{cidadeDoFuso()}</strong>, o fuso da agência — não o
+                do seu aparelho.
+              </p>
+            )}
+          </div>
+
           {erro && (
             <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
               {erro}
             </p>
           )}
 
-          {/* O resultado do teste fica acima dos botões, e não some sozinho:
-              é ele a única prova de que a integração publica. */}
-          {resultadoDoTeste && (
+          {/* O resultado fica acima dos botões e não some sozinho: é a única
+              prova do que aconteceu, e some junto com a modal se ela fechar. */}
+          {resultado && (
             <div
               className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${
-                resultadoDoTeste.ok
+                resultado.ok
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
                   : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
               }`}
             >
-              {resultadoDoTeste.ok ? (
+              {resultado.ok ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
               ) : (
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
               )}
-              <span className="font-semibold leading-relaxed">{resultadoDoTeste.texto}</span>
+              <span className="font-semibold leading-relaxed">{resultado.texto}</span>
             </div>
           )}
 
           {/* Buttons */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
-            {/* TEMPORÁRIO — teste da publicação no Instagram. Some quando a
-                integração estiver conferida; ver o comentário em
-                `testarPublicacao`. Só aparece com Instagram marcado, porque é
-                a única rede que o servidor publica. */}
-            {canais.includes('instagram') && (
-              <button
-                type="button"
-                onClick={(e) => void testarPublicacao(e)}
-                disabled={publicandoAgora}
-                title="Salva e publica imediatamente no Instagram do cliente. Não tem volta."
-                className="mr-auto flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60 transition cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {publicandoAgora ? 'Publicando...' : 'Publicar agora (teste)'}
-              </button>
-            )}
-
             <button
               type="button"
               onClick={closeCreateJobModal}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              className="mr-auto px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
 
-            {/* Atalho do caminho mais comum: criar já pedindo aprovação. Cai na
-                coluna "Para Aprovação" e é o status que avisa o cliente. */}
+            {/* Publicar agora fica **longe** do primário, e com a cor de
+                aviso: é a única ação daqui que não tem volta. Encostada no
+                botão que a pessoa aperta por reflexo, ela seria apertada por
+                reflexo também. */}
+            {canais.includes('instagram') && (
+              <button
+                type="button"
+                onClick={(e) => void publicarImediatamente(e)}
+                disabled={ocupado}
+                title="Salva e publica imediatamente no Instagram do cliente. Não tem volta."
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60 transition cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
+              </button>
+            )}
+
+            {/* Ideia é o começo do funil: entra sem data, sem arte e sem
+                pedir nada a ninguém. */}
+            <button
+              type="button"
+              onClick={(e) => salvar(e, 'ideas')}
+              disabled={ocupado}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 transition cursor-pointer"
+            >
+              <Lightbulb className="w-3.5 h-3.5" />
+              Criar ideia
+            </button>
+
+            {/* Agendar **põe na fila de verdade**, quando há conta conectada.
+                Só marcar o status seria a armadilha que já custou caro: o card
+                ficava em "Agendado", a data passava e nada publicava. */}
+            <button
+              type="button"
+              onClick={(e) => void agendar(e)}
+              disabled={ocupado}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 transition cursor-pointer"
+            >
+              <CalendarClock className="w-3.5 h-3.5" />
+              {acao === 'agendando' ? 'Agendando...' : 'Agendar'}
+            </button>
+
+            {/* O caminho mais comum de uma agência, e por isso o primário. */}
             <button
               type="button"
               onClick={(e) => salvar(e, 'for_approval')}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+              disabled={ocupado}
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               <ThumbsUp className="w-3.5 h-3.5" />
               Enviar para aprovação
-            </button>
-
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Criar conteúdo
             </button>
           </div>
         </form>
