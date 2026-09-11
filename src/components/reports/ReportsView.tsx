@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
+import { safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -56,7 +56,7 @@ export const ReportsView: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>(new Date().toLocaleTimeString('pt-BR'));
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>(safeTimeFormat(new Date()));
 
   // Calculate Date Ranges
   const dateRange = useMemo(() => {
@@ -75,8 +75,8 @@ export const ReportsView: React.FC = () => {
     }
 
     return {
-      startStr: start.toLocaleDateString('pt-BR'),
-      endStr: end.toLocaleDateString('pt-BR'),
+      startStr: safeDateFormat(start),
+      endStr: safeDateFormat(end),
       start,
       end
     };
@@ -189,7 +189,7 @@ export const ReportsView: React.FC = () => {
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const dateLabel = safeDateFormat(d, { day: '2-digit', month: '2-digit' });
       
       const createdCount = filteredJobs.filter(j => {
         const jDate = new Date(j.createdAt);
@@ -269,7 +269,7 @@ export const ReportsView: React.FC = () => {
     setIsRefreshing(true);
     setTimeout(() => {
       setIsRefreshing(false);
-      setLastRefreshedAt(new Date().toLocaleTimeString('pt-BR'));
+      setLastRefreshedAt(safeTimeFormat(new Date()));
     }, 600);
   };
 

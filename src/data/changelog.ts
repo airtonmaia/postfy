@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.26.0',
+    data: '2026-09-11',
+    resumo:
+      'O horário agora é o da agência, e não o do aparelho de quem está com o app aberto.',
+    novidades: [
+      'A agência escolhe o seu fuso em Configurações → Preferências, e ele vale para tudo: agendamento, calendário, portal do cliente e avisos. Cuiabá entrou na lista — antes só havia Manaus, que é o mesmo horário com outro nome.',
+      'Quando o fuso do seu aparelho é diferente do da agência, o campo de agendamento avisa de qual horário ele está falando.',
+    ],
+    corrigido: [
+      'A tela de Preferências dizia "Preferências salvas com sucesso!" e não salvava nada — nem o fuso, nem o resto. Agora ela grava no banco e só confirma depois que ele responde.',
+      'Quem abrisse o sistema de outro estado via horários diferentes dos do colega, para o mesmo conteúdo. O portal do cliente também mostrava no fuso do aparelho dele: "sai às 10:00" virava 11:00 para um cliente em outro fuso.',
+      'No calendário, um post do fim da noite podia aparecer no dia seguinte dependendo de onde o app fosse aberto.',
+      'Saíram da tela de Preferências quatro campos que não faziam nada: idioma, prazo de auto-aprovação, prazo padrão de entrega e os dois alertas. Campo que não faz nada é pior que campo ausente — ele é configurado, e a pessoa conta com o que ele promete.',
+    ],
+  },
+  {
     versao: '2.25.2',
     data: '2026-09-11',
     resumo: 'A publicação no Instagram esperava a foto ficar pronta só quando era vídeo.',

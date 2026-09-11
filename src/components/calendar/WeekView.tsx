@@ -1,4 +1,5 @@
 import React from 'react';
+import { chaveDoDia, diaNoFuso, horaNoFuso } from '../../lib/fusoHorario';
 import { usePostfy } from '../../context/PostfyContext';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { Plus } from 'lucide-react';
@@ -106,13 +107,11 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate }) => {
 
                 // Find jobs that match day and hour approximately (hour +/- 1)
                 const matchingJobs = filteredJobs.filter(j => {
-                  const targetDate = new Date(j.scheduledDate || j.deadlineProduction);
-                  if (
-                    targetDate.getFullYear() === dayY &&
-                    targetDate.getMonth() === dayM &&
-                    targetDate.getDate() === dayD
-                  ) {
-                    const jHour = targetDate.getHours();
+                  const quando = j.scheduledDate || j.deadlineProduction;
+                  // Dia e hora no fuso da agência: `getHours()` punha o post na
+                  // faixa errada da grade para quem estivesse em outro fuso.
+                  if (diaNoFuso(quando) === chaveDoDia(dayY, dayM, dayD)) {
+                    const jHour = horaNoFuso(quando);
                     return jHour >= hourNum && jHour < hourNum + 2;
                   }
                   return false;

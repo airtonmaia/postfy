@@ -345,6 +345,63 @@ Protegido por `tests/hooks-antes-do-return.test.ts`.
 
 ---
 
+### 8.2 Toda data é do fuso da **agência**, nunca do dispositivo
+
+`workspaces.timezone` ficou desde a primeira migração **sem ninguém ler** —
+aparecia como rótulo em duas telas e nada mais. É a mesma classe do
+`trial_ends_at`: coluna que parece uma regra e não é.
+
+O que segurava era um acidente. `datetime-local` interpreta no fuso do
+navegador, `toLocaleString` também, e a grade do calendário comparava
+`getDate()` dos dois lados — tudo no fuso do dispositivo, e portanto coerente
+**desde que uma pessoa só, num aparelho só, agende e leia**. Quebra em três
+casos que existem:
+
+- membro da equipe em outro estado vê horário diferente do colega, no mesmo
+  post;
+- o **portal do cliente** formata no fuso do aparelho *dele*: "sai às 10:00"
+  vira 11:00 para um cliente em Brasília;
+- celular com fuso automático errado agenda errado, sem aviso nenhum.
+
+`src/lib/fusoHorario.ts` guarda o fuso num lugar só, definido **durante a
+renderização** do contexto (efeito seria tarde: a primeira pintura após trocar
+de agência mostraria o fuso anterior). Os formatadores de `utils.ts` o aplicam
+por padrão.
+
+**O padrão é por omissão, e isso é a decisão central.** São 72 pontos que
+mostram data, em 26 arquivos; exigir o fuso em cada chamada garantiria
+esquecer algum, e esquecer aqui **não quebra nada visível** — mostra o horário
+errado com cara de certo. Mesma lógica da persistência derivada de diff: o
+caminho certo é o que não exige lembrar de nada.
+
+Três detalhes que custaram tempo:
+
+- **`new Date(':00Z')` devolve 1º de janeiro de 2000**, não data inválida. O
+  V8 é permissivo aqui, então `deParedeParaUtc` confere o formato com regex
+  **antes** de o `Date` ver o texto — um campo vazio viraria um agendamento em
+  2000, que o cron publicaria na primeira passada por já estar vencido.
+- **A casinha do calendário é rótulo, não instante.** Ela nasce de
+  `new Date(ano, mes, dia)`, meia-noite local; convertê-la pelo fuso a moveria
+  um dia. Por isso `chaveDoDia` sai dos números da grade, e quem é convertido
+  é o conteúdo.
+- **O teste de `descreverBuild` não testava nada disso.** Ele criava a data no
+  fuso do runner e conferia a saída no mesmo fuso: os dois lados se
+  cancelavam, e ele passava em qualquer máquina sem nunca afirmar em que fuso
+  o rodapé deveria estar. Agora o fuso vai explícito em toda asserção.
+
+E a tela de `Configurações → Preferências` **mentia**: o botão de salvar era
+`setSaved(true)` e mais nada, seguido de "Preferências salvas com sucesso!".
+Nenhuma chamada ao banco. Quatro campos saíram junto — idioma, prazo de
+auto-aprovação, prazo padrão de entrega e os dois alertas —, porque nenhum
+tinha efeito em lugar nenhum. Campo que não faz nada é pior que campo ausente:
+ele é configurado, e a pessoa passa a contar com o que ele promete.
+
+Protegido por `tests/fuso-horario.test.ts`, que reprova qualquer `toLocale*`
+de data sem fuso em `src` — depois de remover os comentários, senão a guarda
+acusaria a própria memória do bug.
+
+---
+
 ### 9.1 O navegador enfileira, o cron envia
 
 O e-mail automático saía do navegador (`emailApi.disparar`) logo depois de a

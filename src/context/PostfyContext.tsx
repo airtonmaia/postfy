@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { safeDateFormat } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { 
   Workspace, 
@@ -70,6 +71,7 @@ import {
   agenciaDoCaminho,
 } from '../lib/rotas';
 import { carregarAcessoDaAgencia, type AcessoDaAgencia } from '../lib/assinatura';
+import { definirFusoDaAgencia } from '../lib/fusoHorario';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -329,6 +331,19 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // a agência é dado de verdade, e mostrar uma versão velha dela — nome,
   // cor, plano — é pior do que mostrar o esqueleto por um instante.
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(AGENCIA_VAZIA);
+
+  /**
+   * O fuso da agência, definido **durante a renderização** e não num efeito.
+   *
+   * Efeito roda depois que a tela já pintou: a primeira renderização após
+   * trocar de agência mostraria as datas no fuso da agência anterior, e por
+   * um instante o horário estaria errado com cara de certo. Aqui é
+   * idempotente e derivado do estado, então não há o que atrasar.
+   *
+   * É o único ponto que define o fuso. Todo formatador de `utils.ts` o lê
+   * por padrão — ver o porquê em `src/lib/fusoHorario.ts`.
+   */
+  definirFusoDaAgencia(currentWorkspace.timezone);
 
   /**
    * Troca de agência recarregando a página.
@@ -2162,7 +2177,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return aiApi.editorialIdeas({
       clientSegment: client?.segment || 'Serviços',
       clientName: client?.name || 'Cliente',
-      month: new Date().toLocaleDateString('pt-BR', { month: 'long' }),
+      month: safeDateFormat(new Date(), { month: 'long' }),
     });
   };
 

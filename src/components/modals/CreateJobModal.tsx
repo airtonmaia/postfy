@@ -15,6 +15,13 @@ import {
 } from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
 import {
+  deParedeParaUtc,
+  deUtcParaParede,
+  fusoDoDispositivoDivergente,
+  cidadeDoFuso,
+} from '../../lib/fusoHorario';
+import { safeDateFormat } from '../../lib/utils';
+import {
   publicaSozinho,
   publicarAgora,
   COMO_PUBLICA,
@@ -198,30 +205,24 @@ export const CreateJobModal: React.FC = () => {
     }
   }, [isCreateJobModalOpen]);
 
+  // O campo mostra hora de parede **no fuso da agência**, não no do
+  // dispositivo. As três variantes anteriores montavam a string com
+  // `getTimezoneOffset()`, que é o fuso de quem está com o app aberto — quem
+  // agendasse de outro estado veria 10:00 e o post sairia em outro horário.
   useEffect(() => {
-    if (createJobPreselectedDate) {
-      try {
-        const d = new Date(createJobPreselectedDate);
-        if (!isNaN(d.getTime())) {
-          const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-          setScheduledDate(isoLocal);
-        } else {
-          throw new Error('Invalid date');
-        }
-      } catch {
-        const d = new Date();
-        d.setDate(d.getDate() + 3);
-        d.setHours(10, 0, 0, 0);
-        const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        setScheduledDate(isoLocal);
-      }
-    } else {
-      const d = new Date();
-      d.setDate(d.getDate() + 3);
-      d.setHours(10, 0, 0, 0);
-      const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-      setScheduledDate(isoLocal);
+    const preSelecionada = createJobPreselectedDate
+      ? new Date(createJobPreselectedDate)
+      : null;
+
+    if (preSelecionada && !isNaN(preSelecionada.getTime())) {
+      setScheduledDate(deUtcParaParede(preSelecionada));
+      return;
     }
+
+    // Padrão: daqui a três dias, às 10:00 da agência. O dia é calculado no
+    // fuso dela também, senão perto da meia-noite cai no dia errado.
+    const daquiATresDias = new Date(Date.now() + 3 * 86400000);
+    setScheduledDate(`${deUtcParaParede(daquiATresDias).slice(0, 10)}T10:00`);
   }, [createJobPreselectedDate, isCreateJobModalOpen]);
 
   /**
@@ -329,12 +330,13 @@ export const CreateJobModal: React.FC = () => {
 
     try {
 
-      // Safe Date Parsing
+      // O texto do campo é hora de parede no fuso da agência; `datetime-local`
+      // sozinho o interpretaria no fuso do navegador.
       let targetDate = new Date();
       if (scheduledDate) {
-        const parsed = new Date(scheduledDate);
-        if (!isNaN(parsed.getTime())) {
-          targetDate = parsed;
+        const convertida = deParedeParaUtc(scheduledDate);
+        if (!isNaN(convertida.getTime())) {
+          targetDate = convertida;
         }
       }
 
@@ -575,6 +577,17 @@ export const CreateJobModal: React.FC = () => {
                 onChange={(e) => setScheduledDate(e.target.value)}
                 className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
+              {/* O aviso só aparece quando os dois fusos divergem. Repetir
+                  "horário de Cuiabá" para quem está em Cuiabá seria ruído, e
+                  ruído treina a pessoa a ignorar avisos — mas quem agenda de
+                  outro estado precisa saber que o horário não é o do relógio
+                  dele. */}
+              {fusoDoDispositivoDivergente() && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
+                  Horário de <strong>{cidadeDoFuso()}</strong>, o fuso da agência — não o
+                  do seu aparelho.
+                </p>
+              )}
             </div>
 
             {/* Initial Status */}
@@ -763,7 +776,7 @@ export const CreateJobModal: React.FC = () => {
               legenda: caption,
               localizacao: String(configuracoes.localizacao || '') || undefined,
               dataPrevista: scheduledDate
-                ? new Date(scheduledDate).toLocaleDateString('pt-BR', {
+                ? safeDateFormat(deParedeParaUtc(scheduledDate), {
                     day: '2-digit',
                     month: 'long',
                   })

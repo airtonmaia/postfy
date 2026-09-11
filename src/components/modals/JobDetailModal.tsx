@@ -3,7 +3,7 @@ import { novoId } from '../../lib/sincronizacao';
 import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
-import { copyToClipboard } from '../../lib/utils';
+import { copyToClipboard, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
 import { 
   X, 
@@ -42,7 +42,10 @@ const formatSafeDate = (dateStr?: string, options?: Intl.DateTimeFormatOptions):
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return 'Data inválida';
-    return d.toLocaleString('pt-BR', options || { dateStyle: 'short', timeStyle: 'short' });
+    // Delega para o helper compartilhado, que leva o fuso da agência. Esta
+    // cópia existia só pelos textos de fallback, e por isso ficou de fora da
+    // correção de fuso sem ninguém notar.
+    return safeDateTimeFormat(d, options);
   } catch {
     return 'Data inválida';
   }
@@ -682,7 +685,7 @@ export const JobDetailModal: React.FC = () => {
                           Versão {ver.versionNumber} — Enviada por {ver.submittedBy}
                         </span>
                         <span className="text-[11px] text-slate-400 font-mono">
-                          {new Date(ver.submittedAt).toLocaleDateString('pt-BR')}
+                          {safeDateFormat(ver.submittedAt)}
                         </span>
                       </div>
 
@@ -744,7 +747,7 @@ export const JobDetailModal: React.FC = () => {
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-bold text-slate-800 dark:text-slate-200">{cm.authorName}</span>
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {new Date(cm.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            {safeTimeFormat(cm.createdAt)}
                           </span>
                         </div>
                         <p className="text-slate-700 dark:text-slate-300">{cm.text}</p>
@@ -946,7 +949,7 @@ export const JobDetailModal: React.FC = () => {
                         <div className="text-right">
                           <span className="font-mono font-bold text-purple-600">{log.minutes} min</span>
                           <span className="text-[10px] text-slate-400 block">
-                            {new Date(log.createdAt).toLocaleDateString('pt-BR')}
+                            {safeDateFormat(log.createdAt)}
                           </span>
                         </div>
                       </div>

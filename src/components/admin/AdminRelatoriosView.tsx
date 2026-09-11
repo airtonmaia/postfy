@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { safeTimeFormat } from '../../lib/utils';
 import {
   BarChart3,
   Building2,
@@ -202,7 +203,7 @@ export const AdminRelatoriosView: React.FC = () => {
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
             Contagem direta do banco, somando todas as agências.
-            {apurado && ` Apurado às ${apurado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`}
+            {apurado && ` Apurado às ${safeTimeFormat(apurado)}.`}
           </p>
         </div>
 

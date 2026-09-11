@@ -20,7 +20,7 @@ import {
   type SituacaoDoConvidado,
 } from '../../../lib/authSupabase';
 import { pode } from '../../../lib/permissions';
-import { copyToClipboard } from '../../../lib/utils';
+import { copyToClipboard, safeDateFormat } from '../../../lib/utils';
 
 const PAPEIS: { valor: Role; rotulo: string; classe: string }[] = [
   { valor: 'admin', rotulo: 'Administrador', classe: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
@@ -495,7 +495,7 @@ export const SettingsUsers: React.FC = () => {
                       {convite.email}
                     </p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Expira em {new Date(convite.expiresAt).toLocaleDateString('pt-BR')}
+                      Expira em {safeDateFormat(convite.expiresAt)}
                     </p>
                   </div>
                 </div>

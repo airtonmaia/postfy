@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { safeDateTimeFormat } from '../../lib/utils';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   Zap,
@@ -240,7 +241,7 @@ export const AutomationsView: React.FC = () => {
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     {auto.executionCount} {auto.executionCount === 1 ? 'execução' : 'execuções'}
                     {auto.lastRunAt &&
-                      ` · última em ${new Date(auto.lastRunAt).toLocaleString('pt-BR')}`}
+                      ` · última em ${safeDateTimeFormat(auto.lastRunAt)}`}
                   </p>
 
                   <div className="flex items-center gap-2 flex-wrap mt-3 text-[11px]">
