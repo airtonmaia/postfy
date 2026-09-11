@@ -201,11 +201,15 @@ export const publicarNoInstagram = async (
     throw new ErroDaMeta('O Instagram não devolveu o identificador da mídia.');
   }
 
-  // Vídeo precisa terminar de processar antes de publicar. Publicar antes
-  // devolve erro genérico e some com o post.
-  if (ehVideo) {
-    await esperarProcessamento(container.id, token);
-  }
+  // **Imagem também espera.** A espera era só para vídeo, com a suposição de
+  // que foto está pronta na hora — e não está: a Meta **baixa** o arquivo da
+  // URL e processa, e publicar antes disso devolve
+  // `The media is not ready for publishing, please wait for a moment`.
+  //
+  // O erro é traiçoeiro porque depende de tempo: com a mídia já no cache da
+  // Meta ele não acontece, então o mesmo conteúdo publicado duas vezes falha
+  // na primeira e passa na segunda. Foi assim na primeira publicação real.
+  await esperarProcessamento(container.id, token, ehVideo);
 
   const publicado = await chamar(`${GRAPH}/${accountId}/media_publish`, {
     method: 'POST',
@@ -216,20 +220,54 @@ export const publicarNoInstagram = async (
   return publicado.id;
 };
 
+/**
+ * Espera a Meta terminar de baixar e processar a mídia.
+ *
+ * Os orçamentos são diferentes porque os tempos são: foto costuma ficar
+ * pronta em um ou dois segundos, vídeo leva dezenas. Nenhum dos dois pode
+ * passar do tempo da função serverless — estourar ali é o pior desfecho
+ * possível, porque o post pode ter saído e a fila não fica sabendo.
+ *
+ * O intervalo começa curto e cresce: no caso comum a primeira ou a segunda
+ * consulta já responde `FINISHED`, e quem precisa mesmo esperar não gasta uma
+ * chamada por segundo até o fim.
+ */
+const ESPERA_IMAGEM_MS = 20_000;
+const ESPERA_VIDEO_MS = 40_000;
+
 const esperarProcessamento = async (
   containerId: string,
   token: string,
-  tentativas = 12
+  ehVideo: boolean
 ): Promise<void> => {
-  for (let i = 0; i < tentativas; i++) {
+  const ateQuando = Date.now() + (ehVideo ? ESPERA_VIDEO_MS : ESPERA_IMAGEM_MS);
+  const oQueE = ehVideo ? 'O vídeo' : 'A imagem';
+  let intervalo = 700;
+
+  while (Date.now() < ateQuando) {
     const estado = await chamar(
-      `${GRAPH}/${containerId}?fields=status_code&access_token=${encodeURIComponent(token)}`
+      `${GRAPH}/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(token)}`
     );
+
     if (estado.status_code === 'FINISHED') return;
     if (estado.status_code === 'ERROR') {
-      throw new ErroDaMeta('O Instagram não conseguiu processar o vídeo.');
+      // `status` traz o motivo quando existe — costuma nomear o formato ou o
+      // tamanho recusado, que é o que resolve o problema de quem está olhando.
+      throw new ErroDaMeta(
+        estado.status
+          ? `O Instagram recusou a mídia: ${String(estado.status).slice(0, 200)}`
+          : `O Instagram não conseguiu processar ${ehVideo ? 'o vídeo' : 'a imagem'}.`
+      );
     }
-    await new Promise((r) => setTimeout(r, 5000));
+    if (estado.status_code === 'EXPIRED') {
+      throw new ErroDaMeta('A mídia expirou antes de ser publicada. Tente de novo.');
+    }
+
+    await new Promise((r) => setTimeout(r, intervalo));
+    intervalo = Math.min(intervalo * 2, 4000);
   }
-  throw new ErroDaMeta('O vídeo demorou demais para ser processado.');
+
+  throw new ErroDaMeta(
+    `${oQueE} não ficou pronta a tempo no Instagram. O arquivo pode estar grande ou a URL lenta — tente de novo.`
+  );
 };

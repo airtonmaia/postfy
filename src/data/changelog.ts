@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.25.2',
+    data: '2026-09-11',
+    resumo: 'A publicação no Instagram esperava a foto ficar pronta só quando era vídeo.',
+    corrigido: [
+      'Publicar uma foto no Instagram falhava com "a mídia não está pronta". O Instagram baixa e processa o arquivo antes de publicar, e o sistema só esperava por isso quando era vídeo. Agora espera sempre.',
+      'O erro enganava: tentando de novo costumava funcionar, porque a imagem já estava no cache do Instagram. Falha que some quando se repete é a mais cara de achar.',
+    ],
+  },
+  {
     versao: '2.25.1',
     data: '2026-09-11',
     resumo: 'Correção urgente: abrir o cadastro de conteúdo derrubava a tela.',

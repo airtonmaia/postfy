@@ -177,3 +177,45 @@ describe('credenciais', () => {
     expect(env).not.toMatch(/^META_APP_ID=/m);
   });
 });
+
+/**
+ * A publicação espera a Meta terminar de processar — para foto também.
+ *
+ * A espera existia só para vídeo, com a suposição de que imagem fica pronta
+ * na hora. Não fica: a Meta **baixa** o arquivo da URL e processa, e publicar
+ * antes disso devolve
+ * `The media is not ready for publishing, please wait for a moment`.
+ *
+ * É um erro que depende de tempo, e por isso engana: com a mídia já no cache
+ * da Meta ele não acontece, então o mesmo conteúdo falha na primeira tentativa
+ * e passa na segunda. Foi assim na primeira publicação real — e um bug que
+ * some quando você repete é o que mais custa para diagnosticar.
+ */
+describe('esperar a mídia ficar pronta', () => {
+  const fonte = semComentarios(readFileSync('api/_lib/instagram.ts', 'utf-8'));
+
+  it('a espera não é condicionada ao vídeo', () => {
+    // A chamada precisa estar solta no corpo, não dentro de um `if (ehVideo)`.
+    expect(fonte).toMatch(/\n\s*await esperarProcessamento\(/);
+    expect(
+      fonte,
+      'a espera voltou a valer só para vídeo — foto publica antes de estar pronta'
+    ).not.toMatch(/if \(ehVideo\)[\s\S]{0,80}esperarProcessamento/);
+  });
+
+  it('espera antes de publicar, nunca depois', () => {
+    const espera = fonte.indexOf('await esperarProcessamento(');
+    const publica = fonte.indexOf('/media_publish');
+    expect(espera).toBeGreaterThan(-1);
+    expect(publica).toBeGreaterThan(espera);
+  });
+
+  it('desiste com mensagem, em vez de esperar para sempre', () => {
+    // Sem teto a função serverless estoura — e estourar no meio é o pior
+    // desfecho: o post pode ter saído e a fila não fica sabendo.
+    expect(fonte).toMatch(/ESPERA_IMAGEM_MS/);
+    expect(fonte).toMatch(/ESPERA_VIDEO_MS/);
+    expect(fonte).toMatch(/status_code === 'ERROR'/);
+    expect(fonte).toMatch(/status_code === 'EXPIRED'/);
+  });
+});

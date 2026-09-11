@@ -619,6 +619,32 @@ login, com mensagem que não nomeia a causa:
    vindo do servidor, com botão de copiar — escrito à mão na tela ele
    envelheceria, e o valor certo depende de `APP_URL`.
 
+### Publicar são dois passos, e o segundo espera o primeiro — para foto também
+
+`POST /{conta}/media` cria um **contêiner**: a Meta guarda a URL e vai
+**baixar e processar** o arquivo por conta dela. `POST /{conta}/media_publish`
+só funciona depois que esse processamento termina. Publicar antes devolve
+
+```
+The media is not ready for publishing, please wait for a moment
+```
+
+A espera existia aqui **só para vídeo**, com a suposição de que foto fica
+pronta na hora. Não fica — e foi essa a falha da primeira publicação real.
+
+O que torna essa armadilha cara é depender de tempo: com a mídia já no cache
+da Meta o erro não acontece, então **o mesmo conteúdo falha na primeira
+tentativa e passa na segunda**. Um bug que some quando você repete é o que
+mais custa para diagnosticar, e leva direto a culpar a rede, o R2 ou o token.
+
+`esperarProcessamento` consulta `status_code` do contêiner até `FINISHED`, com
+teto de tempo — sem teto a função serverless estoura, e estourar no meio é o
+pior desfecho, porque o post pode ter saído e a fila não fica sabendo.
+`ERROR` e `EXPIRED` param na hora, com o motivo que a Meta dá em `status`.
+
+Protegido por `tests/instagram.test.ts`, que reprova a espera voltando a ser
+condicional ao vídeo.
+
 O token de longa duração vale **60 dias e é renovável**. `api/publicar.ts`
 renova o que vence em menos de 10 dias, em toda passada do agendador, e olha
 todas as conexões — não só as que têm item na fila, porque é justamente quem
