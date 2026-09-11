@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.27.1',
+    data: '2026-09-11',
+    resumo: 'A tela agora diz quando o post sai, e não só a data marcada.',
+    melhorias: [
+      'Ao agendar, a mensagem diz até que horas o conteúdo deve sair. O agendador passa de 5 em 5 minutos: quem marca 15:10 e clica às 15:10:07 perde a passada por sete segundos e o post sai 15:15 — sem isso escrito, a espera parecia falha.',
+      'Na fila de Publicações, o item pendente mostra "sai até HH:MM" em vez de só "pendente".',
+    ],
+  },
+  {
     versao: '2.27.0',
     data: '2026-09-11',
     resumo:

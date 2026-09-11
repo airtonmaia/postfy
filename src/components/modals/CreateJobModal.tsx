@@ -26,6 +26,7 @@ import {
   publicaSozinho,
   publicarAgora,
   agendarPublicacao,
+  quandoDeveSair,
   listarContas,
   COMO_PUBLICA,
   REDES_QUE_PUBLICAM,
@@ -443,9 +444,15 @@ export const CreateJobModal: React.FC = () => {
       }
 
       await agendarPublicacao(conta.workspaceId, novo.id, conta.id, novo.scheduledDate);
+      // A janela, e não só a data marcada. O agendador passa de 5 em 5
+      // minutos: quem agenda para 15:10 e clica às 15:10:07 perde a passada
+      // por sete segundos e espera até 15:15. Sem dizer isso, a espera parece
+      // falha — foi o que aconteceu no primeiro teste do caminho agendado.
       setResultado({
         ok: true,
-        texto: `Na fila para @${conta.accountName}, em ${safeDateTimeFormat(novo.scheduledDate)}.`,
+        texto:
+          `Na fila para @${conta.accountName}. O agendador passa de 5 em 5 minutos, ` +
+          `então deve sair até ${safeDateTimeFormat(quandoDeveSair(novo.scheduledDate))}.`,
       });
     } catch (err) {
       setResultado({

@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { REDES_QUE_PUBLICAM, publicaSozinho, COMO_PUBLICA } from '../src/lib/redes';
+import {
+  REDES_QUE_PUBLICAM,
+  publicaSozinho,
+  COMO_PUBLICA,
+  quandoDeveSair,
+  MINUTOS_ENTRE_PASSADAS,
+} from '../src/lib/redes';
 
 /**
  * A tela não promete disparo que o servidor não faz.
@@ -206,5 +212,69 @@ describe('a conta conectada pertence a um cliente', () => {
     // que é exatamente como a coluna ficou vazia.
     expect(conexoes).toMatch(/disabled=\{conectando \|\| !clienteAlvo\}/);
     expect(conexoes).toContain('Escolha de qual cliente é esta conta');
+  });
+});
+
+/**
+ * Quando o item sai de fato.
+ *
+ * A tela dizia "na fila para 15:10" e o post saiu 15:15 — porque o clique
+ * aconteceu às 15:10:07, sete segundos **depois** da passada das 15:10. Nada
+ * estava quebrado, e mesmo assim pareceu falha: a tela contou a data marcada
+ * e omitiu a cadência do agendador, que é o que fechava a expectativa.
+ *
+ * Omitir o que muda a expectativa é a armadilha 9 pela porta dos fundos.
+ */
+describe('a tela diz quando o post sai, não só a data marcada', () => {
+  const passada = (iso: string) => quandoDeveSair(new Date(iso)).toISOString();
+
+  it('arredonda para a próxima passada de 5 minutos', () => {
+    // O caso real: agendado para as 15:10, clicado 7 segundos depois.
+    const agendado = new Date(Date.now() + 60_000); // daqui a um minuto
+    const saida = quandoDeveSair(agendado);
+
+    expect(saida.getTime()).toBeGreaterThanOrEqual(agendado.getTime());
+    expect(saida.getTime() % (MINUTOS_ENTRE_PASSADAS * 60_000)).toBe(0);
+    // Nunca mais de uma passada de espera.
+    expect(saida.getTime() - agendado.getTime()).toBeLessThanOrEqual(
+      MINUTOS_ENTRE_PASSADAS * 60_000
+    );
+  });
+
+  it('um instante exatamente na passada não espera a seguinte', () => {
+    // Meia-noite em UTC é múltiplo de 5 minutos.
+    expect(passada('2026-09-14T00:05:00.000Z')).toBe('2026-09-14T00:05:00.000Z');
+  });
+
+  it('a conta sai do epoch, não do relógio local', () => {
+    // O pg_cron dispara nos minutos múltiplos de 5 **em UTC**. Fuso de meia
+    // hora (Índia) ou de 45 minutos (Nepal) não cai nos mesmos múltiplos que
+    // o relógio de lá — usar `getMinutes()` erraria por minutos, em silêncio.
+    expect(passada('2026-09-14T00:01:00.000Z')).toBe('2026-09-14T00:05:00.000Z');
+    expect(passada('2026-09-14T00:04:59.999Z')).toBe('2026-09-14T00:05:00.000Z');
+  });
+
+  it('data no passado vale como agora', () => {
+    // "Agendei para agora" é o caso mais comum do botão, e o mais fácil de
+    // errar: sem isto a conta devolveria uma passada que já aconteceu.
+    const saida = quandoDeveSair(new Date(Date.now() - 3 * 60 * 60_000));
+    expect(saida.getTime()).toBeGreaterThanOrEqual(Date.now());
+  });
+
+  it('as duas telas dizem a janela', () => {
+    const modal = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')
+    );
+    expect(modal).toMatch(/quandoDeveSair\(/);
+    expect(modal).toMatch(/de 5 em 5 minutos/);
+
+    const publicacoes = semComentarios(
+      readFileSync(
+        join(RAIZ, 'src', 'components', 'publications', 'PublicationsView.tsx'),
+        'utf-8'
+      )
+    );
+    expect(publicacoes).toMatch(/quandoDeveSair\(/);
+    expect(publicacoes).toMatch(/sai até/);
   });
 });

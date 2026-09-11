@@ -243,6 +243,44 @@ export const agendarPublicacao = async (
   }
 };
 
+/**
+ * De quantos em quantos minutos o agendador passa.
+ *
+ * É o `every 5 minutes` do `cron.schedule` em
+ * `20260911200000_agendador_no_banco.sql`.
+ * Mora aqui porque a **tela precisa dizer isso**: quem agenda para 15:10 e
+ * clica às 15:10:07 perde a passada por sete segundos e espera até 15:15 — e
+ * sem essa informação a espera parece falha.
+ *
+ * Aconteceu exatamente assim no primeiro teste do caminho agendado. A tela
+ * dizia "na fila para 15:10", eram 15:12 e nada tinha saído. Ela não mentiu;
+ * só não disse o que faltava para a expectativa fechar, que dá no mesmo.
+ */
+export const MINUTOS_ENTRE_PASSADAS = 5;
+
+/**
+ * A primeira passada do agendador em ou depois de um instante.
+ *
+ * A conta sai do epoch, e não de `getMinutes()`: o pg_cron dispara nos
+ * minutos múltiplos de 5 **em UTC**, e fusos de meia ou três quartos de hora
+ * (Índia, Nepal) não caem nos mesmos múltiplos que o relógio local.
+ */
+export const proximaPassada = (aPartirDe: Date = new Date()): Date => {
+  const intervalo = MINUTOS_ENTRE_PASSADAS * 60_000;
+  return new Date(Math.ceil(aPartirDe.getTime() / intervalo) * intervalo);
+};
+
+/**
+ * Quando o item deve sair de fato: a primeira passada depois da data marcada.
+ *
+ * Data no passado — que é o caso de "agendei para agora" — vale como agora.
+ */
+export const quandoDeveSair = (agendadoPara: string | Date): Date => {
+  const quando = agendadoPara instanceof Date ? agendadoPara : new Date(agendadoPara);
+  const agora = new Date();
+  return proximaPassada(isNaN(quando.getTime()) || quando < agora ? agora : quando);
+};
+
 export const cancelarPublicacao = async (id: string): Promise<void> => {
   const { error } = await supabase.from('publish_queue').delete().eq('id', id);
   if (error) throw new Error(error.message);
