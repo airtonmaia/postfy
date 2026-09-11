@@ -611,6 +611,77 @@ em todo o sistema" e "Exportação de relatório em PDF" — nenhum construído.
 changelog que descreve intenção é pior que não ter changelog: o cliente cobra
 o que leu. Correção conta como entrada; foi boa parte do valor entregue.
 
+### Git: duas máquinas no mesmo repositório
+
+O trabalho acontece em **mais de uma máquina**, e às vezes com uma IA em cada
+uma. Nenhuma das regras abaixo é preferência de estilo: cada uma existe
+porque a falta dela já custou tempo aqui.
+
+**Nunca trabalhe direto na `main`.** Branch sempre, mesmo para uma linha. A
+`main` é o que está em produção — o merge nela *é* o deploy. Empurrar direto
+para "subir rápido" tira a única revisão que existe (o CI no PR) e, com duas
+máquinas, é a forma mais rápida de a outra perder trabalho num pull.
+
+**Antes de começar, traga a `main`.** Sua cópia local está desatualizada por
+padrão:
+
+```bash
+git fetch origin main && git checkout -B vN.N origin/main
+```
+
+Sem isso a branch nasce de um passado, e o conflito só aparece no merge —
+depois de a entrega estar pronta.
+
+**Uma entrega, uma branch, um PR.** O nome segue `vN.N` (v3.4, v3.5, v3.6).
+
+**Nunca `force-push` em branch que já foi empurrada.** Do outro lado pode
+haver uma cópia; reescrever o histórico dela apaga trabalho sem aviso.
+
+#### A versão é decidida no merge, não no começo
+
+Já aconteceu **duas vezes**: `v3.4` e `v3.5` reivindicaram a 2.10.0, e `v3.6`
+e a `main` reivindicaram a 2.13.0. As duas branches estavam certas quando
+começaram — a `main` andou no meio.
+
+`tests/changelog.test.ts` exige que o topo do changelog case com a `version`
+do `package.json`, então o conflito é garantido e barulhento (o que é bom).
+Resolva assim:
+
+1. A entrada que **já está na `main`** mantém o número dela.
+2. A sua sobe para o próximo, e vira o topo.
+3. As duas entradas ficam. Nenhuma é apagada — cada uma descreve uma entrega
+   que existiu.
+
+O commit de merge diz o que foi renumerado, para o próximo conflito não
+começar do zero (`merge: traz a main e renumera para 2.15.0`).
+
+#### O banco é compartilhado — e é produção
+
+Não existe banco de desenvolvimento. As duas máquinas falam com o **mesmo**
+Postgres, que é o que está no ar. Consequências que não são óbvias:
+
+- **Migração aplicada de uma máquina vale para a outra na hora**, mesmo que a
+  branch dela não tenha o arquivo. Aplique quando o código que depende dela
+  estiver perto de entrar, não no começo do trabalho.
+- **Escreva toda migração como repetível**: `create table if not exists`,
+  `create or replace function`, `drop policy if exists` antes de `create
+  policy`. Quem for aplicar de novo — ou a outra máquina, sem saber que já
+  foi — não pode quebrar nada.
+- **Nunca remova coluna ou função que a `main` ainda usa.** A `main` está no
+  ar: um `drop` derruba produção antes de o seu PR existir. Se precisar sair,
+  sai depois que o código que a lia já não estiver mais publicado.
+- **Dado de teste com prefixo e contagem antes/depois.** O banco é o de
+  produção; `qa-...` no nome e conferir o total antes e no fim é o que separa
+  "testei" de "mexi na base do cliente".
+
+#### O orçamento de funções serverless é compartilhado
+
+São **12 no total** (armadilha 6), e o número é do produto, não da branch.
+Duas máquinas acrescentando uma rota cada estouram o limite mesmo que cada PR
+pareça inocente. `tests/rotas.test.ts` acusa antes do deploy — mas quem vai
+precisar de rota nova avisa a outra máquina primeiro, porque a solução é
+sempre juntar duas que já existem, e isso é decisão de desenho.
+
 ### Uma linha visual só: o desenho do dashboard
 
 **Tela nova copia o desenho que já existe. Não invente nada.** Nem raio de
