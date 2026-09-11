@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.19.0',
+    data: '2026-09-11',
+    resumo: 'O sistema passou a carregar só o que a tela precisa — e continua rápido com anos de histórico.',
+    melhorias: [
+      'Entrar ficou mais rápido, e continua rápido conforme a agência acumula conteúdo. Antes o app baixava tudo o que a agência já produziu a cada acesso.',
+      'Todo conteúdo em aberto continua vindo na hora. O que já foi publicado vem dos últimos 90 dias — e o resto é buscado quando você navega o calendário para trás ou pede um relatório mais longo.',
+      'A tela de novidades, o cadastro e a porta do portal pararam de consultar a marca do produto a cada abertura.',
+      'O agendador de publicações passou a trabalhar por tempo, não por lote fixo: no horário de pico ele publica mais, e nunca é interrompido no meio de uma publicação.',
+    ],
+  },
+  {
     versao: '2.18.0',
     data: '2026-09-11',
     resumo: 'Um conteúdo agora vai para mais de uma rede, e a prévia mostra como ele fica em cada uma.',

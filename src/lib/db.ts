@@ -132,6 +132,84 @@ export const db = {
   timesheetLogs: criarRepositorio<TimesheetLog>('timesheet_logs', timesheetLogDaLinha, timesheetLogParaLinha),
 };
 
+/**
+ * Quanto passado entra na carga inicial.
+ *
+ * `carregarTudo` puxava a agência **inteira**, sem limite e sem paginação:
+ * todos os jobs, todos os logs, todas as notificações. Com 100 jobs é
+ * instantâneo; com 5.000 o login demora segundos e cada edição passa pelo
+ * `diferenciar()`, que faz um `JSON.stringify` por linha.
+ *
+ * E o problema não depende de a agência crescer — depende só de ela
+ * continuar usando. Nada era arquivado, então toda agência caminhava para
+ * esse ponto pelo tempo.
+ *
+ * A regra que substitui isso: **trabalho aberto sempre vem; trabalho
+ * concluído só o recente.** Uma agência com três anos de histórico tem
+ * dezenas de jobs abertos e milhares de publicados — e são os abertos que a
+ * tela precisa para funcionar.
+ *
+ * O que fica de fora não some: `buscarJobsDoPeriodo` traz sob demanda quando
+ * o calendário navega para trás ou o relatório pede um período maior.
+ */
+export const DIAS_DE_HISTORICO = 90;
+
+/** Limite das coleções que só crescem e que ninguém lê inteiras. */
+const LIMITE_DE_HISTORICO = 200;
+
+const desdeISO = (dias: number): string =>
+  new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+
+/**
+ * Jobs da carga inicial: os abertos, mais os concluídos da janela.
+ *
+ * Duas consultas e não um `or` só porque o PostgREST monta `or` com sintaxe
+ * própria e frágil; duas chamadas claras custam um ida-e-volta a mais e não
+ * têm como sair erradas em silêncio.
+ */
+const listarJobsDaJanela = async (): Promise<Job[]> => {
+  const [abertos, recentes] = await Promise.all([
+    supabase
+      .from('jobs')
+      .select('*')
+      .neq('status', 'published')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('jobs')
+      .select('*')
+      .eq('status', 'published')
+      .gte('created_at', desdeISO(DIAS_DE_HISTORICO))
+      .order('created_at', { ascending: false }),
+  ]);
+
+  if (abertos.error) throw traduzirErro(abertos.error);
+  if (recentes.error) throw traduzirErro(recentes.error);
+
+  return [...(abertos.data || []), ...(recentes.data || [])].map(jobDaLinha);
+};
+
+/**
+ * Jobs de um período que a carga inicial não trouxe.
+ *
+ * Quem chama é o calendário (ao navegar para um mês antigo) e o relatório
+ * (ao escolher um período maior que a janela). A tela junta ao que já tem —
+ * e precisa fazer isso com a bandeira de carga ligada, senão o diff trata o
+ * que veio do banco como linha nova e tenta inserir tudo de novo.
+ */
+export const buscarJobsDoPeriodo = async (
+  inicio: string,
+  fim: string
+): Promise<Job[]> => {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .gte('scheduled_date', inicio)
+    .lte('scheduled_date', fim)
+    .order('scheduled_date', { ascending: false });
+  if (error) throw traduzirErro(error);
+  return (data || []).map(jobDaLinha);
+};
+
 /** Agências das quais o usuário é membro. */
 export const listarWorkspaces = async (): Promise<Workspace[]> => {
   const { data, error } = await supabase
@@ -259,8 +337,36 @@ export const listarMembros = async (): Promise<MembroDaAgencia[]> => {
 };
 
 /**
- * Carrega tudo de uma vez, em paralelo.
+ * As primeiras N linhas de uma coleção, da mais nova para a mais velha.
+ *
+ * Para o que só cresce e ninguém lê inteiro: histórico de atividade,
+ * notificações, apontamentos de hora. Antes vinham completos — e são
+ * justamente as tabelas com mais linhas por agência.
+ */
+const listarRecentes = async <T extends { id: string }>(
+  tabela: string,
+  daLinha: (l: any) => T,
+  limite = LIMITE_DE_HISTORICO
+): Promise<T[]> => {
+  const { data, error } = await supabase
+    .from(tabela)
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) throw traduzirErro(error);
+  return (data || []).map(daLinha);
+};
+
+/**
+ * Carrega o que a sessão precisa, em paralelo.
+ *
  * A RLS já recorta por agência, então não passamos workspace_id.
+ *
+ * **Nem tudo vem.** Jobs seguem a regra da janela (abertos sempre, concluídos
+ * só os recentes) e as três coleções de histórico vêm limitadas. As demais —
+ * clientes, leads, propostas, contratos, automações — não têm janela de
+ * propósito: elas são limitadas pelo tamanho do negócio, não pelo tempo, e
+ * uma agência com 300 clientes é um problema de outra natureza.
  */
 export const carregarTudo = async () => {
   const [
@@ -270,15 +376,15 @@ export const carregarTudo = async () => {
     listarWorkspaces(),
     listarMembros(),
     db.clients.listar(),
-    db.jobs.listar(),
+    listarJobsDaJanela(),
     db.leads.listar(),
     db.proposals.listar(),
     db.contracts.listar(),
     db.automations.listar(),
-    db.notifications.listar(),
-    db.activityLogs.listar(),
-    db.clientMaterials.listar(),
-    db.timesheetLogs.listar(),
+    listarRecentes('notifications', notificationDaLinha, 100),
+    listarRecentes('activity_logs', activityLogDaLinha),
+    listarRecentes('client_materials', clientMaterialDaLinha),
+    listarRecentes('timesheet_logs', timesheetLogDaLinha),
   ]);
 
   return {

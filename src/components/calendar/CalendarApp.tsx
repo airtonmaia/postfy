@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { CalendarHeader } from './CalendarHeader';
 import { CalendarSidebar } from './CalendarSidebar';
@@ -8,8 +8,23 @@ import { DayView } from './DayView';
 import { ListView } from './ListView';
 
 export const CalendarApp: React.FC = () => {
-  const { calendarView } = usePostfy();
+  const { calendarView, garantirJobsDoPeriodo } = usePostfy();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+
+  /**
+   * Navegar para trás pede os jobs daquele mês.
+   *
+   * A carga inicial traz os abertos e os concluídos dos últimos 90 dias — um
+   * mês de março do ano passado não está em memória, e sem isto o calendário
+   * mostraria o mês vazio como se nada tivesse sido publicado. Um mês de
+   * folga para cada lado porque a semana da virada aparece nos dois.
+   */
+  useEffect(() => {
+    const inicio = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const fim = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+    void garantirJobsDoPeriodo(inicio, fim);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDate.getFullYear(), currentDate.getMonth()]);
 
   const handlePrev = () => {
     const d = new Date(currentDate);

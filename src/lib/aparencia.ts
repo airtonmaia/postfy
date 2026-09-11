@@ -156,14 +156,54 @@ const paraLinha = (a: Partial<AparenciaDoSaas>): Record<string, unknown> => {
  * Devolve o padrão quando a rede falha ou a função não existe ainda: ninguém
  * deixa de entrar no sistema porque a cor não carregou. Por isso não estoura.
  */
+/**
+ * A aparência do produto, lembrada pela sessão.
+ *
+ * É a consulta mais chamada do sistema: a tela de entrada, a de cadastro e a
+ * porta do portal são anônimas e leem isto em toda abertura — e a resposta é
+ * **uma linha que muda quando o dono do SaaS mexe no Design**, ou seja,
+ * quase nunca.
+ *
+ * O cache vive em memória e morre com a aba. Não é `localStorage`: a
+ * armadilha 4 proíbe dado de agência no navegador, e mesmo sendo dado do
+ * produto, guardar em disco traria o problema que ela descreve — a tela
+ * passaria a mostrar o que aquela máquina viu por último, e trocar a marca
+ * não alcançaria quem já tinha aberto.
+ *
+ * `recarregarAparencia` (usado depois de salvar no Admin) limpa isto, senão
+ * quem acabou de trocar o logo continuaria vendo o antigo.
+ */
+let lembrada: AparenciaDoSaas | null = null;
+let emVoo: Promise<AparenciaDoSaas> | null = null;
+
+export const esquecerAparencia = (): void => {
+  lembrada = null;
+  emVoo = null;
+};
+
 export const carregarAparencia = async (): Promise<AparenciaDoSaas> => {
-  try {
-    const { data, error } = await supabase.rpc('aparencia_do_saas');
-    if (error || !data) return APARENCIA_PADRAO;
-    return daLinha(data);
-  } catch {
-    return APARENCIA_PADRAO;
-  }
+  if (lembrada) return lembrada;
+
+  // Duas telas montando ao mesmo tempo pediriam duas vezes. A promessa em voo
+  // é compartilhada para a consulta sair uma vez só.
+  if (emVoo) return emVoo;
+
+  emVoo = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('aparencia_do_saas');
+      // Falha não é lembrada: o padrão é o que a tela mostra agora, e na
+      // próxima montagem vale tentar de novo.
+      if (error || !data) return APARENCIA_PADRAO;
+      lembrada = daLinha(data);
+      return lembrada;
+    } catch {
+      return APARENCIA_PADRAO;
+    } finally {
+      emVoo = null;
+    }
+  })();
+
+  return emVoo;
 };
 
 /**

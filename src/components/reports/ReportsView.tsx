@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import { 
@@ -43,7 +43,10 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export const ReportsView: React.FC = () => {
-  const { clients, jobs, agencyHealthScore, clientFilter, setClientFilter } = usePostfy();
+  const {
+    clients, jobs, agencyHealthScore, clientFilter, setClientFilter,
+    garantirJobsDoPeriodo,
+  } = usePostfy();
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Filter States
@@ -78,6 +81,19 @@ export const ReportsView: React.FC = () => {
       end
     };
   }, [periodPreset]);
+
+  /**
+   * Período maior que a janela da carga inicial pede o resto ao banco.
+   *
+   * "Este ano" e "Último trimestre" passam dos 90 dias que vêm na sessão.
+   * Sem isto o relatório mostraria zero para os meses antigos — e zero num
+   * relatório é indistinguível de "não houve publicação", que é justamente a
+   * conclusão errada.
+   */
+  useEffect(() => {
+    void garantirJobsDoPeriodo(dateRange.start, dateRange.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange.start.getTime(), dateRange.end.getTime()]);
 
   // Filtered Clients & Jobs
   const filteredClients = useMemo(() => {

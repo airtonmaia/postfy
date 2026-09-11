@@ -32,6 +32,8 @@ import {
   carregarTudo,
   listarWorkspaces,
   atualizarWorkspace,
+  buscarJobsDoPeriodo,
+  DIAS_DE_HISTORICO,
   moverAgenciaParaLixeira as moverParaLixeira,
   restaurarAgencia as restaurarDaLixeira,
   DbError,
@@ -51,6 +53,7 @@ import {
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
 import {
   carregarAparencia,
+  esquecerAparencia,
   APARENCIA_PADRAO,
   type AparenciaDoSaas,
 } from '../lib/aparencia';
@@ -125,6 +128,15 @@ interface PostfyContextType {
    * estado**: derrubar quem está trabalhando porque a consulta demorou é pior
    * que deixar passar alguns segundos de quem não pagou.
    */
+  /**
+   * Garante que os jobs de um período estejam em memória.
+   *
+   * A carga inicial traz os abertos e os concluídos dos últimos 90 dias. Quem
+   * navega o calendário para trás ou pede um relatório mais longo chama isto,
+   * e o que faltava é buscado e juntado ao estado.
+   */
+  garantirJobsDoPeriodo: (inicio: Date, fim: Date) => Promise<void>;
+
   acessoDaAgencia: AcessoDaAgencia | null;
   /** Refaz a consulta — usado ao voltar do checkout do Stripe. */
   recarregarAcesso: () => Promise<void>;
@@ -513,6 +525,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [aparencia, setAparencia] = useState<AparenciaDoSaas>(APARENCIA_PADRAO);
 
   const recarregarAparencia = useCallback(async () => {
+    // Esquece antes de pedir: quem chama isto acabou de salvar no Admin, e
+    // devolver o que está lembrado mostraria a marca antiga a quem trocou.
+    esquecerAparencia();
     setAparencia(await carregarAparencia());
   }, []);
 
@@ -1011,6 +1026,55 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * quando ele executa todas já pularam o próprio carregamento.
    */
   const aplicandoCargaDoBanco = useRef(false);
+
+  /**
+   * Períodos já buscados, para não repetir a consulta.
+   *
+   * É o único "cache" do carregamento, e ele guarda **o que já foi pedido**,
+   * não o dado — o dado já está no estado. Vive num ref porque não pinta
+   * nada na tela: mudá-lo não pode causar render.
+   */
+  const periodosCarregados = useRef<Set<string>>(new Set());
+
+  /**
+   * Traz os jobs de um período que a carga inicial não cobriu.
+   *
+   * A bandeira `aplicandoCargaDoBanco` é obrigatória aqui. Sem ela, o
+   * `useColecaoSincronizada` vê linhas novas no estado e as trata como
+   * inserção — tentaria gravar de volta no banco tudo que acabou de ler, e a
+   * chave primária recusaria uma a uma. É a mesma razão de a carga inicial
+   * levantar a bandeira.
+   */
+  const garantirJobsDoPeriodo = async (inicio: Date, fim: Date) => {
+    const chave = `${inicio.toISOString().slice(0, 7)}..${fim.toISOString().slice(0, 7)}`;
+    if (periodosCarregados.current.has(chave)) return;
+
+    // Dentro da janela que a carga inicial já trouxe: nada a fazer.
+    const limiteDaJanela = Date.now() - DIAS_DE_HISTORICO * 24 * 60 * 60 * 1000;
+    if (inicio.getTime() >= limiteDaJanela) {
+      periodosCarregados.current.add(chave);
+      return;
+    }
+
+    periodosCarregados.current.add(chave);
+
+    try {
+      const encontrados = await buscarJobsDoPeriodo(inicio.toISOString(), fim.toISOString());
+      if (encontrados.length === 0) return;
+
+      aplicandoCargaDoBanco.current = true;
+      setAllJobs((atuais) => {
+        const conhecidos = new Set(atuais.map((j) => j.id));
+        const novos = encontrados.filter((j) => !conhecidos.has(j.id));
+        return novos.length > 0 ? [...atuais, ...novos] : atuais;
+      });
+    } catch (erro) {
+      // Some da lista de carregados para a próxima navegação tentar de novo:
+      // uma falha de rede não pode marcar o período como visto para sempre.
+      periodosCarregados.current.delete(chave);
+      console.warn('[jobs] não foi possível buscar o período', erro);
+    }
+  };
 
   /**
    * Fila única de gravação, compartilhada por todas as coleções.
@@ -2199,6 +2263,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCreateWorkspaceModalOpen,
         isProfileModalOpen,
         setIsProfileModalOpen,
+        garantirJobsDoPeriodo,
         acessoDaAgencia,
         recarregarAcesso,
         setIsCreateWorkspaceModalOpen,
