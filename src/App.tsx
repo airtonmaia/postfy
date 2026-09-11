@@ -29,7 +29,9 @@ import {
   Building2,
   Mail,
   Plug,
-  AlertTriangle
+  AlertTriangle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 // Modals
@@ -105,6 +107,8 @@ const MainLayout: React.FC = () => {
     setClientFilter,
     theme,
     setTheme,
+    sidebarRecolhida: recolhida,
+    setSidebarRecolhida,
     syncState,
     syncError,
     isPlatformAdmin,
@@ -263,19 +267,48 @@ const MainLayout: React.FC = () => {
       <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
 
       {/* Left Sidebar (Desktop + Mobile responsive) */}
+      {/*
+        Recolhida vira trilho de 64px: só os ícones, com o rótulo no `title`.
+        No celular ela é gaveta e sempre abre inteira — um trilho de ícones
+        numa tela onde ela já ocupa tudo não economizaria nada e tiraria os
+        nomes.
+      */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 flex flex-col justify-between border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 md:relative md:translate-x-0 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 flex flex-col justify-between border-r border-slate-200 dark:border-slate-800 transition-all duration-300 md:relative md:translate-x-0 ${
+          recolhida ? 'w-64 md:w-16' : 'w-64'
+        } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Top: Agency / Workspace Header */}
         <div>
           {/* A logo é o próprio seletor de agência: eram dois lugares
               mostrando a mesma marca, e só um deles trocava de agência. */}
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-            <div className="min-w-0 flex-1">
+          {/* `h-14 px-3`, a mesma altura do cabeçalho ao lado. Era `p-3`, que
+              cresce com o conteúdo: o seletor tem 48px e o padding somava 24,
+              dando 72 contra os 56 do header — a marca ficava um degrau acima
+              da barra de cima, e a linha de baixo das duas não fechava. */}
+          <div className="h-14 px-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-1 shrink-0">
+            <div className={`min-w-0 flex-1 ${recolhida ? 'md:hidden' : ''}`}>
               <WorkspaceSwitcher />
             </div>
+
+            {/* Recolher/expandir. Fica no cabeçalho da própria barra, que é
+                onde o olho procura — e no trilho ele é a única coisa aqui,
+                então vira o caminho de volta. */}
+            <button
+              type="button"
+              onClick={() => setSidebarRecolhida(!recolhida)}
+              title={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+              aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+              className={`hidden md:flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0 ${
+                recolhida ? 'mx-auto' : ''
+              }`}
+            >
+              {recolhida ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </button>
 
             <button
               onClick={() => setMobileMenuOpen(false)}
@@ -286,13 +319,16 @@ const MainLayout: React.FC = () => {
           </div>
 
           {/* Quick Action: New Content Button */}
-          <div className="p-3">
+          <div className={recolhida ? 'p-3 md:px-2' : 'p-3'}>
             <button
               onClick={() => openCreateJobModal()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-600/20 transition cursor-pointer"
+              title={recolhida ? 'Novo Conteúdo' : undefined}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-600/20 transition cursor-pointer ${
+                recolhida ? 'px-0 md:px-0' : 'px-4'
+              }`}
             >
-              <Plus className="w-4 h-4" />
-              <span>Novo Conteúdo</span>
+              <Plus className="w-4 h-4 shrink-0" />
+              <span className={recolhida ? 'md:hidden' : ''}>Novo Conteúdo</span>
             </button>
           </div>
 
@@ -309,19 +345,35 @@ const MainLayout: React.FC = () => {
                     setActiveTab(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  // O rótulo vira `title` no trilho: ícone sem nome obriga a
+                  // decorar, e o produto tem onze menus.
+                  title={recolhida ? item.label : undefined}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    recolhida ? 'justify-between md:justify-center md:px-0' : 'justify-between'
+                  } ${
                     isActive
                       ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-                    <span>{item.label}</span>
+                  <div className="flex items-center gap-3 relative">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
+                    <span className={recolhida ? 'md:hidden' : ''}>{item.label}</span>
+
+                    {/* No trilho o número não cabe ao lado, então vira um
+                        ponto no canto do ícone: some a contagem, fica o
+                        "tem coisa aqui" — que é o que faz a pessoa clicar. */}
+                    {recolhida && item.badge !== undefined && item.badge > 0 && (
+                      <span className="hidden md:block absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-purple-600 ring-2 ring-white dark:ring-slate-900" />
+                    )}
                   </div>
 
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.badgeColor}`}>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.badgeColor} ${
+                        recolhida ? 'md:hidden' : ''
+                      }`}
+                    >
                       {item.badge}
                     </span>
                   )}
@@ -333,11 +385,14 @@ const MainLayout: React.FC = () => {
         </div>
 
         {/* Bottom Sidebar: Health Mini Widget & User Card */}
-        <div className="p-3 space-y-3 border-t border-slate-200 dark:border-slate-800">
-          {/* Health score mini card */}
+        <div className={`space-y-3 border-t border-slate-200 dark:border-slate-800 ${recolhida ? 'p-3 md:px-2' : 'p-3'}`}>
+          {/* Health score mini card — fora do trilho: é um cartão com barra e
+              número, e em 64px vira uma mancha sem leitura. */}
           <div 
             onClick={() => setActiveTab('dashboard')}
-            className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer"
+            className={`p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer ${
+              recolhida ? 'md:hidden' : ''
+            }`}
           >
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -368,21 +423,25 @@ const MainLayout: React.FC = () => {
             com ele o par pede 240px e a coluna tem 232 (w-64 menos o p-3),
             com o padding já apertado. O que ele dizia foi para o `title`.
           */}
-          <BotaoDoPortal
-            clientId={clientFilter === 'all' ? undefined : clientFilter}
-            variante="lateral"
-            rotulo="Portal do Cliente"
-          />
+          <div className={recolhida ? 'md:hidden' : ''}>
+            <BotaoDoPortal
+              clientId={clientFilter === 'all' ? undefined : clientFilter}
+              variante="lateral"
+              rotulo="Portal do Cliente"
+            />
+          </div>
 
           {/* User Profile & Logout */}
-          <div className="flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2">
+          <div className={`flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2 ${
+            recolhida ? 'md:flex-col md:gap-2' : ''
+          }`}>
             <button 
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
               className="flex-1 flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer min-w-0"
               title="Gerenciar Sessão & Alternar Usuário"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`flex items-center gap-2.5 min-w-0 ${recolhida ? 'md:justify-center md:w-full' : ''}`}>
                 {/* Era um retrato do Unsplash como padrão: a foto de um
                     desconhecido no lugar da pessoa, e uma dependência de rede
                     para desenhar a barra lateral. */}
@@ -392,14 +451,14 @@ const MainLayout: React.FC = () => {
                   tamanho={32}
                   className="border border-slate-200 dark:border-slate-700"
                 />
-                <div className="min-w-0">
+                <div className={`min-w-0 ${recolhida ? 'md:hidden' : ''}`}>
                   <span className="font-bold text-slate-800 dark:text-white block truncate">{currentUser?.name || 'Usuário'}</span>
                   <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono font-bold block truncate">
                     Cargo: {currentUser?.role || 'owner'}
                   </span>
                 </div>
               </div>
-              <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
+              <ShieldCheck className={`w-4 h-4 text-purple-600 shrink-0 ${recolhida ? 'md:hidden' : ''}`} />
             </button>
 
             <button

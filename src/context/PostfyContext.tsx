@@ -90,6 +90,8 @@ interface PostfyContextType {
   // General
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
+  sidebarRecolhida: boolean;
+  setSidebarRecolhida: (recolhida: boolean) => void;
   
   // Workspaces & Users
   workspaces: Workspace[];
@@ -573,8 +575,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const recarregarSessao = async (): Promise<SessaoDoApp | null> => {
     // A preferência mora no Postgres. Sem sessão a consulta volta no padrão,
     // que é o mesmo caminho de quem entra pela primeira vez.
-    const { lastWorkspaceId, theme: temaSalvo } = await carregarPreferencias();
+    const {
+      lastWorkspaceId,
+      theme: temaSalvo,
+      sidebarRecolhida: recolhidaSalva,
+    } = await carregarPreferencias();
     setThemeState(temaSalvo);
+    setSidebarRecolhidaState(recolhidaSalva);
     const sessao = await carregarSessao(lastWorkspaceId);
     aplicarSessao(sessao);
     return sessao;
@@ -765,6 +772,21 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setTheme = (newTheme: 'light' | 'dark') => {
     setThemeState(newTheme);
     void salvarPreferencias({ theme: newTheme });
+  };
+
+  /**
+   * Barra lateral em modo trilho.
+   *
+   * Mora no contexto, e não no `App`, porque a preferência é do usuário e vem
+   * do banco junto com o tema — `localStorage` prenderia a escolha a um
+   * navegador (armadilha 4), e a mesma pessoa abriria no celular com a barra
+   * aberta de novo.
+   */
+  const [sidebarRecolhida, setSidebarRecolhidaState] = useState(false);
+
+  const setSidebarRecolhida = (recolhida: boolean) => {
+    setSidebarRecolhidaState(recolhida);
+    void salvarPreferencias({ sidebarRecolhida: recolhida });
   };
 
   // Sync theme with document class
@@ -2259,6 +2281,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         theme,
         setTheme,
+        sidebarRecolhida,
+        setSidebarRecolhida,
         workspaces,
         currentWorkspace,
         setCurrentWorkspace,
