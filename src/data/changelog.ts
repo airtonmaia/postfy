@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.25.1',
+    data: '2026-09-11',
+    resumo: 'Correção urgente: abrir o cadastro de conteúdo derrubava a tela.',
+    corrigido: [
+      'Abrir "adicionar post" caía na tela de erro, com o app inteiro parado. Foi o botão de teste da versão anterior, montado numa ordem que o React não aceita. Corrigido.',
+      'Compartilhar um conteúdo no WhatsApp derrubava a tela do mesmo jeito — e isso era antigo, desde que a janela foi escrita. Apareceu junto, e foi corrigido junto.',
+      'A mensagem do WhatsApp ficava presa no primeiro conteúdo: abrindo a janela para outro post, o texto continuava sendo o do anterior. Agora ela é refeita a cada conteúdo.',
+    ],
+  },
+  {
     versao: '2.25.0',
     data: '2026-09-11',
     resumo:
