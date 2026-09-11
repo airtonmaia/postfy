@@ -1,30 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { X, Plus, Sparkles, Image, Calendar, Layers } from 'lucide-react';
+import {
+  X, ThumbsUp, Link as LinkIcon,
+  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
+} from 'lucide-react';
 import { JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
 import { MediaUploader } from '../common/MediaUploader';
+import { definicaoDoTipo } from '../../lib/tiposDeJob';
+import { PreviaDaRede } from '../common/PreviaDaRede';
+import { camposVisiveis, type CampoDoCanal } from '../../lib/camposDoCanal';
+import { CampoDinamico } from '../common/CampoDinamico';
+
+/**
+ * Os canais, na ordem em que aparecem.
+ *
+ * `cor` é a cor de marca de cada rede: é ela que faz o ícone ser reconhecido
+ * de relance, sem precisar ler nada. Quando o canal está escolhido, o botão
+ * inverte — fundo da marca, ícone branco.
+ */
+const CANAIS: {
+  valor: JobPlatform;
+  rotulo: string;
+  icone: React.FC<{ className?: string }>;
+  cor: string;
+  fundo: string;
+}[] = [
+  { valor: 'instagram', rotulo: 'Instagram', icone: Instagram, cor: 'text-[#E4405F]', fundo: 'bg-[#E4405F]' },
+  { valor: 'facebook', rotulo: 'Facebook', icone: Facebook, cor: 'text-[#1877F2]', fundo: 'bg-[#1877F2]' },
+  { valor: 'linkedin', rotulo: 'LinkedIn', icone: Linkedin, cor: 'text-[#0A66C2]', fundo: 'bg-[#0A66C2]' },
+  { valor: 'tiktok', rotulo: 'TikTok', icone: Music2, cor: 'text-[#010101] dark:text-white', fundo: 'bg-[#010101]' },
+  { valor: 'youtube', rotulo: 'YouTube', icone: Youtube, cor: 'text-[#FF0000]', fundo: 'bg-[#FF0000]' },
+  { valor: 'twitter', rotulo: 'X / Twitter', icone: Twitter, cor: 'text-[#0F1419] dark:text-white', fundo: 'bg-[#0F1419]' },
+];
+
+/**
+ * Formato só existe dentro de uma rede.
+ *
+ * "Story" não existe no YouTube e "Short" não existe no Instagram — oferecer
+ * a lista inteira em toda rede deixava escolher combinação que não vai ao ar,
+ * e o erro só apareceria na hora de publicar.
+ *
+ * O rótulo muda com a rede porque a mesma coisa tem nome diferente em cada
+ * uma: vídeo curto é Reels no Instagram e Short no YouTube.
+ */
+const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string }[]> = {
+  instagram: [
+    { valor: 'feed', rotulo: 'Feed' },
+    { valor: 'carousel', rotulo: 'Carrossel' },
+    { valor: 'reel', rotulo: 'Reels' },
+    { valor: 'story', rotulo: 'Story' },
+  ],
+  facebook: [
+    { valor: 'feed', rotulo: 'Feed' },
+    { valor: 'carousel', rotulo: 'Carrossel' },
+    { valor: 'reel', rotulo: 'Reels' },
+    { valor: 'story', rotulo: 'Story' },
+    { valor: 'video', rotulo: 'Vídeo' },
+  ],
+  linkedin: [
+    { valor: 'feed', rotulo: 'Publicação' },
+    { valor: 'carousel', rotulo: 'Carrossel' },
+    { valor: 'article', rotulo: 'Artigo' },
+    { valor: 'video', rotulo: 'Vídeo' },
+  ],
+  tiktok: [{ valor: 'reel', rotulo: 'Vídeo' }],
+  youtube: [
+    { valor: 'video', rotulo: 'Vídeo' },
+    { valor: 'reel', rotulo: 'Short' },
+  ],
+  twitter: [
+    { valor: 'feed', rotulo: 'Post' },
+    { valor: 'video', rotulo: 'Vídeo' },
+  ],
+};
 
 export const CreateJobModal: React.FC = () => {
-  const { 
-    isCreateJobModalOpen, 
-    closeCreateJobModal, 
-    createJobPreselectedDate, 
-    clients, 
+  const {
+    isCreateJobModalOpen,
+    closeCreateJobModal,
+    createJobPreselectedDate,
+    createJobTipo,
+    clients,
     createJob,
     setSelectedJob
   } = usePostfy();
 
+  // O tipo escolhido no menu Adicionar molda o formulário. Quem decide não é
+  // o nome do tipo, e sim `pedeArte`: assim um tipo novo não obriga a caçar
+  // `if (tipo === 'copy')` espalhado pela tela.
+  const tipo = definicaoDoTipo(createJobTipo);
+
   const [clientId, setClientId] = useState(clients[0]?.id || '');
   const [title, setTitle] = useState('');
-  const [campaign, setCampaign] = useState('Conteúdo Institucional');
+  // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
+  // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
+  // que não existe. Quem precisar dela edita no detalhe do conteúdo.
   const [platform, setPlatform] = useState<JobPlatform>('instagram');
   const [format, setFormat] = useState<JobFormat>('feed');
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('ideas');
   const [caption, setCaption] = useState('');
-  const [cta, setCta] = useState('');
-  const [hashtagsStr, setHashtagsStr] = useState('#Novidade #Marketing');
+  // CTA e hashtags saíram do cadastro: enchiam o modal de campos que quase
+  // ninguém preenchia na criação, e seguem editáveis no detalhe.
+  //
+  // O padrão de hashtags era '#Novidade #Marketing', e ele ia junto mesmo sem
+  // ninguém digitar nada: conteúdo nascia marcado com tag inventada.
+  //
+  // O primeiro comentário voltou, agora como campo do Instagram — é onde as
+  // hashtags costumam ir, para não poluir a legenda.
   const [firstComment, setFirstComment] = useState('');
+  const [configuracoes, setConfiguracoes] = useState<Record<string, unknown>>({});
   // Começa vazio: um conteúdo novo não tem mídia. A foto de banco que ficava
   // aqui virava a arte de todo post criado, e quem não reparasse publicava com
   // ela.
@@ -47,15 +132,13 @@ export const CreateJobModal: React.FC = () => {
   useEffect(() => {
     if (isCreateJobModalOpen) {
       setTitle('');
-      setCampaign('Conteúdo Institucional');
       setPlatform('instagram');
       setFormat('feed');
       setPriority('medium');
       setStatus('ideas');
       setCaption('');
-      setCta('');
-      setHashtagsStr('#Novidade #Marketing');
       setFirstComment('');
+      setConfiguracoes({});
       setMediaUrls([]);
       setErro('');
     }
@@ -87,18 +170,61 @@ export const CreateJobModal: React.FC = () => {
     }
   }, [createJobPreselectedDate, isCreateJobModalOpen]);
 
+  /**
+   * Trocar de canal pode invalidar o formato escolhido — Story não existe no
+   * YouTube. Sem isto o `select` ficava em branco e o job era salvo com um
+   * formato que aquela rede não aceita, sem ninguém ver.
+   */
+  useEffect(() => {
+    const disponiveis = FORMATOS_POR_CANAL[platform] || [];
+    if (disponiveis.length && !disponiveis.some((f) => f.valor === format)) {
+      setFormat(disponiveis[0].valor);
+    }
+  }, [platform, format]);
+
   if (!isCreateJobModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // A prévia mostra o perfil de quem vai publicar: é o cliente selecionado.
+  const clienteSelecionado = clients.find((c) => c.id === clientId) || clients[0];
+
+  const formatosDoCanal = FORMATOS_POR_CANAL[platform] || FORMATOS_POR_CANAL.instagram;
+  const campos = camposVisiveis(platform, format);
+
+  /**
+   * Legenda e primeiro comentário têm coluna própria e continuam nela; o
+   * resto vive no `jsonb`. Ler e escrever pelo catálogo evita a tela precisar
+   * saber onde cada campo mora.
+   */
+  const valorDoCampo = (campo: CampoDoCanal): unknown => {
+    if (campo.destino === 'config') return configuracoes[campo.chave];
+    if (campo.chave === 'caption') return caption;
+    if (campo.chave === 'firstComment') return firstComment;
+    return '';
+  };
+
+  const definirCampo = (campo: CampoDoCanal, valor: unknown) => {
+    if (campo.destino === 'config') {
+      setConfiguracoes((atual) => ({ ...atual, [campo.chave]: valor }));
+      return;
+    }
+    if (campo.chave === 'caption') setCaption(String(valor ?? ''));
+    if (campo.chave === 'firstComment') setFirstComment(String(valor ?? ''));
+  };
+
+  /**
+   * `statusFinal` existe por causa do botão "Enviar para aprovação": ele é o
+   * mesmo cadastro, só que nascendo direto na coluna de aprovação — e é o
+   * status que dispara o e-mail para o cliente.
+   */
+  const salvar = (e: React.FormEvent, statusFinal: JobStatus) => {
     e.preventDefault();
     setErro('');
     if (!title.trim()) {
-      alert('Por favor informe o título do conteúdo.');
+      setErro('Informe o título do conteúdo.');
       return;
     }
 
     try {
-      const tags = hashtagsStr.split(' ').map(t => t.trim()).filter(t => t.length > 0);
 
       // Safe Date Parsing
       let targetDate = new Date();
@@ -115,7 +241,11 @@ export const CreateJobModal: React.FC = () => {
       const deadlineApprIso = new Date(Math.max(Date.now(), scheduledTime - 86400000 * 1)).toISOString();
 
       // Sem mídia é um estado legítimo: pauta entra antes da arte existir.
-      const finalMedia = mediaUrls.filter(u => u.trim().length > 0);
+      // Em copy e roteiro é mais que legítimo, é o certo — o campo nem aparece,
+      // e o que tivesse sobrado de uma abertura anterior não pode ir junto.
+      const finalMedia = tipo.pedeArte
+        ? mediaUrls.filter(u => u.trim().length > 0)
+        : [];
 
       // Sem cliente cadastrado não há job possível: 'c-1' era um id inventado
       // que o Postgres recusa, e o conteúdo sumia sem aviso.
@@ -131,15 +261,25 @@ export const CreateJobModal: React.FC = () => {
       const newJob = createJob({
         clientId: selectedClientId,
         title: title.trim(),
-        campaign: campaign.trim() || 'Geral',
+        tipo: createJobTipo,
+        campaign: 'Geral',
         platform,
         format,
         priority,
-        status,
+        status: statusFinal,
         caption: caption.trim(),
-        cta: cta.trim(),
-        hashtags: tags,
+        cta: '',
+        hashtags: [],
         firstComment: firstComment.trim(),
+        // Só o que a rede escolhida pede: trocar de canal no meio do cadastro
+        // deixaria para trás a configuração da rede anterior, e ela iria junto
+        // para o banco sem aparecer em tela nenhuma.
+        configuracoes: Object.fromEntries(
+          campos
+            .filter((c) => c.destino === 'config')
+            .map((c) => [c.chave, configuracoes[c.chave]])
+            .filter(([, v]) => v !== undefined && v !== '' && v !== false)
+        ),
         mediaUrls: finalMedia,
         scheduledDate: scheduledIso,
         deadlineProduction: deadlineProdIso,
@@ -160,24 +300,22 @@ export const CreateJobModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
-          <div>
-            <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Novo Conteúdo</span>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Planejar Postagem / Job</h3>
-          </div>
-          <button
-            onClick={closeCreateJobModal}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Sem faixa de cabeçalho: ela repetia o que o próprio formulário já
+            diz e comia altura útil num modal que já rola. Sobra o fechar. */}
+        <button
+          type="button"
+          onClick={closeCreateJobModal}
+          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          aria-label="Fechar"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
+        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Client */}
             <div>
@@ -193,16 +331,34 @@ export const CreateJobModal: React.FC = () => {
               </select>
             </div>
 
-            {/* Campaign */}
+            {/* Canais: a logo diz para onde vai sem precisar abrir uma lista. */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Campanha / Tema</label>
-              <input
-                type="text"
-                value={campaign}
-                onChange={(e) => setCampaign(e.target.value)}
-                placeholder="Ex: Lançamento Inverno 2025"
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Selecione canais
+              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {CANAIS.map((canal) => {
+                  const Icone = canal.icone;
+                  const ativo = platform === canal.valor;
+                  return (
+                    <button
+                      key={canal.valor}
+                      type="button"
+                      onClick={() => setPlatform(canal.valor)}
+                      title={canal.rotulo}
+                      aria-label={canal.rotulo}
+                      aria-pressed={ativo}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center border transition cursor-pointer ${
+                        ativo
+                          ? `${canal.fundo} border-transparent text-white shadow-xs`
+                          : `bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${canal.cor} opacity-60 hover:opacity-100`
+                      }`}
+                    >
+                      <Icone className="w-4 h-4" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -219,25 +375,8 @@ export const CreateJobModal: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Platform */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Rede Social</label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as JobPlatform)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="instagram">Instagram</option>
-                <option value="linkedin">LinkedIn</option>
-                <option value="tiktok">TikTok</option>
-                <option value="youtube">YouTube</option>
-                <option value="facebook">Facebook</option>
-                <option value="twitter">X / Twitter</option>
-              </select>
-            </div>
-
-            {/* Format */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Formato: só o que existe na rede escolhida. */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Formato</label>
               <select
@@ -245,12 +384,11 @@ export const CreateJobModal: React.FC = () => {
                 onChange={(e) => setFormat(e.target.value as JobFormat)}
                 className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
-                <option value="feed">Feed Estático</option>
-                <option value="carousel">Carrossel (Múltiplas Telas)</option>
-                <option value="reel">Reel / Vídeo Curto</option>
-                <option value="story">Story</option>
-                <option value="video">Vídeo Longo</option>
-                <option value="article">Artigo / Newsletter</option>
+                {formatosDoCanal.map((f) => (
+                  <option key={f.valor} value={f.valor}>
+                    {f.rotulo}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -299,52 +437,56 @@ export const CreateJobModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Media Uploader (Multi-files & Drag-and-drop) */}
-          <div className="pt-1">
-            <MediaUploader 
-              mediaUrls={mediaUrls} 
-              onChange={setMediaUrls} 
-              maxFiles={10} 
-            />
-          </div>
-
-          {/* Caption */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Legenda Proposta</label>
-            <textarea
-              rows={3}
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Digite aqui o texto que acompanhará a publicação..."
-              className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* CTA */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Chamada para Ação (CTA)</label>
-              <input
-                type="text"
-                value={cta}
-                onChange={(e) => setCta(e.target.value)}
-                placeholder="Ex: Clique no link da bio..."
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
+              upload neles seria pedir aprovação de algo que não existe. */}
+          {tipo.pedeArte && (
+            <div className="pt-1">
+              <MediaUploader
+                mediaUrls={mediaUrls}
+                onChange={setMediaUrls}
+                maxFiles={10}
+                label="Mídia e criativos"
+                /* Buscar a arte de onde ela já está é o próximo passo; hoje
+                   não existe. Entram no menu desligadas, dizendo "em breve". */
+                origens={[
+                  { rotulo: 'Canva', disponivel: false },
+                  { rotulo: 'Google Drive', disponivel: false },
+                  { rotulo: 'Dropbox', disponivel: false },
+                ]}
               />
             </div>
+          )}
 
-            {/* Hashtags */}
+          {/*
+            Os campos vêm do catálogo da rede escolhida. Em copy e roteiro a
+            entrega é o próprio texto, então ali vale o campo do tipo e não o
+            da rede — um roteiro não tem localização nem capa de Reel.
+          */}
+          {tipo.pedeArte ? (
+            <div className="space-y-4">
+              {campos.map((campo) => (
+                <CampoDinamico
+                  key={campo.chave}
+                  campo={campo}
+                  valor={valorDoCampo(campo)}
+                  onChange={(v) => definirCampo(campo, v)}
+                />
+              ))}
+            </div>
+          ) : (
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Hashtags</label>
-              <input
-                type="text"
-                value={hashtagsStr}
-                onChange={(e) => setHashtagsStr(e.target.value)}
-                placeholder="#tag1 #tag2..."
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-mono"
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                {tipo.rotuloDoTexto}
+              </label>
+              <textarea
+                rows={12}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={tipo.exemploDoTexto}
+                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
               />
             </div>
-          </div>
+          )}
 
           {erro && (
             <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
@@ -353,22 +495,52 @@ export const CreateJobModal: React.FC = () => {
           )}
 
           {/* Buttons */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
             <button
               type="button"
               onClick={closeCreateJobModal}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 rounded-lg transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
+
+            {/* Atalho do caminho mais comum: criar já pedindo aprovação. Cai na
+                coluna "Para Aprovação" e é o status que avisa o cliente. */}
+            <button
+              type="button"
+              onClick={(e) => salvar(e, 'for_approval')}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <ThumbsUp className="w-3.5 h-3.5" />
+              Enviar para aprovação
+            </button>
+
             <button
               type="submit"
-              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-semibold rounded-lg shadow-sm shadow-purple-200 transition"
+              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
-              Criar Conteúdo
+              Criar conteúdo
             </button>
           </div>
         </form>
+
+        {/* Prévia: como fica na rede escolhida, com o dado deste formulário. */}
+        {/* Centralizada na vertical, e com folga no topo: encostada em cima
+            ela passava por baixo do botão de fechar. */}
+        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 pt-12 flex items-center">
+          <PreviaDaRede
+            className="w-full"
+            dados={{
+              nomeDoPerfil: clienteSelecionado?.name || '',
+              avatar: clienteSelecionado?.avatar,
+              canais: [platform],
+              artes: tipo.pedeArte ? mediaUrls : [],
+              legenda: caption,
+              localizacao: String(configuracoes.localizacao || '') || undefined,
+            }}
+          />
+        </aside>
+        </div>
       </div>
     </div>
   );

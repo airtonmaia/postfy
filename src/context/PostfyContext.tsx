@@ -5,8 +5,9 @@ import {
   User, 
   Role,
   Client, 
-  Job, 
-  JobStatus, 
+  Job,
+  JobTipo,
+  JobStatus,
   JobPlatform, 
   Lead, 
   LeadStage,
@@ -137,9 +138,11 @@ interface PostfyContextType {
   selectedJob: Job | null;
   setSelectedJob: (job: Job | null) => void;
   isCreateJobModalOpen: boolean;
-  openCreateJobModal: (date?: string) => void;
+  openCreateJobModal: (date?: string, tipo?: JobTipo) => void;
   closeCreateJobModal: () => void;
   createJobPreselectedDate: string | null;
+  /** Entrega escolhida no menu Adicionar; o modal se molda a ela. */
+  createJobTipo: JobTipo;
   isSearchModalOpen: boolean;
   setIsSearchModalOpen: (open: boolean) => void;
   
@@ -698,6 +701,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState<boolean>(false);
   const [createJobPreselectedDate, setCreateJobPreselectedDate] = useState<string | null>(null);
+  // Qual entrega o menu Adicionar escolheu: conteúdo, copy ou roteiro.
+  const [createJobTipo, setCreateJobTipo] = useState<JobTipo>('conteudo');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
   
   // O tema é preferência do usuário, então mora no Postgres junto das
@@ -1128,14 +1133,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [isAuthenticated, currentUser.id]);
 
   // Modal handlers
-  const openCreateJobModal = (date?: string) => {
+  const openCreateJobModal = (date?: string, tipo: JobTipo = 'conteudo') => {
     setCreateJobPreselectedDate(date || null);
+    setCreateJobTipo(tipo);
     setIsCreateJobModalOpen(true);
   };
-  
+
   const closeCreateJobModal = () => {
     setIsCreateJobModalOpen(false);
     setCreateJobPreselectedDate(null);
+    setCreateJobTipo('conteudo');
   };
   
   const openClientPortal = (clientId: string) => {
@@ -1219,6 +1226,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       workspaceId: currentWorkspace.id,
       clientId: jobData.clientId || clients[0]?.id || '',
       title: jobData.title || 'Novo Conteúdo Sem Título',
+      tipo: jobData.tipo || 'conteudo',
       campaign: jobData.campaign || 'Geral',
       platform: jobData.platform || 'instagram',
       format: jobData.format || 'feed',
@@ -2163,6 +2171,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         openCreateJobModal,
         closeCreateJobModal,
         createJobPreselectedDate,
+        createJobTipo,
         isSearchModalOpen,
         setIsSearchModalOpen,
         isClientPortalOpen,

@@ -31,7 +31,7 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
-    versao: '2.13.0',
+    versao: '2.15.0',
     data: '2026-09-11',
     resumo: 'Excluir agência passou a excluir de verdade — com sete dias de lixeira antes de não ter mais volta.',
     novidades: [
@@ -46,7 +46,7 @@ export const CHANGELOG: EntradaDoChangelog[] = [
     ],
   },
   {
-    versao: '2.12.0',
+    versao: '2.14.0',
     data: '2026-09-11',
     resumo: 'O Portal do Cliente passou a ter gente, com dois papéis: quem só aprova e quem também edita.',
     novidades: [
@@ -65,6 +65,17 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'Material enviado pelo cliente aparecia na galeria e sumia no reload: a gravação era recusada pelo banco e ninguém via o erro. Agora é gravado de verdade.',
       'O briefing mostrava textos de exemplo ("Acolhedor, especialista, dinâmico…") como se fossem do cliente. Campo vazio agora diz que está vazio.',
       'O cofre de senhas e as notas fiscais chegavam ao navegador de qualquer pessoa que entrasse no portal, mesmo com a aba fechada na tela. Para o aprovador esses dados não saem mais do servidor.',
+    ],
+  },
+  {
+    versao: '2.13.0',
+    data: '2026-09-10',
+    resumo: 'O cadastro pergunta o que cada rede realmente precisa, e a prévia deixa navegar pelo carrossel.',
+    novidades: [
+      'Os campos mudam com a rede. Instagram pede legenda, localização e primeiro comentário — e, no Reel, capa e "compartilhar no feed". YouTube pede descrição, thumbnail, categoria e visibilidade. LinkedIn pede o texto e o tipo de publicação.',
+      'A prévia ficou maior e navega no carrossel: ← 1 / 5 →. Antes ela mostrava só a primeira arte, e é justamente a terceira que costuma estar na proporção errada.',
+      'Botão Celular / Computador na prévia: a mesma legenda quebra em lugares diferentes nas duas larguras.',
+      'A localização digitada aparece na prévia embaixo do nome do perfil, como aparece na rede.',
     ],
   },
   {

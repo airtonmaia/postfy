@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeDateFormat } from '../../lib/utils';
-import { PlatformBadge, FormatBadge, PriorityBadge } from '../common/Badges';
-import { 
-  Plus, 
-  MoreVertical, 
-  MessageSquare, 
-  CheckSquare, 
-  Clock, 
-  ArrowRight, 
+import { PlatformBadge, FormatBadge, PriorityBadge, TipoBadge } from '../common/Badges';
+import {
+  Plus,
+  MoreVertical,
+  MessageSquare,
+  CheckSquare,
+  Clock,
+  ArrowRight,
   Filter,
-  Search
+  Search,
+  ChevronDown,
+  Image as ImageIcon,
+  PenLine,
+  Clapperboard
 } from 'lucide-react';
-import { Job, JobStatus, Client } from '../../types';
+import { Job, JobStatus, Client, JobTipo } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
+
+/** Um ícone por tipo. Fica aqui e não no catálogo: lá é dado, aqui é desenho. */
+const ICONE_DO_TIPO: Record<JobTipo, React.FC<{ className?: string }>> = {
+  conteudo: ImageIcon,
+  copy: PenLine,
+  roteiro: Clapperboard,
+};
 
 export const KanbanBoard: React.FC = () => {
   const { 
@@ -29,6 +41,7 @@ export const KanbanBoard: React.FC = () => {
   } = usePostfy();
 
   const [search, setSearch] = useState('');
+  const [menuDeTipoAberto, setMenuDeTipoAberto] = useState(false);
 
   const columns: { id: JobStatus; title: string; color: string; border: string }[] = [
     { id: 'ideas', title: 'Ideias', color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', border: 'border-slate-300' },
@@ -89,14 +102,52 @@ export const KanbanBoard: React.FC = () => {
             ))}
           </select>
 
-          {/* New Job button */}
-          <button
-            onClick={() => openCreateJobModal()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Novo Job
-          </button>
+          {/* Adicionar: a agência escolhe qual das três entregas vai criar. */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuDeTipoAberto((aberto) => !aberto)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${menuDeTipoAberto ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {menuDeTipoAberto && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuDeTipoAberto(false)} />
+                <div className="absolute right-0 top-full mt-1.5 w-64 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5">
+                  {TIPOS_DE_JOB.map((tipo) => {
+                    const Icone = ICONE_DO_TIPO[tipo.valor];
+                    return (
+                      <button
+                        key={tipo.valor}
+                        onClick={() => {
+                          setMenuDeTipoAberto(false);
+                          openCreateJobModal(undefined, tipo.valor);
+                        }}
+                        className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                          <Icone className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                            {tipo.rotulo}
+                          </span>
+                          <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                            {tipo.descricao}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -169,9 +220,12 @@ export const KanbanBoard: React.FC = () => {
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 transition line-clamp-2 leading-tight">
                             {job.title}
                           </h4>
-                          <div className="flex items-center gap-1 mt-1">
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
                             <PlatformBadge platform={job.platform} showLabel={false} className="px-1 py-0" />
                             <FormatBadge format={job.format} />
+                            {/* Conteúdo é a maioria e o padrão: marcar só o que
+                                foge disso deixa a exceção visível no quadro. */}
+                            {job.tipo !== 'conteudo' && <TipoBadge tipo={job.tipo} />}
                           </div>
                         </div>
                       </div>

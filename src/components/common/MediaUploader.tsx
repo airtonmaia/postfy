@@ -9,8 +9,11 @@ import {
   Trash2, 
   Plus, 
   MoveLeft, 
-  MoveRight, 
+  MoveRight,
   ExternalLink,
+  Link2,
+  UploadCloud,
+  ChevronDown,
   Sparkles
 } from 'lucide-react';
 
@@ -20,6 +23,20 @@ interface MediaUploaderProps {
   maxFiles?: number;
   label?: string;
   helperText?: string;
+  /**
+   * Outras origens da arte, no menu do botão "Adicionar mídia".
+   *
+   * Vem de fora porque quais integrações existem é decisão da tela que usa o
+   * uploader — não do uploader.
+   */
+  origens?: OrigemDeMidia[];
+}
+
+export interface OrigemDeMidia {
+  rotulo: string;
+  /** Falso enquanto a integração não existe: entra no menu desligada. */
+  disponivel: boolean;
+  aoEscolher?: () => void;
 }
 
 export const MediaUploader: React.FC<MediaUploaderProps> = ({
@@ -27,8 +44,10 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   onChange,
   maxFiles = 10,
   label = 'Mídias e Criativos (Fotos e Vídeos)',
-  helperText = 'Arraste imagens/vídeos ou clique para selecionar do seu computador (Suporta até 10 arquivos para carrossel)'
+  helperText = 'Adicione as imagens ou vídeos do seu conteúdo. Para carrossel, você pode reordenar as páginas.',
+  origens = []
 }) => {
+  const [menuAberto, setMenuAberto] = useState(false);
   const { currentWorkspace } = usePostfy();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -150,26 +169,104 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     return url.includes('.mp4') || url.includes('.mov') || url.includes('.webm') || url.startsWith('data:video');
   };
 
+  const cheio = mediaUrls.length >= maxFiles;
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <label className="block text-sm font-bold text-slate-900 dark:text-white">
             {label}
           </label>
-          <span className="text-[11px] text-slate-400">
-            {mediaUrls.length} de {maxFiles} arquivos adicionados
-          </span>
+          <span className="text-[11px] text-slate-400">{helperText}</span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowUrlInput(!showUrlInput)}
-          className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
-        >
-          <ExternalLink className="w-3 h-3" />
-          {showUrlInput ? 'Ocultar link web' : 'Inserir por URL web'}
-        </button>
+        {/*
+          Botão dividido: a ação comum fica no clique direto, e as outras
+          origens ficam na seta. Antes eram quatro botões soltos disputando a
+          mesma linha — e a que quase todo mundo usa, o upload do computador,
+          não tinha destaque nenhum.
+        */}
+        <div className="relative shrink-0">
+          <div className="flex items-stretch rounded-xl overflow-hidden border border-purple-200 dark:border-purple-900">
+            <button
+              type="button"
+              disabled={cheio}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <UploadCloud className="w-4 h-4" />
+              Adicionar mídia
+            </button>
+            <button
+              type="button"
+              onClick={() => setMenuAberto((a) => !a)}
+              aria-label="Outras origens"
+              className="px-2 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-l border-purple-200 dark:border-purple-900 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition cursor-pointer"
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuAberto ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {menuAberto && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(false)} />
+              <div className="absolute right-0 top-full mt-1.5 w-56 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuAberto(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <UploadCloud className="w-4 h-4 text-slate-400" />
+                  Do computador
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuAberto(false);
+                    setShowUrlInput(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <Link2 className="w-4 h-4 text-slate-400" />
+                  Por link da web
+                </button>
+
+                {origens.length > 0 && (
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                )}
+
+                {/* Integração que ainda não existe entra desligada, dizendo
+                    "em breve". Clicável e muda seria a promessa que a
+                    armadilha 9 proíbe. */}
+                {origens.map((origem) => (
+                  <button
+                    key={origem.rotulo}
+                    type="button"
+                    disabled={!origem.disponivel}
+                    onClick={() => {
+                      setMenuAberto(false);
+                      origem.aoEscolher?.();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                  >
+                    <ExternalLink className="w-4 h-4 text-slate-400" />
+                    <span className="flex-1 text-left">{origem.rotulo}</span>
+                    {!origem.disponivel && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        em breve
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {showUrlInput && (
@@ -212,108 +309,102 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         </div>
       )}
 
-      {/* Drag and Drop Zone */}
-      {mediaUrls.length < maxFiles && (
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
-            isDragging 
-              ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30' 
-              : 'border-slate-300 dark:border-slate-700 hover:border-purple-400 bg-slate-50 dark:bg-slate-950/60'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            onChange={(e) => handleFiles(e.target.files)}
-            className="hidden"
-          />
-          <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center">
-            <Upload className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Clique para fazer upload ou arraste suas fotos e vídeos aqui
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{helperText}</p>
-          </div>
-        </div>
-      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        onChange={(e) => handleFiles(e.target.files)}
+        className="hidden"
+      />
 
-      {/* Uploaded Media Grid & Carousel Preview */}
-      {mediaUrls.length > 0 && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {mediaUrls.map((url, idx) => (
-              <div 
-                key={idx} 
-                className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xs"
-              >
-                {isVideo(url) ? (
-                  <video src={url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
-                ) : (
-                  <img src={url} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
-                )}
+      {/*
+        Fileira única, na ordem em que as páginas vão sair. O carrossel é uma
+        sequência, e a grade de duas colunas fazia a página 3 aparecer embaixo
+        da 1 — a ordem que importa some.
+      */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`flex items-stretch gap-3 overflow-x-auto pb-1 rounded-2xl transition ${
+          isDragging ? 'ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-slate-900' : ''
+        }`}
+      >
+        {mediaUrls.map((url, idx) => (
+          <div
+            key={idx}
+            className="group relative w-32 shrink-0 aspect-[4/5] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xs"
+          >
+            {isVideo(url) ? (
+              <video src={url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+            ) : (
+              <img src={url} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
+            )}
 
-                {/* Badge Index */}
-                <div className="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-xs flex items-center gap-1">
-                  {isVideo(url) ? <Video className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />}
-                  #{idx + 1}
-                </div>
+            {/* O número é a página no carrossel, não um enfeite. */}
+            <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-lg bg-black/70 text-white text-[11px] font-bold backdrop-blur-xs flex items-center justify-center">
+              {idx + 1}
+            </div>
 
-                {/* Hover Controls */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveMedia(idx);
-                      }}
-                      className="p-1 rounded-md bg-rose-600 text-white hover:bg-rose-700 transition"
-                      title="Excluir arquivo"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between text-white">
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMoveLeft(idx);
-                      }}
-                      className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30"
-                      title="Mover para esquerda"
-                    >
-                      <MoveLeft className="w-3 h-3" />
-                    </button>
-                    <span className="text-[10px] font-bold">Posição {idx + 1}</span>
-                    <button
-                      type="button"
-                      disabled={idx === mediaUrls.length - 1}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMoveRight(idx);
-                      }}
-                      className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30"
-                      title="Mover para direita"
-                    >
-                      <MoveRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+            {isVideo(url) && (
+              <div className="absolute top-1.5 left-1.5 p-1 rounded-md bg-black/70 text-white">
+                <Video className="w-2.5 h-2.5" />
               </div>
-            ))}
+            )}
+
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMedia(idx)}
+                  className="p-1 rounded-md bg-rose-600 text-white hover:bg-rose-700 transition cursor-pointer"
+                  title="Excluir arquivo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-white">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => handleMoveLeft(idx)}
+                  className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30 cursor-pointer"
+                  title="Mover para a esquerda"
+                >
+                  <MoveLeft className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === mediaUrls.length - 1}
+                  onClick={() => handleMoveRight(idx)}
+                  className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30 cursor-pointer"
+                  title="Mover para a direita"
+                >
+                  <MoveRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        ))}
+
+        {!cheio && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-32 shrink-0 aspect-[4/5] rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-400 bg-slate-50 dark:bg-slate-950/60 flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-purple-600 transition cursor-pointer"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-[11px] font-bold">Adicionar</span>
+          </button>
+        )}
+      </div>
+
+      {mediaUrls.length > 0 && (
+        <span className="block text-[11px] text-slate-400">
+          {mediaUrls.length} de {maxFiles} — arraste aqui para adicionar mais
+        </span>
       )}
     </div>
   );

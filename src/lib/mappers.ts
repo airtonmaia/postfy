@@ -162,6 +162,9 @@ export const jobDaLinha = (l: Linha): Job => ({
   workspaceId: l.workspace_id,
   clientId: l.client_id,
   title: l.title,
+  // Linha anterior à coluna `tipo` é conteúdo — era o único tipo que existia.
+  tipo: l.tipo ?? 'conteudo',
+  configuracoes: l.configuracoes ?? {},
   campaign: ounull(l.campaign),
   platform: l.platform,
   format: l.format,
@@ -199,6 +202,8 @@ export const jobParaLinha = (j: Partial<Job>): Linha =>
     workspace_id: j.workspaceId,
     client_id: j.clientId,
     title: j.title,
+    tipo: j.tipo,
+    configuracoes: j.configuracoes,
     campaign: j.campaign,
     platform: j.platform,
     format: j.format,

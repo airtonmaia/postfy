@@ -36,7 +36,8 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
+import { PlatformBadge, FormatBadge, StatusBadge, TipoBadge } from '../common/Badges';
+import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import {
   Job, Client, JobPlatform, JobFormat, ClientFile, ClientBriefing, ClientUserRole,
 } from '../../types';
@@ -686,27 +687,50 @@ export const ClientPortalView: React.FC = () => {
                     key={job.id} 
                     className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between"
                   >
-                    {/* Media Preview — proporção real da rede/formato do post */}
-                    <div className={`relative ${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900 flex items-center justify-center overflow-hidden`}>
-                      {job.mediaUrls && job.mediaUrls.length > 0 ? (
-                        <img 
-                          src={job.mediaUrls[0]} 
-                          alt="" 
-                          className="w-full h-full object-cover" 
-                        />
-                      ) : (
-                        <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
-                          <Layers className="w-8 h-8" />
-                          <span>Preview do Criativo</span>
-                        </div>
-                      )}
+                    {/*
+                      Copy e roteiro não têm arte, e a moldura vazia com
+                      "Preview do Criativo" prometia uma imagem que nunca vai
+                      existir — o cliente ficaria esperando a arte para
+                      aprovar. Neles a faixa é só a identificação do que é.
+                    */}
+                    <div
+                      className={`relative flex items-center justify-center overflow-hidden ${
+                        definicaoDoTipo(job.tipo).pedeArte
+                          ? `${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900`
+                          : 'py-4 bg-slate-100 dark:bg-slate-800'
+                      }`}
+                    >
+                      {definicaoDoTipo(job.tipo).pedeArte &&
+                        (job.mediaUrls && job.mediaUrls.length > 0 ? (
+                          <img
+                            src={job.mediaUrls[0]}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
+                            <Layers className="w-8 h-8" />
+                            <span>Preview do Criativo</span>
+                          </div>
+                        ))}
 
-                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      <div
+                        className={`flex items-center gap-1.5 ${
+                          definicaoDoTipo(job.tipo).pedeArte ? 'absolute top-3 left-3' : ''
+                        }`}
+                      >
                         <PlatformBadge platform={job.platform} />
                         <FormatBadge format={job.format} />
+                        {!definicaoDoTipo(job.tipo).pedeArte && <TipoBadge tipo={job.tipo} />}
                       </div>
 
-                      <span className="absolute top-3 right-3 text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-white backdrop-blur-xs">
+                      <span
+                        className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
+                          definicaoDoTipo(job.tipo).pedeArte
+                            ? 'absolute top-3 right-3 bg-slate-900/80 text-white backdrop-blur-xs'
+                            : 'absolute top-1/2 right-3 -translate-y-1/2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
                         v{job.currentVersion}
                       </span>
                     </div>

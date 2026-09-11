@@ -222,11 +222,21 @@ export interface JobChecklistItem {
   assignedTo?: string;
 }
 
+/**
+ * O que está sendo aprovado.
+ *
+ * O cliente olha para coisas diferentes em cada um: `conteudo` tem arte
+ * pronta, `copy` e `roteiro` são texto — pedir aprovação de imagem neles
+ * seria pedir aprovação de algo que não existe.
+ */
+export type JobTipo = 'conteudo' | 'copy' | 'roteiro';
+
 export interface Job {
   id: string;
   workspaceId: string;
   clientId: string;
   title: string;
+  tipo: JobTipo;
   campaign?: string;
   platform: JobPlatform;
   format: JobFormat;
@@ -235,6 +245,13 @@ export interface Job {
   targetAudience?: string;
   funnelStage?: 'topo' | 'meio' | 'fundo';
   
+  /**
+   * Campos que só existem numa rede: localização e capa do Reel no Instagram,
+   * thumbnail e visibilidade no YouTube, tipo de publicação no LinkedIn.
+   * O catálogo do que cabe aqui está em `lib/camposDoCanal.ts`.
+   */
+  configuracoes?: Record<string, unknown>;
+
   // Content details
   caption: string;
   cta?: string;

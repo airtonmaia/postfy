@@ -20,7 +20,8 @@ import type { TabType } from '../types';
 
 /**
  * Nomes pensados para serem lidos, não para espelhar o identificador interno:
- * a aba `producao` é o "Quadro Kanban" no menu, então a URL é `/kanban`.
+ * a aba `producao` é o "WorkFlow" no menu, e a URL segue `/kanban` — o
+ * endereço não muda junto com o rótulo, ou todo link já compartilhado quebra.
  *
  * O que é do dono do produto fica sob `/super-admin`, o que deixa óbvio no
  * link — e num print — que aquilo não é tela de agência.
