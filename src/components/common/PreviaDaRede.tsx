@@ -35,6 +35,8 @@ export interface DadosDaPrevia {
   artes: string[];
   legenda: string;
   localizacao?: string;
+  /** Data do agendamento, já formatada. Real — não é "Há 1 dia" de mockup. */
+  dataPrevista?: string;
 }
 
 /** Um quadro do slide: a mesma publicação em um enquadramento da rede. */
@@ -273,6 +275,20 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
             cima da arte, e reproduzir a barra do feed ali enganaria. */}
         {!ehStory && (
           <>
+            {/* Bolinhas do carrossel, entre a arte e as ações, como na rede. */}
+            {total > 1 && (
+              <div className="flex items-center justify-center gap-1 pt-2">
+                {Array.from({ length: total }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-1.5 h-1.5 rounded-full transition ${
+                      i === pagina ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center gap-4 px-3 pt-3 text-slate-700 dark:text-slate-300">
               {canalAtivo === 'facebook' ? (
                 <>
@@ -290,16 +306,47 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
               )}
             </div>
 
-            <div className="px-3 pb-3 pt-2">
+            <div className="px-3 pb-3 pt-2 space-y-1">
+              {/*
+                Moldura da rede, não dado do post.
+
+                A linha de curtidas e a de comentários são desenho: é o que
+                faz o quadro ser lido como Instagram em vez de como um card
+                genérico. Nenhum número sai daqui — não existe post publicado
+                para ter métrica, e um "436 curtidas" no meio da prévia seria
+                lido como promessa na frente do cliente.
+              */}
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                Curtido por <strong className="font-bold text-slate-900 dark:text-white">sua audiência</strong> e outras pessoas
+              </span>
+
               {dados.legenda.trim() ? (
-                <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed line-clamp-6">
-                  <span className="font-bold text-slate-900 dark:text-white">{perfil} </span>
-                  {dados.legenda}
-                </p>
+                <>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed line-clamp-3">
+                    <span className="font-bold text-slate-900 dark:text-white">{perfil} </span>
+                    {dados.legenda}
+                  </p>
+                  {/* "Ver mais" aparece quando a rede vai cortar de verdade.
+                      O Instagram corta por volta de 125 caracteres. */}
+                  {dados.legenda.length > 125 && (
+                    <span className="block text-[11px] text-slate-400">Ver mais</span>
+                  )}
+                </>
               ) : (
                 <p className="text-[11px] text-slate-400 italic">
                   A legenda aparece aqui conforme você escreve.
                 </p>
+              )}
+
+              <span className="block text-[11px] text-slate-400">
+                Ver todos os comentários
+              </span>
+
+              {/* A data é a do agendamento — esta é real, vem do formulário. */}
+              {dados.dataPrevista && (
+                <span className="block text-[10px] uppercase tracking-wide text-slate-400 pt-0.5">
+                  {dados.dataPrevista}
+                </span>
               )}
             </div>
           </>

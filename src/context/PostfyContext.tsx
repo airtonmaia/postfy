@@ -1278,6 +1278,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       tipo: jobData.tipo || 'conteudo',
       campaign: jobData.campaign || 'Geral',
       platform: jobData.platform || 'instagram',
+      // Job antigo e job criado por outra tela têm uma rede só: a lista vira
+      // ela, e não fica vazia — a prévia e o card leem daqui.
+      canais: jobData.canais?.length
+        ? jobData.canais
+        : [jobData.platform || 'instagram'],
       format: jobData.format || 'feed',
       status: jobData.status || 'ideas',
       priority: jobData.priority || 'medium',

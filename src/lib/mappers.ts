@@ -167,6 +167,8 @@ export const jobDaLinha = (l: Linha): Job => ({
   configuracoes: l.configuracoes ?? {},
   campaign: ounull(l.campaign),
   platform: l.platform,
+  // Linha anterior à coluna `canais` tem só o canal principal.
+  canais: Array.isArray(l.canais) && l.canais.length ? l.canais : [l.platform],
   format: l.format,
   status: l.status,
   priority: l.priority ?? 'medium',
@@ -206,6 +208,7 @@ export const jobParaLinha = (j: Partial<Job>): Linha =>
     configuracoes: j.configuracoes,
     campaign: j.campaign,
     platform: j.platform,
+    canais: j.canais,
     format: j.format,
     status: j.status,
     priority: j.priority,
