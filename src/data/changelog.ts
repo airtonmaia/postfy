@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.28.0',
+    data: '2026-09-11',
+    resumo: 'A barra lateral recolhe, e a marca voltou a alinhar com o cabeçalho.',
+    novidades: [
+      'Botão para recolher o menu lateral, deixando só os ícones. A escolha fica salva na sua conta, então vale também no celular e no outro computador.',
+    ],
+    corrigido: [
+      'A linha da marca era mais alta que o cabeçalho ao lado, e a borda de baixo das duas não fechava. Corrigido nas duas cascas — a da agência e a da administração.',
+    ],
+  },
+  {
     versao: '2.27.1',
     data: '2026-09-11',
     resumo: 'A tela agora diz quando o post sai, e não só a data marcada.',

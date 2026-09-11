@@ -189,7 +189,11 @@ export const AdminLayout: React.FC = () => {
             enviou logo — ele não depende de rede e não quebra se um arquivo
             sumir, que é o motivo de ele existir.
           */}
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
+          {/* `h-14 px-3`, a mesma altura do cabeçalho ao lado — a casca do
+              /admin copia as medidas da casca da agência de propósito, e o
+              `p-3` fazia a marca ficar 16px mais alta que a barra de cima nas
+              duas. */}
+          <div className="h-14 px-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0">
             {logoDoProduto ? (
               <img
                 src={logoDoProduto}

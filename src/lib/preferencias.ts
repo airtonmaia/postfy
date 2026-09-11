@@ -15,17 +15,20 @@ import { supabase } from './supabase';
 export interface Preferencias {
   theme: 'light' | 'dark';
   lastWorkspaceId: string | null;
+  /** Barra lateral em modo trilho, só com os ícones. */
+  sidebarRecolhida: boolean;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   theme: 'light',
   lastWorkspaceId: null,
+  sidebarRecolhida: false,
 };
 
 export const carregarPreferencias = async (): Promise<Preferencias> => {
   const { data, error } = await supabase
     .from('user_settings')
-    .select('theme, last_workspace_id')
+    .select('theme, last_workspace_id, sidebar_recolhida')
     .maybeSingle();
 
   if (error) {
@@ -37,6 +40,7 @@ export const carregarPreferencias = async (): Promise<Preferencias> => {
   return {
     theme: data.theme === 'dark' ? 'dark' : 'light',
     lastWorkspaceId: data.last_workspace_id ?? null,
+    sidebarRecolhida: Boolean(data.sidebar_recolhida),
   };
 };
 
@@ -55,6 +59,7 @@ export const salvarPreferencias = async (mudancas: Partial<Preferencias>): Promi
   const linha: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
   if (mudancas.theme !== undefined) linha.theme = mudancas.theme;
   if (mudancas.lastWorkspaceId !== undefined) linha.last_workspace_id = mudancas.lastWorkspaceId;
+  if (mudancas.sidebarRecolhida !== undefined) linha.sidebar_recolhida = mudancas.sidebarRecolhida;
 
   const { error } = await supabase.from('user_settings').upsert(linha, { onConflict: 'user_id' });
 
