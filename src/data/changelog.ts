@@ -31,7 +31,7 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
-    versao: '2.19.0',
+    versao: '2.21.0',
     data: '2026-09-11',
     resumo:
       'O agendamento saiu do papel: o conteúdo aprovado vai para a fila e o Instagram publica sozinho na data.',
@@ -46,6 +46,36 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'Toda conexão do Instagram nascia sem dono: a conta ficava ligada à agência e não ao cliente, então não havia como escolher o perfil na hora de publicar.',
       'A tela chamava de "fila de disparos" a lista de conteúdos com status Agendado, que é outra coisa. Agora ela mostra a fila de verdade, com pendente, publicado e falhou.',
       'O seletor de canais deixava marcar seis redes como se todas fossem publicar sozinhas. Só o Instagram publica; as outras agora dizem, na hora da escolha, que a postagem é manual.',
+    ],
+  },
+  {
+    versao: '2.20.0',
+    data: '2026-09-11',
+    resumo: 'Escrever a legenda deixou de ser um campo em branco: barra de ferramentas, contador por rede e geração por IA.',
+    novidades: [
+      'A legenda ganhou barra de ferramentas: negrito, itálico, hashtag, menção, link e emoji — tudo inserido onde o cursor está, não no fim do texto.',
+      'Botão de IA na legenda. Ele usa o título do conteúdo e o briefing do cliente (tom de voz, público-alvo, dores e objetivo do mês) para escrever a primeira versão.',
+      'Contador de caracteres com o limite da rede escolhida. Com mais de uma rede marcada, vale o limite da mais apertada — e a tela diz qual é: com Instagram e X juntos, o teto é 280.',
+      'Localização e primeiro comentário saíram do meio do formulário e viraram ícones ao lado da legenda, cada um abrindo numa janela própria. O ícone acende quando o campo tem conteúdo.',
+      'Novo campo Marcar pessoas, no mesmo lugar: os perfis a marcar ficam anotados no conteúdo em vez de combinados por fora.',
+      'O primeiro comentário passou a contar as hashtags somando com as da legenda — que é como o Instagram conta. Mandar as hashtags para o comentário limpa a legenda, mas não aumenta o teto de 30.',
+    ],
+    melhorias: [
+      'Todo botão que é só ícone ganhou explicação ao passar o mouse.',
+    ],
+    corrigido: [
+      'O texto do conteúdo passava do limite da rede sem nenhum aviso. O erro só aparecia na hora de publicar, depois de o cliente já ter aprovado.',
+    ],
+  },
+  {
+    versao: '2.19.0',
+    data: '2026-09-11',
+    resumo: 'O sistema passou a carregar só o que a tela precisa — e continua rápido com anos de histórico.',
+    melhorias: [
+      'Entrar ficou mais rápido, e continua rápido conforme a agência acumula conteúdo. Antes o app baixava tudo o que a agência já produziu a cada acesso.',
+      'Todo conteúdo em aberto continua vindo na hora. O que já foi publicado vem dos últimos 90 dias — e o resto é buscado quando você navega o calendário para trás ou pede um relatório mais longo.',
+      'A tela de novidades, o cadastro e a porta do portal pararam de consultar a marca do produto a cada abertura.',
+      'O agendador de publicações passou a trabalhar por tempo, não por lote fixo: no horário de pico ele publica mais, e nunca é interrompido no meio de uma publicação.',
     ],
   },
   {

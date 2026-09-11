@@ -373,6 +373,76 @@ cliente.
 
 ---
 
+## Performance: o gargalo é o que se carrega, não o que se guarda
+
+`carregarTudo` puxava a agência **inteira** em toda sessão — todos os jobs,
+logs, notificações, materiais e apontamentos, sem limite e sem paginação. Com
+100 jobs é instantâneo; com 5.000 o login demora segundos e **cada edição**
+passa pelo `diferenciar()`, que faz um `JSON.stringify` por linha.
+
+O que torna isso perigoso é que não dependia de a agência crescer. Nada era
+arquivado, então toda agência caminhava para lá só pelo tempo de uso.
+
+**A regra que substitui isso: trabalho aberto sempre vem; trabalho concluído
+só o recente.** Uma agência com três anos tem dezenas de jobs abertos e
+milhares de publicados, e são os abertos que a tela precisa para funcionar.
+`DIAS_DE_HISTORICO = 90` em `src/lib/db.ts`.
+
+Clientes, leads, propostas e contratos continuam vindo inteiros, de
+propósito: são limitados pelo tamanho do negócio, não pelo tempo. Paginá-los
+quebraria o seletor de cliente e o funil sem ganho nenhum.
+
+### O que sai da janela é buscado sob demanda — com a bandeira ligada
+
+Calendário navegando para trás e relatório de período longo chamam
+`garantirJobsDoPeriodo`, que busca o que falta e junta ao estado.
+
+**A bandeira `aplicandoCargaDoBanco` é obrigatória ali.** Sem ela o
+`useColecaoSincronizada` vê linhas novas no estado e as trata como inserção —
+tentaria gravar de volta tudo que acabou de ler, e a chave primária recusaria
+uma a uma, em silêncio, dentro da fila de gravação. É a mesma razão de a
+carga inicial levantá-la.
+
+### Cache: quase nenhum, e não no navegador
+
+O estado em memória do React já é o cache da sessão. A armadilha 4 proíbe
+`localStorage` para dado de agência, e o ganho de guardar mais é pequeno
+perto do de carregar menos — foi por isso que a resposta aqui foi janela, e
+não cache.
+
+Dois lugares onde ele vale, e são os dois que já existem:
+
+- **`carregarAparencia()`** é memoizada por sessão. É a consulta mais chamada
+  do produto — entrada, cadastro e porta do portal são anônimas e a leem em
+  toda abertura — e devolve uma linha que muda quando o dono mexe no Design.
+  `esquecerAparencia()` limpa depois de salvar, senão quem trocou o logo
+  continuaria vendo o antigo.
+- **`api/seo.ts`** responde com `cache-control: public, max-age=300`, para o
+  robô de prévia não bater no banco a cada compartilhamento.
+
+**Redis não entra.** Não há servidor de aplicação onde ele ficaria: o
+navegador fala direto com o Supabase, e as funções serverless são efêmeras —
+um cache dentro delas nasce frio e morre em minutos. O único caso legítimo
+seria limite de taxa global entre containers, e esse já é resolvido contando
+em `portal_codigos`.
+
+### O agendador tem orçamento de tempo, não lote fixo
+
+`api/publicar.ts` publicava `LOTE = 10` por passada. Lote fixo só funciona se
+a estimativa de tempo estiver certa: alto demais estoura o tempo da função
+**no meio de uma publicação** — a peça vai ao ar e a fila não sabe, que é o
+pior desfecho desta rota —, baixo demais segura a fila no pico, e todo mundo
+agenda para 9h e 18h.
+
+Agora a passada publica o que couber em `ORCAMENTO_MS` (45s numa função de
+60s) e para. O resto é o primeiro da próxima, cinco minutos depois. A
+resposta traz `adiados`: diferente de zero de forma seguida é o sinal de que
+cinco minutos já não bastam.
+
+Protegido por `tests/carregamento.test.ts`.
+
+---
+
 ## Instagram: é o login do **Instagram**, não o do Facebook
 
 Existem dois caminhos para publicar, e escolher o errado não dá erro nenhum
