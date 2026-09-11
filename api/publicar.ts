@@ -17,7 +17,34 @@ import { esvaziarFilaDeEmail } from './_lib/emails.js';
  * dos clientes a pedido de qualquer um.
  */
 
-const LOTE = 10;
+/**
+ * Quantos itens a consulta busca por passada.
+ *
+ * Teto de segurança, não meta: quem decide de verdade quantos são
+ * publicados é o `ORCAMENTO_MS` abaixo. Buscar mais do que dá tempo custa
+ * uma consulta um pouco maior e nada mais.
+ */
+const LOTE = 40;
+
+/**
+ * Orçamento de tempo da passada.
+ *
+ * Cada publicação são duas ou três chamadas à API do Instagram, e o tempo
+ * delas não é nosso — varia com o tamanho da mídia e com o dia da Meta. Um
+ * `LOTE` fixo só funciona se a estimativa estiver certa: alto demais estoura
+ * o tempo da função e **perde o registro do que já foi publicado** (pior
+ * desfecho possível: a peça vai ao ar e a fila não sabe), baixo demais
+ * segura a fila na hora do pico — e todo mundo agenda para 9h e 18h.
+ *
+ * Com orçamento, a passada publica o que couber e para. O que sobrou é o
+ * primeiro da próxima, cinco minutos depois. Cresce com o produto sem
+ * ninguém mexer no número.
+ *
+ * 45s numa função de 60s: sobra folga para o item em andamento terminar e
+ * para a resposta ser escrita.
+ */
+const ORCAMENTO_MS = 45_000;
+
 const MAX_TENTATIVAS = 3;
 
 async function handler(request: Request): Promise<Response> {
@@ -69,8 +96,18 @@ async function handler(request: Request): Promise<Response> {
   }
 
   const resultados: { id: string; ok: boolean; detalhe: string }[] = [];
+  const comecou = Date.now();
+  let adiados = 0;
 
   for (const item of itens) {
+    // Fim do orçamento: o resto fica pendente e é o primeiro da próxima
+    // passada. Parar aqui é de propósito — estourar o tempo da função no meio
+    // de uma publicação deixa a peça no ar sem a fila saber.
+    if (Date.now() - comecou > ORCAMENTO_MS) {
+      adiados = itens.length - resultados.length;
+      break;
+    }
+
     // Marca antes de tentar: se a função for reiniciada no meio, o item não
     // volta para a fila e publica duas vezes no perfil do cliente. Publicar
     // duplicado é pior que não publicar.
@@ -122,6 +159,10 @@ async function handler(request: Request): Promise<Response> {
     processados: resultados.length,
     publicados: resultados.filter((r) => r.ok).length,
     falhas: resultados.filter((r) => !r.ok).length,
+    // Quantos ficaram para a próxima passada. Diferente de zero de forma
+    // seguida significa que cinco minutos já não bastam — é o sinal de que
+    // chegou a hora de encurtar o cron ou dividir a fila.
+    adiados,
     renovadas,
     email,
   });
