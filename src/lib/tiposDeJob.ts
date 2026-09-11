@@ -23,6 +23,16 @@ export interface DefinicaoDeTipo {
   /** Rótulo do campo de texto principal, que muda de nome com o tipo. */
   rotuloDoTexto: string;
   exemploDoTexto: string;
+  /**
+   * O texto deste tipo é o que vai publicado — logo, o limite da rede vale.
+   *
+   * Vale para conteúdo e copy, que viram legenda. **Não vale para roteiro**:
+   * ele é documento de gravação, não texto de post. Mostrar "280 / 2.200"
+   * num roteiro seria afirmar um limite que não existe ali (armadilha 9), e
+   * pior, faria alguém encurtar a direção de cena para caber num número que
+   * nada mede.
+   */
+  respeitaLimiteDaRede: boolean;
 }
 
 export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
@@ -33,6 +43,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     pedeArte: true,
     rotuloDoTexto: 'Legenda Proposta',
     exemploDoTexto: 'Digite aqui o texto que acompanhará a publicação...',
+    respeitaLimiteDaRede: true,
   },
   {
     valor: 'copy',
@@ -41,6 +52,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     pedeArte: false,
     rotuloDoTexto: 'Texto para aprovação',
     exemploDoTexto: 'Escreva aqui a copy que o cliente vai aprovar...',
+    respeitaLimiteDaRede: true,
   },
   {
     valor: 'roteiro',
@@ -49,6 +61,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     pedeArte: false,
     rotuloDoTexto: 'Roteiro',
     exemploDoTexto: 'Cena 1 — abertura, fala do apresentador...',
+    respeitaLimiteDaRede: false,
   },
 ];
 

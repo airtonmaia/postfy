@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.20.0',
+    data: '2026-09-11',
+    resumo: 'Escrever a legenda deixou de ser um campo em branco: barra de ferramentas, contador por rede e geração por IA.',
+    novidades: [
+      'A legenda ganhou barra de ferramentas: negrito, itálico, hashtag, menção, link e emoji — tudo inserido onde o cursor está, não no fim do texto.',
+      'Botão de IA na legenda. Ele usa o título do conteúdo e o briefing do cliente (tom de voz, público-alvo, dores e objetivo do mês) para escrever a primeira versão.',
+      'Contador de caracteres com o limite da rede escolhida. Com mais de uma rede marcada, vale o limite da mais apertada — e a tela diz qual é: com Instagram e X juntos, o teto é 280.',
+    ],
+    corrigido: [
+      'O texto do conteúdo passava do limite da rede sem nenhum aviso. O erro só aparecia na hora de publicar, depois de o cliente já ter aprovado.',
+    ],
+  },
+  {
     versao: '2.19.0',
     data: '2026-09-11',
     resumo: 'O sistema passou a carregar só o que a tela precisa — e continua rápido com anos de histórico.',

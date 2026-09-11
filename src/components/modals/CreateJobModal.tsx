@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   X, ThumbsUp, Link as LinkIcon,
@@ -8,8 +8,13 @@ import { JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
 import { MediaUploader } from '../common/MediaUploader';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
-import { camposVisiveis, type CampoDoCanal } from '../../lib/camposDoCanal';
+import {
+  camposVisiveis,
+  limiteMaisApertado,
+  type CampoDoCanal,
+} from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
+import { BarraDeTexto } from '../common/BarraDeTexto';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -103,7 +108,8 @@ export const CreateJobModal: React.FC = () => {
     createJobTipo,
     clients,
     createJob,
-    setSelectedJob
+    setSelectedJob,
+    generateAiCopy
   } = usePostfy();
 
   // O tipo escolhido no menu Adicionar molda o formulário. Quem decide não é
@@ -142,6 +148,10 @@ export const CreateJobModal: React.FC = () => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
+
+  // O campo de copy e roteiro é desenhado aqui, e não pelo catálogo da rede,
+  // então a barra precisa da referência dele para escrever no cursor.
+  const areaDoTexto = useRef<HTMLTextAreaElement>(null);
 
   // Keep clientId valid if clients list changes
   useEffect(() => {
@@ -226,6 +236,33 @@ export const CreateJobModal: React.FC = () => {
     });
   };
   const campos = camposVisiveis(platform, format);
+
+  /**
+   * O limite vem da rede mais apertada entre as escolhidas, não da principal.
+   * Com Instagram e X marcados juntos, quem corta é o X.
+   */
+  const limite = limiteMaisApertado(canais);
+  const nomeDoCanal = (canal: JobPlatform) =>
+    CANAIS.find((c) => c.valor === canal)?.rotulo || canal;
+
+  /**
+   * A IA só é oferecida quando há título.
+   *
+   * Ele é o tema que a rota exige, e um botão que responde "informe o tema"
+   * é pior que botão ausente: custa o clique e a descoberta. O briefing do
+   * cliente entra por dentro, em `generateAiCopy`.
+   */
+  const gerarTextoComIA = title.trim()
+    ? async () => {
+        const r = await generateAiCopy({
+          theme: title.trim(),
+          format,
+          platform,
+          clientId,
+        });
+        return r?.caption || '';
+      }
+    : undefined;
 
   /**
    * Legenda e primeiro comentário têm coluna própria e continuam nela; o
@@ -510,6 +547,9 @@ export const CreateJobModal: React.FC = () => {
                   campo={campo}
                   valor={valorDoCampo(campo)}
                   onChange={(v) => definirCampo(campo, v)}
+                  limite={limite?.limite}
+                  donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
+                  aoGerarComIA={gerarTextoComIA}
                 />
               ))}
             </div>
@@ -518,12 +558,27 @@ export const CreateJobModal: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 {tipo.rotuloDoTexto}
               </label>
+              <BarraDeTexto
+                valor={caption}
+                onChange={(v) => setCaption(String(v))}
+                areaRef={areaDoTexto}
+                /* O roteiro conta caracteres mas não tem teto: ele não é o
+                   texto que vai publicado. */
+                limite={tipo.respeitaLimiteDaRede ? limite?.limite : undefined}
+                donoDoLimite={
+                  tipo.respeitaLimiteDaRede && limite
+                    ? nomeDoCanal(limite.canal)
+                    : undefined
+                }
+                aoGerarComIA={gerarTextoComIA}
+              />
               <textarea
+                ref={areaDoTexto}
                 rows={12}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder={tipo.exemploDoTexto}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
+                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-t-none rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
               />
             </div>
           )}

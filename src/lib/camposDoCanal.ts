@@ -34,7 +34,57 @@ export interface CampoDoCanal {
   /** Só aparece nestes formatos. Capa do Reel não existe no Feed. */
   formatos?: JobFormat[];
   linhas?: number;
+  /**
+   * Ganha a barra de ferramentas e o contador.
+   *
+   * Só o campo principal de texto. Pôr a barra em todo `textoLongo` daria
+   * botão de IA no primeiro comentário, que é onde vão as hashtags — a
+   * ferramenta certa no lugar errado ainda é ruído.
+   */
+  barra?: boolean;
 }
+
+/**
+ * Quantos caracteres cada rede aceita no texto principal.
+ *
+ * São os limites publicados pelas próprias plataformas, não medição nossa.
+ * Ficam aqui, e não espalhados na tela, porque mudam de fora para dentro:
+ * quando uma rede muda o número, muda numa linha só.
+ *
+ * O contador existe porque o custo de descobrir tarde é alto: um texto de
+ * 400 caracteres escrito para o X é reescrito inteiro, e hoje a tela deixava
+ * escrever à vontade e só a rede reclamava — depois de aprovado pelo cliente.
+ */
+export const LIMITE_DO_CANAL: Record<JobPlatform, number> = {
+  instagram: 2200,
+  facebook: 63206,
+  linkedin: 3000,
+  tiktok: 2200,
+  youtube: 5000,
+  twitter: 280,
+};
+
+/**
+ * O limite que vale quando o mesmo texto vai para mais de uma rede: o menor.
+ *
+ * É o primeiro que estoura, e é o único número acionável — dizer "2.200" com
+ * o X selecionado deixaria escrever 2.199 caracteres que não publicam. Volta
+ * junto qual rede impõe, porque um limite sem dono não diz o que cortar.
+ */
+export const limiteMaisApertado = (
+  canais: JobPlatform[]
+): { limite: number; canal: JobPlatform } | null => {
+  const validos = canais.filter((c) => LIMITE_DO_CANAL[c]);
+  if (!validos.length) return null;
+
+  return validos.reduce(
+    (menor, canal) =>
+      LIMITE_DO_CANAL[canal] < menor.limite
+        ? { limite: LIMITE_DO_CANAL[canal], canal }
+        : menor,
+    { limite: LIMITE_DO_CANAL[validos[0]], canal: validos[0] }
+  );
+};
 
 const LEGENDA: CampoDoCanal = {
   chave: 'caption',
@@ -43,6 +93,7 @@ const LEGENDA: CampoDoCanal = {
   destino: 'job',
   exemplo: 'Digite aqui o texto que acompanhará a publicação...',
   linhas: 10,
+  barra: true,
 };
 
 export const CAMPOS_POR_CANAL: Record<JobPlatform, CampoDoCanal[]> = {
@@ -88,6 +139,7 @@ export const CAMPOS_POR_CANAL: Record<JobPlatform, CampoDoCanal[]> = {
       destino: 'job',
       exemplo: 'O texto que aparece abaixo do vídeo...',
       linhas: 10,
+      barra: true,
     },
     {
       chave: 'thumbnail',
@@ -131,6 +183,7 @@ export const CAMPOS_POR_CANAL: Record<JobPlatform, CampoDoCanal[]> = {
       destino: 'job',
       exemplo: 'O texto da publicação...',
       linhas: 10,
+      barra: true,
     },
     {
       chave: 'tipoDePublicacao',
