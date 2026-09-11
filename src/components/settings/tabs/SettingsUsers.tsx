@@ -35,14 +35,14 @@ const badgeDoPapel = (papel: string) => {
   const achado = PAPEIS.find((p) => p.valor === papel);
   if (papel === 'owner') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100">
+      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border border-slate-900 dark:border-slate-100">
         Proprietário
       </span>
     );
   }
   return (
     <span
-      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+      className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
         achado?.classe || 'bg-slate-100 text-slate-700 border-slate-200'
       }`}
     >

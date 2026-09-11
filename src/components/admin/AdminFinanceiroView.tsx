@@ -92,7 +92,7 @@ export const AdminFinanceiroView: React.FC = () => {
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full">
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-md">
             Financeiro
           </span>
           <span className="text-xs text-slate-400">• Situação das agências</span>
@@ -263,7 +263,7 @@ export const AdminFinanceiroView: React.FC = () => {
                     <td className="px-5 py-3.5 text-slate-500 font-mono">{w.slug}</td>
                     <td className="px-5 py-3.5">
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase ${
                           w.isTrial
                             ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
                             : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'

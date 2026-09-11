@@ -373,7 +373,7 @@ export const CommercialView: React.FC = () => {
                       </span>
                     </div>
 
-                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md ${
                       prop.status === 'accepted'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
                         : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
@@ -454,7 +454,7 @@ export const CommercialView: React.FC = () => {
                       </div>
                     </div>
 
-                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md ${
                       contract.status === 'signed'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
                         : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'

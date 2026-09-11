@@ -256,7 +256,7 @@ export const JobDetailModal: React.FC = () => {
                 <span className="text-slate-300">•</span>
                 <PlatformBadge platform={selectedJob.platform} />
                 <FormatBadge format={selectedJob.format} />
-                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:text-slate-300">
+                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:text-slate-300">
                   v{selectedJob.currentVersion}
                 </span>
                 <PriorityBadge priority={selectedJob.priority} />

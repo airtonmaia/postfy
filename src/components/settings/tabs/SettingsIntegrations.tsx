@@ -62,7 +62,7 @@ export const SettingsIntegrations: React.FC = () => (
             </p>
           </div>
         </div>
-        <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+        <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
           <CheckCircle2 className="w-3 h-3" />
           Em funcionamento
         </span>
@@ -91,7 +91,7 @@ export const SettingsIntegrations: React.FC = () => (
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
             </div>
           </div>
-          <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+          <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
             <CircleDashed className="w-3 h-3" />
             Não implementada
           </span>

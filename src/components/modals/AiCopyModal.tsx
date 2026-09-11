@@ -91,7 +91,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         
         {/* Header */}
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent">
@@ -178,7 +178,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                 <strong>Tom de Voz da Marca:</strong> {currentClient?.briefing?.brandVoice || 'Profissional e acolhedor'}
               </span>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-100 dark:bg-purple-900/60 px-2 py-0.5 rounded-full shrink-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-100 dark:bg-purple-900/60 px-2 py-0.5 rounded-md shrink-0">
               Briefing Ativo
             </span>
           </div>

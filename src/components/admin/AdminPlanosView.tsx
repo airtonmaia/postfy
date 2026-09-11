@@ -132,7 +132,7 @@ export const AdminPlanosView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-md">
               Planos
             </span>
             <span className="text-xs text-slate-400">• O que cada agência contrata</span>
@@ -168,7 +168,7 @@ export const AdminPlanosView: React.FC = () => {
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-purple-300 dark:hover:border-purple-700 transition"
           >
             {plan.badge && (
-              <div className="absolute top-4 right-4 bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <div className="absolute top-4 right-4 bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
                 {plan.badge}
               </div>
             )}

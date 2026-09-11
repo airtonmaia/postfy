@@ -82,7 +82,7 @@ export const AutomationsView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
             {ativas} de {automations.length} ativas
           </span>
           <button
@@ -232,7 +232,7 @@ export const AutomationsView: React.FC = () => {
                       {auto.title}
                     </h4>
                     {semMotor && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                         Sem gatilho configurado
                       </span>
                     )}

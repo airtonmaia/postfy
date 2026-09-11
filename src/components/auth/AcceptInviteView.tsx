@@ -204,7 +204,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-6">
       <div className="max-w-sm w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-[11px] font-bold text-purple-700">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 border border-purple-200 text-[11px] font-bold text-purple-700">
             <Sparkles className="w-3 h-3" />
             Convite para equipe
           </div>

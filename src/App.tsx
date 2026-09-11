@@ -510,7 +510,7 @@ const MainLayout: React.FC = () => {
             {inAdjustmentCount > 0 && (
               <button
                 onClick={() => setActiveTab('aprovacoes')}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold transition cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold transition cursor-pointer"
               >
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                 <span>{inAdjustmentCount} Ajustes</span>

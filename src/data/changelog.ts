@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.30.0',
+    data: '2026-09-11',
+    resumo: 'Os selos e etiquetas deixaram de ser pílula, e as modais fecham no mesmo canto dos cards.',
+    melhorias: [
+      'Os 53 selos e etiquetas espalhados pelo sistema — status no quadro, papel do usuário, rótulos do portal — passaram de formato pílula para canto arredondado discreto. Os badges de rede (Feed, Reels, Story) e as bolinhas de contagem seguem redondos, que é o papel deles.',
+      'As modais usavam um arredondamento maior que o dos cards e destoavam ao abrir. Agora fecham no mesmo canto.',
+    ],
+  },
+  {
     versao: '2.29.1',
     data: '2026-09-11',
     resumo: 'Os cantos arredondados voltaram ao tamanho certo.',

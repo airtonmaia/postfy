@@ -232,7 +232,7 @@ export const AdminIntegracoesView: React.FC = () => {
                   Banco de dados (Supabase)
                 </h4>
                 <span
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md flex items-center gap-1 ${
                     syncState === 'error'
                       ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                       : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
@@ -587,13 +587,13 @@ export const AdminIntegracoesView: React.FC = () => {
                 </div>
                 {badge ? (
                   <span
-                    className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${badge.classe}`}
+                    className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 ${badge.classe}`}
                   >
                     <badge.Icone className="w-3 h-3" />
                     {badge.texto}
                   </span>
                 ) : (
-                  <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+                  <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                     Consultando...
                   </span>
                 )}

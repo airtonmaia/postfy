@@ -335,7 +335,7 @@ export const ReportsView: React.FC = () => {
                 <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   Analytics de Performance
                 </h2>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-full">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md">
                   Executive BI
                 </span>
               </div>
@@ -567,7 +567,7 @@ export const ReportsView: React.FC = () => {
                 </p>
               </div>
 
-              <span className="text-xs font-bold px-3 py-1 bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 rounded-full">
+              <span className="text-xs font-bold px-3 py-1 bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 rounded-md">
                 {focusedClient.segment}
               </span>
             </div>

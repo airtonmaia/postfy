@@ -324,7 +324,7 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
                     <option value="editor">Editor</option>
                   </select>
                 ) : (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500">
                     {usuario.role}
                   </span>
                 )}
