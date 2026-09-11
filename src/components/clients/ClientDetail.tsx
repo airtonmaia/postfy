@@ -7,11 +7,12 @@ import {
   User, FolderOpen, Key, Receipt, FileText, Upload, Plus, 
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
   ShieldCheck, AlertCircle, Calendar, DollarSign, Globe, Phone, Mail,
-  Share2, Sparkles, Building2, CheckCircle2, Users
+  Share2, Sparkles, Building2, CheckCircle2, Users, Radio
 } from 'lucide-react';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { ClientUsersTab } from './ClientUsersTab';
+import { ConexoesDoPerfil } from './ConexoesDoPerfil';
 
 interface ClientDetailProps {
   client: Client;
@@ -32,7 +33,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     users
   } = usePostfy();
 
-  const [activeTab, setActiveTab] = useState<'cadastro' | 'usuarios' | 'arquivos' | 'senhas' | 'notas' | 'briefing'>('cadastro');
+  const [activeTab, setActiveTab] = useState<'cadastro' | 'usuarios' | 'conexoes' | 'arquivos' | 'senhas' | 'notas' | 'briefing'>('cadastro');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showPasswordIds, setShowPasswordIds] = useState<Record<string, boolean>>({});
   const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
@@ -166,15 +167,28 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     setShowAddInvoice(false);
   };
 
+  /**
+   * Os rótulos são **os mesmos do portal do cliente**, e isso é decisão.
+   *
+   * Eram outros: "Arquivos & Drive", "Cofre de Senhas", "Briefing da Marca".
+   * A agência e o cliente olham para o mesmo conteúdo por duas portas, e ao
+   * telefone cada lado chamava a aba de um jeito — "está no Cofre de Senhas"
+   * / "aqui só tem Senhas". Nome divergente para a mesma coisa é atrito que
+   * só aparece na conversa, nunca na tela.
+   *
+   * `ABAS_DO_PORTAL`, em `ClientPortalView`, é o outro lado desta lista.
+   * `tests/abas-do-cliente.test.ts` falha se as duas divergirem de novo.
+   */
   const tabs = [
     { id: 'cadastro', label: 'Cadastro', icon: User },
     // Sem contador: a lista vive no banco e só é carregada quando a aba
     // abre. Um número aqui teria que ser adivinhado a cada render.
     { id: 'usuarios', label: 'Usuários', icon: Users },
-    { id: 'arquivos', label: 'Arquivos & Drive', icon: FolderOpen, count: (client.files || []).length },
-    { id: 'senhas', label: 'Cofre de Senhas', icon: Key, count: (client.passwords || []).length },
+    { id: 'conexoes', label: 'Conexões do perfil', icon: Radio },
+    { id: 'arquivos', label: 'Arquivos', icon: FolderOpen, count: (client.files || []).length },
+    { id: 'senhas', label: 'Senhas', icon: Key, count: (client.passwords || []).length },
     { id: 'notas', label: 'Notas Fiscais', icon: Receipt, count: (client.invoices || []).length },
-    { id: 'briefing', label: 'Briefing da Marca', icon: FileText },
+    { id: 'briefing', label: 'Briefing', icon: FileText },
   ];
 
   return (
@@ -405,6 +419,10 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
 
         {/* TAB 2: USUÁRIOS DO PORTAL */}
         {activeTab === 'usuarios' && <ClientUsersTab client={client} />}
+
+        {activeTab === 'conexoes' && (
+          <ConexoesDoPerfil clientId={client.id} clientName={client.name} />
+        )}
 
         {/* TAB 3: ARQUIVOS & DRIVE */}
         {activeTab === 'arquivos' && (

@@ -9,6 +9,8 @@ import {
   caminhoDaAba,
   subAbaDeConfiguracoes,
   urlDaAba,
+  urlDoCliente,
+  clienteDoCaminho,
 } from '../src/lib/rotas';
 import type { TabType } from '../src/types';
 
@@ -249,5 +251,47 @@ describe('a Vercel serve o app em qualquer caminho', () => {
       funcoes.length,
       `${funcoes.length} funções em api/ (limite ${LIMITE_DO_PLANO_HOBBY}): ${funcoes.join(', ')}`
     ).toBeLessThanOrEqual(LIMITE_DO_PLANO_HOBBY);
+  });
+});
+
+/**
+ * A ficha do cliente tem endereço próprio.
+ *
+ * Antes a URL ficava em `/clientes` com a ficha aberta por cima: F5 voltava
+ * para a lista, o voltar do navegador saía da tela inteira em vez de fechar a
+ * ficha, e não havia como mandar o link para ninguém.
+ *
+ * O que quebra aqui não aparece na tela. Se `/clientes/<slug>` deixar de ser
+ * reconhecido como aba de clientes, o efeito de `caminho desconhecido` em
+ * PostfyContext troca a URL pela da aba antes de a pessoa ver o endereço — e a
+ * ficha some sozinha, sem erro nenhum.
+ */
+describe('endereço da ficha do cliente', () => {
+  it('o caminho com slug continua sendo a aba de clientes', () => {
+    expect(abaDoCaminho('/clientes')).toBe('clientes');
+    expect(abaDoCaminho('/clientes/airton-maia')).toBe('clientes');
+  });
+
+  it('ida e volta: a URL gerada devolve o mesmo cliente', () => {
+    for (const alvo of ['airton-maia', 'cafe-aroma', 'a']) {
+      expect(clienteDoCaminho(urlDoCliente(alvo))).toBe(alvo);
+    }
+  });
+
+  it('a lista não aponta para cliente nenhum', () => {
+    expect(clienteDoCaminho('/clientes')).toBeNull();
+    expect(clienteDoCaminho('/clientes/')).toBeNull();
+    expect(clienteDoCaminho('/dashboard')).toBeNull();
+  });
+
+  it('query e barra final não entram no slug', () => {
+    expect(clienteDoCaminho('/clientes/airton-maia/')).toBe('airton-maia');
+    expect(clienteDoCaminho('/clientes/airton-maia?portal=x')).toBe('airton-maia');
+  });
+
+  it('URL malformada cai na lista em vez de derrubar a tela', () => {
+    // `decodeURIComponent('%')` estoura. Sem o try, a ficha inteira morria
+    // num endereço que alguém pode digitar errado.
+    expect(clienteDoCaminho('/clientes/%')).toBeNull();
   });
 });

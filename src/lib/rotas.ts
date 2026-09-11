@@ -130,6 +130,15 @@ export const abaDoCaminho = (caminho: string): TabType | null => {
     return 'configuracoes';
   }
 
+  // Mesma regra para a ficha de um cliente: `/clientes/airton-maia` é a aba
+  // de clientes com um deles aberto. Sem o prefixo aqui, o efeito que corrige
+  // "caminho desconhecido" em PostfyContext trocaria a URL pela da aba antes
+  // de a pessoa ver o endereço — foi o que já aconteceu com a prévia do
+  // portal, e por isso ela tem exceção escrita lá.
+  if (alvo === CAMINHOS.clientes || alvo.startsWith(`${CAMINHOS.clientes}/`)) {
+    return 'clientes';
+  }
+
   // `/admin` sozinho é um endereço que a pessoa digita; as telas moram um
   // nível abaixo. Sem isto, ele cairia em "caminho desconhecido" e a URL
   // seria trocada pela do Dashboard antes de a área abrir.
@@ -162,6 +171,46 @@ export const subAbaDeConfiguracoes = (caminho: string): AbaDeConfiguracoes => {
     (aba) => CAMINHO_DE_CONFIGURACOES[aba] === trecho
   );
   return encontrada ?? 'overview';
+};
+
+/**
+ * A ficha de um cliente tem endereço próprio: `/clientes/airton-maia`.
+ *
+ * Antes a URL ficava em `/clientes` com a ficha aberta por cima. Consequência:
+ * F5 voltava para a lista, o voltar do navegador saía da tela inteira em vez
+ * de fechar a ficha, e não havia como mandar "abre o cadastro do Airton" para
+ * ninguém.
+ *
+ * **Vai o `slug`, não o uuid** — a mesma decisão já escrita em
+ * `urlDaPreviaDoPortal`. Um uuid na barra de endereço não diz de quem é o
+ * link: ninguém confere antes de abrir, e num print ou numa conversa ele não
+ * significa nada. O slug é gerado pelo banco a partir do nome e é único.
+ *
+ * O id continua sendo aceito na leitura, porque link antigo — ou cliente que
+ * ainda não tem slug — precisa continuar abrindo.
+ */
+export const urlDoCliente = (slugOuId: string): string =>
+  `${CAMINHOS.clientes}/${encodeURIComponent(slugOuId)}`;
+
+/**
+ * Qual cliente a URL aponta, ou null quando é a lista.
+ *
+ * Devolve o trecho cru — quem resolve se é slug ou id é a tela, que tem a
+ * lista de clientes em mãos.
+ */
+export const clienteDoCaminho = (caminho: string): string | null => {
+  const alvo = normalizar(caminho);
+  if (!alvo.startsWith(`${CAMINHOS.clientes}/`)) return null;
+
+  const trecho = alvo.slice(CAMINHOS.clientes.length + 1);
+  if (!trecho) return null;
+
+  try {
+    return decodeURIComponent(trecho);
+  } catch {
+    // Percentagem malformada na URL não pode derrubar a tela: cai na lista.
+    return null;
+  }
 };
 
 /**

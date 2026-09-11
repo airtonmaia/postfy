@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { novoId } from '../../lib/sincronizacao';
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Client } from '../../types';
 import { ClientDetail } from './ClientDetail';
+import { CAMINHOS, clienteDoCaminho, urlDoCliente } from '../../lib/rotas';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 
@@ -32,16 +33,64 @@ export const ClientsView: React.FC = () => {
   const [monthlyValue, setMonthlyValue] = useState(4500);
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [avatar, setAvatar] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  /**
+   * Quem manda é a URL, não o estado.
+   *
+   * A ficha ficava aberta por cima de `/clientes`, e o endereço não mudava:
+   * F5 voltava para a lista, o voltar do navegador saía da tela inteira em
+   * vez de fechar a ficha, e não havia como mandar o link para ninguém. É a
+   * mesma correção que as abas receberam — e pelo mesmo motivo.
+   */
+  const [caminho, setCaminho] = useState(() => {
+    try {
+      return window.location.pathname;
+    } catch {
+      return CAMINHOS.clientes;
+    }
+  });
+
+  const abrirFicha = (slugOuId: string) => {
+    window.history.pushState({}, '', urlDoCliente(slugOuId) + window.location.search);
+    setCaminho(window.location.pathname);
+  };
+
+  const fecharFicha = () => {
+    window.history.pushState({}, '', CAMINHOS.clientes + window.location.search);
+    setCaminho(window.location.pathname);
+  };
+
+  // Voltar e avançar do navegador agora fecham e reabrem a ficha, em vez de
+  // saltar a tela inteira.
+  useEffect(() => {
+    const aoVoltar = () => setCaminho(window.location.pathname);
+    window.addEventListener('popstate', aoVoltar);
+    return () => window.removeEventListener('popstate', aoVoltar);
+  }, []);
+
+  // Sem lista de dependências de propósito: clicar no item já ativo do menu
+  // lateral leva a URL de volta para `/clientes` por `pushState`, que não
+  // dispara `popstate`. Sem esta releitura a ficha continuaria aberta com o
+  // endereço dizendo outra coisa. Só escreve quando há divergência real,
+  // então não há laço.
+  useEffect(() => {
+    const atual = window.location.pathname;
+    if (atual !== caminho) setCaminho(atual);
+  });
+
 
   const displayedClients = clientFilter === 'all'
     ? clients
     : clients.filter(c => c.id === clientFilter);
 
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  // O slug é o que vai na URL; o id continua valendo para link antigo e para
+  // cliente que ainda não tem slug gerado pelo banco.
+  const alvoNaUrl = clienteDoCaminho(caminho);
+  const selectedClient = alvoNaUrl
+    ? clients.find(c => c.slug === alvoNaUrl || c.id === alvoNaUrl)
+    : undefined;
 
   if (selectedClient) {
-    return <ClientDetail client={selectedClient} onBack={() => setSelectedClientId(null)} />;
+    return <ClientDetail client={selectedClient} onBack={fecharFicha} />;
   }
 
   const handleCreateClient = (e: React.FormEvent) => {
@@ -77,7 +126,7 @@ export const ClientsView: React.FC = () => {
     setCpfCnpj('');
     setAvatar('');
     setIsAddingClient(false);
-    setSelectedClientId(newCl.id);
+    abrirFicha(newCl.slug || newCl.id);
   };
 
   return (
@@ -271,7 +320,7 @@ export const ClientsView: React.FC = () => {
               {/* Action Buttons */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
                 <button
-                  onClick={() => setSelectedClientId(client.id)}
+                  onClick={() => abrirFicha(client.slug || client.id)}
                   className="flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-700 transition cursor-pointer"
                 >
                   <Layers className="w-3.5 h-3.5" />
