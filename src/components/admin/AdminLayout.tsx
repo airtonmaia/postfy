@@ -116,9 +116,18 @@ export const AdminLayout: React.FC = () => {
     logout,
     theme,
     setTheme,
+    aparencia,
   } = usePostfy();
 
   const [menuAberto, setMenuAberto] = useState(false);
+
+  /**
+   * A versão escura do logo só vale no tema escuro, e só se existir: nem toda
+   * marca precisa de duas. Sem a alternativa, a clara serve nos dois — é
+   * melhor que voltar para a marca genérica só porque o tema mudou.
+   */
+  const logoDoProduto =
+    (theme === 'dark' ? aparencia.logoEscuroUrl : null) || aparencia.logoUrl;
 
   /**
    * Quem não é dono do produto vê uma recusa, e não o Dashboard.
@@ -166,13 +175,33 @@ export const AdminLayout: React.FC = () => {
         }`}
       >
         <div className="min-h-0 flex flex-col">
-          {/* A marca é a do Orquesia e não troca. No app da agência este
-              mesmo canto é o seletor de agência, com a marca dela. */}
+          {/*
+            A marca do **produto**, e não a da agência: no app da agência este
+            mesmo canto é o seletor de agência, com a marca dela.
+
+            Ela vem de `saas_settings`, que é o que Admin → Design edita — e
+            aquela tela já dizia, em texto, que o logo enviado "aparece na tela
+            de entrada, no cadastro de agência e nesta área". Aqui estava
+            desenhada a marca fixa do código, então a promessa não se cumpria:
+            quem trocava o logo não via diferença nenhuma no /admin.
+
+            O SVG local continua sendo o fundo do poço, para quem nunca
+            enviou logo — ele não depende de rede e não quebra se um arquivo
+            sumir, que é o motivo de ele existir.
+          */}
           <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
-            <MarcaOrquesia tamanho={34} className="shrink-0" />
+            {logoDoProduto ? (
+              <img
+                src={logoDoProduto}
+                alt=""
+                className="w-[34px] h-[34px] rounded-lg object-cover shrink-0"
+              />
+            ) : (
+              <MarcaOrquesia tamanho={34} className="shrink-0" />
+            )}
             <div className="min-w-0 flex-1">
               <span className="block text-sm font-black text-slate-900 dark:text-white leading-tight truncate">
-                Orquesia
+                {aparencia.nome}
               </span>
               <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
                 Administração

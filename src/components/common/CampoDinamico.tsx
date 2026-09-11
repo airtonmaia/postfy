@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { CampoDoCanal } from '../../lib/camposDoCanal';
 import { FileUpload } from '../ui/file-upload';
+import { BarraDeTexto } from './BarraDeTexto';
 
 /**
  * Desenha um campo do catálogo da rede.
@@ -13,11 +14,28 @@ export const CampoDinamico: React.FC<{
   campo: CampoDoCanal;
   valor: unknown;
   onChange: (valor: unknown) => void;
-}> = ({ campo, valor, onChange }) => {
+  /** Só chegam ao campo marcado com `barra` no catálogo. */
+  limite?: number;
+  donoDoLimite?: string;
+  aoGerarComIA?: () => Promise<string>;
+  /**
+   * Encostado à direita, na mesma linha do rótulo. É onde entram os ícones
+   * dos acessórios: ao lado do nome do campo a que pertencem, e não soltos
+   * numa barra própria que não diria a que se referem.
+   */
+  acoes?: React.ReactNode;
+}> = ({ campo, valor, onChange, limite, donoDoLimite, aoGerarComIA, acoes }) => {
+  // Declarado fora dos desvios: hook não pode nascer dentro de `if`, e só o
+  // campo com barra chega a usá-lo.
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+
   const rotulo = (
-    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-      {campo.rotulo}
-    </label>
+    <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
+      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+        {campo.rotulo}
+      </label>
+      {acoes}
+    </div>
   );
 
   const ajuda = campo.ajuda ? (
@@ -83,15 +101,33 @@ export const CampoDinamico: React.FC<{
   }
 
   if (campo.tipo === 'textoLongo') {
+    const texto = String(valor ?? '');
+
     return (
       <div>
         {rotulo}
+        {campo.barra && (
+          <BarraDeTexto
+            valor={texto}
+            onChange={onChange}
+            areaRef={areaRef}
+            limite={limite}
+            donoDoLimite={donoDoLimite}
+            aoGerarComIA={aoGerarComIA}
+          />
+        )}
         <textarea
+          ref={areaRef}
           rows={campo.linhas ?? 4}
-          value={String(valor ?? '')}
+          value={texto}
           onChange={(e) => onChange(e.target.value)}
           placeholder={campo.exemplo}
-          className={`${classeDeEntrada} leading-relaxed`}
+          /* Com a barra em cima, o campo perde o canto de cima para os dois
+             virarem uma peça só — dois cantos arredondados encostados
+             pareceriam dois controles sem relação. */
+          className={`${classeDeEntrada} leading-relaxed ${
+            campo.barra ? 'rounded-t-none' : ''
+          }`}
         />
         {ajuda}
       </div>

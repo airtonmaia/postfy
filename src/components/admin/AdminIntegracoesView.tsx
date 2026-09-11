@@ -207,7 +207,18 @@ export const AdminIntegracoesView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    /*
+      A casca das nove telas do /admin, copiada inteira — esta era a única
+      sem ela, e faltavam duas coisas ao mesmo tempo:
+
+      - `p-6 md:p-8 space-y-6`, o respiro de toda tela de conteúdo, sem o qual
+        os cards encostavam na borda.
+      - `flex-1 overflow-y-auto`, sem o qual **a tela não rolava**: o `<main>`
+        do `AdminLayout` é `overflow-hidden`, então quem rola é a view. Como
+        esta é a tela mais alta do /admin, tudo abaixo do Estado da
+        infraestrutura ficava inalcançável.
+    */
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 md:p-8 space-y-6">
       {/* Banco de dados */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

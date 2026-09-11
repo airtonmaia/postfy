@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   X, ThumbsUp, Link as LinkIcon,
@@ -8,8 +8,15 @@ import { JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
 import { MediaUploader } from '../common/MediaUploader';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
-import { camposVisiveis, type CampoDoCanal } from '../../lib/camposDoCanal';
+import {
+  camposVisiveis,
+  limiteMaisApertado,
+  type CampoDoCanal,
+} from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
+import { publicaSozinho, COMO_PUBLICA, REDES_QUE_PUBLICAM } from '../../lib/redes';
+import { BarraDeTexto } from '../common/BarraDeTexto';
+import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -103,7 +110,8 @@ export const CreateJobModal: React.FC = () => {
     createJobTipo,
     clients,
     createJob,
-    setSelectedJob
+    setSelectedJob,
+    generateAiCopy
   } = usePostfy();
 
   // O tipo escolhido no menu Adicionar molda o formulário. Quem decide não é
@@ -142,6 +150,10 @@ export const CreateJobModal: React.FC = () => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
+
+  // O campo de copy e roteiro é desenhado aqui, e não pelo catálogo da rede,
+  // então a barra precisa da referência dele para escrever no cursor.
+  const areaDoTexto = useRef<HTMLTextAreaElement>(null);
 
   // Keep clientId valid if clients list changes
   useEffect(() => {
@@ -226,6 +238,37 @@ export const CreateJobModal: React.FC = () => {
     });
   };
   const campos = camposVisiveis(platform, format);
+
+  // Os acessórios saem da lista e viram ícones na linha do rótulo da legenda.
+  const camposEmLinha = campos.filter((c) => !c.atalho);
+  const camposEmAtalho = campos.filter((c) => c.atalho);
+
+  /**
+   * O limite vem da rede mais apertada entre as escolhidas, não da principal.
+   * Com Instagram e X marcados juntos, quem corta é o X.
+   */
+  const limite = limiteMaisApertado(canais);
+  const nomeDoCanal = (canal: JobPlatform) =>
+    CANAIS.find((c) => c.valor === canal)?.rotulo || canal;
+
+  /**
+   * A IA só é oferecida quando há título.
+   *
+   * Ele é o tema que a rota exige, e um botão que responde "informe o tema"
+   * é pior que botão ausente: custa o clique e a descoberta. O briefing do
+   * cliente entra por dentro, em `generateAiCopy`.
+   */
+  const gerarTextoComIA = title.trim()
+    ? async () => {
+        const r = await generateAiCopy({
+          theme: title.trim(),
+          format,
+          platform,
+          clientId,
+        });
+        return r?.caption || '';
+      }
+    : undefined;
 
   /**
    * Legenda e primeiro comentário têm coluna própria e continuam nela; o
@@ -385,8 +428,8 @@ export const CreateJobModal: React.FC = () => {
                       key={canal.valor}
                       type="button"
                       onClick={() => alternarCanal(canal.valor)}
-                      title={canal.rotulo}
-                      aria-label={canal.rotulo}
+                      title={`${canal.rotulo} — ${COMO_PUBLICA[canal.valor]}`}
+                      aria-label={`${canal.rotulo}. ${COMO_PUBLICA[canal.valor]}`}
                       aria-pressed={ativo}
                       className={`w-9 h-9 rounded-xl flex items-center justify-center border transition cursor-pointer ${
                         ativo
@@ -399,6 +442,19 @@ export const CreateJobModal: React.FC = () => {
                   );
                 })}
               </div>
+
+              {/*
+                Quem marca LinkedIn precisa saber, aqui, que ninguém vai
+                publicar por ele. Descobrir isso na data agendada é tarde: o
+                cliente aprovou e a peça não foi ao ar.
+              */}
+              {canais.some((c) => !publicaSozinho(c)) && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 leading-relaxed">
+                  {canais.filter((c) => !publicaSozinho(c)).join(', ')}:{' '}
+                  <strong>você publica</strong> na data. O disparo automático hoje é só{' '}
+                  {REDES_QUE_PUBLICAM.join(', ')}.
+                </p>
+              )}
             </div>
           </div>
 
@@ -504,12 +560,29 @@ export const CreateJobModal: React.FC = () => {
           */}
           {tipo.pedeArte ? (
             <div className="space-y-4">
-              {campos.map((campo) => (
+              {camposEmLinha.map((campo) => (
                 <CampoDinamico
                   key={campo.chave}
                   campo={campo}
                   valor={valorDoCampo(campo)}
                   onChange={(v) => definirCampo(campo, v)}
+                  limite={limite?.limite}
+                  donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
+                  aoGerarComIA={gerarTextoComIA}
+                  /* Os acessórios pertencem ao texto principal, então moram
+                     na linha do rótulo dele — não numa barra solta que não
+                     diria a que campo se referem. */
+                  acoes={
+                    campo.barra ? (
+                      <AtalhosDoConteudo
+                        campos={camposEmAtalho}
+                        valorDoCampo={valorDoCampo}
+                        definirCampo={definirCampo}
+                        legenda={caption}
+                        canalPrincipal={platform}
+                      />
+                    ) : undefined
+                  }
                 />
               ))}
             </div>
@@ -518,12 +591,27 @@ export const CreateJobModal: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 {tipo.rotuloDoTexto}
               </label>
+              <BarraDeTexto
+                valor={caption}
+                onChange={(v) => setCaption(String(v))}
+                areaRef={areaDoTexto}
+                /* O roteiro conta caracteres mas não tem teto: ele não é o
+                   texto que vai publicado. */
+                limite={tipo.respeitaLimiteDaRede ? limite?.limite : undefined}
+                donoDoLimite={
+                  tipo.respeitaLimiteDaRede && limite
+                    ? nomeDoCanal(limite.canal)
+                    : undefined
+                }
+                aoGerarComIA={gerarTextoComIA}
+              />
               <textarea
+                ref={areaDoTexto}
                 rows={12}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder={tipo.exemploDoTexto}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
+                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-t-none rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
               />
             </div>
           )}
