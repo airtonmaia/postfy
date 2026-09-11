@@ -1,11 +1,49 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { Building2, Plus, Trash2, ExternalLink, Shield, CheckCircle2, Globe, Calendar, Search, Edit3, Users } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Search, Edit3, Users, RotateCcw, AlertTriangle } from 'lucide-react';
+import { DIAS_NA_LIXEIRA, diasAteOExpurgo } from '../../lib/lixeira';
+import { carregarContagensPorAgencia, type ContagensDaAgencia } from '../../lib/numerosDoSaas';
+import { safeDateFormat } from '../../lib/utils';
 
 export const AdminAgenciasView: React.FC = () => {
-  const { workspaces, currentWorkspace, setCurrentWorkspace, setIsCreateWorkspaceModalOpen, updateWorkspace, deleteWorkspace, users } = usePostfy();
+  const {
+    workspaces,
+    currentWorkspace,
+    setCurrentWorkspace,
+    setIsCreateWorkspaceModalOpen,
+    updateWorkspace,
+    moverAgenciaParaLixeira,
+    restaurarAgenciaDaLixeira,
+  } = usePostfy();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingWs, setEditingWs] = useState<any | null>(null);
+
+  /**
+   * Quantas pessoas, clientes e conteúdos cada agência tem.
+   *
+   * Por RPC de admin, e não contando o estado local: a RLS recorta essas
+   * tabelas por agência, e quem administra o produto não é membro das
+   * agências dos clientes. `null` = ainda não respondeu; a tela diz isso em
+   * vez de mostrar um número que não mediu.
+   */
+  const [contagens, setContagens] = useState<Record<string, ContagensDaAgencia> | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    void (async () => {
+      try {
+        const dados = await carregarContagensPorAgencia();
+        if (!cancelado) setContagens(dados);
+      } catch {
+        // Sem contagem a tela continua servindo para editar e excluir; o
+        // card diz que o número não veio, em vez de inventar um.
+        if (!cancelado) setContagens({});
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [workspaces.length]);
 
   // Form state for editing
   const [name, setName] = useState('');
@@ -16,10 +54,14 @@ export const AdminAgenciasView: React.FC = () => {
   const [customDomain, setCustomDomain] = useState('');
   const [isTrial, setIsTrial] = useState(false);
 
-  const filteredWorkspaces = workspaces.filter(ws => 
+  const casaComBusca = (ws: { name: string; slug: string }) =>
     ws.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ws.slug.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    ws.slug.toLowerCase().includes(searchTerm.toLowerCase());
+
+  // A agência na lixeira continua no banco por 7 dias, e esta é a única tela
+  // de onde dá para restaurá-la. Some da lista principal, aparece embaixo.
+  const ativas = workspaces.filter((ws) => !ws.deletedAt).filter(casaComBusca);
+  const naLixeira = workspaces.filter((ws) => ws.deletedAt).filter(casaComBusca);
 
   const handleOpenEdit = (ws: any) => {
     setEditingWs(ws);
@@ -58,10 +100,11 @@ export const AdminAgenciasView: React.FC = () => {
             <span className="text-xs text-slate-400">• Todas as agências do produto</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Lista de Agências ({workspaces.length})
+            Lista de Agências ({ativas.length})
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Edite todos os dados das agências, verifique a quantidade de usuários cadastrados e gerencie assinaturas.
+            Edite os dados de cada agência e acompanhe o tamanho da base. Excluir manda para a
+            lixeira, onde a agência fica {DIAS_NA_LIXEIRA} dias antes de ser apagada de vez.
           </p>
         </div>
 
@@ -86,11 +129,9 @@ export const AdminAgenciasView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredWorkspaces.map(ws => {
+        {ativas.map(ws => {
           const isCurrent = ws.id === currentWorkspace?.id;
-          // Count users assigned to this workspace
-          const agencyUsers = users.filter((u: any) => u.workspaceId === ws.id);
-          const usersCount = agencyUsers.length > 0 ? agencyUsers.length : (ws.id === currentWorkspace?.id ? users.length : 3);
+          const numeros = contagens?.[ws.id];
 
           return (
             <div 
@@ -131,17 +172,33 @@ export const AdminAgenciasView: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 py-3 border-y border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+                  {/*
+                    "👑 Agência PRO" saiu daqui. Não existe assinatura da
+                    agência com o SaaS nem registro de cobrança no banco — o
+                    selo era texto fixo para toda agência que não estivesse
+                    marcada como teste, e quem lia concluía que havia um
+                    plano pago ativo. O que o banco sabe é a marca de teste,
+                    e só ela é afirmada.
+                  */}
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Plano / Status:</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {ws.isTrial ? '✨ Teste Grátis (7d)' : '👑 Agência PRO'}
+                    <span className="text-slate-400">Situação:</span>
+                    <span className={`font-bold ${
+                      ws.isTrial
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-slate-700 dark:text-slate-300'
+                    }`}>
+                      {ws.isTrial ? 'Marcada como teste' : 'Sem marca de teste'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Usuários Cadastrados:</span>
+                    <span className="text-slate-400">Equipe / clientes:</span>
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-purple-600" />
-                      {usersCount} usuários
+                      {contagens === null
+                        ? 'carregando…'
+                        : numeros
+                          ? `${numeros.membros} · ${numeros.clientes} clientes`
+                          : 'não apurado'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -178,11 +235,15 @@ export const AdminAgenciasView: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    if (confirm(`Deseja realmente excluir a agência "${ws.name}"?`)) {
-                      deleteWorkspace(ws.id);
-                    }
+                    // O texto nomeia o prazo e o que vai junto. O botão
+                    // antigo dizia só "excluir" — e não excluía nada.
+                    const aviso =
+                      `Mover "${ws.name}" para a lixeira?\n\n` +
+                      `Ela sai do ar agora e é apagada de vez em ${DIAS_NA_LIXEIRA} dias, ` +
+                      'com clientes, conteúdos e arquivos. Até lá dá para restaurar.';
+                    if (confirm(aviso)) void moverAgenciaParaLixeira(ws.id);
                   }}
-                  title="Excluir Agência"
+                  title={`Mover para a lixeira (${DIAS_NA_LIXEIRA} dias para restaurar)`}
                   className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -192,6 +253,80 @@ export const AdminAgenciasView: React.FC = () => {
           );
         })}
       </div>
+
+      {/*
+        A lixeira.
+        Sem esta seção, "excluir" seria um botão que faz a agência sumir da
+        tela sem nenhum caminho de volta — e a linha continuaria no banco por
+        sete dias, invisível. É aqui que os sete dias viram uma promessa que
+        alguém consegue cobrar.
+      */}
+      {naLixeira.length > 0 && (
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-slate-400" />
+            <h2 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
+              Lixeira ({naLixeira.length})
+            </h2>
+            <span className="text-xs text-slate-400">
+              • apagadas de vez {DIAS_NA_LIXEIRA} dias depois de entrarem aqui
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {naLixeira.map(ws => {
+              const restam = diasAteOExpurgo(ws.deletedAt!);
+              const numeros = contagens?.[ws.id];
+
+              return (
+                <div
+                  key={ws.id}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-red-200 dark:border-red-900/60 p-6 shadow-sm flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-xs bg-slate-400 dark:bg-slate-700">
+                        {ws.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                          {ws.name}
+                        </h3>
+                        <span className="text-xs text-slate-400 font-mono">@{ws.slug}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-red-700 dark:text-red-300">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        {restam === 0
+                          ? 'Será apagada na próxima passada do expurgo'
+                          : restam === 1
+                            ? 'Falta 1 dia para ser apagada'
+                            : `Faltam ${restam} dias para ser apagada`}
+                      </div>
+                      <p className="text-red-600/90 dark:text-red-400/90 leading-relaxed">
+                        Na lixeira desde {safeDateFormat(ws.deletedAt!)}.
+                        {numeros
+                          ? ` Vão junto ${numeros.clientes} clientes e ${numeros.jobs} conteúdos, mais os arquivos no R2.`
+                          : ' Vão junto os clientes, os conteúdos e os arquivos no R2.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => void restaurarAgenciaDaLixeira(ws.id)}
+                    className="mt-6 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Restaurar agência
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Edit Agency Modal */}
       {editingWs && (

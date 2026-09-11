@@ -68,3 +68,35 @@ export const carregarNumerosDoSaas = async (): Promise<NumerosDoSaas> => {
     apuradoEm: String(b.apurado_em || ''),
   };
 };
+
+/**
+ * Contagens de cada agência, para a lista do Admin.
+ *
+ * Mesma razão da função acima: do navegador, a RLS de `workspace_members`,
+ * `clients` e `jobs` recorta por agência, e quem administra o produto não é
+ * membro das agências dos clientes — contar daqui daria zero. A RPC devolve
+ * só número, indexado pelo id da agência.
+ */
+export interface ContagensDaAgencia {
+  membros: number;
+  clientes: number;
+  jobs: number;
+}
+
+export const carregarContagensPorAgencia = async (): Promise<
+  Record<string, ContagensDaAgencia>
+> => {
+  const { data, error } = await supabase.rpc('admin_contagens_por_agencia');
+  if (error) throw new Error(error.message);
+
+  const bruto = (data || {}) as Record<string, any>;
+  const saida: Record<string, ContagensDaAgencia> = {};
+  for (const [id, valores] of Object.entries(bruto)) {
+    saida[id] = {
+      membros: n(valores?.membros),
+      clientes: n(valores?.clientes),
+      jobs: n(valores?.jobs),
+    };
+  }
+  return saida;
+};

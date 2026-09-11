@@ -552,7 +552,8 @@ src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
-src/lib/numerosDoSaas.ts   contagens do produto inteiro, via RPC de admin
+src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
+src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre
 src/components/admin/      a área /admin: casca própria + as nove telas
 src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
 src/lib/automacoes.ts      motor: evento tipado → ação
@@ -564,7 +565,7 @@ api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 
-supabase/migrations/       schema é a fonte de verdade; 26 migrações
+supabase/migrations/       schema é a fonte de verdade; 27 migrações
 ```
 
 ---

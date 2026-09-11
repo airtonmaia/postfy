@@ -78,4 +78,21 @@ describe('telas não inventam dado', () => {
     // depende de algo que ainda não existe.
     expect(financeiro).toMatch(/não há cobrança ligada ao produto/i);
   });
+
+  it('a lista de agências não inventa plano nem contagem de usuários', () => {
+    const agencias = semComentarios(
+      readFileSync('src/components/admin/AdminAgenciasView.tsx', 'utf-8')
+    );
+
+    // "👑 Agência PRO" era texto fixo para toda agência sem a marca de
+    // teste. Não existe assinatura no banco — o selo afirmava um plano pago
+    // que ninguém contratou, na tela de onde se decide excluir a agência.
+    expect(agencias).not.toMatch(/Agência PRO/);
+
+    // E o número de usuários caía num literal `3` quando a contagem real
+    // não vinha. Agora vem da RPC de admin, porque a RLS esconde os membros
+    // das agências de que o admin não participa.
+    expect(agencias).not.toMatch(/users\.length\s*:\s*3/);
+    expect(agencias).toMatch(/carregarContagensPorAgencia/);
+  });
 });

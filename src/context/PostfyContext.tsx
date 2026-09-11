@@ -26,7 +26,15 @@ import {
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { aiApi, ApiError } from '../lib/api';
-import { db, carregarTudo, listarWorkspaces, atualizarWorkspace, DbError } from '../lib/db';
+import {
+  db,
+  carregarTudo,
+  listarWorkspaces,
+  atualizarWorkspace,
+  moverAgenciaParaLixeira as moverParaLixeira,
+  restaurarAgencia as restaurarDaLixeira,
+  DbError,
+} from '../lib/db';
 import {
   entrar as authEntrar,
   cadastrar as authCadastrar,
@@ -37,7 +45,6 @@ import {
   definirNovaSenha,
   carregarSessao,
   aoMudarAutenticacao,
-  removerMembro as removerMembroDaAgencia,
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
@@ -86,7 +93,17 @@ interface PostfyContextType {
   updateWorkspace: (workspaceId: string, updates: Partial<Workspace>) => void;
   updateCurrentWorkspace: (updates: Partial<Workspace>) => void;
   createWorkspace: (name: string, primaryColor?: string) => Promise<Workspace | null>;
-  deleteWorkspace: (workspaceId: string) => Promise<void>;
+  /**
+   * Manda a agência para a lixeira. Devolve quando ela entrou lá.
+   *
+   * Substitui o antigo `deleteWorkspace`, que chamava `removerMembro` — ele
+   * tirava o vínculo de quem clicou, não a agência. Para o admin da
+   * plataforma, que normalmente não é membro, era um no-op silencioso: o
+   * botão não fazia nada e ninguém via erro.
+   */
+  moverAgenciaParaLixeira: (workspaceId: string) => Promise<void>;
+  /** Tira da lixeira, antes de os 7 dias passarem. */
+  restaurarAgenciaDaLixeira: (workspaceId: string) => Promise<void>;
   isCreateWorkspaceModalOpen: boolean;
   setIsCreateWorkspaceModalOpen: (open: boolean) => void;
   users: User[];
@@ -396,16 +413,41 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * por cascade, os dados de todos os outros membros. Uma agência sem nenhum
    * membro fica inalcançável pela RLS de qualquer forma.
    */
-  const deleteWorkspace = async (workspaceId: string) => {
+  const moverAgenciaParaLixeira = async (workspaceId: string) => {
     try {
-      await removerMembroDaAgencia(workspaceId, currentUser.id);
-      const restantes = workspaces.filter((w) => w.id !== workspaceId);
-      setWorkspaces(restantes);
-      if (currentWorkspace?.id === workspaceId && restantes[0]) {
-        setCurrentWorkspace(restantes[0]);
+      const quando = await moverParaLixeira(workspaceId);
+      // A linha continua no banco por 7 dias, então ela continua na lista —
+      // só marcada. Tirá-la daqui esconderia a única tela de onde dá para
+      // restaurar.
+      setWorkspaces((antes) =>
+        antes.map((w) => (w.id === workspaceId ? { ...w, deletedAt: quando } : w))
+      );
+
+      // Ninguém fica dentro de uma agência que acabou de ir para a lixeira.
+      if (currentWorkspace?.id === workspaceId) {
+        const outra = workspaces.find((w) => w.id !== workspaceId && !w.deletedAt);
+        if (outra) setCurrentWorkspace(outra);
       }
     } catch (erro) {
-      relatarErro(erro, 'sair da agência');
+      relatarErro(erro, 'mover a agência para a lixeira');
+    }
+  };
+
+  const restaurarAgenciaDaLixeira = async (workspaceId: string) => {
+    try {
+      const restaurou = await restaurarDaLixeira(workspaceId);
+      if (!restaurou) {
+        // `false` é resposta, não erro: a agência já não estava na lixeira
+        // (o expurgo passou, ou outra pessoa restaurou antes). Recarregar é
+        // mais honesto que deixar a tela afirmar que restaurou.
+        setWorkspaces(await listarWorkspaces());
+        return;
+      }
+      setWorkspaces((antes) =>
+        antes.map((w) => (w.id === workspaceId ? { ...w, deletedAt: null, deletedBy: null } : w))
+      );
+    } catch (erro) {
+      relatarErro(erro, 'restaurar a agência');
     }
   };
 
@@ -2090,7 +2132,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateWorkspace,
         updateCurrentWorkspace,
         createWorkspace,
-        deleteWorkspace,
+        moverAgenciaParaLixeira,
+        restaurarAgenciaDaLixeira,
         isCreateWorkspaceModalOpen,
         setIsCreateWorkspaceModalOpen,
         users,

@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.13.0',
+    data: '2026-09-11',
+    resumo: 'Excluir agência passou a excluir de verdade — com sete dias de lixeira antes de não ter mais volta.',
+    novidades: [
+      'Admin → Agências ganhou a Lixeira. Excluir tira a agência do ar na hora, mas a apaga de vez só depois de 7 dias, e até lá o botão "Restaurar" traz tudo de volta.',
+      'Cada agência na lixeira mostra desde quando está lá, quantos dias faltam e o que vai junto: clientes, conteúdos e arquivos.',
+      'Quem estiver trabalhando numa agência que foi para a lixeira vê um aviso no topo, com o prazo. Antes a equipe seguia produzindo e perdia tudo numa madrugada, sem nunca ter visto nada.',
+    ],
+    corrigido: [
+      'O botão "Excluir Agência" não excluía nada. Ele removia o vínculo de quem clicava — e como quem administra o produto normalmente não é membro da agência, o clique não fazia efeito nenhum e não mostrava erro.',
+      'A lista de agências dizia "👑 Agência PRO" para toda agência sem marca de teste. Não existe assinatura nem cobrança no banco: o selo afirmava um plano que ninguém contratou, bem na tela de onde se decide excluir a agência.',
+      'A mesma lista mostrava "3 usuários" quando não conseguia contar — um número literal no código. Agora a contagem de equipe e clientes vem do banco, e quando não vem a tela diz isso.',
+    ],
+  },
+  {
     versao: '2.12.0',
     data: '2026-09-11',
     resumo: 'O Portal do Cliente passou a ter gente, com dois papéis: quem só aprova e quem também edita.',
