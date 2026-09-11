@@ -74,6 +74,27 @@ const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string
   ],
 };
 
+/**
+ * Os formatos que existem em **todas** as redes escolhidas.
+ *
+ * Instagram e Facebook compartilham feed, carrossel, reel e story; já
+ * Instagram e YouTube só compartilham o vídeo curto. Oferecer a união
+ * deixaria escolher Story para o YouTube, que não tem — e o erro só
+ * apareceria na hora de publicar.
+ *
+ * Interseção vazia (redes sem nada em comum) cai na lista do canal
+ * principal: melhor do que um seletor sem nenhuma opção.
+ */
+const formatosComuns = (canais: JobPlatform[]): { valor: JobFormat; rotulo: string }[] => {
+  const listas = canais.map((c) => FORMATOS_POR_CANAL[c] || []);
+  if (!listas.length) return FORMATOS_POR_CANAL.instagram;
+
+  const comuns = listas[0].filter((f) =>
+    listas.every((lista) => lista.some((o) => o.valor === f.valor))
+  );
+  return comuns.length ? comuns : listas[0];
+};
+
 export const CreateJobModal: React.FC = () => {
   const {
     isCreateJobModalOpen,
@@ -95,7 +116,12 @@ export const CreateJobModal: React.FC = () => {
   // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
   // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
   // que não existe. Quem precisar dela edita no detalhe do conteúdo.
-  const [platform, setPlatform] = useState<JobPlatform>('instagram');
+  /**
+   * Os canais escolhidos. O primeiro é o principal, e é ele que vai para
+   * `platform` — a coluna que Kanban, portal e fila de publicação leem.
+   */
+  const [canais, setCanais] = useState<JobPlatform[]>(['instagram']);
+  const platform = canais[0] || 'instagram';
   const [format, setFormat] = useState<JobFormat>('feed');
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('ideas');
@@ -132,7 +158,7 @@ export const CreateJobModal: React.FC = () => {
   useEffect(() => {
     if (isCreateJobModalOpen) {
       setTitle('');
-      setPlatform('instagram');
+      setCanais(['instagram']);
       setFormat('feed');
       setPriority('medium');
       setStatus('ideas');
@@ -176,18 +202,29 @@ export const CreateJobModal: React.FC = () => {
    * formato que aquela rede não aceita, sem ninguém ver.
    */
   useEffect(() => {
-    const disponiveis = FORMATOS_POR_CANAL[platform] || [];
+    const disponiveis = formatosComuns(canais);
     if (disponiveis.length && !disponiveis.some((f) => f.valor === format)) {
       setFormat(disponiveis[0].valor);
     }
-  }, [platform, format]);
+  }, [canais, format]);
 
   if (!isCreateJobModalOpen) return null;
 
   // A prévia mostra o perfil de quem vai publicar: é o cliente selecionado.
   const clienteSelecionado = clients.find((c) => c.id === clientId) || clients[0];
 
-  const formatosDoCanal = FORMATOS_POR_CANAL[platform] || FORMATOS_POR_CANAL.instagram;
+  const formatosDoCanal = formatosComuns(canais);
+
+  /** Clicar num canal liga ou desliga. Nunca deixa a seleção vazia. */
+  const alternarCanal = (canal: JobPlatform) => {
+    setCanais((atuais) => {
+      if (atuais.includes(canal)) {
+        const resto = atuais.filter((c) => c !== canal);
+        return resto.length ? resto : atuais;
+      }
+      return [...atuais, canal];
+    });
+  };
   const campos = camposVisiveis(platform, format);
 
   /**
@@ -263,7 +300,10 @@ export const CreateJobModal: React.FC = () => {
         title: title.trim(),
         tipo: createJobTipo,
         campaign: 'Geral',
+        // `platform` é o primeiro da lista: as telas que leem uma rede só
+        // continuam funcionando, e `canais` guarda o conjunto completo.
         platform,
+        canais,
         format,
         priority,
         status: statusFinal,
@@ -339,12 +379,12 @@ export const CreateJobModal: React.FC = () => {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {CANAIS.map((canal) => {
                   const Icone = canal.icone;
-                  const ativo = platform === canal.valor;
+                  const ativo = canais.includes(canal.valor);
                   return (
                     <button
                       key={canal.valor}
                       type="button"
-                      onClick={() => setPlatform(canal.valor)}
+                      onClick={() => alternarCanal(canal.valor)}
                       title={canal.rotulo}
                       aria-label={canal.rotulo}
                       aria-pressed={ativo}
@@ -533,10 +573,16 @@ export const CreateJobModal: React.FC = () => {
             dados={{
               nomeDoPerfil: clienteSelecionado?.name || '',
               avatar: clienteSelecionado?.avatar,
-              canais: [platform],
+              canais,
               artes: tipo.pedeArte ? mediaUrls : [],
               legenda: caption,
               localizacao: String(configuracoes.localizacao || '') || undefined,
+              dataPrevista: scheduledDate
+                ? new Date(scheduledDate).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: 'long',
+                  })
+                : undefined,
             }}
           />
         </aside>

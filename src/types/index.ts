@@ -238,7 +238,13 @@ export interface Job {
   title: string;
   tipo: JobTipo;
   campaign?: string;
+  /**
+   * Canal principal. Kanban, portal, relatórios e fila de publicação leem
+   * daqui — é sempre o primeiro de `canais`.
+   */
   platform: JobPlatform;
+  /** Todos os canais escolhidos. Um conteúdo pode ir para mais de uma rede. */
+  canais?: JobPlatform[];
   format: JobFormat;
   status: JobStatus;
   priority: JobPriority;
