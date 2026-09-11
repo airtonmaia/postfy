@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
-  X, ThumbsUp, Link as LinkIcon,
+  X, ThumbsUp, Link as LinkIcon, Send, CheckCircle2, AlertTriangle,
   Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
 } from 'lucide-react';
-import { JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
+import { Job, JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
 import { MediaUploader } from '../common/MediaUploader';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
@@ -14,7 +14,12 @@ import {
   type CampoDoCanal,
 } from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
-import { publicaSozinho, COMO_PUBLICA, REDES_QUE_PUBLICAM } from '../../lib/redes';
+import {
+  publicaSozinho,
+  publicarAgora,
+  COMO_PUBLICA,
+  REDES_QUE_PUBLICAM,
+} from '../../lib/redes';
 import { BarraDeTexto } from '../common/BarraDeTexto';
 import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
 
@@ -296,7 +301,14 @@ export const CreateJobModal: React.FC = () => {
    * mesmo cadastro, só que nascendo direto na coluna de aprovação — e é o
    * status que dispara o e-mail para o cliente.
    */
-  const salvar = (e: React.FormEvent, statusFinal: JobStatus) => {
+  const salvar = (
+    e: React.FormEvent,
+    statusFinal: JobStatus,
+    // O botão de teste precisa do job salvo **com a modal aberta**: é nela
+    // que a resposta da Meta aparece. Fechar antes deixaria o resultado sem
+    // onde ser mostrado.
+    { fecharDepois = true }: { fecharDepois?: boolean } = {}
+  ): Job | undefined => {
     e.preventDefault();
     setErro('');
     if (!title.trim()) {
@@ -369,13 +381,56 @@ export const CreateJobModal: React.FC = () => {
         deadlineApproval: deadlineApprIso,
       });
 
-      closeCreateJobModal();
-      if (newJob) {
-        setSelectedJob(newJob);
+      if (fecharDepois) {
+        closeCreateJobModal();
+        if (newJob) {
+          setSelectedJob(newJob);
+        }
       }
+      return newJob;
     } catch (err) {
       console.error('Erro ao cadastrar conteúdo:', err);
       alert('Ocorreu um erro ao cadastrar a postagem. Por favor verifique os dados e tente novamente.');
+      return undefined;
+    }
+  };
+
+  /**
+   * TEMPORÁRIO — botão de teste da integração com o Instagram.
+   *
+   * Existe para responder uma pergunta que nenhuma outra tela responde hoje:
+   * *a publicação funciona?* O caminho normal é enfileirar e esperar o cron,
+   * e aí a falha aparece cinco minutos depois, escrita em `last_error`, num
+   * canto do banco. Aqui a resposta da Meta volta na hora, com o texto dela.
+   *
+   * Para remover: apague este bloco, o botão marcado no rodapé, e
+   * `publicarAgora` em `src/lib/redes.ts`. O caminho de sessão em
+   * `api/publicar.ts` some junto.
+   */
+  const [publicandoAgora, setPublicandoAgora] = useState(false);
+  const [resultadoDoTeste, setResultadoDoTeste] = useState<
+    { ok: boolean; texto: string } | null
+  >(null);
+
+  const testarPublicacao = async (e: React.FormEvent) => {
+    const novo = salvar(e, 'scheduled', { fecharDepois: false });
+    if (!novo) return;
+
+    setPublicandoAgora(true);
+    setResultadoDoTeste(null);
+    try {
+      const { conta, externalId } = await publicarAgora(novo.id);
+      setResultadoDoTeste({
+        ok: true,
+        texto: `Publicado em @${conta}. Id na Meta: ${externalId}`,
+      });
+    } catch (err) {
+      setResultadoDoTeste({
+        ok: false,
+        texto: err instanceof Error ? err.message : 'Falha ao publicar.',
+      });
+    } finally {
+      setPublicandoAgora(false);
     }
   };
 
@@ -622,8 +677,44 @@ export const CreateJobModal: React.FC = () => {
             </p>
           )}
 
+          {/* O resultado do teste fica acima dos botões, e não some sozinho:
+              é ele a única prova de que a integração publica. */}
+          {resultadoDoTeste && (
+            <div
+              className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${
+                resultadoDoTeste.ok
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
+                  : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
+              }`}
+            >
+              {resultadoDoTeste.ok ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+              )}
+              <span className="font-semibold leading-relaxed">{resultadoDoTeste.texto}</span>
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
+            {/* TEMPORÁRIO — teste da publicação no Instagram. Some quando a
+                integração estiver conferida; ver o comentário em
+                `testarPublicacao`. Só aparece com Instagram marcado, porque é
+                a única rede que o servidor publica. */}
+            {canais.includes('instagram') && (
+              <button
+                type="button"
+                onClick={(e) => void testarPublicacao(e)}
+                disabled={publicandoAgora}
+                title="Salva e publica imediatamente no Instagram do cliente. Não tem volta."
+                className="mr-auto flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60 transition cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {publicandoAgora ? 'Publicando...' : 'Publicar agora (teste)'}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={closeCreateJobModal}

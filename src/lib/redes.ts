@@ -247,3 +247,66 @@ export const cancelarPublicacao = async (id: string): Promise<void> => {
   const { error } = await supabase.from('publish_queue').delete().eq('id', id);
   if (error) throw new Error(error.message);
 };
+
+/**
+ * Espera o conteúdo existir no banco.
+ *
+ * A persistência é derivada de diff e roda em segundo plano: `createJob`
+ * devolve o job e a tela já o mostra **antes** de o insert acontecer. Quem
+ * pedir a publicação no instante seguinte encontra 404, e o erro não diz
+ * nada sobre a integração — diz só que o clique foi rápido demais.
+ */
+const esperarOConteudoExistir = async (jobId: string, limiteMs = 10_000): Promise<boolean> => {
+  const ateQuando = Date.now() + limiteMs;
+  while (Date.now() < ateQuando) {
+    const { data } = await supabase.from('jobs').select('id').eq('id', jobId).maybeSingle();
+    if (data) return true;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+};
+
+export interface ResultadoDaPublicacao {
+  externalId: string;
+  conta: string;
+}
+
+/**
+ * Publica um conteúdo agora, e espera a resposta da Meta.
+ *
+ * Diferente de `agendarPublicacao`, que só enfileira: aqui a publicação
+ * acontece na mesma requisição, e o erro da Meta volta com o texto que ela
+ * mandou. É a diferença entre descobrir que a integração falhou em segundos
+ * e descobrir em cinco minutos, garimpando `last_error`.
+ */
+export const publicarAgora = async (jobId: string): Promise<ResultadoDaPublicacao> => {
+  const { data: sessao } = await supabase.auth.getSession();
+  const token = sessao.session?.access_token;
+  if (!token) throw new ApiError('Faça login para publicar.', 401);
+
+  if (!(await esperarOConteudoExistir(jobId))) {
+    throw new ApiError(
+      'O conteúdo ainda não terminou de salvar. Espere um instante e tente de novo.',
+      409
+    );
+  }
+
+  const resposta = await fetch('/api/publicar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ jobId }),
+  });
+
+  const ehJson = resposta.headers.get('content-type')?.includes('application/json');
+  const payload = ehJson ? await resposta.json().catch(() => ({})) : {};
+
+  if (!resposta.ok) {
+    throw new ApiError(
+      payload?.error || `Falha na requisição (${resposta.status}).`,
+      resposta.status,
+      payload?.code
+    );
+  }
+
+  return { externalId: payload.externalId, conta: payload.conta };
+};

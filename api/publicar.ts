@@ -1,4 +1,12 @@
-import { clienteDeServico, json, autorizadoPeloCron } from './_lib/auth.js';
+import {
+  clienteDeServico,
+  clienteDoUsuario,
+  usuarioDaRequisicao,
+  json,
+  naoAutenticado,
+  autorizadoPeloCron,
+  textoValido,
+} from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
@@ -49,9 +57,20 @@ const MAX_TENTATIVAS = 3;
 
 async function handler(request: Request): Promise<Response> {
   if (!autorizadoPeloCron(request)) {
+    // Sem o segredo do cron, o único outro caminho é uma sessão pedindo a
+    // publicação de **um** conteúdo agora. Ele existe porque esperar até
+    // cinco minutos e depois garimpar `last_error` no banco é um jeito
+    // péssimo de descobrir que a integração não funciona: aqui o erro da
+    // Meta volta na resposta, com o texto que ela mandou.
+    //
+    // Não é uma porta mais fraca que a do cron: a rota reconfere o papel da
+    // pessoa no banco, e publica só no perfil que já está ligado àquele
+    // cliente. O que ela não faz é aceitar conteúdo do navegador — o que vai
+    // para a Meta sai das linhas de `jobs`, como na passada do cron.
+    //
     // Mesma resposta para segredo errado e para segredo ausente: dizer qual
     // dos dois é ajuda quem está tentando adivinhar.
-    return json({ error: 'Não autorizado.' }, 401);
+    return publicarUmAgora(request);
   }
 
   const supabase = clienteDeServico();
@@ -167,6 +186,172 @@ async function handler(request: Request): Promise<Response> {
     email,
   });
 }
+
+/**
+ * Publica um conteúdo agora, a pedido de quem está com a sessão aberta.
+ *
+ * Os papéis são os mesmos que a policy de INSERT da `publish_queue` aceita —
+ * e a conferência é feita no banco, não no que o navegador diz. Um membro
+ * sem papel de gestão recebe 403 aqui pelo mesmo motivo que receberia 42501
+ * lá.
+ *
+ * O item entra na fila antes de a publicação começar, e não depois: é a fila
+ * que impede o mesmo conteúdo de sair duas vezes no perfil do cliente, e um
+ * clique duplo no botão é exatamente o caso que ela existe para barrar.
+ */
+const PAPEIS_QUE_PUBLICAM = ['owner', 'admin', 'manager', 'social_media'];
+
+const publicarUmAgora = async (request: Request): Promise<Response> => {
+  const usuario = await usuarioDaRequisicao(request);
+  if (!usuario) return naoAutenticado();
+
+  if (request.method !== 'POST') {
+    return json({ error: 'Método não permitido.' }, 405);
+  }
+
+  let corpo: any;
+  try {
+    corpo = await request.json();
+  } catch {
+    return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
+  }
+
+  const { jobId } = corpo || {};
+  if (!textoValido(jobId, 64)) {
+    return json({ error: 'Conteúdo não informado.' }, 400);
+  }
+
+  const supabase = clienteDeServico();
+  if (!supabase) {
+    return json(
+      { error: 'Publicação não configurada. Defina SUPABASE_SECRET_KEY.', code: 'NOT_CONFIGURED' },
+      503
+    );
+  }
+
+  // Pela RLS: se o conteúdo não é de uma agência desta pessoa, ele não volta.
+  const doUsuario = clienteDoUsuario(request);
+  const { data: job } = await doUsuario
+    .from('jobs')
+    .select('id, workspace_id, client_id')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (!job) {
+    return json(
+      { error: 'Conteúdo não encontrado. Se você acabou de criá-lo, espere o salvamento terminar.' },
+      404
+    );
+  }
+
+  const { data: membro } = await doUsuario
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', job.workspace_id)
+    .eq('user_id', usuario.id)
+    .maybeSingle();
+
+  if (!membro || !PAPEIS_QUE_PUBLICAM.includes(membro.role)) {
+    return json({ error: 'Seu perfil não pode publicar.' }, 403);
+  }
+
+  const { data: conexao } = await supabase
+    .from('social_connections')
+    .select('id, account_name')
+    .eq('workspace_id', job.workspace_id)
+    .eq('client_id', job.client_id)
+    .eq('platform', 'instagram')
+    .maybeSingle();
+
+  if (!conexao) {
+    return json(
+      { error: 'Este cliente não tem conta do Instagram conectada.', code: 'SEM_CONEXAO' },
+      409
+    );
+  }
+
+  // Já publicado é parada, não retentativa. A restrição de unicidade da fila
+  // existe porque **publicar duplicado é pior que não publicar**, e um
+  // `upsert` cego por cima de uma linha `publicado` colocaria o mesmo post
+  // no perfil do cliente outra vez.
+  const { data: jaNaFila } = await supabase
+    .from('publish_queue')
+    .select('id, status, external_id')
+    .eq('job_id', job.id)
+    .eq('connection_id', conexao.id)
+    .maybeSingle();
+
+  if (jaNaFila?.status === 'publicado') {
+    return json(
+      {
+        error: `Este conteúdo já foi publicado em @${conexao.account_name}.`,
+        code: 'JA_PUBLICADO',
+        externalId: jaNaFila.external_id,
+      },
+      409
+    );
+  }
+
+  // `upsert` e não `insert`: repetir o teste depois de uma falha não pode
+  // estourar por causa da restrição de unicidade (job_id, connection_id).
+  const { data: item, error: erroFila } = await supabase
+    .from('publish_queue')
+    .upsert(
+      {
+        workspace_id: job.workspace_id,
+        job_id: job.id,
+        connection_id: conexao.id,
+        scheduled_for: new Date().toISOString(),
+        status: 'publicando',
+      },
+      { onConflict: 'job_id,connection_id' }
+    )
+    .select('id, attempts, status')
+    .single();
+
+  if (erroFila || !item) {
+    console.error('[publicar] fila (agora)', erroFila?.message);
+    return json({ error: 'Não foi possível colocar na fila.' }, 500);
+  }
+
+  try {
+    const publicadoId = await publicarItem(supabase, {
+      job_id: job.id,
+      connection_id: conexao.id,
+    });
+
+    await supabase
+      .from('publish_queue')
+      .update({
+        status: 'publicado',
+        external_id: publicadoId,
+        published_at: new Date().toISOString(),
+        last_error: null,
+        attempts: (item.attempts ?? 0) + 1,
+      })
+      .eq('id', item.id);
+
+    await supabase
+      .from('jobs')
+      .update({ status: 'published', published_date: new Date().toISOString() })
+      .eq('id', job.id);
+
+    return json({ ok: true, externalId: publicadoId, conta: conexao.account_name });
+  } catch (erro) {
+    const motivo =
+      erro instanceof ErroDaMeta || erro instanceof Error ? erro.message : 'Falha desconhecida.';
+
+    // Fica em `falhou`, e não de volta em `pendente`: quem pediu está olhando
+    // a resposta, e um item pendente faria o cron repetir por baixo sem
+    // ninguém ter decidido isso.
+    await supabase
+      .from('publish_queue')
+      .update({ status: 'falhou', last_error: motivo, attempts: (item.attempts ?? 0) + 1 })
+      .eq('id', item.id);
+
+    return json({ error: motivo, conta: conexao.account_name }, 502);
+  }
+};
 
 /**
  * Mantém as conexões vivas.
