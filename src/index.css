@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/*
+  As utilidades de animação que as peças do shadcn escrevem: `animate-in`,
+  `fade-in-0`, `zoom-in-95`, `slide-in-from-top-2`.
+
+  Elas **não existem no Tailwind**, e é isso que torna a falta cara: uma
+  classe que não existe não quebra nada — o elemento simplesmente aparece
+  seco, e `tsc`, vitest e `vite build` ficam os três verdes. É a armadilha 0
+  outra vez, e já estava acontecendo: o `tooltip.tsx` escreve
+  `animate-in fade-in-0 zoom-in-95` desde que entrou, e nenhuma das três
+  fazia coisa alguma.
+
+  É o mesmo pacote que o `shadcn init` instala no Tailwind v4. Só CSS, nada
+  em tempo de execução.
+*/
+@import "tw-animate-css";
+
 @custom-variant dark (&:is(.dark *));
 
 /*

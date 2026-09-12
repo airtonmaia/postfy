@@ -73,6 +73,7 @@ const CarregandoTela: React.FC = () => (
 import { TabType } from './types';
 import { podeAcessarAba } from './lib/permissions';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
+import { PlanoDaAgencia } from './components/layout/PlanoDaAgencia';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
 import { DynamicThemeProvider } from './components/common/DynamicThemeProvider';
 import { SeoDoSaas } from './components/common/SeoDoSaas';
@@ -287,29 +288,15 @@ const MainLayout: React.FC = () => {
               cresce com o conteúdo: o seletor tem 48px e o padding somava 24,
               dando 72 contra os 56 do header — a marca ficava um degrau acima
               da barra de cima, e a linha de baixo das duas não fechava. */}
+          {/* A marca fica, recolhida ou não. Antes ela sumia no trilho e o
+              lugar dela era ocupado pelo botão de expandir: a barra de 64px
+              não tinha nada que dissesse de qual agência era a tela, e quem
+              trabalha em mais de uma perdia a referência justo no modo em que
+              sobra menos contexto. O botão saiu para o cabeçalho ao lado. */}
           <div className="h-14 px-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-1 shrink-0">
-            <div className={`min-w-0 flex-1 ${recolhida ? 'md:hidden' : ''}`}>
-              <WorkspaceSwitcher />
+            <div className="min-w-0 flex-1">
+              <WorkspaceSwitcher recolhida={recolhida} />
             </div>
-
-            {/* Recolher/expandir. Fica no cabeçalho da própria barra, que é
-                onde o olho procura — e no trilho ele é a única coisa aqui,
-                então vira o caminho de volta. */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              type="button"
-              onClick={() => setSidebarRecolhida(!recolhida)}
-              title={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
-              aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
-              className={`hidden md:inline-flex shrink-0 ${recolhida ? 'mx-auto' : ''}`}
-            >
-              {recolhida ? (
-                <PanelLeftOpen className="w-4 h-4" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4" />
-              )}
-            </Button>
 
             <Button variant="ghost" size="icon-sm"
               onClick={() => setMobileMenuOpen(false)}
@@ -437,6 +424,10 @@ const MainLayout: React.FC = () => {
             />
           </div>
 
+          {/* Em que plano a agência está. Veio de cima, de baixo do nome da
+              agência, onde era o selo de teste grátis em toda tela. */}
+          <PlanoDaAgencia recolhida={recolhida} />
+
           {/* User Profile & Logout */}
           <div className={`flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2 ${
             recolhida ? 'md:flex-col md:gap-2' : ''
@@ -490,7 +481,32 @@ const MainLayout: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </Button>
-            
+
+            {/*
+              Recolher/expandir, **do lado de fora da barra**.
+
+              Ele morava no cabeçalho da própria barra lateral, dividindo os
+              56px com o seletor de agência — e recolhida, os dois não cabiam:
+              a marca era quem saía. Aqui ele fica no mesmo canto nos dois
+              estados, que é o que faz dele um interruptor e não um botão que
+              se procura. É onde o shadcn põe o `SidebarTrigger`.
+            */}
+            <Button variant="ghost" size="icon-sm"
+              type="button"
+              onClick={() => setSidebarRecolhida(!recolhida)}
+              title={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+              aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
+              className="hidden md:inline-flex"
+            >
+              {recolhida ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </Button>
+
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden md:block mx-0.5"></div>
+
             {/* O seletor de agência mora na barra lateral, no lugar da logo. */}
 
             {/* Client Filter Switcher */}
