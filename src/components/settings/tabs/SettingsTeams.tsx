@@ -209,7 +209,7 @@ export const SettingsTeams: React.FC = () => {
           <form onSubmit={handleCreateSquad} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Criar Nova Squad</h4>
-              <Button variant="ghost" size="icon" 
+              <Button variant="ghost" size="icon-sm" 
                 type="button" 
                 onClick={() => setShowAddModal(false)}
                 className="dark:text-slate-200"

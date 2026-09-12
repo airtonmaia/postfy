@@ -130,20 +130,40 @@ const variantesDoBotao = cva(
        * do shadcn — 36px.
        */
       size: {
-        /** Barra de ação densa, dentro de card ou linha de tabela. 32px. */
+        /** **O padrão.** 32px, que é a densidade do produto. */
         sm: 'h-8 px-3 text-xs gap-1.5',
-        /** O padrão do produto. 36px. */
+        /**
+         * 36px e 40px ficam sem uso por enquanto, e de propósito: a escala é
+         * o vocabulário de onde sai o destaque quando uma ação merecer peso —
+         * "Publicar agora", "Salvar", a ação principal de uma tela. Sem eles,
+         * dar destaque a um botão voltaria a ser escrever `py-` à mão, que é
+         * exatamente como nasceram as doze alturas.
+         *
+         * O par de ícone acompanha o irmão de texto: `icon-sm` fecha com
+         * `sm`, `icon` com `md`.
+         */
         md: 'h-9 px-4 text-sm',
-        /** Ação principal de uma tela, e o botão de largura cheia da lateral. */
         lg: 'h-10 px-5 text-sm',
-        /** Só ícone: quadrado, na mesma altura do irmão com texto. */
         icon: 'size-9',
         'icon-sm': 'size-8',
       },
     },
     defaultVariants: {
       variant: 'primary',
-      size: 'md',
+      /**
+       * **O padrão é o `sm`, e isso é escolha do produto.**
+       *
+       * A primeira versão desta escala usou 36px como padrão, que é o do
+       * exemplo do shadcn. Em tela ficou grande: o Orquesia é denso — cabeçalho
+       * de 56px, item de menu de 32px, card com três ações — e um botão de
+       * 36px ao lado de um item de menu de 32px puxa o olho para a ação
+       * errada.
+       *
+       * Então `sm` por omissão, e `md`/`lg` entram um a um, onde a ação
+       * merecer peso. O caminho certo é o que não exige lembrar de nada: sem
+       * prop, o botão nasce no tamanho da maioria.
+       */
+      size: 'sm',
     },
   }
 );

@@ -109,7 +109,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon"
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
           >
             <X className="w-5 h-5" />
@@ -212,7 +212,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
           </div>
 
           {/* Generate Button */}
-          <Button size="lg"
+          <Button
             type="button"
             onClick={handleGenerate}
             disabled={loading || !theme.trim()}
@@ -248,7 +248,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                   <span className="font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
                     🎯 Gancho Inicial / Capa (Hook)
                   </span>
-                  <Button variant="ghost" size="sm"
+                  <Button variant="ghost"
                     onClick={() => copyToClipboard(result.hook, 'hook')}
                     className="text-amber-700 dark:text-amber-400 hover:underline"
                   >
@@ -268,7 +268,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                     <FileText className="w-3.5 h-3.5 text-purple-600" />
                     Legenda Completa
                   </span>
-                  <Button variant="ghost" size="sm"
+                  <Button variant="ghost"
                     onClick={() => copyToClipboard(result.caption, 'caption')}
                     className="text-purple-600 dark:text-purple-400 hover:underline"
                   >
@@ -315,7 +315,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
 
               {/* Apply into Job button */}
               {onApplyCopy && (
-                <Button variant="success" size="lg"
+                <Button variant="success"
                   type="button"
                   onClick={() => {
                     onApplyCopy(result);

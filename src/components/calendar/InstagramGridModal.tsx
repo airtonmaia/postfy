@@ -83,7 +83,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
               ))}
             </select>
 
-            <Button variant="ghost" size="icon"
+            <Button variant="ghost" size="icon-sm"
               onClick={onClose}
             >
               <X className="w-5 h-5" />

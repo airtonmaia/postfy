@@ -112,7 +112,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
   return (
     <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 p-4 space-y-6 overflow-y-auto">
       {/* Primary Action Button */}
-      <Button size="lg"
+      <Button
         id="btn-sidebar-new-job"
         onClick={() => openCreateJobModal(currentDate.toISOString())}
         className="w-full"
@@ -186,7 +186,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
           <span>Clientes</span>
           {clientFilter !== 'all' && (
-            <Button variant="ghost" size="sm"
+            <Button variant="ghost"
               onClick={() => setClientFilter('all')}
               className="font-normal text-purple-600 hover:underline"
             >

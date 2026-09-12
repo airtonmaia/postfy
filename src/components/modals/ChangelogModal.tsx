@@ -168,7 +168,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
             </div>
           </div>
 
-          <Button variant="ghost" size="icon"
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
             aria-label="Fechar"
             className="dark:hover:text-white shrink-0"

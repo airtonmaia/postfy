@@ -117,7 +117,7 @@ export const SearchModal: React.FC = () => {
                           {job.title}
                         </span>
                       </div>
-                      <StatusBadge status={job.status} size="sm" />
+                      <StatusBadge status={job.status} />
                     </button>
                   ))}
                 </div>

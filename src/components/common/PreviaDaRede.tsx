@@ -249,7 +249,7 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
               com a proporção errada. */}
           {total > 1 && (
             <>
-              <Button size="icon"
+              <Button size="icon-sm"
                 type="button"
                 onClick={() => setPagina((p) => (p - 1 + total) % total)}
                 aria-label="Arte anterior"
@@ -257,7 +257,7 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <Button size="icon"
+              <Button size="icon-sm"
                 type="button"
                 onClick={() => setPagina((p) => (p + 1) % total)}
                 aria-label="Próxima arte"

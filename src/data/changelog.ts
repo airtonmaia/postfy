@@ -35,7 +35,7 @@ export const CHANGELOG: EntradaDoChangelog[] = [
     data: '2026-09-12',
     resumo: 'Todos os botões do sistema passaram a ter o mesmo tamanho e o mesmo acabamento.',
     melhorias: [
-      'Os botões estavam escritos um a um, e o sistema tinha doze alturas diferentes — "Novo Post" media 30px e "Novo Conteúdo" media 40px, sem que nenhum dos dois parecesse errado sozinho. Agora existe uma escala só, de três tamanhos, e o padrão é 36px.',
+      'Os botões estavam escritos um a um, e o sistema tinha doze alturas diferentes — "Novo Post" media 30px e "Novo Conteúdo" media 40px, sem que nenhum dos dois parecesse errado sozinho. Agora existe uma escala só, e todo botão sai em 32px, que é a mesma altura do item do menu lateral.',
       'O acabamento também ficou igual: mesmo arredondamento, mesmo peso de texto e mesmo espaçamento em todo botão, do quadro ao portal do cliente.',
       'Botões que se repetiam com a mesma cor — o verde de aprovar e o cinza de ação secundária — viraram opções do sistema em vez de serem pintados à mão em cada tela.',
     ],

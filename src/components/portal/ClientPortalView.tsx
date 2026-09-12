@@ -179,7 +179,7 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                           {job.title}
                         </p>
                         <div className="mt-0.5">
-                          <StatusBadge status={job.status} size="sm" />
+                          <StatusBadge status={job.status} />
                         </div>
                       </div>
                     </div>
@@ -762,7 +762,7 @@ export const ClientPortalView: React.FC = () => {
 
                     {/* Actions Toolbar */}
                     <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between gap-3">
-                      <Button variant="destructive" size="lg"
+                      <Button variant="destructive"
                         onClick={() => {
                           setSelectedForReview(job);
                           setIsRejecting(true);
@@ -773,7 +773,7 @@ export const ClientPortalView: React.FC = () => {
                         Pedir Ajuste
                       </Button>
 
-                      <Button variant="success" size="lg"
+                      <Button variant="success"
                         onClick={() => handleApprove(job.id)}
                         className="flex-1"
                       >
@@ -937,7 +937,7 @@ export const ClientPortalView: React.FC = () => {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                     {podeEditar && (
-                      <Button variant="destructive" size="icon"
+                      <Button variant="destructive" size="icon-sm"
                         onClick={() => deleteClientFile(client.id, file.id)}
                         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                         title="Remover arquivo"
@@ -1069,20 +1069,20 @@ export const ClientPortalView: React.FC = () => {
                         <span className="mr-2 text-slate-700 dark:text-slate-300">
                           {isRevealed ? pwd.password : '••••••••••••'}
                         </span>
-                        <Button variant="ghost" size="icon" 
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => toggleRevealPassword(pwd.id)}
                           className="dark:hover:text-white mr-1"
                         >
                           {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </Button>
-                        <Button variant="ghost" size="icon" 
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => handleCopy(pwd.password, pwd.id)}
                         >
                           {copiedId === pwd.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </Button>
                       </div>
                       {podeEditar && (
-                        <Button variant="destructive" size="icon"
+                        <Button variant="destructive" size="icon-sm"
                           onClick={() => deleteClientPassword(client.id, pwd.id)}
                           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                           title="Remover credencial"
@@ -1285,7 +1285,7 @@ export const ClientPortalView: React.FC = () => {
                 </p>
               </div>
 
-              <Button size="lg"
+              <Button
                 type="button"
                 onClick={() => setIsAddingMaterial(!isAddingMaterial)}
                 className="shrink-0"
@@ -1633,7 +1633,7 @@ export const ClientPortalView: React.FC = () => {
                           faria isso por engano e ficaria do lado de fora,
                           sem tela de recuperação. A RPC também recusa. */}
                       {u.id !== portalUsuario?.id && (
-                        <Button variant="destructive" size="icon"
+                        <Button variant="destructive" size="icon-sm"
                           onClick={() => void removerUsuario(u.id, u.email)}
                           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                           title="Remover do portal"
@@ -1709,7 +1709,7 @@ export const ClientPortalView: React.FC = () => {
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
               {calendarPreviewJob.status === 'for_approval' ? (
                 <>
-                  <Button variant="destructive" size="lg"
+                  <Button variant="destructive"
                     onClick={() => {
                       const job = calendarPreviewJob;
                       setCalendarPreviewJob(null);
@@ -1721,7 +1721,7 @@ export const ClientPortalView: React.FC = () => {
                     <AlertCircle className="w-4 h-4" />
                     Pedir Ajuste
                   </Button>
-                  <Button variant="success" size="lg"
+                  <Button variant="success"
                     onClick={() => {
                       handleApprove(calendarPreviewJob.id);
                       setCalendarPreviewJob(null);

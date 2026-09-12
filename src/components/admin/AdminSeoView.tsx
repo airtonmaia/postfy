@@ -154,7 +154,7 @@ export const AdminSeoView: React.FC = () => {
 
         <div className="flex items-center gap-2 shrink-0">
           {mudou && (
-            <Button variant="secondary" size="lg"
+            <Button variant="secondary"
               type="button"
               onClick={() => {
                 setForm(original);
@@ -166,7 +166,7 @@ export const AdminSeoView: React.FC = () => {
               Descartar
             </Button>
           )}
-          <Button size="lg"
+          <Button
             type="button"
             onClick={() => void salvar()}
             disabled={salvando || !mudou}

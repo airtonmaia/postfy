@@ -275,7 +275,7 @@ export const SettingsWhitelabel: React.FC = () => {
         </div>
 
         <div className="mt-6 flex justify-end">
-          <Button size="lg" 
+          <Button 
             onClick={handleSave}
             disabled={isSaving}
           >

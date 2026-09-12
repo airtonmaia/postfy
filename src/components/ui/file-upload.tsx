@@ -243,7 +243,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             {label}
           </label>
           {allowUrlFallback && !currentFile && (
-            <Button variant="ghost" size="sm"
+            <Button variant="ghost"
               type="button"
               onClick={() => setIsUrlMode(!isUrlMode)}
               className="text-purple-600 dark:text-purple-400 hover:underline"
@@ -338,7 +338,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 <Eye className="w-4 h-4" />
               </a>
             )}
-            <Button variant="destructive" size="icon"
+            <Button variant="destructive" size="icon-sm"
               type="button"
               onClick={handleRemove}
               disabled={disabled}

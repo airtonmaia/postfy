@@ -198,7 +198,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               <UploadCloud className="w-4 h-4" />
               Adicionar mídia
             </Button>
-            <Button variant="soft" size="icon"
+            <Button variant="soft" size="icon-sm"
               type="button"
               onClick={() => setMenuAberto((a) => !a)}
               aria-label="Outras origens"

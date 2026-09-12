@@ -109,7 +109,7 @@ export const AdminAgenciasView: React.FC = () => {
           </p>
         </div>
 
-        <Button size="lg"
+        <Button
           onClick={() => setIsCreateWorkspaceModalOpen(true)}
           className="shrink-0"
         >
@@ -226,7 +226,7 @@ export const AdminAgenciasView: React.FC = () => {
                   {isCurrent ? 'Atual' : 'Acessar'}
                 </button>
 
-                <Button variant="secondary" size="icon"
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => handleOpenEdit(ws)}
                   title="Editar Dados da Agência"
                   className="text-slate-600 hover:text-purple-600 dark:hover:text-purple-400"
@@ -234,7 +234,7 @@ export const AdminAgenciasView: React.FC = () => {
                   <Edit3 className="w-4 h-4" />
                 </Button>
 
-                <Button variant="secondary" size="icon"
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => {
                     // O texto nomeia o prazo e o que vai junto. O botão
                     // antigo dizia só "excluir" — e não excluía nada.

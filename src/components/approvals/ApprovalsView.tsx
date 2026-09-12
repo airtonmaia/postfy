@@ -75,7 +75,7 @@ export const ApprovalsView: React.FC = () => {
         </div>
 
         {pendingApprovalJobs.length > 0 && (
-          <Button variant="success" size="lg"
+          <Button variant="success"
             onClick={handleApproveAll}
 
           >

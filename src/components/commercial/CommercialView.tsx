@@ -169,7 +169,7 @@ export const CommercialView: React.FC = () => {
           </div>
 
           {activeSubTab === 'pipeline' && (
-            <Button size="lg"
+            <Button
               onClick={() => setShowAddLeadModal(true)}
             >
               <Plus className="w-4 h-4" />
@@ -178,7 +178,7 @@ export const CommercialView: React.FC = () => {
           )}
 
           {activeSubTab === 'proposals' && (
-            <Button size="lg"
+            <Button
               onClick={() => setShowAddProposalModal(true)}
             >
               <Plus className="w-4 h-4" />
@@ -187,7 +187,7 @@ export const CommercialView: React.FC = () => {
           )}
 
           {activeSubTab === 'contracts' && (
-            <Button size="lg"
+            <Button
               onClick={() => setShowAddContractModal(true)}
             >
               <Plus className="w-4 h-4" />
@@ -294,7 +294,7 @@ export const CommercialView: React.FC = () => {
                         {lead.stage !== 'won' ? (
                           <>
                             {lead.stage === 'new_lead' && (
-                              <Button size="sm"
+                              <Button
                                 onClick={() => updateLeadStage(lead.id, 'meeting_scheduled')}
                                 className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700"
                               >
@@ -303,7 +303,7 @@ export const CommercialView: React.FC = () => {
                             )}
 
                             {lead.stage === 'meeting_scheduled' && (
-                              <Button size="sm"
+                              <Button
                                 onClick={() => updateLeadStage(lead.id, 'proposal_sent')}
                                 className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700"
                               >
@@ -312,7 +312,7 @@ export const CommercialView: React.FC = () => {
                             )}
 
                             {lead.stage === 'proposal_sent' && (
-                              <Button variant="soft" size="sm"
+                              <Button variant="soft"
                                 onClick={() => updateLeadStage(lead.id, 'negotiating')}
                                 className="flex-1"
                               >
@@ -321,7 +321,7 @@ export const CommercialView: React.FC = () => {
                             )}
 
                             {lead.stage === 'negotiating' && (
-                              <Button variant="success" size="sm"
+                              <Button variant="success"
                                 onClick={() => convertLeadToClient(lead.id)}
                                 className="flex-1"
                               >
@@ -518,7 +518,7 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateLead} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Cadastrar Novo Lead Comercial</h4>
-              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddLeadModal(false)} className="dark:text-slate-200">
+              <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddLeadModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -613,7 +613,7 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateProposal} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Proposta Comercial</h4>
-              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddProposalModal(false)} className="dark:text-slate-200">
+              <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddProposalModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -684,7 +684,7 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateContract} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Novo Contrato de Serviços</h4>
-              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddContractModal(false)} className="dark:text-slate-200">
+              <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddContractModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -750,7 +750,7 @@ export const CommercialView: React.FC = () => {
                   {viewingContract.title}
                 </h4>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setViewingContract(null)}>
+              <Button variant="ghost" size="icon-sm" onClick={() => setViewingContract(null)}>
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -833,7 +833,7 @@ export const CommercialView: React.FC = () => {
                 <span className="text-[10px] font-bold uppercase text-purple-600">Proposta de Prestação de Serviços</span>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingProposal.title}</h4>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setViewingProposal(null)}>
+              <Button variant="ghost" size="icon-sm" onClick={() => setViewingProposal(null)}>
                 <X className="w-5 h-5" />
               </Button>
             </div>

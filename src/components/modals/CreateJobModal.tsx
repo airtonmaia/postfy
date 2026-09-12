@@ -772,7 +772,7 @@ export const CreateJobModal: React.FC = () => {
                 botão que a pessoa aperta por reflexo, ela seria apertada por
                 reflexo também. */}
             {canais.includes('instagram') && (
-              <Button size="lg"
+              <Button
                 type="button"
                 onClick={(e) => void publicarImediatamente(e)}
                 disabled={ocupado}
@@ -786,7 +786,7 @@ export const CreateJobModal: React.FC = () => {
 
             {/* Ideia é o começo do funil: entra sem data, sem arte e sem
                 pedir nada a ninguém. */}
-            <Button variant="outline" size="lg"
+            <Button variant="outline"
               type="button"
               onClick={(e) => salvar(e, 'ideas')}
               disabled={ocupado}
@@ -799,7 +799,7 @@ export const CreateJobModal: React.FC = () => {
             {/* Agendar **põe na fila de verdade**, quando há conta conectada.
                 Só marcar o status seria a armadilha que já custou caro: o card
                 ficava em "Agendado", a data passava e nada publicava. */}
-            <Button variant="outline" size="lg"
+            <Button variant="outline"
               type="button"
               onClick={(e) => void agendar(e)}
               disabled={ocupado}
@@ -810,7 +810,7 @@ export const CreateJobModal: React.FC = () => {
             </Button>
 
             {/* O caminho mais comum de uma agência, e por isso o primário. */}
-            <Button size="lg"
+            <Button
               type="button"
               onClick={(e) => salvar(e, 'for_approval')}
               disabled={ocupado}

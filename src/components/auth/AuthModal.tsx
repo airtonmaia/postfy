@@ -192,7 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                       e.target.value = '';
                     }}
                   />
-                  <Button variant="secondary" size="sm"
+                  <Button variant="secondary"
                     type="button"
                     disabled={enviando}
                     onClick={() => entradaDeArquivo.current?.click()}
@@ -202,7 +202,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     {enviando ? `Enviando ${progresso}%` : 'Enviar foto'}
                   </Button>
                   {avatar && (
-                    <Button variant="destructive" size="sm"
+                    <Button variant="destructive"
                       type="button"
                       onClick={() => setAvatar('')}
                       className="text-slate-500"
@@ -229,7 +229,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
 
-            <Button size="lg"
+            <Button
               type="button"
               disabled={ocupado || enviando || !perfilMudou}
               onClick={() =>
@@ -281,7 +281,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               esquecida aberta trocaria a senha e tomaria a conta.
             </p>
 
-            <Button variant="outline" size="lg"
+            <Button variant="outline"
               type="button"
               disabled={ocupado || !senhaAtual || !novaSenha}
               onClick={() =>
@@ -322,7 +322,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               entrando com o e-mail de cima.
             </p>
 
-            <Button variant="outline" size="lg"
+            <Button variant="outline"
               type="button"
               disabled={ocupado || !novoEmail}
               onClick={() =>
@@ -387,7 +387,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <Button variant="outline" size="lg"
+              <Button variant="outline"
                 onClick={() =>
                   executar(async () => {
                     const res = await forceSync();
@@ -400,7 +400,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <RefreshCw className={`w-3.5 h-3.5 ${ocupado ? 'animate-spin' : ''}`} />
                 Sincronizar agora
               </Button>
-              <Button variant="destructive" size="lg"
+              <Button variant="destructive"
                 onClick={async () => {
                   setOcupado(true);
                   await logout();

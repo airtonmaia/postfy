@@ -274,7 +274,7 @@ export const BarraDeTexto: React.FC<Props> = ({
         {aoGerarComIA && (
           <>
             <span className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
-            <Button variant="soft" size="sm"
+            <Button variant="soft"
               type="button"
               onClick={gerar}
               disabled={gerando}
@@ -343,13 +343,13 @@ export const BarraDeTexto: React.FC<Props> = ({
             className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
           />
           <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm"
+            <Button variant="ghost"
               type="button"
               onClick={() => setPainel(null)}
             >
               Cancelar
             </Button>
-            <Button size="sm"
+            <Button
               type="button"
               onClick={inserirLink}
             >

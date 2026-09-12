@@ -201,7 +201,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                       {/* Status indicator bar / pill */}
                       <div className="mt-1 flex items-center justify-between gap-1">
                         <FormatBadge format={job.format} />
-                        <StatusBadge status={job.status} size="sm" />
+                        <StatusBadge status={job.status} />
                       </div>
                     </div>
                   );
@@ -209,7 +209,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
 
                 {/* Overflow count */}
                 {cell.jobs.length > 3 && (
-                  <Button variant="soft" size="sm"
+                  <Button variant="soft"
                     onClick={(e) => {
                       e.stopPropagation();
                       // Show all jobs for that date in detail

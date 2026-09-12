@@ -253,7 +253,7 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         <div className="p-3 space-y-2 border-t border-slate-200 dark:border-slate-800">
-          <Button variant="secondary" size="lg"
+          <Button variant="secondary"
             type="button"
             onClick={() => setActiveTab(ABA_INICIAL)}
             className="w-full"
@@ -280,7 +280,7 @@ export const AdminLayout: React.FC = () => {
               </div>
             </div>
 
-            <Button variant="destructive" size="icon"
+            <Button variant="destructive" size="icon-sm"
               type="button"
               onClick={() => logout()}
               className="shrink-0"
@@ -295,7 +295,7 @@ export const AdminLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="icon"
+            <Button variant="ghost" size="icon-sm"
               onClick={() => setMenuAberto(true)}
               className="md:hidden"
             >

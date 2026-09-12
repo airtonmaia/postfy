@@ -321,13 +321,14 @@ const MainLayout: React.FC = () => {
 
           {/* Quick Action: New Content Button */}
           <div className={recolhida ? 'p-3 md:px-2' : 'p-3'}>
-            {/* `lg` porque é a ação principal do produto — o mesmo degrau do
-                "Novo Conteúdo" da lateral do calendário, que antes tinha 40px
-                contra os 34px daqui só pela diferença de `text-xs` para
-                `text-sm`. No trilho o padding lateral some, para o ícone ficar
-                centrado no quadrado. */}
+            {/* Sem `size`: cai no padrão, como todo botão do produto. Este e o
+                "Novo Conteúdo" da lateral do calendário chegaram a ter 40px e
+                34px só pela diferença de `text-sm` para `text-xs` — agora
+                fecham porque a altura é fixa, não derivada do padding.
+
+                No trilho o padding lateral some, para o ícone ficar centrado
+                no quadrado. */}
             <Button
-              size="lg"
               onClick={() => openCreateJobModal()}
               title={recolhida ? 'Novo Conteúdo' : undefined}
               className={`w-full ${recolhida ? 'px-0 md:px-0' : ''}`}
@@ -466,7 +467,7 @@ const MainLayout: React.FC = () => {
               <ShieldCheck className={`w-4 h-4 text-purple-600 shrink-0 ${recolhida ? 'md:hidden' : ''}`} />
             </button>
 
-            <Button variant="destructive" size="icon"
+            <Button variant="destructive" size="icon-sm"
               type="button"
               onClick={() => logout()}
               className="shrink-0"
@@ -483,7 +484,7 @@ const MainLayout: React.FC = () => {
         {/* Top Navbar */}
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 transition-colors duration-200">
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="icon"
+            <Button variant="ghost" size="icon-sm"
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden"
             >
@@ -513,7 +514,7 @@ const MainLayout: React.FC = () => {
           <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Quick Status Pill */}
             {inAdjustmentCount > 0 && (
-              <Button variant="destructive" size="sm"
+              <Button variant="destructive"
                 onClick={() => setActiveTab('aprovacoes')}
                 className="hidden sm:flex bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20"
               >

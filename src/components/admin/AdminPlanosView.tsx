@@ -146,7 +146,7 @@ export const AdminPlanosView: React.FC = () => {
           </p>
         </div>
 
-        <Button size="lg"
+        <Button
           onClick={() => {
             setEditingPlan(null);
             setName('');

@@ -293,7 +293,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
             </div>
           )}
 
-          <Button size="lg"
+          <Button
             type="submit"
             disabled={enviando}
             className="w-full"
@@ -308,7 +308,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           recusa, por e-mail repetido.
         */}
         {!convite.temConta && (
-          <Button variant="ghost" size="sm"
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               setModo(modo === 'cadastrar' ? 'entrar' : 'cadastrar');
@@ -329,7 +329,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           recuperar significaria perder o link do convite.
         */}
         {convite.temConta && (
-          <Button variant="ghost" size="sm"
+          <Button variant="ghost"
             type="button"
             disabled={enviando}
             onClick={async () => {

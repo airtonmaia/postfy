@@ -316,7 +316,7 @@ export const AdminIntegracoesView: React.FC = () => {
             <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
               {status?.urlDeRetorno || 'consultando o servidor...'}
             </code>
-            <Button size="lg"
+            <Button
               type="button"
               disabled={!status?.urlDeRetorno}
               onClick={async () => {
@@ -438,7 +438,7 @@ export const AdminIntegracoesView: React.FC = () => {
             <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
               {status?.urlDoWebhook || 'consultando o servidor...'}
             </code>
-            <Button size="lg"
+            <Button
               type="button"
               disabled={!status?.urlDoWebhook}
               onClick={async () => {
@@ -529,7 +529,7 @@ export const AdminIntegracoesView: React.FC = () => {
             placeholder="https://hook.us1.make.com/... ou https://hooks.zapier.com/..."
             className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono"
           />
-          <Button size="lg"
+          <Button
             onClick={testarWebhook}
             disabled={testandoWebhook}
             className="shrink-0 bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"

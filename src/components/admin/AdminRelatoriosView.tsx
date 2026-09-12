@@ -208,7 +208,7 @@ export const AdminRelatoriosView: React.FC = () => {
           </p>
         </div>
 
-        <Button variant="secondary" size="lg"
+        <Button variant="secondary"
           type="button"
           onClick={buscar}
           disabled={carregando}

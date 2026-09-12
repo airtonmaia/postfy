@@ -138,7 +138,7 @@ export const ListView: React.FC = () => {
 
                   <div className="flex items-center gap-1.5">
                     {job.status === 'for_approval' && (
-                      <Button size="icon"
+                      <Button size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           approveJob(job.id, 'Gestor da Agência');

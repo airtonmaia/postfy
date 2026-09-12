@@ -408,7 +408,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button size="lg" 
+              <Button 
                 type="submit" 
               >
                 Salvar Alterações
@@ -536,7 +536,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
-                    <Button variant="destructive" size="icon" 
+                    <Button variant="destructive" size="icon-sm" 
                       onClick={() => deleteClientFile(client.id, file.id)} 
                       title="Excluir arquivo"
                     >
@@ -675,14 +675,14 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                         <span className="mr-2 text-slate-700 dark:text-slate-200">
                           {isRevealed ? pwd.password : '••••••••••••'}
                         </span>
-                        <Button variant="ghost" size="icon" 
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => toggleShowPassword(pwd.id)}
                           className="dark:hover:text-white mr-1"
                           title={isRevealed ? 'Ocultar senha' : 'Ver senha'}
                         >
                           {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </Button>
-                        <Button variant="ghost" size="icon" 
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => handleCopy(pwd.password, pwd.id)}
                           title="Copiar senha"
                         >
@@ -690,7 +690,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                         </Button>
                       </div>
 
-                      <Button variant="destructive" size="icon" 
+                      <Button variant="destructive" size="icon-sm" 
                         onClick={() => deleteClientPassword(client.id, pwd.id)}
                         title="Excluir credencial"
                       >

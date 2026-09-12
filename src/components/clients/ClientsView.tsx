@@ -142,7 +142,7 @@ export const ClientsView: React.FC = () => {
           </p>
         </div>
 
-        <Button size="lg"
+        <Button
           onClick={() => setIsAddingClient(true)}
         >
           <Plus className="w-4 h-4" />
@@ -155,7 +155,7 @@ export const ClientsView: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-purple-200 shadow-sm space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">Cadastrar Novo Cliente</h4>
-            <Button variant="ghost" size="icon" onClick={() => setIsAddingClient(false)} className="dark:text-slate-300">
+            <Button variant="ghost" size="icon-sm" onClick={() => setIsAddingClient(false)} className="dark:text-slate-300">
               <X className="w-4 h-4" />
             </Button>
           </div>

@@ -358,7 +358,7 @@ export const JobDetailModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button size="sm"
+            <Button
               onClick={() => setIsWhatsAppOpen(true)}
               className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border-emerald-200 dark:border-emerald-800"
               title="Disparo direto com mensagem formatada para o WhatsApp do cliente"
@@ -367,7 +367,7 @@ export const JobDetailModal: React.FC = () => {
               <span>WhatsApp</span>
             </Button>
 
-            <Button size="sm"
+            <Button
               onClick={handleCopyApprovalLink}
               className="dark:bg-slate-800"
               title="Copiar link seguro para o WhatsApp do cliente"
@@ -454,7 +454,7 @@ export const JobDetailModal: React.FC = () => {
                         <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                         <span>Ajuste Solicitado pelo Cliente:</span>
                       </div>
-                      <Button size="sm"
+                      <Button
                         type="button"
                         onClick={handleConvertFeedbackWithAi}
                         disabled={isConvertingFeedback}
@@ -482,7 +482,7 @@ export const JobDetailModal: React.FC = () => {
                       Legenda do Post
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button size="sm"
+                      <Button
                         type="button"
                         onClick={() => setIsAiCopyOpen(true)}
                         className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
@@ -490,7 +490,7 @@ export const JobDetailModal: React.FC = () => {
                         <Sparkles className="w-3 h-3" />
                         <span>Gerar Copy com IA</span>
                       </Button>
-                      <Button variant="ghost" size="sm"
+                      <Button variant="ghost"
                         type="button"
                         onClick={async () => {
                           await copyToClipboard(selectedJob.caption);
@@ -546,7 +546,7 @@ export const JobDetailModal: React.FC = () => {
                   </span>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="success" size="lg"
+                    <Button variant="success"
                       onClick={() => approveJob(selectedJob.id, 'Agência')}
                       className="active:bg-emerald-800"
                     >
@@ -554,7 +554,7 @@ export const JobDetailModal: React.FC = () => {
                       Aprovar Conteúdo
                     </Button>
 
-                    <Button variant="destructive" size="lg"
+                    <Button variant="destructive"
                       onClick={() => setIsAdjusting(true)}
                       className="bg-rose-50 text-rose-700 border border-rose-200"
                     >
@@ -576,13 +576,13 @@ export const JobDetailModal: React.FC = () => {
                         className="w-full text-xs p-2 bg-white dark:bg-slate-900 border border-rose-300 rounded-lg focus:ring-2 focus:ring-rose-500"
                       />
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm"
+                        <Button variant="ghost"
                           onClick={() => setIsAdjusting(false)}
                           className="hover:bg-slate-200"
                         >
                           Cancelar
                         </Button>
-                        <Button variant="destructive" size="sm"
+                        <Button variant="destructive"
                           onClick={handleSendAdjustment}
                           className="bg-rose-600 text-white"
                         >
@@ -847,7 +847,7 @@ export const JobDetailModal: React.FC = () => {
 
                   <div className="flex items-center gap-2">
                     {!timerRunning ? (
-                      <Button size="lg"
+                      <Button
                         type="button"
                         onClick={() => setTimerRunning(true)}
                         className="flex-1"
@@ -856,7 +856,7 @@ export const JobDetailModal: React.FC = () => {
                         <span>Iniciar Timer</span>
                       </Button>
                     ) : (
-                      <Button size="lg"
+                      <Button
                         type="button"
                         onClick={() => setTimerRunning(false)}
                         className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
@@ -865,7 +865,7 @@ export const JobDetailModal: React.FC = () => {
                       </Button>
                     )}
 
-                    <Button variant="success" size="lg"
+                    <Button variant="success"
                       type="button"
                       disabled={timerSeconds === 0}
                       onClick={handleStopAndSaveTimer}
@@ -898,7 +898,6 @@ export const JobDetailModal: React.FC = () => {
                         <Button
                           key={mins}
                           variant={manualMinutes === mins ? 'primary' : 'outline'}
-                          size="sm"
                           type="button"
                           onClick={() => setManualMinutes(mins)}
                         >
@@ -918,7 +917,7 @@ export const JobDetailModal: React.FC = () => {
                     />
                   </div>
 
-                  <Button size="lg"
+                  <Button
                     type="button"
                     onClick={handleAddManualTime}
                     className="w-full bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 text-white"

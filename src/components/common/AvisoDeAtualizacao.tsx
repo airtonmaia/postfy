@@ -68,7 +68,7 @@ export const AvisoDeAtualizacao: React.FC = () => {
         está salvo continua salvo.
       </p>
 
-      <Button size="sm"
+      <Button
         onClick={() => {
           setRecarregando(true);
           void recarregarComSeguranca();

@@ -85,7 +85,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-4">
             Aproveite para planejar novas pautas ou adiantar produções da semana.
           </p>
-          {/* Tem rótulo, então não é `size="icon"`. A detecção da migração
+          {/* Tem rótulo, então não é `size="icon-sm"`. A detecção da migração
               procurava texto solto começando com letra, e o "+ " na frente
               defeitava a regex: o botão saiu como um quadrado de 36px com a
               frase escapando por fora da área clicável. */}

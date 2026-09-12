@@ -93,7 +93,7 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon"
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
           >
             <X className="w-5 h-5" />
@@ -131,7 +131,7 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 pt-2">
-          <Button variant="secondary" size="lg"
+          <Button variant="secondary"
             type="button"
             onClick={handleCopy}
             className="flex-1"
@@ -140,7 +140,7 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
             <span>{copied ? 'Copiado!' : 'Copiar Texto'}</span>
           </Button>
 
-          <Button variant="success" size="lg"
+          <Button variant="success"
             type="button"
             onClick={handleOpenWhatsApp}
             className="flex-1 active:bg-emerald-800"

@@ -290,7 +290,7 @@ export const DashboardView: React.FC = () => {
                         <PlatformBadge platform={job.platform} showLabel={false} />
                         <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{job.title}</span>
                       </div>
-                      <StatusBadge status={job.status} size="sm" />
+                      <StatusBadge status={job.status} />
                     </div>
                   );
                 })}

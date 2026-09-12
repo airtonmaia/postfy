@@ -266,7 +266,7 @@ export const KanbanBoard: React.FC = () => {
                 )}
 
                 {col.id === 'for_approval' && agrupaAvisos && colJobs.length > 0 && (
-                  <Button size="sm"
+                  <Button
                     onClick={() => void dispararLote()}
                     disabled={enviandoLote}
                     title="Manda um aviso só, com tudo que este cliente tem para aprovar."

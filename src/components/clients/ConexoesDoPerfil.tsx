@@ -201,7 +201,7 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                 <div className="shrink-0">
                   {conta ? (
                     <ComTooltip texto="Desconectar esta conta">
-                      <Button variant="destructive" size="icon"
+                      <Button variant="destructive" size="icon-sm"
                         type="button"
                         onClick={() => desconectar(conta.id, conta.accountName)}
                         aria-label="Desconectar"

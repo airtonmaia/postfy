@@ -204,7 +204,7 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                     {isSubmitting ? 'Validando...' : 'Entrar'}
                   </Button>
 
-                  <Button variant="ghost" size="sm"
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => {
                       setPasso('email');
@@ -294,7 +294,7 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 <ShieldCheck className="w-4 h-4 text-purple-600" />
                 Políticas de Privacidade & Segurança de Dados (LGPD)
               </h3>
-              <Button variant="ghost" size="icon" 
+              <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowPrivacyModal(false)}
                 className="dark:hover:text-white"
               >
@@ -332,7 +332,7 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 <FileText className="w-4 h-4 text-purple-600" />
                 Termos de Uso do Portal de Conteúdo
               </h3>
-              <Button variant="ghost" size="icon" 
+              <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowTermsModal(false)}
                 className="dark:hover:text-white"
               >

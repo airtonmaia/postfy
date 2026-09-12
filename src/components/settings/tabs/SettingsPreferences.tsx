@@ -239,7 +239,7 @@ export const SettingsPreferences: React.FC = () => {
       )}
 
       <div className="flex justify-end">
-        <Button size="lg"
+        <Button
           type="submit"
           disabled={!podeSalvar || salvando || !mudou}
         >

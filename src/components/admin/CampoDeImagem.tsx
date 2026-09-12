@@ -110,7 +110,7 @@ export const CampoDeImagem: React.FC<Props> = ({
                 e.target.value = '';
               }}
             />
-            <Button variant="secondary" size="sm"
+            <Button variant="secondary"
               type="button"
               disabled={enviando}
               onClick={() => entrada.current?.click()}

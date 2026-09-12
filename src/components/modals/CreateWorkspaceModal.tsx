@@ -50,7 +50,7 @@ export const CreateWorkspaceModal: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">Novo workspace operacional</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon"
+          <Button variant="ghost" size="icon-sm"
             onClick={() => setIsCreateWorkspaceModalOpen(false)}
             className="w-8 h-8"
           >
@@ -123,14 +123,14 @@ export const CreateWorkspaceModal: React.FC = () => {
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button variant="outline" size="lg"
+            <Button variant="outline"
               type="button"
               onClick={() => setIsCreateWorkspaceModalOpen(false)}
               className="text-slate-600 dark:text-slate-300"
             >
               Cancelar
             </Button>
-            <Button size="lg"
+            <Button
               type="submit"
               disabled={isLoading || !name.trim()}
               className="bg-indigo-600 hover:bg-indigo-700 text-white"

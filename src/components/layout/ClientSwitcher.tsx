@@ -84,7 +84,7 @@ export const ClientSwitcher: React.FC = () => {
               Filtrar por Cliente
             </span>
             {clientFilter !== 'all' && (
-              <Button variant="ghost" size="sm" 
+              <Button variant="ghost" 
                 onClick={() => {
                   setClientFilter('all');
                   setIsOpen(false);

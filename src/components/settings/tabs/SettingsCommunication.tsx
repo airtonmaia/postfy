@@ -156,7 +156,6 @@ export const SettingsCommunication: React.FC = () => {
             <Button
               key={t.id}
               variant={activeTemplate === t.id ? 'primary' : 'secondary'}
-              size="sm"
               onClick={() => setActiveTemplate(t.id)}
               className="shrink-0"
             >

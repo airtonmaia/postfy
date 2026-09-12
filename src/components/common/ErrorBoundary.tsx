@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.error.message}
               </div>
             )}
-            <Button size="lg"
+            <Button
               onClick={this.handleReset}
               className="w-full hover:bg-purple-500 shadow-lg"
             >

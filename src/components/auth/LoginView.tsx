@@ -311,7 +311,7 @@ export const LoginView: React.FC = () => {
               </div>
 
               {/* Primary Warm Accent Action Button matching the screenshot style */}
-              <Button size="lg"
+              <Button
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-amber-100/80 hover:bg-amber-200/90 text-amber-950 border-amber-200/80 mt-2"
@@ -401,7 +401,7 @@ export const LoginView: React.FC = () => {
                 convidar a equipe depois, definindo o papel de cada pessoa.
               </p>
 
-              <Button size="lg"
+              <Button
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white mt-1"

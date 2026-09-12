@@ -249,7 +249,7 @@ export const PublicationsView: React.FC = () => {
                                 : item.status}
                             </span>
                             {podeTirar && (
-                              <Button variant="destructive" size="sm"
+                              <Button variant="destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   void tirarDaFila(item.id);
@@ -270,7 +270,7 @@ export const PublicationsView: React.FC = () => {
                       // publicada não volta.
                       if (automaticos.length > 0 && conta) {
                         return (
-                          <Button size="sm"
+                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               void enfileirar(job);
@@ -297,7 +297,7 @@ export const PublicationsView: React.FC = () => {
                         );
                       }
 
-                      return <StatusBadge status={job.status} size="sm" />;
+                      return <StatusBadge status={job.status} />;
                     })()}
                   </div>
                 </div>

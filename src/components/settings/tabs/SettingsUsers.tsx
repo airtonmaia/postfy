@@ -501,7 +501,7 @@ export const SettingsUsers: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
                   {badgeDoPapel(convite.role)}
-                  <Button variant="ghost" size="sm"
+                  <Button variant="ghost"
                     onClick={() => reenviar(convite)}
                     disabled={reenviando === convite.id}
                     className="dark:text-slate-300"
@@ -574,7 +574,7 @@ export const SettingsUsers: React.FC = () => {
                     onFocus={(e) => e.currentTarget.select()}
                     className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono text-slate-700 dark:text-slate-300"
                   />
-                  <Button size="lg"
+                  <Button
                     onClick={copiarLink}
                     className="shrink-0 bg-slate-900 dark:bg-slate-700 text-white"
                   >
@@ -583,7 +583,7 @@ export const SettingsUsers: React.FC = () => {
                   </Button>
                 </div>
 
-                <Button variant="outline" size="lg"
+                <Button variant="outline"
                   onClick={fecharModal}
                   className="w-full text-slate-700 dark:text-slate-200"
                 >
@@ -670,7 +670,7 @@ export const SettingsUsers: React.FC = () => {
                   </select>
                 </div>
 
-                <Button size="lg"
+                <Button
                   type="submit"
                   disabled={enviando || situacao?.jaEMembro}
                   className="w-full"

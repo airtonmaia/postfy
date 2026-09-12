@@ -240,7 +240,7 @@ export const SettingsOverview: React.FC = () => {
             </div>
 
             {podeAssinar ? (
-              <Button size="lg"
+              <Button
                 onClick={() => void irParaOStripe(acesso.temAssinatura ? 'portal' : 'checkout')}
                 disabled={indo}
                 className="w-full sm:w-auto"

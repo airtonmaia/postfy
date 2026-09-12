@@ -1250,10 +1250,22 @@ Por isso a escala é `h-*`, não `py-*`:
 
 | tamanho | altura | onde |
 |---|---|---|
-| `sm` | 32px | barra de ação densa, linha de tabela |
-| `md` | **36px** | o padrão |
-| `lg` | 40px | ação principal da tela, botão de largura cheia |
-| `icon` / `icon-sm` | 36 / 32px | quadrado, na altura do irmão com texto |
+| `sm` | **32px** | **o padrão** — todo botão do produto hoje |
+| `md` | 36px | reservado, para quando uma ação merecer peso |
+| `lg` | 40px | idem |
+| `icon-sm` / `icon` | 32 / 36px | quadrado, na altura do irmão com texto |
+
+**O padrão é o `sm`, e a primeira versão errou isso.** A escala nasceu com
+36px de padrão, que é o do exemplo do shadcn; em tela ficou grande. O Orquesia
+é denso — cabeçalho de 56px, item de menu de 32px, card com três ações — e um
+botão de 36px ao lado de um item de menu de 32px puxa o olho para a ação
+errada. Medido no Chromium: com `sm` o "Novo Conteúdo" fecha em 32px, a mesma
+altura do "Dashboard" logo abaixo dele.
+
+`md` e `lg` ficam sem uso por enquanto, **de propósito**: a escala é o
+vocabulário de onde sai o destaque quando uma ação merecer peso. Sem eles,
+destacar um botão voltaria a ser escrever `py-` à mão, que é exatamente como
+nasceram as doze alturas.
 
 O canto (`rounded-lg`) mora na **base**, não em cada tamanho: botão pequeno
 com canto menor que o grande é a mesma inconsistência vista de perto.

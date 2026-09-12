@@ -161,7 +161,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate }) => {
                             </p>
                             <div className="flex items-center justify-between gap-1">
                               <FormatBadge format={job.format} />
-                              <StatusBadge status={job.status} size="sm" />
+                              <StatusBadge status={job.status} />
                             </div>
                           </div>
                         );

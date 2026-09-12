@@ -77,7 +77,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button size="sm"
+          <Button
             id="btn-cal-today"
             onClick={onToday}
             className="text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-900"

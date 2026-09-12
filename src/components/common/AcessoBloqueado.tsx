@@ -109,7 +109,7 @@ export const AcessoBloqueado: React.FC<AcessoBloqueadoProps> = ({ acesso }) => {
         )}
 
         {podeAssinar ? (
-          <Button size="lg"
+          <Button
             onClick={() => void irParaOStripe()}
             disabled={indo}
             className="w-full"
