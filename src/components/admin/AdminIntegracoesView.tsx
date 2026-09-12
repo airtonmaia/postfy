@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { webhookApi, statusApi, ApiError, type StatusDoServidor } from '../../lib/api';
+import { Button } from '../ui/button';
 
 type StatusIntegracao = 'ativa' | 'opcional' | 'nao_implementada';
 
@@ -254,14 +255,14 @@ export const AdminIntegracoesView: React.FC = () => {
             </div>
           </div>
 
-          <button
+          <Button
             onClick={sincronizarBanco}
             disabled={sincronizando}
-            className="shrink-0 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${sincronizando ? 'animate-spin' : ''}`} />
             Recarregar do banco
-          </button>
+          </Button>
         </div>
 
         {(msgBanco || syncError) && (
@@ -315,7 +316,7 @@ export const AdminIntegracoesView: React.FC = () => {
             <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
               {status?.urlDeRetorno || 'consultando o servidor...'}
             </code>
-            <button
+            <Button
               type="button"
               disabled={!status?.urlDeRetorno}
               onClick={async () => {
@@ -328,11 +329,11 @@ export const AdminIntegracoesView: React.FC = () => {
                   /* Sem permissão de área de transferência, o texto está à vista. */
                 }
               }}
-              className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+              className="shrink-0 bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
             >
               {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copiado ? 'Copiado' : 'Copiar'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -437,7 +438,7 @@ export const AdminIntegracoesView: React.FC = () => {
             <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
               {status?.urlDoWebhook || 'consultando o servidor...'}
             </code>
-            <button
+            <Button
               type="button"
               disabled={!status?.urlDoWebhook}
               onClick={async () => {
@@ -450,11 +451,11 @@ export const AdminIntegracoesView: React.FC = () => {
                   /* Sem permissão de área de transferência, o texto está à vista. */
                 }
               }}
-              className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+              className="shrink-0 bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
             >
               {copiadoWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copiadoWebhook ? 'Copiado' : 'Copiar'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -528,14 +529,14 @@ export const AdminIntegracoesView: React.FC = () => {
             placeholder="https://hook.us1.make.com/... ou https://hooks.zapier.com/..."
             className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono"
           />
-          <button
+          <Button
             onClick={testarWebhook}
             disabled={testandoWebhook}
-            className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="shrink-0 bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
           >
             <Send className={`w-3.5 h-3.5 ${testandoWebhook ? 'animate-pulse' : ''}`} />
             {testandoWebhook ? 'Enviando...' : 'Disparar teste'}
-          </button>
+          </Button>
         </div>
 
         {msgWebhook && (

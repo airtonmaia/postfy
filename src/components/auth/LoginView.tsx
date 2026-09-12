@@ -17,6 +17,7 @@ import {
   Eye, 
   EyeOff,
   LayoutDashboard, Link2} from 'lucide-react';
+import { Button } from '../ui/button';
 
 export const LoginView: React.FC = () => {
   const { login, register, recuperarSenha, currentWorkspace, aparencia } = usePostfy();
@@ -273,13 +274,19 @@ export const LoginView: React.FC = () => {
                     placeholder="••••••••••••"
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition"
                   />
-                  <button
+                  {/* `top-3` era a posição de um ícone de 16px solto. Com o
+                      botão em 32px ele estourava para fora do campo de 42px e
+                      ficava fora de centro — centrar pelo meio não depende do
+                      tamanho, e o `right-1.5` põe o centro do ícone nos mesmos
+                      22px da borda que ele tinha antes. O irmão deste campo no
+                      `AuthModal` já estava assim. */}
+                  <Button variant="ghost" size="icon-sm"
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -289,25 +296,25 @@ export const LoginView: React.FC = () => {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-slate-300 text-orange-600 focus:ring-0"
+                    className="rounded-md border-slate-300 text-orange-600 focus:ring-0"
                   />
                   <span>Lembrar minhas credenciais</span>
                 </label>
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={handleRecuperarSenha}
                   disabled={isLoading}
-                  className="text-orange-600 hover:underline font-semibold disabled:opacity-50"
+                  className="text-orange-600 hover:underline"
                 >
                   Esqueci minha senha
-                </button>
+                </Button>
               </div>
 
               {/* Primary Warm Accent Action Button matching the screenshot style */}
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-4 rounded-xl bg-amber-100/80 hover:bg-amber-200/90 text-amber-950 border border-amber-200/80 font-bold text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 mt-2"
+                className="w-full bg-amber-100/80 hover:bg-amber-200/90 text-amber-950 border-amber-200/80 mt-2"
               >
                 {isLoading ? (
                   <span>Autenticando...</span>
@@ -317,7 +324,7 @@ export const LoginView: React.FC = () => {
                     <ArrowRight className="w-4 h-4 text-amber-900" />
                   </>
                 )}
-              </button>
+              </Button>
             </form>
           )}
 
@@ -394,13 +401,13 @@ export const LoginView: React.FC = () => {
                 convidar a equipe depois, definindo o papel de cada pessoa.
               </p>
 
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 mt-1"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white mt-1"
               >
                 {isLoading ? 'Criando Conta...' : `Criar Conta ${aparencia.nome}`}
-              </button>
+              </Button>
             </form>
           )}
 

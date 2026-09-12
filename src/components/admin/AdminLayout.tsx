@@ -24,6 +24,7 @@ import { Avatar } from '../common/Avatar';
 import { tela } from '../../lib/telaSobDemanda';
 import { ABA_INICIAL } from '../../lib/rotas';
 import type { TabType } from '../../types';
+import { Button } from '../ui/button';
 
 /**
  * A área do dono do produto.
@@ -149,14 +150,13 @@ export const AdminLayout: React.FC = () => {
             administra o produto está na tabela <code className="font-mono">platform_admins</code>,
             e essa lista só muda direto no banco.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => setActiveTab(ABA_INICIAL)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Voltar para a minha agência
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -211,12 +211,12 @@ export const AdminLayout: React.FC = () => {
                 Administração
               </span>
             </div>
-            <button
+            <Button variant="ghost" size="icon-sm"
               onClick={() => setMenuAberto(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white md:hidden shrink-0"
+              className="dark:hover:text-white md:hidden shrink-0"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
 
           <nav className="px-2 py-3 space-y-4 overflow-y-auto">
@@ -253,14 +253,14 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         <div className="p-3 space-y-2 border-t border-slate-200 dark:border-slate-800">
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => setActiveTab(ABA_INICIAL)}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+            className="w-full"
           >
             <ArrowLeft className="w-4 h-4 text-slate-400" />
             <span>Voltar para a agência</span>
-          </button>
+          </Button>
 
           <div className="flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2">
             <div className="flex-1 flex items-center gap-2.5 p-2 min-w-0">
@@ -280,14 +280,14 @@ export const AdminLayout: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <Button variant="destructive" size="icon-sm"
               type="button"
               onClick={() => logout()}
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer shrink-0"
+              className="shrink-0"
               title="Sair do Sistema"
             >
               <LogOut className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </aside>
@@ -295,12 +295,12 @@ export const AdminLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <button
+            <Button variant="ghost" size="icon-sm"
               onClick={() => setMenuAberto(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden"
+              className="md:hidden"
             >
               <Menu className="w-5 h-5" />
-            </button>
+            </Button>
             {/* A faixa existe para não haver dúvida de onde a pessoa está: as
                 telas daqui mexem em toda a base, não numa agência. */}
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-900 px-2.5 py-1 rounded-md">
@@ -309,13 +309,12 @@ export const AdminLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button variant="ghost"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               title="Alternar Tema"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            </Button>
           </div>
         </header>
 

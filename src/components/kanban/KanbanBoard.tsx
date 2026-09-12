@@ -21,6 +21,7 @@ import { Job, JobStatus, Client, JobTipo } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
 import { enviarAprovacaoEmLote } from '../../lib/automacoes';
+import { Button } from '../ui/button';
 
 /** Um ícone por tipo. Fica aqui e não no catálogo: lá é dado, aqui é desenho. */
 const ICONE_DO_TIPO: Record<JobTipo, React.FC<{ className?: string }>> = {
@@ -174,16 +175,15 @@ export const KanbanBoard: React.FC = () => {
 
           {/* Adicionar: a agência escolhe qual das três entregas vai criar. */}
           <div className="relative">
-            <button
+            <Button
               onClick={() => setMenuDeTipoAberto((aberto) => !aberto)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               Adicionar
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform ${menuDeTipoAberto ? 'rotate-180' : ''}`}
               />
-            </button>
+            </Button>
 
             {menuDeTipoAberto && (
               <>
@@ -256,25 +256,25 @@ export const KanbanBoard: React.FC = () => {
                 </div>
 
                 {col.id === 'ideas' && (
-                  <button
+                  <Button variant="ghost" size="icon-sm"
                     onClick={() => openCreateJobModal()}
-                    className="p-1 rounded hover:bg-slate-300 text-slate-600 dark:text-slate-400 transition"
+                    className="hover:bg-slate-300"
                     title="Adicionar ideia"
                   >
                     <Plus className="w-4 h-4" />
-                  </button>
+                  </Button>
                 )}
 
                 {col.id === 'for_approval' && agrupaAvisos && colJobs.length > 0 && (
-                  <button
+                  <Button
                     onClick={() => void dispararLote()}
                     disabled={enviandoLote}
                     title="Manda um aviso só, com tudo que este cliente tem para aprovar."
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-900 text-[10px] font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-60 transition cursor-pointer"
+                    className="bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                   >
                     <MailCheck className="w-3 h-3" />
                     {enviandoLote ? 'Enviando...' : 'Aprovação em massa'}
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -297,7 +297,7 @@ export const KanbanBoard: React.FC = () => {
                             {client?.name}
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                           v{job.currentVersion}
                         </span>
                       </div>
@@ -350,7 +350,7 @@ export const KanbanBoard: React.FC = () => {
                           <select
                             value={job.status}
                             onChange={(e) => moveJobStatus(job.id, e.target.value as JobStatus)}
-                            className="text-[10px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-1 py-0.5 text-slate-600 dark:text-slate-400 font-medium"
+                            className="text-[10px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-1 py-0.5 text-slate-600 dark:text-slate-400 font-medium"
                           >
                             <option value="ideas">Ideias</option>
                             <option value="in_production">Produção</option>

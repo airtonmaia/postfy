@@ -16,6 +16,7 @@ import {
   FileText,
   Target
 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface AiCopyModalProps {
   isOpen: boolean;
@@ -108,12 +109,11 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
               </p>
             </div>
           </div>
-          <button
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Form & Results Container */}
@@ -212,11 +212,11 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
           </div>
 
           {/* Generate Button */}
-          <button
+          <Button
             type="button"
             onClick={handleGenerate}
             disabled={loading || !theme.trim()}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:from-purple-800 active:to-indigo-800 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:from-purple-800 active:to-indigo-800"
           >
             {loading ? (
               <>
@@ -229,7 +229,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                 <span>Gerar Copy e Estratégia Completa</span>
               </>
             )}
-          </button>
+          </Button>
 
           {/* Results Display */}
           {erro && (
@@ -248,13 +248,13 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                   <span className="font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
                     🎯 Gancho Inicial / Capa (Hook)
                   </span>
-                  <button
+                  <Button variant="ghost"
                     onClick={() => copyToClipboard(result.hook, 'hook')}
-                    className="text-[10px] text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1"
+                    className="text-amber-700 dark:text-amber-400 hover:underline"
                   >
                     {copiedSection === 'hook' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedSection === 'hook' ? 'Copiado' : 'Copiar'}</span>
-                  </button>
+                  </Button>
                 </div>
                 <p className="text-xs font-semibold text-amber-950 dark:text-amber-100">
                   {result.hook}
@@ -268,13 +268,13 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
                     <FileText className="w-3.5 h-3.5 text-purple-600" />
                     Legenda Completa
                   </span>
-                  <button
+                  <Button variant="ghost"
                     onClick={() => copyToClipboard(result.caption, 'caption')}
-                    className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                    className="text-purple-600 dark:text-purple-400 hover:underline"
                   >
                     {copiedSection === 'caption' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedSection === 'caption' ? 'Copiado' : 'Copiar'}</span>
-                  </button>
+                  </Button>
                 </div>
                 <div className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
                   {result.caption}
@@ -315,17 +315,17 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
 
               {/* Apply into Job button */}
               {onApplyCopy && (
-                <button
+                <Button variant="success"
                   type="button"
                   onClick={() => {
                     onApplyCopy(result);
                     onClose();
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  className="w-full"
                 >
                   <Check className="w-4 h-4" />
                   <span>Aplicar esta Copy no Job Atual</span>
-                </button>
+                </Button>
               )}
             </div>
           )}

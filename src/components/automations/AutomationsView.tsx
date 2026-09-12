@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../../lib/automacoes';
 import type { Automation } from '../../types';
+import { Button } from '../ui/button';
 
 /**
  * Automações.
@@ -85,13 +86,12 @@ export const AutomationsView: React.FC = () => {
           <span className="text-xs font-semibold px-3 py-1.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
             {ativas} de {automations.length} ativas
           </span>
-          <button
+          <Button
             onClick={() => setCriando((v) => !v)}
-            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer"
           >
             {criando ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
             {criando ? 'Cancelar' : 'Nova regra'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -175,12 +175,11 @@ export const AutomationsView: React.FC = () => {
           )}
 
           <div className="flex justify-end">
-            <button
+            <Button
               onClick={salvar}
-              className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer"
             >
               Criar regra
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -262,13 +261,12 @@ export const AutomationsView: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <button
+                  <Button variant="destructive" size="icon-sm"
                     onClick={() => deleteAutomation(auto.id)}
                     title="Excluir regra"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </Button>
 
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input

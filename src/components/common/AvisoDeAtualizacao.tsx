@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { temVersaoNova, type IdentidadeDaBuild } from '../../lib/atualizacao';
+import { Button } from '../ui/button';
 
 /**
  * Aviso de que subiu versão nova enquanto esta aba estava aberta.
@@ -67,26 +68,26 @@ export const AvisoDeAtualizacao: React.FC = () => {
         está salvo continua salvo.
       </p>
 
-      <button
+      <Button
         onClick={() => {
           setRecarregando(true);
           void recarregarComSeguranca();
         }}
         disabled={recarregando}
-        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
+        className="shrink-0"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${recarregando ? 'animate-spin' : ''}`} />
         {recarregando ? 'Atualizando...' : 'Atualizar agora'}
-      </button>
+      </Button>
 
-      <button
+      <Button variant="ghost" size="icon-sm"
         onClick={() => setDispensado(true)}
-        className="shrink-0 p-1 rounded-lg text-purple-400 hover:text-purple-700 dark:hover:text-purple-200 transition cursor-pointer"
+        className="shrink-0 text-purple-400"
         title="Agora não"
         aria-label="Dispensar aviso"
       >
         <X className="w-4 h-4" />
-      </button>
+      </Button>
     </div>
   );
 };

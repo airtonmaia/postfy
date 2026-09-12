@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Sparkles
 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface MediaUploaderProps {
   mediaUrls: string[];
@@ -189,52 +190,51 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         */}
         <div className="relative shrink-0">
           <div className="flex items-stretch rounded-xl overflow-hidden border border-purple-200 dark:border-purple-900">
-            <button
+            <Button variant="soft"
               type="button"
               disabled={cheio}
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UploadCloud className="w-4 h-4" />
               Adicionar mídia
-            </button>
-            <button
+            </Button>
+            <Button variant="soft" size="icon-sm"
               type="button"
               onClick={() => setMenuAberto((a) => !a)}
               aria-label="Outras origens"
-              className="px-2 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-l border-purple-200 dark:border-purple-900 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition cursor-pointer"
+              className="border-l"
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuAberto ? 'rotate-180' : ''}`} />
-            </button>
+            </Button>
           </div>
 
           {menuAberto && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(false)} />
               <div className="absolute right-0 top-full mt-1.5 w-56 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5">
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => {
                     setMenuAberto(false);
                     fileInputRef.current?.click();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
                 >
                   <UploadCloud className="w-4 h-4 text-slate-400" />
                   Do computador
-                </button>
+                </Button>
 
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => {
                     setMenuAberto(false);
                     setShowUrlInput(true);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
                 >
                   <Link2 className="w-4 h-4 text-slate-400" />
                   Por link da web
-                </button>
+                </Button>
 
                 {origens.length > 0 && (
                   <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
@@ -244,7 +244,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                     "em breve". Clicável e muda seria a promessa que a
                     armadilha 9 proíbe. */}
                 {origens.map((origem) => (
-                  <button
+                  <Button variant="ghost"
                     key={origem.rotulo}
                     type="button"
                     disabled={!origem.disponivel}
@@ -252,7 +252,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                       setMenuAberto(false);
                       origem.aoEscolher?.();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
                   >
                     <ExternalLink className="w-4 h-4 text-slate-400" />
                     <span className="flex-1 text-left">{origem.rotulo}</span>
@@ -261,7 +261,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                         em breve
                       </span>
                     )}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>
@@ -278,13 +278,12 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             placeholder="Cole o link da imagem (ex: https://images.unsplash.com/...)"
             className="flex-1 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-purple-500"
           />
-          <button
+          <Button
             type="button"
             onClick={handleAddCustomUrl}
-            className="px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 cursor-pointer"
           >
             Adicionar
-          </button>
+          </Button>
         </div>
       )}
 
@@ -355,49 +354,49 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
               <div className="flex justify-end">
-                <button
+                <Button variant="destructive" size="icon-sm"
                   type="button"
                   onClick={() => handleRemoveMedia(idx)}
-                  className="p-1 rounded-md bg-rose-600 text-white hover:bg-rose-700 transition cursor-pointer"
+                  className="bg-rose-600 text-white"
                   title="Excluir arquivo"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </div>
 
               <div className="flex items-center justify-between text-white">
-                <button
+                <Button size="icon-sm"
                   type="button"
                   disabled={idx === 0}
                   onClick={() => handleMoveLeft(idx)}
-                  className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30 cursor-pointer"
+                  className="bg-black/60 hover:bg-black/80"
                   title="Mover para a esquerda"
                 >
                   <MoveLeft className="w-3 h-3" />
-                </button>
-                <button
+                </Button>
+                <Button size="icon-sm"
                   type="button"
                   disabled={idx === mediaUrls.length - 1}
                   onClick={() => handleMoveRight(idx)}
-                  className="p-1 rounded bg-black/60 hover:bg-black/80 disabled:opacity-30 cursor-pointer"
+                  className="bg-black/60 hover:bg-black/80"
                   title="Mover para a direita"
                 >
                   <MoveRight className="w-3 h-3" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         ))}
 
         {!cheio && (
-          <button
+          <Button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-32 shrink-0 aspect-[4/5] rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-400 bg-slate-50 dark:bg-slate-950/60 flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-purple-600 transition cursor-pointer"
+            className="w-32 shrink-0 aspect-[4/5] border-2 border-dashed hover:border-purple-400 bg-slate-50 dark:bg-slate-950/60 flex-col text-slate-400 hover:text-purple-600"
           >
             <Plus className="w-5 h-5" />
             <span className="text-[11px] font-bold">Adicionar</span>
-          </button>
+          </Button>
         )}
       </div>
 

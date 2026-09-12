@@ -4,6 +4,7 @@ import { Plus, Trash2, ExternalLink, Search, Edit3, Users, RotateCcw, AlertTrian
 import { DIAS_NA_LIXEIRA, diasAteOExpurgo } from '../../lib/lixeira';
 import { carregarContagensPorAgencia, type ContagensDaAgencia } from '../../lib/numerosDoSaas';
 import { safeDateFormat } from '../../lib/utils';
+import { Button } from '../ui/button';
 
 export const AdminAgenciasView: React.FC = () => {
   const {
@@ -108,13 +109,13 @@ export const AdminAgenciasView: React.FC = () => {
           </p>
         </div>
 
-        <button
+        <Button
           onClick={() => setIsCreateWorkspaceModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/25 transition cursor-pointer shrink-0"
+          className="shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Nova Agência</span>
-        </button>
+        </Button>
       </div>
 
       <div className="relative max-w-md">
@@ -161,7 +162,7 @@ export const AdminAgenciasView: React.FC = () => {
                       <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span className="truncate">{ws.name}</span>
                         {isCurrent && (
-                          <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-md font-bold">
                             Ativa
                           </span>
                         )}
@@ -225,15 +226,15 @@ export const AdminAgenciasView: React.FC = () => {
                   {isCurrent ? 'Atual' : 'Acessar'}
                 </button>
 
-                <button
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => handleOpenEdit(ws)}
                   title="Editar Dados da Agência"
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition cursor-pointer"
+                  className="text-slate-600 hover:text-purple-600 dark:hover:text-purple-400"
                 >
                   <Edit3 className="w-4 h-4" />
-                </button>
+                </Button>
 
-                <button
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => {
                     // O texto nomeia o prazo e o que vai junto. O botão
                     // antigo dizia só "excluir" — e não excluía nada.
@@ -244,10 +245,10 @@ export const AdminAgenciasView: React.FC = () => {
                     if (confirm(aviso)) void moverAgenciaParaLixeira(ws.id);
                   }}
                   title={`Mover para a lixeira (${DIAS_NA_LIXEIRA} dias para restaurar)`}
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
+                  className="hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-600 hover:text-red-600 dark:hover:text-red-400"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           );
@@ -314,13 +315,13 @@ export const AdminAgenciasView: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
+                  <Button
                     onClick={() => void restaurarAgenciaDaLixeira(ws.id)}
-                    className="mt-6 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition cursor-pointer"
+                    className="mt-6"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Restaurar agência
-                  </button>
+                  </Button>
                 </div>
               );
             })}
@@ -415,7 +416,7 @@ export const AdminAgenciasView: React.FC = () => {
                   id="editIsTrial" 
                   checked={isTrial} 
                   onChange={e => setIsTrial(e.target.checked)} 
-                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+                  className="w-4 h-4 rounded-md text-purple-600 focus:ring-purple-500"
                 />
                 <label htmlFor="editIsTrial" className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   Modo Teste Grátis (Trial 7 dias)
@@ -423,19 +424,17 @@ export const AdminAgenciasView: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 pt-3">
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => setEditingWs(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/25 transition"
                 >
                   Salvar Alterações
-                </button>
+                </Button>
               </div>
             </form>
           </div>

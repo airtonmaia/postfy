@@ -6,6 +6,7 @@ import {
 import { Instagram, Facebook, Linkedin, Youtube, Twitter, Music2 } from 'lucide-react';
 import type { JobPlatform } from '../../types';
 import { Avatar } from './Avatar';
+import { Button } from '../ui/button';
 
 /**
  * Como a publicação vai aparecer na rede.
@@ -248,22 +249,22 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
               com a proporção errada. */}
           {total > 1 && (
             <>
-              <button
+              <Button size="icon-sm"
                 type="button"
                 onClick={() => setPagina((p) => (p - 1 + total) % total)}
                 aria-label="Arte anterior"
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-900/60 text-white flex items-center justify-center hover:bg-slate-900/80 transition cursor-pointer"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-slate-900/60 text-white hover:bg-slate-900/80"
               >
                 <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
+              </Button>
+              <Button size="icon-sm"
                 type="button"
                 onClick={() => setPagina((p) => (p + 1) % total)}
                 aria-label="Próxima arte"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-900/60 text-white flex items-center justify-center hover:bg-slate-900/80 transition cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-slate-900/60 text-white hover:bg-slate-900/80"
               >
                 <ChevronRight className="w-4 h-4" />
-              </button>
+              </Button>
               <span className="absolute top-2 right-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900/70 text-white">
                 {pagina + 1} / {total}
               </span>

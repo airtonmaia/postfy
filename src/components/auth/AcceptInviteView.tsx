@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { salvarPreferencias } from '../../lib/preferencias';
 import { caminhoDaAba, ABA_INICIAL } from '../../lib/rotas';
 import { ShieldCheck, Building2, Mail, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface Props {
   token: string;
@@ -292,13 +293,13 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={enviando}
-            className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+            className="w-full"
           >
             {enviando ? 'Entrando...' : 'Aceitar convite e entrar'}
-          </button>
+          </Button>
         </form>
 
         {/*
@@ -307,7 +308,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           recusa, por e-mail repetido.
         */}
         {!convite.temConta && (
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               setModo(modo === 'cadastrar' ? 'entrar' : 'cadastrar');
@@ -315,12 +316,12 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
               setSenha('');
               setConfirmacao('');
             }}
-            className="w-full text-[11px] text-slate-500 hover:text-slate-800 transition cursor-pointer"
+            className="w-full"
           >
             {modo === 'cadastrar'
               ? 'Já tenho conta com este e-mail'
               : 'Ainda não tenho conta'}
-          </button>
+          </Button>
         )}
 
         {/*
@@ -328,7 +329,7 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
           recuperar significaria perder o link do convite.
         */}
         {convite.temConta && (
-          <button
+          <Button variant="ghost"
             type="button"
             disabled={enviando}
             onClick={async () => {
@@ -340,10 +341,10 @@ export const AcceptInviteView: React.FC<Props> = ({ token }) => {
                   : res.message || 'Não foi possível enviar o link de redefinição.'
               );
             }}
-            className="w-full text-[11px] text-slate-500 hover:text-slate-800 transition cursor-pointer disabled:opacity-50"
+            className="w-full"
           >
             Esqueci minha senha
-          </button>
+          </Button>
         )}
       </div>
     </div>

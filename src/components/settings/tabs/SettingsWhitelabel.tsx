@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Paintbrush, CheckCircle2, Building2, Sparkles, Globe, Eye } from 'lucide-react';
 import { FileUpload } from '../../ui/file-upload';
 import { usePostfy } from '../../../context/PostfyContext';
+import { Button } from '../../ui/button';
 
 export const SettingsWhitelabel: React.FC = () => {
   const { currentWorkspace, updateCurrentWorkspace } = usePostfy();
@@ -244,7 +245,7 @@ export const SettingsWhitelabel: React.FC = () => {
                   <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                     {agencyName || 'Orquesia Ops'}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30">
                     PRO
                   </span>
                 </div>
@@ -255,7 +256,7 @@ export const SettingsWhitelabel: React.FC = () => {
             <div className="flex items-center gap-2">
               {faviconUrl && (
                 <div className="flex items-center gap-1 text-[11px] text-slate-500 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                  <img src={faviconUrl} alt="Favicon" className="w-3.5 h-3.5 object-contain rounded" />
+                  <img src={faviconUrl} alt="Favicon" className="w-3.5 h-3.5 object-contain rounded-md" />
                   <span>Favicon Ativo</span>
                 </div>
               )}
@@ -274,14 +275,13 @@ export const SettingsWhitelabel: React.FC = () => {
         </div>
 
         <div className="mt-6 flex justify-end">
-          <button 
+          <Button 
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-bold rounded-xl shadow-sm shadow-purple-600/20 transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{isSaving ? 'Salvando...' : 'Salvar Identidade'}</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

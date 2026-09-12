@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, X, ChevronDown, Plus, ArrowUp, Wrench } from 'lucide-react';
 
 import { CHANGELOG, type EntradaDoChangelog } from '../../data/changelog';
+import { Button } from '../ui/button';
 
 /**
  * Novidades: linha do tempo das versões.
@@ -167,13 +168,13 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
             </div>
           </div>
 
-          <button
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
             aria-label="Fechar"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
+            className="dark:hover:text-white shrink-0"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-5 sm:p-6 overflow-y-auto flex-1">
@@ -190,12 +191,12 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
           <span className="text-xs text-slate-400">
             {CHANGELOG.length} entregas · versão atual v{CHANGELOG[0]?.versao}
           </span>
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shrink-0"
+            className="shrink-0"
           >
             Fechar
-          </button>
+          </Button>
         </div>
       </div>
     </div>

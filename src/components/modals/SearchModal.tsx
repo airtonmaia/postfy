@@ -3,6 +3,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { Search, X, Calendar, User, Briefcase, FileText, ArrowRight } from 'lucide-react';
 import { PlatformBadge, StatusBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const SearchModal: React.FC = () => {
   const { 
@@ -74,12 +75,12 @@ export const SearchModal: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             className="w-full text-sm bg-transparent outline-none text-slate-900 dark:text-white placeholder:text-slate-400 font-medium"
           />
-          <button
+          <Button size="icon-sm"
             onClick={() => setIsSearchModalOpen(false)}
-            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 transition"
+            className="dark:text-slate-300 dark:bg-slate-800"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Results */}
@@ -116,7 +117,7 @@ export const SearchModal: React.FC = () => {
                           {job.title}
                         </span>
                       </div>
-                      <StatusBadge status={job.status} size="sm" />
+                      <StatusBadge status={job.status} />
                     </button>
                   ))}
                 </div>

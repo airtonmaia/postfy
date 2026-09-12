@@ -4,6 +4,7 @@ import { Moon, Sun, Globe, Bell, Check, CheckCircle2, AlertTriangle } from 'luci
 import { atualizarWorkspace } from '../../../lib/db';
 import { FUSOS, cidadeDoFuso } from '../../../lib/fusoHorario';
 import { pode } from '../../../lib/permissions';
+import { Button } from '../../ui/button';
 
 /**
  * Preferências da agência.
@@ -238,13 +239,12 @@ export const SettingsPreferences: React.FC = () => {
       )}
 
       <div className="flex justify-end">
-        <button
+        <Button
           type="submit"
           disabled={!podeSalvar || salvando || !mudou}
-          className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
         >
           {salvando ? 'Salvando...' : 'Salvar Preferências'}
-        </button>
+        </Button>
       </div>
     </form>
   );

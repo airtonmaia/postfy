@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { 
   MessageSquare, Send, Smartphone, Sparkles, CheckCircle2, Copy, Check, Plus, Trash2, Mail
 } from 'lucide-react';
+import { Button } from '../../ui/button';
 
 export const SettingsCommunication: React.FC = () => {
   const [provider, setProvider] = useState<'whatsapp_official' | 'evolution_api' | 'z_api'>('evolution_api');
@@ -117,24 +118,23 @@ export const SettingsCommunication: React.FC = () => {
                 onChange={e => setApiKey(e.target.value)}
                 className="flex-1 p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono"
               />
-              <button
+              <Button variant="secondary"
                 type="button"
                 onClick={handleSendTest}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+
               >
                 {testSent ? 'Disparo Enviado!' : 'Testar Conexão'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         <div className="flex justify-end pt-2">
-          <button
+          <Button
             type="submit"
-            className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
           >
             Salvar Conexão
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -153,17 +153,14 @@ export const SettingsCommunication: React.FC = () => {
         {/* Templates Tabs */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-slate-800 pb-2">
           {templates.map(t => (
-            <button
+            <Button
               key={t.id}
+              variant={activeTemplate === t.id ? 'primary' : 'secondary'}
               onClick={() => setActiveTemplate(t.id)}
-              className={`px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
-                activeTemplate === t.id
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-              }`}
+              className="shrink-0"
             >
               {t.title}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -177,10 +174,10 @@ export const SettingsCommunication: React.FC = () => {
             {/* Quick Variable Inserts */}
             <div className="flex items-center gap-1.5 text-[11px]">
               <span className="text-slate-400">Variáveis:</span>
-              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono rounded">
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono rounded-md">
                 &#123;nome_cliente&#125;
               </span>
-              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono rounded">
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono rounded-md">
                 &#123;link_portal&#125;
               </span>
             </div>
@@ -197,15 +194,14 @@ export const SettingsCommunication: React.FC = () => {
           />
 
           <div className="flex justify-end">
-            <button
+            <Button
               onClick={() => {
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
               }}
-              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
             >
               Salvar Modelo
-            </button>
+            </Button>
           </div>
         </div>
       </div>

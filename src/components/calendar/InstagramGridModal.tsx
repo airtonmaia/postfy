@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Job } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 interface InstagramGridModalProps {
   isOpen: boolean;
@@ -82,12 +83,11 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
               ))}
             </select>
 
-            <button
+            <Button variant="ghost" size="icon-sm"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -240,16 +240,15 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                     </span>
                   </div>
 
-                  <button
+                  <Button
                     onClick={() => {
                       setSelectedJob(previewJob);
                       onClose();
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer shadow-xs"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Editar no Kanban
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -4,6 +4,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
 import { X, Send, Copy, Check, MessageCircle, ExternalLink } from 'lucide-react';
 import { Job } from '../../types';
+import { Button } from '../ui/button';
 
 interface WhatsAppShareModalProps {
   job: Job | null;
@@ -92,12 +93,11 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
               </p>
             </div>
           </div>
-          <button
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Client & Target */}
@@ -131,23 +131,23 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 pt-2">
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={handleCopy}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
+            className="flex-1"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
             <span>{copied ? 'Copiado!' : 'Copiar Texto'}</span>
-          </button>
+          </Button>
 
-          <button
+          <Button variant="success"
             type="button"
             onClick={handleOpenWhatsApp}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            className="flex-1 active:bg-emerald-800"
           >
             <Send className="w-4 h-4" />
             <span>Abrir no WhatsApp</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

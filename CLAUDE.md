@@ -1234,9 +1234,74 @@ exige se aposenta no mesmo instante.
 
 Protegido por `tests/tema-shadcn.test.ts`.
 
-As variantes de `button.tsx` saíram do que já estava em tela, levantado por
-contagem: a `primary` é a combinação repetida em 13 botões do app. Ao
-adicionar variante nova, faça o mesmo — não invente cor.
+#### O botão tem uma escala só, e ela é altura fixa
+
+O produto tinha **339 `<button>` escritos à mão em 60 arquivos**, e só entre
+as combinações de padding mais comuns havia **doze alturas diferentes**:
+`px-4 py-2`, `px-5 py-2`, `px-4 py-2.5`, `px-4 py-1.5`, `px-3.5 py-2`,
+`px-6 py-2.5`… Cada uma nasceu certa no lugar dela.
+
+O que torna isso invisível para quem escreve e óbvio para quem usa é que **com
+padding vertical a altura depende também da fonte**. "Novo Post"
+(`py-1.5 text-xs`, 30px) e "Novo Conteúdo" (`py-2.5 text-sm`, 40px) estavam a
+10px de distância, e nenhum dos dois parecia errado sozinho.
+
+Por isso a escala é `h-*`, não `py-*`:
+
+| tamanho | altura | onde |
+|---|---|---|
+| `sm` | **32px** | **o padrão** — todo botão do produto hoje |
+| `md` | 36px | reservado, para quando uma ação merecer peso |
+| `lg` | 40px | idem |
+| `icon-sm` / `icon` | 32 / 36px | quadrado, na altura do irmão com texto |
+
+**O padrão é o `sm`, e a primeira versão errou isso.** A escala nasceu com
+36px de padrão, que é o do exemplo do shadcn; em tela ficou grande. O Orquesia
+é denso — cabeçalho de 56px, item de menu de 32px, card com três ações — e um
+botão de 36px ao lado de um item de menu de 32px puxa o olho para a ação
+errada. Medido no Chromium: com `sm` o "Novo Conteúdo" fecha em 32px, a mesma
+altura do "Dashboard" logo abaixo dele.
+
+`md` e `lg` ficam sem uso por enquanto, **de propósito**: a escala é o
+vocabulário de onde sai o destaque quando uma ação merecer peso. Sem eles,
+destacar um botão voltaria a ser escrever `py-` à mão, que é exatamente como
+nasceram as doze alturas.
+
+O canto (`rounded-lg`) mora na **base**, não em cada tamanho: botão pequeno
+com canto menor que o grande é a mesma inconsistência vista de perto.
+
+Variante nova sai do que já está em tela, levantado por contagem — a `primary`
+é a combinação de 13 botões; a `secondary` e a `success` entraram porque
+`bg-slate-100 …` e `bg-emerald-600 …` estavam repetidos à mão em 18 e 14
+botões. **A `success` não vira a cor da agência de propósito:** verde aqui não
+é marca, é o significado "aprovado", e trocá-lo pelo roxo do whitelabel
+apagaria a diferença entre a ação principal e a ação que aprova.
+
+**Nem todo `<button>` é um `Button`, e ignorar isso foi o erro mais caro da
+migração.** São três papéis que ficam de fora:
+
+- **Item selecionável** — item de menu, aba, dia do calendário. Tem estado
+  "selecionado" e ocupa a largura do container: é `SidebarMenuButton` ou
+  `ToggleGroup`, e sai quando a casca for trocada.
+- **Card clicável** — resultado de busca, card do quadro, entrada do
+  changelog, seletor de agência, job no portal. Tem conteúdo em bloco (imagem,
+  título, badges em duas linhas) e altura própria. **Altura fixa corta o
+  conteúdo**: nove destes foram migrados por engano, e a caixa de 36px cortou
+  o card inteiro.
+- **Afordância minúscula** — o "+" que aparece no hover de uma célula de 16px
+  na semana do calendário. Qualquer degrau da escala é maior que a célula.
+
+E `size="icon"` **nunca carrega rótulo**: é um quadrado de 36px, a base tem
+`whitespace-nowrap`, e o texto escapa para fora da área clicável — o que a
+pessoa lê não é o que ela pode clicar. Aconteceu três vezes, sempre pelo mesmo
+motivo: a detecção procurava texto começando com letra, e "+ Agendar Post para
+Hoje" começa com `+`.
+
+Nada local acusa nenhum dos dois: `tsc` compila, o vitest não monta componente
+e o `vite build` não mede caixa. Só aparece abrindo a tela. Por isso
+`tests/botoes.test.ts` guarda os três: a lista fechada de arquivos com
+`<button>` à mão, nenhum `<Button>` com `<div>`/`<p>`/`<h*>`/`<img>` no corpo,
+e nenhum `size="icon"` com palavra dentro.
 
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta

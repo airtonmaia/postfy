@@ -33,6 +33,7 @@ import {
 } from '../../lib/redes';
 import { BarraDeTexto } from '../common/BarraDeTexto';
 import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
+import { Button } from '../ui/button';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -502,14 +503,14 @@ export const CreateJobModal: React.FC = () => {
       >
         {/* Sem faixa de cabeçalho: ela repetia o que o próprio formulário já
             diz e comia altura útil num modal que já rola. Sobra o fechar. */}
-        <button
+        <Button variant="ghost" size="icon-sm"
           type="button"
           onClick={closeCreateJobModal}
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          className="absolute top-3 right-3 z-10 dark:hover:text-white"
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />
-        </button>
+        </Button>
 
         <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
         {/* Form */}
@@ -758,66 +759,65 @@ export const CreateJobModal: React.FC = () => {
 
           {/* Buttons */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={closeCreateJobModal}
-              className="mr-auto px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              className="mr-auto"
             >
               Cancelar
-            </button>
+            </Button>
 
             {/* Publicar agora fica **longe** do primário, e com a cor de
                 aviso: é a única ação daqui que não tem volta. Encostada no
                 botão que a pessoa aperta por reflexo, ela seria apertada por
                 reflexo também. */}
             {canais.includes('instagram') && (
-              <button
+              <Button
                 type="button"
                 onClick={(e) => void publicarImediatamente(e)}
                 disabled={ocupado}
                 title="Salva e publica imediatamente no Instagram do cliente. Não tem volta."
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60 transition cursor-pointer"
+                className="border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60"
               >
                 <Send className="w-3.5 h-3.5" />
                 {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
-              </button>
+              </Button>
             )}
 
             {/* Ideia é o começo do funil: entra sem data, sem arte e sem
                 pedir nada a ninguém. */}
-            <button
+            <Button variant="outline"
               type="button"
               onClick={(e) => salvar(e, 'ideas')}
               disabled={ocupado}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 transition cursor-pointer"
+              className="text-slate-700 dark:text-slate-200"
             >
               <Lightbulb className="w-3.5 h-3.5" />
               Criar ideia
-            </button>
+            </Button>
 
             {/* Agendar **põe na fila de verdade**, quando há conta conectada.
                 Só marcar o status seria a armadilha que já custou caro: o card
                 ficava em "Agendado", a data passava e nada publicava. */}
-            <button
+            <Button variant="outline"
               type="button"
               onClick={(e) => void agendar(e)}
               disabled={ocupado}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 transition cursor-pointer"
+              className="text-slate-700 dark:text-slate-200"
             >
               <CalendarClock className="w-3.5 h-3.5" />
               {acao === 'agendando' ? 'Agendando...' : 'Agendar'}
-            </button>
+            </Button>
 
             {/* O caminho mais comum de uma agência, e por isso o primário. */}
-            <button
+            <Button
               type="button"
               onClick={(e) => salvar(e, 'for_approval')}
               disabled={ocupado}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               <ThumbsUp className="w-3.5 h-3.5" />
               Enviar para aprovação
-            </button>
+            </Button>
           </div>
         </form>
 

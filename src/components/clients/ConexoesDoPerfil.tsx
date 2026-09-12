@@ -23,6 +23,7 @@ import {
 } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
 import { ComTooltip } from '../ui/tooltip';
+import { Button } from '../ui/button';
 
 /**
  * As conexões de **um cliente**.
@@ -200,21 +201,19 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                 <div className="shrink-0">
                   {conta ? (
                     <ComTooltip texto="Desconectar esta conta">
-                      <button
+                      <Button variant="destructive" size="icon-sm"
                         type="button"
                         onClick={() => desconectar(conta.id, conta.accountName)}
                         aria-label="Desconectar"
-                        className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 transition cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </ComTooltip>
                   ) : rede.disponivel ? (
-                    <button
+                    <Button
                       type="button"
                       onClick={conectar}
                       disabled={conectando}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {conectando ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -222,7 +221,7 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                         <Link2 className="w-3.5 h-3.5" />
                       )}
                       {conectando ? 'Autorizando...' : 'Conectar'}
-                    </button>
+                    </Button>
                   ) : (
                     /* Sem botão desligado: um botão que não faz nada ainda é
                        clicado, e a pessoa passa a desconfiar dos que

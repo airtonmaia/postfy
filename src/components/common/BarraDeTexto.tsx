@@ -9,6 +9,7 @@ import {
   Smile,
   Sparkles,
 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 /**
  * A barra de ferramentas do texto principal.
@@ -273,12 +274,12 @@ export const BarraDeTexto: React.FC<Props> = ({
         {aoGerarComIA && (
           <>
             <span className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
-            <button
+            <Button variant="soft"
               type="button"
               onClick={gerar}
               disabled={gerando}
               title="Gerar o texto a partir do título e do briefing do cliente"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-purple-600 dark:text-purple-400"
             >
               {gerando ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -286,7 +287,7 @@ export const BarraDeTexto: React.FC<Props> = ({
                 <Sparkles className="w-3.5 h-3.5" />
               )}
               {gerando ? 'Gerando...' : 'IA'}
-            </button>
+            </Button>
           </>
         )}
 
@@ -310,17 +311,16 @@ export const BarraDeTexto: React.FC<Props> = ({
       {painel === 'emoji' && (
         <div className="absolute right-0 top-full mt-1 z-20 w-64 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg grid grid-cols-8 gap-0.5">
           {EMOJIS.map((emoji) => (
-            <button
+            <Button variant="ghost" size="icon-sm"
               key={emoji}
               type="button"
               onClick={() => {
                 inserir(emoji);
                 setPainel(null);
               }}
-              className="text-base leading-none p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               {emoji}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -343,20 +343,18 @@ export const BarraDeTexto: React.FC<Props> = ({
             className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
           />
           <div className="flex items-center justify-end gap-2">
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setPainel(null)}
-              className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={inserirLink}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-semibold rounded-lg transition cursor-pointer"
             >
               Inserir
-            </button>
+            </Button>
           </div>
         </div>
       )}

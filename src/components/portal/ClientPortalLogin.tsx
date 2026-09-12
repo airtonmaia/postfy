@@ -3,6 +3,7 @@ import { portalApi } from '../../lib/api';
 import { ShieldCheck, X, FileText } from 'lucide-react';
 import { Workspace } from '../../types';
 import { usePostfy } from '../../context/PostfyContext';
+import { Button } from '../ui/button';
 
 interface ClientPortalLoginProps {
   workspace: Workspace;
@@ -157,13 +158,13 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 </div>
 
                 <div className="pt-2">
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-10 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white active:bg-purple-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-60"
+                    className="w-full h-10 bg-slate-200 dark:bg-slate-800 hover:text-white active:bg-purple-700 text-slate-700 dark:text-slate-300"
                   >
                     {isSubmitting ? 'Enviando...' : 'Receber código'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -195,46 +196,44 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 </div>
 
                 <div className="pt-2 space-y-2">
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-10 rounded-lg bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-60"
+                    className="w-full h-10"
                   >
                     {isSubmitting ? 'Validando...' : 'Entrar'}
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => {
                       setPasso('email');
                       setCodigo('');
                       setErrorMsg(null);
                     }}
-                    className="w-full h-9 rounded-lg text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="w-full h-9"
                   >
                     Usar outro e-mail
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
 
             {/* Bottom Links (Matching reference) */}
             <div className="pt-8 text-center text-[11px] text-slate-400 space-x-3">
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowPrivacyModal(true)}
-                className="hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
               >
                 Políticas de Privacidade
-              </button>
+              </Button>
               <span>|</span>
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowTermsModal(true)}
-                className="hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
               >
                 Termos de Uso
-              </button>
+              </Button>
             </div>
 
           </div>
@@ -295,12 +294,12 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 <ShieldCheck className="w-4 h-4 text-purple-600" />
                 Políticas de Privacidade & Segurança de Dados (LGPD)
               </h3>
-              <button 
+              <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowPrivacyModal(false)}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                className="dark:hover:text-white"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
             <div className="text-xs text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed max-h-60 overflow-y-auto">
               <p>
@@ -314,12 +313,11 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
               </p>
             </div>
             <div className="flex justify-end pt-2">
-              <button
+              <Button
                 onClick={() => setShowPrivacyModal(false)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Entendi e Concordo
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -334,12 +332,12 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 <FileText className="w-4 h-4 text-purple-600" />
                 Termos de Uso do Portal de Conteúdo
               </h3>
-              <button 
+              <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowTermsModal(false)}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                className="dark:hover:text-white"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
             <div className="text-xs text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed max-h-60 overflow-y-auto">
               <p>
@@ -350,12 +348,11 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
               </p>
             </div>
             <div className="flex justify-end pt-2">
-              <button
+              <Button
                 onClick={() => setShowTermsModal(false)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Fechar
-              </button>
+              </Button>
             </div>
           </div>
         </div>

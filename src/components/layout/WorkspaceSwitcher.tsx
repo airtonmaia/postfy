@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, CheckCircle2, Plus } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
+import { Button } from '../ui/button';
 
 export const WorkspaceSwitcher: React.FC = () => {
   const { currentWorkspace, setCurrentWorkspace, workspaces, setIsCreateWorkspaceModalOpen, isPlatformAdmin } = usePostfy();
@@ -64,7 +65,7 @@ export const WorkspaceSwitcher: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2">
               <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>{isSuperAdmin ? 'Todas as Agências (Super Admin)' : 'Sua Agência'}</span>
-                {isSuperAdmin && <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">Admin</span>}
+                {isSuperAdmin && <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-md font-bold">Admin</span>}
               </div>
               {visibleWorkspaces.map(ws => (
                 <button
@@ -107,16 +108,16 @@ export const WorkspaceSwitcher: React.FC = () => {
                 </button>
               ))}
               <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-              <button 
+              <Button variant="ghost" 
                 onClick={() => {
                   setIsCreateWorkspaceModalOpen(true);
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/35 transition cursor-pointer"
+                className="w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/35"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Criar novo workspace
-              </button>
+              </Button>
             </div>
           </div>
         </>

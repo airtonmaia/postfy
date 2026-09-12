@@ -51,6 +51,7 @@ import {
 import { ClientPortalLogin } from './ClientPortalLogin';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 /**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
@@ -159,10 +160,10 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                           src={capa}
                           alt=""
                           loading="lazy"
-                          className="w-8 h-10 rounded object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                          className="w-8 h-10 rounded-md object-cover border border-slate-200 dark:border-slate-800 shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-10 rounded bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-10 rounded-md bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
                           <Layers className="w-3 h-3 text-slate-400" />
                         </div>
                       )}
@@ -178,7 +179,7 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                           {job.title}
                         </p>
                         <div className="mt-0.5">
-                          <StatusBadge status={job.status} size="sm" />
+                          <StatusBadge status={job.status} />
                         </div>
                       </div>
                     </div>
@@ -591,14 +592,14 @@ export const ClientPortalView: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <Button variant="destructive"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-xs font-bold transition cursor-pointer"
+              className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
               title="Sair do Portal"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sair</span>
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -761,24 +762,24 @@ export const ClientPortalView: React.FC = () => {
 
                     {/* Actions Toolbar */}
                     <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between gap-3">
-                      <button
+                      <Button variant="destructive"
                         onClick={() => {
                           setSelectedForReview(job);
                           setIsRejecting(true);
                         }}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                        className="flex-1 bg-rose-50 text-rose-700 border border-rose-200"
                       >
                         <AlertCircle className="w-4 h-4" />
                         Pedir Ajuste
-                      </button>
+                      </Button>
 
-                      <button
+                      <Button variant="success"
                         onClick={() => handleApprove(job.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                        className="flex-1"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         Aprovar Agora
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -795,26 +796,25 @@ export const ClientPortalView: React.FC = () => {
                 {safeDateFormat(calendarMonth, { month: 'long', year: 'numeric' })}
               </h3>
               <div className="flex items-center gap-1.5">
-                <button
+                <Button variant="ghost"
                   onClick={() => setCalendarMonth(new Date())}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                 >
                   Hoje
-                </button>
-                <button
+                </Button>
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="text-slate-500"
                   title="Mês anterior"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
+                </Button>
+                <Button variant="secondary" size="icon-sm"
                   onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="text-slate-500"
                   title="Próximo mês"
                 >
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -835,13 +835,13 @@ export const ClientPortalView: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-slate-400">Logos oficiais, manuais de marca e pastas na nuvem.</p>
               </div>
               {podeEditar && !mostrarFormArquivo && (
-                <button
+                <Button
                   onClick={() => setMostrarFormArquivo(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                  className="shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   Anexar Arquivo
-                </button>
+                </Button>
               )}
             </div>
 
@@ -898,19 +898,18 @@ export const ClientPortalView: React.FC = () => {
                   }}
                 />
                 <div className="flex justify-end gap-2">
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setMostrarFormArquivo(false)}
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className="dark:hover:text-white"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg"
                   >
                     Anexar
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -938,13 +937,13 @@ export const ClientPortalView: React.FC = () => {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                     {podeEditar && (
-                      <button
+                      <Button variant="destructive" size="icon-sm"
                         onClick={() => deleteClientFile(client.id, file.id)}
-                        className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition shadow-xs cursor-pointer"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                         title="Remover arquivo"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -969,13 +968,13 @@ export const ClientPortalView: React.FC = () => {
                 </p>
               </div>
               {podeEditar && !mostrarFormSenha && (
-                <button
+                <Button
                   onClick={() => setMostrarFormSenha(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                  className="shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   Nova Credencial
-                </button>
+                </Button>
               )}
             </div>
 
@@ -1032,19 +1031,18 @@ export const ClientPortalView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setMostrarFormSenha(false)}
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className="dark:hover:text-white"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg"
                   >
                     Salvar credencial
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -1071,27 +1069,26 @@ export const ClientPortalView: React.FC = () => {
                         <span className="mr-2 text-slate-700 dark:text-slate-300">
                           {isRevealed ? pwd.password : '••••••••••••'}
                         </span>
-                        <button 
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => toggleRevealPassword(pwd.id)}
-                          className="text-slate-400 hover:text-slate-700 dark:hover:text-white mr-1 cursor-pointer"
+                          className="dark:hover:text-white mr-1"
                         >
                           {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                        <button 
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" 
                           onClick={() => handleCopy(pwd.password, pwd.id)}
-                          className="text-slate-400 hover:text-purple-600 cursor-pointer"
                         >
                           {copiedId === pwd.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
+                        </Button>
                       </div>
                       {podeEditar && (
-                        <button
+                        <Button variant="destructive" size="icon-sm"
                           onClick={() => deleteClientPassword(client.id, pwd.id)}
-                          className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition shadow-xs cursor-pointer"
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                           title="Remover credencial"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1193,27 +1190,26 @@ export const ClientPortalView: React.FC = () => {
               {podeEditar && (
                 briefingEmEdicao ? (
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
+                    <Button variant="ghost"
                       onClick={() => setBriefingEmEdicao(null)}
-                      className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                      className="dark:hover:text-white"
                     >
                       Cancelar
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={salvarBriefing}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                     >
                       <Save className="w-4 h-4" />
                       Salvar briefing
-                    </button>
+                    </Button>
                   </div>
                 ) : (
-                  <button
+                  <Button
                     onClick={() => setBriefingEmEdicao(client.briefing ? { ...client.briefing } : {})}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                    className="shrink-0"
                   >
                     Editar briefing
-                  </button>
+                  </Button>
                 )
               )}
             </div>
@@ -1289,14 +1285,14 @@ export const ClientPortalView: React.FC = () => {
                 </p>
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={() => setIsAddingMaterial(!isAddingMaterial)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+                className="shrink-0"
               >
                 <Upload className="w-4 h-4" />
                 <span>{isAddingMaterial ? 'Fechar Formulário' : 'Enviar Novo Material'}</span>
-              </button>
+              </Button>
             </div>
 
             {/* Material Upload Form */}
@@ -1390,17 +1386,16 @@ export const ClientPortalView: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setIsAddingMaterial(false)}
-                    className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
                   >
                     Cancelar
-                  </button>
+                  </Button>
                   {/* Desabilitado, e não recusando calado no submit: sem o
                       arquivo o envio não acontece, e a pessoa precisa ver por
                       quê antes de clicar. */}
-                  <button
+                  <Button
                     type="submit"
                     disabled={!newMatTitle.trim() || !newMatUrl.trim()}
                     title={
@@ -1408,10 +1403,9 @@ export const ClientPortalView: React.FC = () => {
                         ? 'Envie o arquivo ou cole o link dele antes de confirmar.'
                         : undefined
                     }
-                    className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl shadow-xs"
                   >
                     Confirmar Envio
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -1483,14 +1477,13 @@ export const ClientPortalView: React.FC = () => {
                           <span>Abrir</span>
                         </a>
 
-                        <button
+                        <Button variant="destructive" size="icon-sm"
                           type="button"
                           onClick={() => deleteClientMaterial(mat.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition"
                           title="Remover"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -1575,13 +1568,12 @@ export const ClientPortalView: React.FC = () => {
                 </div>
               </div>
               <div className="flex justify-end">
-                <button
+                <Button
                   type="submit"
-                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   Dar acesso
-                </button>
+                </Button>
               </div>
             </form>
 
@@ -1641,13 +1633,13 @@ export const ClientPortalView: React.FC = () => {
                           faria isso por engano e ficaria do lado de fora,
                           sem tela de recuperação. A RPC também recusa. */}
                       {u.id !== portalUsuario?.id && (
-                        <button
+                        <Button variant="destructive" size="icon-sm"
                           onClick={() => void removerUsuario(u.id, u.email)}
-                          className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                           title="Remover do portal"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1678,12 +1670,12 @@ export const ClientPortalView: React.FC = () => {
                 <PlatformBadge platform={calendarPreviewJob.platform} />
                 <FormatBadge format={calendarPreviewJob.format} />
               </div>
-              <button
+              <Button size="icon-sm"
                 onClick={() => setCalendarPreviewJob(null)}
-                className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition cursor-pointer"
+                className="absolute top-3 right-3 bg-slate-900/70 text-white hover:bg-slate-900"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-5 space-y-3 overflow-y-auto">
@@ -1717,36 +1709,35 @@ export const ClientPortalView: React.FC = () => {
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
               {calendarPreviewJob.status === 'for_approval' ? (
                 <>
-                  <button
+                  <Button variant="destructive"
                     onClick={() => {
                       const job = calendarPreviewJob;
                       setCalendarPreviewJob(null);
                       setSelectedForReview(job);
                       setIsRejecting(true);
                     }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="flex-1 bg-rose-50 text-rose-700 border border-rose-200"
                   >
                     <AlertCircle className="w-4 h-4" />
                     Pedir Ajuste
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="success"
                     onClick={() => {
                       handleApprove(calendarPreviewJob.id);
                       setCalendarPreviewJob(null);
                     }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                    className="flex-1"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Aprovar Agora
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button variant="ghost"
                   onClick={() => setCalendarPreviewJob(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
                 >
                   Fechar
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -1772,22 +1763,21 @@ export const ClientPortalView: React.FC = () => {
               className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-rose-500"
             />
             <div className="flex justify-end gap-2">
-              <button
+              <Button variant="ghost"
                 onClick={() => {
                   setIsRejecting(false);
                   setSelectedForReview(null);
                 }}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button variant="destructive"
                 disabled={!feedbackText.trim()}
                 onClick={handleReject}
-                className="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg transition cursor-pointer"
+                className="bg-rose-600 text-white"
               >
                 Enviar Solicitação
-              </button>
+              </Button>
             </div>
           </div>
         </div>

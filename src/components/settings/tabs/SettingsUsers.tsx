@@ -21,6 +21,7 @@ import {
 } from '../../../lib/authSupabase';
 import { pode } from '../../../lib/permissions';
 import { copyToClipboard, safeDateFormat } from '../../../lib/utils';
+import { Button } from '../../ui/button';
 
 const PAPEIS: { valor: Role; rotulo: string; classe: string }[] = [
   { valor: 'admin', rotulo: 'Administrador', classe: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
@@ -349,13 +350,13 @@ export const SettingsUsers: React.FC = () => {
           </div>
 
           {podeGerenciar && (
-            <button
+            <Button
               onClick={() => setMostrarModal(true)}
-              className="shrink-0 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+              className="shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               Convidar
-            </button>
+            </Button>
           )}
         </div>
 
@@ -391,7 +392,7 @@ export const SettingsUsers: React.FC = () => {
                         <span className="text-[10px] font-medium text-slate-400">(você)</span>
                       )}
                       {!membro.ativo && (
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                           Inativo
                         </span>
                       )}
@@ -449,14 +450,13 @@ export const SettingsUsers: React.FC = () => {
                         {membro.ativo ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                       </button>
 
-                      <button
+                      <Button variant="destructive" size="icon-sm"
                         onClick={() => excluirMembro(membro)}
                         disabled={ocupado}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-50"
                         title="Remover da agência"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -501,21 +501,20 @@ export const SettingsUsers: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
                   {badgeDoPapel(convite.role)}
-                  <button
+                  <Button variant="ghost"
                     onClick={() => reenviar(convite)}
                     disabled={reenviando === convite.id}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-50"
+                    className="dark:text-slate-300"
                     title="Reenviar o e-mail deste convite"
                   >
                     {reenviando === convite.id ? 'Reenviando...' : 'Reenviar'}
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="destructive" size="icon-sm"
                     onClick={() => revogar(convite.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                     title="Revogar convite"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -531,13 +530,13 @@ export const SettingsUsers: React.FC = () => {
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 Convidar para a agência
               </h3>
-              <button
+              <Button variant="ghost" size="icon-sm"
                 onClick={fecharModal}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                className="dark:hover:text-white"
                 aria-label="Fechar"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             {linkGerado ? (
@@ -575,21 +574,21 @@ export const SettingsUsers: React.FC = () => {
                     onFocus={(e) => e.currentTarget.select()}
                     className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono text-slate-700 dark:text-slate-300"
                   />
-                  <button
+                  <Button
                     onClick={copiarLink}
-                    className="shrink-0 px-3 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                    className="shrink-0 bg-slate-900 dark:bg-slate-700 text-white"
                   >
                     {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     {copiado ? 'Copiado' : 'Copiar'}
-                  </button>
+                  </Button>
                 </div>
 
-                <button
+                <Button variant="outline"
                   onClick={fecharModal}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="w-full text-slate-700 dark:text-slate-200"
                 >
                   Concluir
-                </button>
+                </Button>
               </div>
             ) : (
               <form onSubmit={convidar} className="p-5 space-y-3.5">
@@ -671,17 +670,17 @@ export const SettingsUsers: React.FC = () => {
                   </select>
                 </div>
 
-                <button
+                <Button
                   type="submit"
                   disabled={enviando || situacao?.jaEMembro}
-                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full"
                 >
                   {enviando
                     ? 'Enviando...'
                     : situacao?.temConta
                     ? 'Adicionar à agência'
                     : 'Gerar link de convite'}
-                </button>
+                </Button>
               </form>
             )}
           </div>

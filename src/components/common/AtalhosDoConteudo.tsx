@@ -9,6 +9,7 @@ import {
 import type { JobPlatform } from '../../types';
 import { ComTooltip } from '../ui/tooltip';
 import { BarraDeTexto } from './BarraDeTexto';
+import { Button } from '../ui/button';
 
 /**
  * Os acessórios do conteúdo, atrás de ícone.
@@ -161,14 +162,13 @@ const ModalDoAtalho: React.FC<{
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
             {campo.rotulo}
           </h3>
-          <button
+          <Button variant="ghost" size="icon-sm"
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-5 space-y-2">
@@ -235,14 +235,13 @@ const ModalDoAtalho: React.FC<{
           {/* O valor já foi para o formulário a cada tecla; este botão só
               fecha. Chamá-lo de "Salvar" prometeria uma gravação que só
               acontece quando o conteúdo inteiro é criado. */}
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl transition cursor-pointer"
           >
             <Check className="w-3.5 h-3.5" />
             Concluir
-          </button>
+          </Button>
         </div>
       </div>
     </div>

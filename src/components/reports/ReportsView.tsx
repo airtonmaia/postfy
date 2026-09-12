@@ -41,6 +41,7 @@ import {
 } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Button } from '../ui/button';
 
 export const ReportsView: React.FC = () => {
   const {
@@ -359,24 +360,23 @@ export const ReportsView: React.FC = () => {
             </button>
 
             {/* Refresh */}
-            <button
+            <Button variant="soft"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>Atualizar</span>
-            </button>
+            </Button>
 
             {/* Export PDF */}
-            <button
+            <Button
               onClick={handleExportPDF}
               disabled={isExportingPdf}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
             >
               <Download className={`w-3.5 h-3.5 ${isExportingPdf ? 'animate-bounce' : ''}`} />
               <span>{isExportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}</span>
-            </button>
+            </Button>
           </div>
         </div>
 

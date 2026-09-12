@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PlatformBadge, StatusBadge, FormatBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const DashboardView: React.FC = () => {
   const { 
@@ -204,13 +205,13 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          <button
+          <Button variant="secondary"
             onClick={() => setActiveTab('calendario')}
-            className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition"
+            className="w-full mt-4"
           >
             Ver Calendário Editorial Completo
             <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -289,7 +290,7 @@ export const DashboardView: React.FC = () => {
                         <PlatformBadge platform={job.platform} showLabel={false} />
                         <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{job.title}</span>
                       </div>
-                      <StatusBadge status={job.status} size="sm" />
+                      <StatusBadge status={job.status} />
                     </div>
                   );
                 })}
@@ -297,12 +298,12 @@ export const DashboardView: React.FC = () => {
             )}
           </div>
 
-          <button
+          <Button variant="soft"
             onClick={() => openCreateJobModal()}
-            className="w-full mt-4 py-2 border border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 text-xs font-semibold rounded-lg transition"
+            className="w-full mt-4 border-dashed text-purple-600"
           >
             + Agendar Nova Publicação
-          </button>
+          </Button>
         </div>
 
         {/* Clientes & Retrabalho */}
@@ -312,12 +313,12 @@ export const DashboardView: React.FC = () => {
               <Users className="w-4 h-4 text-purple-600" />
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">Saúde dos Clientes da Agência</h4>
             </div>
-            <button
+            <Button variant="ghost"
               onClick={() => setActiveTab('clientes')}
-              className="text-xs text-purple-600 hover:underline font-semibold"
+              className="text-purple-600 hover:underline"
             >
               Ver todos
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-3">
@@ -381,7 +382,7 @@ export const DashboardView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-800 dark:text-slate-200">{log.userName}</span>
                 <span className="text-slate-500 dark:text-slate-400">{log.action}</span>
-                <span className="font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
                   {log.target}
                 </span>
               </div>
