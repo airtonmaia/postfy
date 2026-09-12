@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.32.0',
+    data: '2026-09-12',
+    resumo: 'O seletor de agência virou um menu de verdade, e o plano saiu de cima do nome da agência.',
+    novidades: [
+      'O seletor de agência passou a usar o menu suspenso do shadcn: fecha com Esc, anda com as setas do teclado, devolve o foco para onde estava e rola sozinho quando a lista é grande. Cada agência aparece com a marca, o nome e o endereço (@slug), que é o que diferencia agências de nomes parecidos.',
+      'O rodapé da barra lateral mostra em que plano a agência está, com o que falta saber em cada caso — quantos dias restam do teste, se a cobrança está em dia, se há cancelamento agendado. O clique leva direto para Configurações. Ele só aparece quando o banco responde: em vez de mostrar um plano padrão enquanto carrega, não mostra nada.',
+    ],
+    melhorias: [
+      'O selo "Teste Grátis (7 dias)" saiu de baixo do nome da agência. Ele competia com a marca em toda tela, e informação de cobrança agora mora num lugar só, no rodapé.',
+      'O botão de recolher o menu saiu de dentro da barra lateral e foi para o cabeçalho, ao lado do filtro de clientes. Ele fica no mesmo canto com o menu aberto ou fechado, em vez de mudar de lugar.',
+      'Com o menu recolhido, a marca da agência continua em tela. Antes ela sumia junto, e a faixa de ícones não dizia de qual agência era a tela — o que mais pesa para quem trabalha em mais de uma.',
+    ],
+    corrigido: [
+      'As animações de abrir e fechar de menus e dicas de tela estavam escritas mas nunca funcionaram: faltava o pacote que as define. Agora abrem e fecham com transição.',
+    ],
+  },
+  {
     versao: '2.31.1',
     data: '2026-09-12',
     resumo: 'Os botões de navegação voltaram a ser neutros.',

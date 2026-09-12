@@ -1234,6 +1234,41 @@ exige se aposenta no mesmo instante.
 
 Protegido por `tests/tema-shadcn.test.ts`.
 
+#### As classes de animação não são do Tailwind
+
+`animate-in`, `fade-in-0`, `zoom-in-95`, `slide-in-from-top-2` — toda peça do
+shadcn vem com elas, e **nenhuma existe no Tailwind**. Vêm do
+`tw-animate-css`, que é o que o `shadcn init` instala no v4.
+
+Sem o import, a falta não quebra nada: classe que não existe não vira
+propriedade, o elemento aparece seco, e `tsc`, vitest e `vite build` ficam os
+três verdes. É a armadilha 0 outra vez. Estava assim desde que o `tooltip.tsx`
+entrou — ele escreve `animate-in fade-in-0 zoom-in-95` e as três não faziam
+nada.
+
+Protegido por `tests/casca.test.ts`, que exige o `@import "tw-animate-css"`
+sempre que houver um `animate-in` escrito em `src`.
+
+#### Peça nova do shadcn tem o canto traduzido na entrada
+
+O `dropdown-menu.tsx` é o exemplo do procedimento. A **cor** já não precisa de
+tradução — as variáveis entraram na 2.30.0 com os valores medidos, então o que
+vem do shadcn nasce certo e vira a cor da agência sozinho. O **canto** precisa,
+e é onde mora a tentação de errar:
+
+| o shadcn escreve | onde | vira |
+|---|---|---|
+| `rounded-md` | superfície flutuante (menu, popover) | `rounded-xl` |
+| `rounded-sm` | item de menu | `rounded-lg` |
+
+`rounded-sm` não está no vocabulário de cinco passos, e a saída fácil —
+declarar `--radius-*` no `@theme inline` para o `sm` virar o que a gente quer —
+é exatamente o bug de 649 elementos que a 2.29.1 consertou. Traduzir na entrada
+custa dois minutos por peça e não toca em nada que já está em tela.
+
+O `rounded-xl` da superfície não é escolha nova: é o que os dois menus
+suspensos que já existiam usavam, levantado por contagem.
+
 #### O botão tem uma escala só, e ela é altura fixa
 
 O produto tinha **339 `<button>` escritos à mão em 60 arquivos**, e só entre
@@ -1318,6 +1353,9 @@ src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
+src/components/ui/dropdown-menu.tsx  primitivo shadcn, com o canto traduzido
+src/components/layout/WorkspaceSwitcher.tsx  troca de agência, no DropdownMenu
+src/components/layout/PlanoDaAgencia.tsx     o plano no rodapé, lido do banco
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin

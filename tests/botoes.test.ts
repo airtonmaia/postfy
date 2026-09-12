@@ -124,7 +124,8 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/common/PreviaDaRede.tsx',             // navegação do carrossel
   'src/components/kanban/KanbanBoard.tsx',              // card do quadro
   'src/components/layout/ClientSwitcher.tsx',           // item de lista suspensa
-  'src/components/layout/WorkspaceSwitcher.tsx',        // idem
+  'src/components/layout/PlanoDaAgencia.tsx',           // cartão de duas linhas, no rodapé
+  'src/components/layout/WorkspaceSwitcher.tsx',        // gatilho com marca + duas linhas
   'src/components/modals/ChangelogModal.tsx',           // entrada expansível
   'src/components/modals/SearchModal.tsx',              // resultado de busca
   'src/components/portal/ClientPortalView.tsx',         // card de job no portal
