@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.31.1',
+    data: '2026-09-12',
+    resumo: 'Os botões de navegação voltaram a ser neutros.',
+    corrigido: [
+      'A padronização anterior pintou com a cor da agência dez botões que deveriam ser cinza — a navegação de mês do calendário e do mini calendário, e ícones de ação em Aprovações, Clientes, busca e no detalhe do conteúdo. Cor de marca em botão de navegar disputa atenção com a ação principal da tela.',
+    ],
+  },
+  {
     versao: '2.31.0',
     data: '2026-09-12',
     resumo: 'Todos os botões do sistema passaram a ter o mesmo tamanho e o mesmo acabamento.',

@@ -128,14 +128,14 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
             {monthNames[month]} {year}
           </span>
           <div className="flex items-center gap-1">
-            <Button size="icon-sm"
+            <Button variant="ghost" size="icon-sm"
               onClick={handlePrevMiniMonth}
               className="hover:bg-white dark:bg-slate-900 dark:text-slate-200"
               title="Mês anterior"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
-            <Button size="icon-sm"
+            <Button variant="ghost" size="icon-sm"
               onClick={handleNextMiniMonth}
               className="hover:bg-white dark:bg-slate-900 dark:text-slate-200"
               title="Próximo mês"

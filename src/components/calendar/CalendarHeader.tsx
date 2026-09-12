@@ -69,7 +69,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
-          <Button size="icon-sm"
+          <Button variant="ghost" size="icon-sm"
             id="btn-cal-prev"
             onClick={onPrev}
             className="hover:bg-white dark:bg-slate-900 dark:text-white"
@@ -77,14 +77,14 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button
+          <Button variant="ghost"
             id="btn-cal-today"
             onClick={onToday}
             className="text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-900"
           >
             Hoje
           </Button>
-          <Button size="icon-sm"
+          <Button variant="ghost" size="icon-sm"
             id="btn-cal-next"
             onClick={onNext}
             className="hover:bg-white dark:bg-slate-900 dark:text-white"

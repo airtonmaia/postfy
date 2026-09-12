@@ -231,7 +231,7 @@ export const ClientsView: React.FC = () => {
               />
             </div>
             <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
-              <Button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setIsAddingClient(false)}
                 className="dark:bg-slate-800"

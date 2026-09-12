@@ -367,7 +367,7 @@ export const JobDetailModal: React.FC = () => {
               <span>WhatsApp</span>
             </Button>
 
-            <Button
+            <Button variant="ghost"
               onClick={handleCopyApprovalLink}
               className="dark:bg-slate-800"
               title="Copiar link seguro para o WhatsApp do cliente"
@@ -653,7 +653,7 @@ export const JobDetailModal: React.FC = () => {
                     />
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button
+                    <Button variant="ghost"
                       onClick={() => setIsCreatingVersion(false)}
                       className="dark:bg-slate-800"
                     >

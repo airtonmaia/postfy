@@ -75,7 +75,7 @@ export const SearchModal: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             className="w-full text-sm bg-transparent outline-none text-slate-900 dark:text-white placeholder:text-slate-400 font-medium"
           />
-          <Button size="icon-sm"
+          <Button variant="ghost" size="icon-sm"
             onClick={() => setIsSearchModalOpen(false)}
             className="dark:text-slate-300 dark:bg-slate-800"
           >
