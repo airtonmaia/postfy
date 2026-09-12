@@ -259,8 +259,27 @@ describe('as variáveis do shadcn existem e viram classe', () => {
      *
      * A guarda é indireta porque o vitest não monta componente: nenhum chip
      * de texto (tem `px-` e `py-` pequenos) pode estar em `rounded-xl` ou
-     * maior.
+     * maior — **`rounded-full` incluído**.
+     *
+     * A primeira versão checava só `xl` e `2xl`, e com isso um chip-pílula
+     * novo passava batido: o vocabulário permite `full` globalmente, porque
+     * círculo de verdade e badge usam. Ou seja, a guarda deixava passar
+     * exatamente a regressão que ela existe para pegar. Achado da revisão do
+     * Codex no PR #39, e estava certo.
+     *
+     * Os três sítios de badge abaixo são a exceção escrita — é o que "badge
+     * continua pílula" quer dizer na prática. Chip-pílula em qualquer outro
+     * lugar reprova.
      */
+    const BADGES = [
+      // O componente de badge inteiro: Feed, Reels, Story, status.
+      { arquivo: 'src/components/common/Badges.tsx', trecho: null },
+      // A bolinha de contagem do menu lateral.
+      { arquivo: 'src/App.tsx', trecho: '${item.badgeColor}' },
+      // O selo "SVG Vetorial" do upload.
+      { arquivo: 'src/components/ui/file-upload.tsx', trecho: 'bg-purple-100' },
+    ];
+
     for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
       const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
       for (const linha of fonte.split('\n')) {
@@ -277,12 +296,19 @@ describe('as variáveis do shadcn existem e viram classe', () => {
           /\bpx-[0-9.]+\b/.test(linha) && /\bpy-(?:0\.5|1)(?![.\d])/.test(linha);
         if (!ehChip) continue;
 
+        const relativo = arquivo.replace(`${RAIZ}/`, '');
+        const ehBadge = BADGES.some(
+          ({ arquivo: a, trecho }) =>
+            a === relativo && (trecho === null || linha.includes(trecho))
+        );
+        if (ehBadge) continue;
+
         expect(
-          linha.match(/\brounded-(?:xl|2xl)\b/)?.[0] ?? null,
-          `${arquivo.replace(`${RAIZ}/`, '')}: chip curto em ${
+          linha.match(/\brounded-(?:xl|2xl|full)\b/)?.[0] ?? null,
+          `${relativo}: chip curto em ${
             linha.match(/\brounded-\S+/)?.[0]
           } — o CSS corta isso a metade da altura e ele volta a parecer pílula; ` +
-            `use rounded-md`
+            `use rounded-md (ou some à lista de badges, se for badge mesmo)`
         ).toBeNull();
       }
     }
