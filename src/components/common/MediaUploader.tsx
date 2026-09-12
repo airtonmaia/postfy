@@ -212,13 +212,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(false)} />
               <div className="absolute right-0 top-full mt-1.5 w-56 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5">
-                <Button variant="ghost" size="icon"
+                <Button variant="ghost"
                   type="button"
                   onClick={() => {
                     setMenuAberto(false);
                     fileInputRef.current?.click();
                   }}
-                  className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
                 >
                   <UploadCloud className="w-4 h-4 text-slate-400" />
                   Do computador
@@ -230,7 +230,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                     setMenuAberto(false);
                     setShowUrlInput(true);
                   }}
-                  className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
                 >
                   <Link2 className="w-4 h-4 text-slate-400" />
                   Por link da web

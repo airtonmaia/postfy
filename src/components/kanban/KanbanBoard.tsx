@@ -192,13 +192,13 @@ export const KanbanBoard: React.FC = () => {
                   {TIPOS_DE_JOB.map((tipo) => {
                     const Icone = ICONE_DO_TIPO[tipo.valor];
                     return (
-                      <Button variant="ghost" size="lg"
+                      <button
                         key={tipo.valor}
                         onClick={() => {
                           setMenuDeTipoAberto(false);
                           openCreateJobModal(undefined, tipo.valor);
                         }}
-                        className="w-full hover:bg-slate-50 text-left"
+                        className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                           <Icone className="w-4 h-4" />
@@ -211,7 +211,7 @@ export const KanbanBoard: React.FC = () => {
                             {tipo.descricao}
                           </span>
                         </div>
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>

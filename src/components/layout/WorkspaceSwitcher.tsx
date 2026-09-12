@@ -24,9 +24,9 @@ export const WorkspaceSwitcher: React.FC = () => {
 
   return (
     <div className="relative z-50">
-      <Button variant="secondary"
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full justify-between pr-2.5 border-transparent hover:border-slate-200 dark:hover:border-slate-700 group"
+        className="w-full flex items-center justify-between gap-3 p-1.5 pr-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer group"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {currentWorkspace?.logo ? (
@@ -55,7 +55,7 @@ export const WorkspaceSwitcher: React.FC = () => {
           </div>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-      </Button>
+      </button>
 
       {/* Dropdown Menu */}
       {isOpen && (

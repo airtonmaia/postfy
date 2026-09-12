@@ -440,10 +440,10 @@ const MainLayout: React.FC = () => {
           <div className={`flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2 ${
             recolhida ? 'md:flex-col md:gap-2' : ''
           }`}>
-            <Button variant="ghost" 
+            <button 
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex-1 justify-between text-left min-w-0"
+              className="flex-1 flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer min-w-0"
               title="Gerenciar Sessão & Alternar Usuário"
             >
               <div className={`flex items-center gap-2.5 min-w-0 ${recolhida ? 'md:justify-center md:w-full' : ''}`}>
@@ -464,7 +464,7 @@ const MainLayout: React.FC = () => {
                 </div>
               </div>
               <ShieldCheck className={`w-4 h-4 text-purple-600 shrink-0 ${recolhida ? 'md:hidden' : ''}`} />
-            </Button>
+            </button>
 
             <Button variant="destructive" size="icon"
               type="button"

@@ -298,7 +298,7 @@ export const DashboardView: React.FC = () => {
             )}
           </div>
 
-          <Button variant="soft" size="icon"
+          <Button variant="soft"
             onClick={() => openCreateJobModal()}
             className="w-full mt-4 border-dashed text-purple-600"
           >

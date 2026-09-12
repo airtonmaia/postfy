@@ -149,10 +149,10 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                 const abreParaEsquerda = idx % 7 >= 5;
 
                 return (
-                  <Button variant="soft"
+                  <button
                     key={job.id}
                     onClick={() => onSelectJob(job)}
-                    className="group/job relative w-full text-left bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-purple-300"
+                    className="group/job relative w-full text-left bg-slate-50 dark:bg-slate-950 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-300 rounded-lg p-1 transition cursor-pointer"
                   >
                     <div className="flex items-start gap-1.5">
                       {capa ? (
@@ -201,7 +201,7 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                         </div>
                       </div>
                     )}
-                  </Button>
+                  </button>
                 );
               })}
               {celula.jobs.length > 3 && (

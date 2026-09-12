@@ -131,13 +131,13 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate }) => {
                     className="p-1.5 border-r border-slate-100 dark:border-slate-800 last:border-r-0 hover:bg-slate-50 dark:bg-slate-950/60 transition relative group"
                   >
                     {/* Add button on hover */}
-                    <Button size="icon"
+                    <button
                       onClick={() => openCreateJobModal(dateISO)}
-                      className="opacity-0 group-hover:opacity-100 absolute top-1 right-1 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-purple-600"
+                      className="opacity-0 group-hover:opacity-100 absolute top-1 right-1 p-0.5 rounded-md bg-white dark:bg-slate-900 shadow border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-purple-600 transition"
                       title="Agendar neste horário"
                     >
                       <Plus className="w-3 h-3" />
-                    </Button>
+                    </button>
 
                     {/* Jobs in this slot */}
                     <div className="space-y-1.5">

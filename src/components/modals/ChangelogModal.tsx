@@ -101,10 +101,10 @@ const Entrega: React.FC<{ entrada: EntradaDoChangelog; abertaPorPadrao: boolean 
       {/* O ponto cobre a linha; por isso tem o fundo da modal atrás. */}
       <span className="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-purple-600 ring-4 ring-white dark:ring-slate-900" />
 
-      <Button variant="ghost"
+      <button
         onClick={() => setAberta((v) => !v)}
         aria-expanded={aberta}
-        className="w-full text-left group"
+        className="w-full text-left group cursor-pointer"
       >
         <div className="flex items-center gap-2.5 flex-wrap">
           <h4 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
@@ -123,7 +123,7 @@ const Entrega: React.FC<{ entrada: EntradaDoChangelog; abertaPorPadrao: boolean 
         <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 pr-6 leading-relaxed">
           {entrada.resumo}
         </p>
-      </Button>
+      </button>
 
       {aberta && secoes.length > 0 && (
         <div className="mt-4 space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-4">

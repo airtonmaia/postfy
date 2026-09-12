@@ -274,10 +274,16 @@ export const LoginView: React.FC = () => {
                     placeholder="••••••••••••"
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition"
                   />
-                  <Button variant="ghost" size="icon"
+                  {/* `top-3` era a posição de um ícone de 16px solto. Com o
+                      botão em 32px ele estourava para fora do campo de 42px e
+                      ficava fora de centro — centrar pelo meio não depende do
+                      tamanho, e o `right-1.5` põe o centro do ícone nos mesmos
+                      22px da borda que ele tinha antes. O irmão deste campo no
+                      `AuthModal` já estava assim. */}
+                  <Button variant="ghost" size="icon-sm"
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>

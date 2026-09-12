@@ -1265,12 +1265,31 @@ botões. **A `success` não vira a cor da agência de propósito:** verde aqui n
 é marca, é o significado "aprovado", e trocá-lo pelo roxo do whitelabel
 apagaria a diferença entre a ação principal e a ação que aprova.
 
-**Nem todo `<button>` é um `Button`.** Item de menu, dia do calendário e aba
-têm estado "selecionado" e ocupam a largura do container — são
-`SidebarMenuButton` e `ToggleGroup`, não `Button`, e ficam de fora até a casca
-ser trocada. `tests/botoes.test.ts` guarda a lista fechada desses arquivos:
-um arquivo novo aparecendo ali quer dizer que alguém escreveu um botão por
-fora do componente, e é assim que as doze alturas voltam, uma de cada vez.
+**Nem todo `<button>` é um `Button`, e ignorar isso foi o erro mais caro da
+migração.** São três papéis que ficam de fora:
+
+- **Item selecionável** — item de menu, aba, dia do calendário. Tem estado
+  "selecionado" e ocupa a largura do container: é `SidebarMenuButton` ou
+  `ToggleGroup`, e sai quando a casca for trocada.
+- **Card clicável** — resultado de busca, card do quadro, entrada do
+  changelog, seletor de agência, job no portal. Tem conteúdo em bloco (imagem,
+  título, badges em duas linhas) e altura própria. **Altura fixa corta o
+  conteúdo**: nove destes foram migrados por engano, e a caixa de 36px cortou
+  o card inteiro.
+- **Afordância minúscula** — o "+" que aparece no hover de uma célula de 16px
+  na semana do calendário. Qualquer degrau da escala é maior que a célula.
+
+E `size="icon"` **nunca carrega rótulo**: é um quadrado de 36px, a base tem
+`whitespace-nowrap`, e o texto escapa para fora da área clicável — o que a
+pessoa lê não é o que ela pode clicar. Aconteceu três vezes, sempre pelo mesmo
+motivo: a detecção procurava texto começando com letra, e "+ Agendar Post para
+Hoje" começa com `+`.
+
+Nada local acusa nenhum dos dois: `tsc` compila, o vitest não monta componente
+e o `vite build` não mede caixa. Só aparece abrindo a tela. Por isso
+`tests/botoes.test.ts` guarda os três: a lista fechada de arquivos com
+`<button>` à mão, nenhum `<Button>` com `<div>`/`<p>`/`<h*>`/`<img>` no corpo,
+e nenhum `size="icon"` com palavra dentro.
 
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta

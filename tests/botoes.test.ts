@@ -91,28 +91,43 @@ describe('a escala do botão', () => {
 /**
  * Onde ainda há `<button>` estilizado à mão — e por quê.
  *
- * Nem todo `<button>` é um botão no sentido do design system. Item de menu,
- * célula de dia do calendário e aba têm estado "selecionado" e ocupam a
- * largura do container: são outros componentes do shadcn (`SidebarMenuButton`,
- * `ToggleGroup`), não `Button`. Ficam de fora até a casca ser trocada.
+ * Nem todo `<button>` é um botão no sentido do design system, e ignorar isso
+ * foi o erro mais caro desta entrega. São três papéis:
+ *
+ *   - **Item selecionável** — item de menu, aba, dia do calendário. Tem estado
+ *     "selecionado" e ocupa a largura do container: é `SidebarMenuButton` ou
+ *     `ToggleGroup`, e sai quando a casca for trocada.
+ *   - **Card clicável** — resultado de busca, card do kanban, entrada do
+ *     changelog, item da lista suspensa, job no portal. Tem conteúdo em bloco
+ *     (imagem, título, badges) e altura própria. Altura fixa **corta o
+ *     conteúdo**: nove destes foram migrados por engano e voltaram.
+ *   - **Afordância minúscula** — o "+" que aparece no hover de uma célula de
+ *     16px na semana do calendário. Qualquer tamanho da escala é maior que a
+ *     célula.
  *
  * A lista é fechada de propósito. Arquivo novo aparecendo aqui quer dizer que
  * alguém escreveu um botão por fora do componente — e é assim que as doze
  * alturas voltam, uma de cada vez.
  */
 const COM_BOTAO_A_MAO = new Set([
-  'src/App.tsx',                                        // item do menu lateral
+  'src/App.tsx',                                        // item do menu + seletor de agência
   'src/components/admin/AdminLayout.tsx',               // idem, casca do /admin
   'src/components/admin/AdminAgenciasView.tsx',         // aba
   'src/components/admin/AdminSeoView.tsx',              // aba
   'src/components/auth/LoginView.tsx',                  // alternador de modo
   'src/components/calendar/CalendarHeader.tsx',         // seletor de visão
   'src/components/calendar/CalendarSidebar.tsx',        // dia do mini calendário
+  'src/components/calendar/WeekView.tsx',               // "+" na célula de 16px
   'src/components/clients/ClientDetail.tsx',            // aba
   'src/components/clients/ClientUsersTab.tsx',          // aba
   'src/components/common/AtalhosDoConteudo.tsx',        // atalho com badge
   'src/components/common/PreviaDaRede.tsx',             // navegação do carrossel
+  'src/components/kanban/KanbanBoard.tsx',              // card do quadro
   'src/components/layout/ClientSwitcher.tsx',           // item de lista suspensa
+  'src/components/layout/WorkspaceSwitcher.tsx',        // idem
+  'src/components/modals/ChangelogModal.tsx',           // entrada expansível
+  'src/components/modals/SearchModal.tsx',              // resultado de busca
+  'src/components/portal/ClientPortalView.tsx',         // card de job no portal
   'src/components/reports/ReportsView.tsx',             // aba
   'src/components/settings/tabs/SettingsPreferences.tsx', // opção selecionável
   'src/components/settings/tabs/SettingsUsers.tsx',     // aba
@@ -141,6 +156,106 @@ describe('botão novo passa pelo componente', () => {
       'botão estilizado à mão em arquivo novo — use <Button variant size>, ' +
         'ou acrescente aqui com o papel que justifica ficar de fora'
     ).toEqual([]);
+  });
+
+  it('nenhum <Button> embrulha conteúdo em bloco', () => {
+    /**
+     * Esta é a guarda que teria pego nove regressões de uma vez.
+     *
+     * A migração tratou todo `<button>` como botão, e **card clicável também
+     * é `<button>`**: resultado de busca, card do kanban, entrada do
+     * changelog, seletor de agência, job no portal. Com `h-9` no lugar do
+     * padding que eles tinham, o conteúdo — imagem, título, badges em duas
+     * linhas — passa a ser cortado por uma caixa de 36px.
+     *
+     * `<div>`, `<p>`, `<h*>` e `<img>` no corpo são a assinatura disso.
+     * `<span>` não entra: rótulo em `<span>` é uso normal de botão.
+     *
+     * Nada local acusava — `tsc` compila, o vitest não monta componente e o
+     * `vite build` não mede caixa. Só aparece abrindo a tela, que é a família
+     * de armadilha que este projeto mais paga.
+     */
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const m of fonte.matchAll(/<Button\b/g)) {
+        const fim = fimDaTag(fonte, m.index! + 7);
+        if (fim === -1) continue;
+
+        // o `</Button>` deste botão, contando os aninhados
+        let nivel = 1;
+        const re = /<Button\b|<\/Button>/g;
+        re.lastIndex = fim + 1;
+        let fecha = -1;
+        let n: RegExpExecArray | null;
+        while ((n = re.exec(fonte))) {
+          nivel += n[0].startsWith('</') ? -1 : 1;
+          if (nivel === 0) {
+            fecha = n.index;
+            break;
+          }
+        }
+        if (fecha === -1) continue;
+
+        const corpo = fonte.slice(fim + 1, fecha);
+        expect(
+          corpo.match(/<(?:div|p|h[1-6]|img)\b/)?.[0] ?? null,
+          `${arquivo.replace(`${RAIZ}/`, '')}:${
+            fonte.slice(0, m.index!).split('\n').length
+          } — <Button> com conteúdo em bloco tem a altura fixa cortando o ` +
+            `conteúdo. Card clicável não é Button: use <button> com as classes dele`
+        ).toBeNull();
+      }
+    }
+  });
+
+  it('nenhum size="icon" carrega rótulo', () => {
+    /**
+     * `icon` é um quadrado de 36px, e a base do botão tem `whitespace-nowrap`:
+     * um rótulo ali não quebra linha nem cabe — ele **escapa para fora da área
+     * clicável**, e o que a pessoa lê não é o que ela pode clicar.
+     *
+     * A migração errou isto três vezes, sempre pelo mesmo motivo: a detecção
+     * procurava texto solto começando com letra, e "+ Agendar Post para Hoje"
+     * começa com `+`. Por isso a guarda não confia em heurística de prefixo —
+     * ela pergunta se sobrou **qualquer** palavra depois de tirar as tags.
+     */
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const m of fonte.matchAll(/<Button\b/g)) {
+        const fim = fimDaTag(fonte, m.index! + 7);
+        if (fim === -1) continue;
+        const tag = fonte.slice(m.index!, fim + 1);
+        if (!/size="icon/.test(tag)) continue;
+
+        let nivel = 1;
+        const re = /<Button\b|<\/Button>/g;
+        re.lastIndex = fim + 1;
+        let fecha = -1;
+        let n: RegExpExecArray | null;
+        while ((n = re.exec(fonte))) {
+          nivel += n[0].startsWith('</') ? -1 : 1;
+          if (nivel === 0) {
+            fecha = n.index;
+            break;
+          }
+        }
+        if (fecha === -1) continue;
+
+        // Fora as tags (os ícones), o que resta tem que ser só pontuação e
+        // expressões que rendem ícone — nunca palavra.
+        const semTags = fonte.slice(fim + 1, fecha).replace(/<[^>]*>/g, ' ');
+        const temLiteral = /['"`][^'"`]*[A-Za-zÀ-ÿ]{3,}/.test(semTags);
+        const temTextoSolto = /[A-Za-zÀ-ÿ]{3,}/.test(semTags.replace(/\{[^}]*\}/g, ' '));
+
+        expect(
+          temLiteral || temTextoSolto,
+          `${arquivo.replace(`${RAIZ}/`, '')}:${
+            fonte.slice(0, m.index!).split('\n').length
+          } — size="icon" com rótulo: o texto escapa do quadrado de 36px. ` +
+            `Use um tamanho com texto (sm, md, lg)`
+        ).toBe(false);
+      }
+    }
   });
 
   it('nenhum <button> à mão se pinta como ação primária', () => {
