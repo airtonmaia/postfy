@@ -173,7 +173,7 @@ export const ApprovalsView: React.FC = () => {
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <Button
+                      <Button variant="ghost"
                         onClick={() => handleCopyLink(job)}
                         className="dark:bg-slate-800"
                       >

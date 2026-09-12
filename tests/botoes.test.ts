@@ -258,6 +258,56 @@ describe('botão novo passa pelo componente', () => {
     }
   });
 
+  it('nenhum <Button> no primário carrega pintura neutra', () => {
+    /**
+     * O botão sem `variant` cai no `primary`, que é a **cor da agência**. Um
+     * desses carregando só fundo neutro no `className` quer dizer que a
+     * variante se perdeu no caminho — e o sintoma é uma barra de navegação
+     * inteira pintada com a marca.
+     *
+     * Foi o que aconteceu com o `< Hoje >` do calendário. O corretor de
+     * "fundo sólido" da migração leu o `dark:bg-slate-900` do hover como
+     * preenchimento e tirou o `variant="ghost"` de dez botões. A regra certa:
+     * **`dark:bg-*` e `hover:bg-*` sozinhos não são preenchimento** — sem um
+     * fundo de modo claro fora do hover, o botão não tem fundo próprio, que é
+     * a definição de ghost.
+     *
+     * A cor importa na distinção: `hover:bg-purple-500` sozinho é override do
+     * hover de um botão que **é** primário (o "Recarregar" do
+     * `ErrorBoundary`), e esse fica. Neutro sozinho, não.
+     */
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const m of fonte.matchAll(/<Button\b/g)) {
+        const fim = fimDaTag(fonte, m.index! + 7);
+        if (fim === -1) continue;
+        const tag = fonte.slice(m.index!, fim + 1);
+        if (/variant=/.test(tag)) continue;
+
+        const cls = tag.match(/className="([^"]*)"/)?.[1];
+        if (!cls) continue;
+
+        const fundos = cls.split(/\s+/).filter((c) => /(?:^|:)bg-/.test(c));
+        if (fundos.length === 0) continue;
+
+        const semFundoProprio = fundos.every(
+          (c) => /^dark:/.test(c) || /(?:^|:)hover:/.test(c)
+        );
+        const todosNeutros = fundos.every((c) =>
+          /bg-(?:white|black|slate|gray|zinc|neutral|stone)/.test(c)
+        );
+
+        expect(
+          semFundoProprio && todosNeutros,
+          `${arquivo.replace(`${RAIZ}/`, '')}:${
+            fonte.slice(0, m.index!).split('\n').length
+          } — <Button> sem variant (= primary, a cor da agência) com pintura ` +
+            `neutra "${cls}". Provável ghost que perdeu a variante`
+        ).toBe(false);
+      }
+    }
+  });
+
   it('nenhum <button> à mão se pinta como ação primária', () => {
     // Fundo roxo cheio é "a ação principal desta tela", e isso é sempre
     // `<Button>`. Onde ele aparece num `<button>` cru significa outra coisa —
