@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, CheckCircle2, Users, Search, X, Building2 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const ClientSwitcher: React.FC = () => {
   const { clients, clientFilter, setClientFilter, jobs } = usePostfy();
@@ -60,7 +61,7 @@ export const ClientSwitcher: React.FC = () => {
                 {selectedClient ? selectedClient.name : 'Todos os Clientes'}
               </span>
               {clientFilter !== 'all' && (
-                <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-purple-600 text-white leading-tight">
+                <span className="text-[9px] font-bold px-1 py-0.2 rounded-md bg-purple-600 text-white leading-tight">
                   Ativo
                 </span>
               )}
@@ -83,16 +84,16 @@ export const ClientSwitcher: React.FC = () => {
               Filtrar por Cliente
             </span>
             {clientFilter !== 'all' && (
-              <button 
+              <Button variant="ghost" size="sm" 
                 onClick={() => {
                   setClientFilter('all');
                   setIsOpen(false);
                 }}
-                className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                className="text-purple-600 dark:text-purple-400 hover:underline"
               >
                 <X className="w-2.5 h-2.5" />
                 Limpar Filtro
-              </button>
+              </Button>
             )}
           </div>
 
@@ -162,7 +163,7 @@ export const ClientSwitcher: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                       {clientJobsCount} {clientJobsCount === 1 ? 'post' : 'posts'}
                     </span>
                     {isSelected && (

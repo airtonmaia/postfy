@@ -5,6 +5,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { safeTimeFormat } from '../../lib/utils';
 import { Job, Client } from '../../types';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
+import { Button } from '../ui/button';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -143,16 +144,16 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                 </span>
 
                 {/* Quick Add button on hover */}
-                <button
+                <Button variant="ghost" size="icon-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     openCreateJobModal(dateISO);
                   }}
-                  className="opacity-0 group-hover:opacity-100 pointer-events-auto p-1 rounded hover:bg-slate-200 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 pointer-events-auto hover:bg-slate-200 dark:text-slate-200"
                   title="Novo conteúdo nesta data"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </div>
 
               {/* Jobs inside day */}
@@ -189,7 +190,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                           <img
                             src={job.mediaUrls[0]}
                             alt=""
-                            className="w-6 h-6 rounded object-cover shrink-0 border border-slate-200 dark:border-slate-800"
+                            className="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-200 dark:border-slate-800"
                           />
                         )}
                         <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200 line-clamp-1 group-hover/card:text-purple-900 leading-tight">
@@ -208,16 +209,16 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
 
                 {/* Overflow count */}
                 {cell.jobs.length > 3 && (
-                  <button
+                  <Button variant="soft" size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       // Show all jobs for that date in detail
                       openCreateJobModal(dateISO);
                     }}
-                    className="w-full text-center py-0.5 text-[10px] font-semibold text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition"
+                    className="w-full text-center text-purple-600 hover:text-purple-800"
                   >
                     +{cell.jobs.length - 3} mais
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

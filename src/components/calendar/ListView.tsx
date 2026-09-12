@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const ListView: React.FC = () => {
   const { 
@@ -108,7 +109,7 @@ export const ListView: React.FC = () => {
                       <span className="text-slate-300">•</span>
                       <PlatformBadge platform={job.platform} />
                       <FormatBadge format={job.format} />
-                      <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                         v{job.currentVersion}
                       </span>
                     </div>
@@ -137,16 +138,16 @@ export const ListView: React.FC = () => {
 
                   <div className="flex items-center gap-1.5">
                     {job.status === 'for_approval' && (
-                      <button
+                      <Button size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
                           approveJob(job.id, 'Gestor da Agência');
                         }}
-                        className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
                         title="Aprovar Conteúdo"
                       >
                         <Check className="w-4 h-4" />
-                      </button>
+                      </Button>
                     )}
 
                     <div className="p-2 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition">

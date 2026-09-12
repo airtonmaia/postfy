@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const ApprovalsView: React.FC = () => {
   const { 
@@ -74,13 +75,13 @@ export const ApprovalsView: React.FC = () => {
         </div>
 
         {pendingApprovalJobs.length > 0 && (
-          <button
+          <Button variant="success" size="lg"
             onClick={handleApproveAll}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+
           >
             <CheckCircle2 className="w-4 h-4" />
             Aprovar Todos em Lote ({pendingApprovalJobs.length})
-          </button>
+          </Button>
         )}
       </div>
 
@@ -143,7 +144,7 @@ export const ApprovalsView: React.FC = () => {
                           <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={24} />
                           <span className="text-xs font-bold text-slate-900 dark:text-white">{client?.name}</span>
                         </div>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                           v{job.currentVersion}
                         </span>
                       </div>
@@ -172,31 +173,31 @@ export const ApprovalsView: React.FC = () => {
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <button
+                      <Button
                         onClick={() => handleCopyLink(job)}
-                        className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-purple-600 p-1.5 rounded-lg hover:bg-slate-100 dark:bg-slate-800 transition"
+                        className="dark:bg-slate-800"
                       >
                         <Copy className="w-3.5 h-3.5" />
                         <span>{copiedId === job.id ? 'Link Copiado!' : 'Copiar Link'}</span>
-                      </button>
+                      </Button>
 
                       <div className="flex items-center gap-2">
                         {client && (
-                          <button
+                          <Button variant="soft"
                             onClick={() => openClientPortal(client.id)}
-                            className="text-xs font-medium text-purple-600 hover:bg-purple-50 px-2.5 py-1.5 rounded-lg transition"
+                            className="text-purple-600"
                           >
                             Portal
-                          </button>
+                          </Button>
                         )}
 
-                        <button
+                        <Button variant="success"
                           onClick={() => approveJob(job.id, 'Gestor da Agência')}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition"
+
                         >
                           <Check className="w-3.5 h-3.5" />
                           Aprovar
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -239,12 +240,12 @@ export const ApprovalsView: React.FC = () => {
                       )}
                     </div>
 
-                    <button
+                    <Button
                       onClick={() => setSelectedJob(job)}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs transition shrink-0"
+                      className="shrink-0"
                     >
                       Subir Nova Versão
-                    </button>
+                    </Button>
                   </div>
                 );
               })}
@@ -277,12 +278,12 @@ export const ApprovalsView: React.FC = () => {
 
                   <div className="flex items-center gap-3">
                     <StatusBadge status={job.status} />
-                    <button
+                    <Button variant="soft" size="icon-sm"
                       onClick={() => setSelectedJob(job)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50"
+                      className="text-slate-400 hover:text-purple-600"
                     >
                       <ArrowRight className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );

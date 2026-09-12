@@ -3,6 +3,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { Search, X, Calendar, User, Briefcase, FileText, ArrowRight } from 'lucide-react';
 import { PlatformBadge, StatusBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 export const SearchModal: React.FC = () => {
   const { 
@@ -74,12 +75,12 @@ export const SearchModal: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             className="w-full text-sm bg-transparent outline-none text-slate-900 dark:text-white placeholder:text-slate-400 font-medium"
           />
-          <button
+          <Button size="icon-sm"
             onClick={() => setIsSearchModalOpen(false)}
-            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 transition"
+            className="dark:text-slate-300 dark:bg-slate-800"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Results */}
@@ -102,13 +103,13 @@ export const SearchModal: React.FC = () => {
                     Conteúdos & Jobs
                   </span>
                   {matchingJobs.map(job => (
-                    <button
+                    <Button variant="soft"
                       key={job.id}
                       onClick={() => {
                         setIsSearchModalOpen(false);
                         setSelectedJob(job);
                       }}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 text-left transition text-xs group"
+                      className="w-full justify-between text-left group"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <PlatformBadge platform={job.platform} showLabel={false} />
@@ -117,7 +118,7 @@ export const SearchModal: React.FC = () => {
                         </span>
                       </div>
                       <StatusBadge status={job.status} size="sm" />
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -129,13 +130,13 @@ export const SearchModal: React.FC = () => {
                     Clientes
                   </span>
                   {matchingClients.map(client => (
-                    <button
+                    <Button variant="soft"
                       key={client.id}
                       onClick={() => {
                         setIsSearchModalOpen(false);
                         setActiveTab('clientes');
                       }}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 text-left transition text-xs group"
+                      className="w-full justify-between text-left group"
                     >
                       <div className="flex items-center gap-2.5">
                         <Avatar nome={client.name} url={client.avatar} tamanho={20} formato="quadrado" />
@@ -145,7 +146,7 @@ export const SearchModal: React.FC = () => {
                         <span className="text-[11px] text-slate-400">{client.segment}</span>
                       </div>
                       <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-600" />
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -157,13 +158,13 @@ export const SearchModal: React.FC = () => {
                     Leads Comerciais
                   </span>
                   {matchingLeads.map(lead => (
-                    <button
+                    <Button variant="soft"
                       key={lead.id}
                       onClick={() => {
                         setIsSearchModalOpen(false);
                         setActiveTab('comercial');
                       }}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-purple-50 text-left transition text-xs group"
+                      className="w-full justify-between text-left group"
                     >
                       <div className="flex items-center gap-2">
                         <Briefcase className="w-4 h-4 text-purple-500" />
@@ -174,7 +175,7 @@ export const SearchModal: React.FC = () => {
                       <span className="text-emerald-600 font-bold text-[11px]">
                         R$ {lead.estimatedValue}/mês
                       </span>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}

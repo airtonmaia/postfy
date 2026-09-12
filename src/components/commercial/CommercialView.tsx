@@ -24,6 +24,7 @@ import {
   Eye
 } from 'lucide-react';
 import { Lead, LeadStage, Proposal, Contract } from '../../types';
+import { Button } from '../ui/button';
 
 export const CommercialView: React.FC = () => {
   const { 
@@ -168,33 +169,30 @@ export const CommercialView: React.FC = () => {
           </div>
 
           {activeSubTab === 'pipeline' && (
-            <button
+            <Button size="lg"
               onClick={() => setShowAddLeadModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Novo Lead
-            </button>
+            </Button>
           )}
 
           {activeSubTab === 'proposals' && (
-            <button
+            <Button size="lg"
               onClick={() => setShowAddProposalModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Nova Proposta
-            </button>
+            </Button>
           )}
 
           {activeSubTab === 'contracts' && (
-            <button
+            <Button size="lg"
               onClick={() => setShowAddContractModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Gerar Contrato
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -296,40 +294,40 @@ export const CommercialView: React.FC = () => {
                         {lead.stage !== 'won' ? (
                           <>
                             {lead.stage === 'new_lead' && (
-                              <button
+                              <Button size="sm"
                                 onClick={() => updateLeadStage(lead.id, 'meeting_scheduled')}
-                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700"
                               >
                                 Agendar Reunião <ArrowRight className="w-3 h-3" />
-                              </button>
+                              </Button>
                             )}
 
                             {lead.stage === 'meeting_scheduled' && (
-                              <button
+                              <Button size="sm"
                                 onClick={() => updateLeadStage(lead.id, 'proposal_sent')}
-                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700"
                               >
                                 Enviar Proposta <ArrowRight className="w-3 h-3" />
-                              </button>
+                              </Button>
                             )}
 
                             {lead.stage === 'proposal_sent' && (
-                              <button
+                              <Button variant="soft" size="sm"
                                 onClick={() => updateLeadStage(lead.id, 'negotiating')}
-                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                className="flex-1"
                               >
                                 Negociar <ArrowRight className="w-3 h-3" />
-                              </button>
+                              </Button>
                             )}
 
                             {lead.stage === 'negotiating' && (
-                              <button
+                              <Button variant="success" size="sm"
                                 onClick={() => convertLeadToClient(lead.id)}
-                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer shadow-xs"
+                                className="flex-1"
                               >
                                 <UserCheck className="w-3.5 h-3.5" />
                                 Fechar & Ativar
-                              </button>
+                              </Button>
                             )}
                           </>
                         ) : (
@@ -406,22 +404,22 @@ export const CommercialView: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button variant="secondary"
                       onClick={() => setViewingProposal(prop)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl transition cursor-pointer"
+
                     >
                       <Eye className="w-3.5 h-3.5 inline mr-1" />
                       Visualizar
-                    </button>
+                    </Button>
 
                     {prop.status !== 'accepted' && (
-                      <button
+                      <Button variant="success"
                         onClick={() => acceptProposal(prop.id)}
-                        className="px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Simular Aceite Online
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -490,21 +488,21 @@ export const CommercialView: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button 
+                    <Button variant="secondary"
                       onClick={() => setViewingContract(contract)}
-                      className="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
+
                     >
                       Ler Contrato Completo
-                    </button>
+                    </Button>
 
                     {contract.status !== 'signed' && (
-                      <button 
+                      <Button variant="success"
                         onClick={() => signContract(contract.id, 'Diretor Comercial')}
-                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs flex items-center gap-1.5"
+
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />
                         Assinar Agora
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -520,9 +518,9 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateLead} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Cadastrar Novo Lead Comercial</h4>
-              <button type="button" onClick={() => setShowAddLeadModal(false)} className="text-slate-400 hover:text-slate-700 dark:text-slate-200">
+              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddLeadModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div>
@@ -593,19 +591,17 @@ export const CommercialView: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowAddLeadModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs"
               >
                 Salvar Lead
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -617,9 +613,9 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateProposal} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Proposta Comercial</h4>
-              <button type="button" onClick={() => setShowAddProposalModal(false)} className="text-slate-400 hover:text-slate-700 dark:text-slate-200">
+              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddProposalModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div>
@@ -666,19 +662,17 @@ export const CommercialView: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowAddProposalModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs"
               >
                 Criar Proposta
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -690,9 +684,9 @@ export const CommercialView: React.FC = () => {
           <form onSubmit={handleCreateContract} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Novo Contrato de Serviços</h4>
-              <button type="button" onClick={() => setShowAddContractModal(false)} className="text-slate-400 hover:text-slate-700 dark:text-slate-200">
+              <Button variant="ghost" size="icon" type="button" onClick={() => setShowAddContractModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div>
@@ -729,19 +723,17 @@ export const CommercialView: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowAddContractModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs"
               >
                 Gerar Minuta do Contrato
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -758,9 +750,9 @@ export const CommercialView: React.FC = () => {
                   {viewingContract.title}
                 </h4>
               </div>
-              <button onClick={() => setViewingContract(null)} className="text-slate-400 hover:text-slate-700">
+              <Button variant="ghost" size="icon" onClick={() => setViewingContract(null)}>
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-serif bg-slate-50/50 dark:bg-slate-950/50">
@@ -811,15 +803,15 @@ export const CommercialView: React.FC = () => {
                 </div>
 
                 {viewingContract.status !== 'signed' ? (
-                  <button
+                  <Button variant="success"
                     onClick={() => {
                       signContract(viewingContract.id, signatoryName);
                       setViewingContract(prev => prev ? { ...prev, status: 'signed' } : null);
                     }}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+
                   >
                     Assinar com Certificado Digital
-                  </button>
+                  </Button>
                 ) : (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
                     <CheckCircle2 className="w-4 h-4" />
@@ -841,9 +833,9 @@ export const CommercialView: React.FC = () => {
                 <span className="text-[10px] font-bold uppercase text-purple-600">Proposta de Prestação de Serviços</span>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingProposal.title}</h4>
               </div>
-              <button onClick={() => setViewingProposal(null)} className="text-slate-400 hover:text-slate-700">
+              <Button variant="ghost" size="icon" onClick={() => setViewingProposal(null)}>
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
@@ -874,22 +866,21 @@ export const CommercialView: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button variant="ghost"
                 onClick={() => setViewingProposal(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl"
               >
                 Fechar
-              </button>
+              </Button>
               {viewingProposal.status !== 'accepted' && (
-                <button
+                <Button variant="success"
                   onClick={() => {
                     acceptProposal(viewingProposal.id);
                     setViewingProposal(null);
                   }}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+
                 >
                   Confirmar Aceite do Cliente
-                </button>
+                </Button>
               )}
             </div>
           </div>

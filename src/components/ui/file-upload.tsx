@@ -15,6 +15,7 @@ import {
 import { cn } from '../../lib/utils';
 import { arquivosApi, ApiError } from '../../lib/api';
 import { usePostfy } from '../../context/PostfyContext';
+import { Button } from './button';
 
 export interface UploadedFileInfo {
   name: string;
@@ -242,14 +243,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             {label}
           </label>
           {allowUrlFallback && !currentFile && (
-            <button
+            <Button variant="ghost" size="sm"
               type="button"
               onClick={() => setIsUrlMode(!isUrlMode)}
-              className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-purple-600 dark:text-purple-400 hover:underline"
             >
               <LinkIcon className="w-3 h-3" />
               {isUrlMode ? 'Enviar do computador' : 'Inserir link externo'}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -337,15 +338,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 <Eye className="w-4 h-4" />
               </a>
             )}
-            <button
+            <Button variant="destructive" size="icon"
               type="button"
               onClick={handleRemove}
               disabled={disabled}
-              className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
               title="Remover arquivo"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       ) : isUrlMode ? (
@@ -361,13 +361,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono"
             />
           </div>
-          <button
+          <Button
             type="button"
             onClick={handleUrlSubmit}
-            className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
           >
             Vincular
-          </button>
+          </Button>
         </div>
       ) : enviando ? (
         /* Envio em andamento. Sem isto o clique parece não ter feito nada e a

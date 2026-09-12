@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, CheckCircle2, Plus } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
+import { Button } from '../ui/button';
 
 export const WorkspaceSwitcher: React.FC = () => {
   const { currentWorkspace, setCurrentWorkspace, workspaces, setIsCreateWorkspaceModalOpen, isPlatformAdmin } = usePostfy();
@@ -23,9 +24,9 @@ export const WorkspaceSwitcher: React.FC = () => {
 
   return (
     <div className="relative z-50">
-      <button
+      <Button variant="secondary"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-3 p-1.5 pr-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer group"
+        className="w-full justify-between pr-2.5 border-transparent hover:border-slate-200 dark:hover:border-slate-700 group"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {currentWorkspace?.logo ? (
@@ -54,7 +55,7 @@ export const WorkspaceSwitcher: React.FC = () => {
           </div>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      </Button>
 
       {/* Dropdown Menu */}
       {isOpen && (
@@ -64,7 +65,7 @@ export const WorkspaceSwitcher: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2">
               <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>{isSuperAdmin ? 'Todas as Agências (Super Admin)' : 'Sua Agência'}</span>
-                {isSuperAdmin && <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">Admin</span>}
+                {isSuperAdmin && <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-md font-bold">Admin</span>}
               </div>
               {visibleWorkspaces.map(ws => (
                 <button
@@ -107,16 +108,16 @@ export const WorkspaceSwitcher: React.FC = () => {
                 </button>
               ))}
               <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-              <button 
+              <Button variant="ghost" 
                 onClick={() => {
                   setIsCreateWorkspaceModalOpen(true);
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/35 transition cursor-pointer"
+                className="w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/35"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Criar novo workspace
-              </button>
+              </Button>
             </div>
           </div>
         </>

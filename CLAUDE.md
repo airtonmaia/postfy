@@ -1234,9 +1234,43 @@ exige se aposenta no mesmo instante.
 
 Protegido por `tests/tema-shadcn.test.ts`.
 
-As variantes de `button.tsx` saíram do que já estava em tela, levantado por
-contagem: a `primary` é a combinação repetida em 13 botões do app. Ao
-adicionar variante nova, faça o mesmo — não invente cor.
+#### O botão tem uma escala só, e ela é altura fixa
+
+O produto tinha **339 `<button>` escritos à mão em 60 arquivos**, e só entre
+as combinações de padding mais comuns havia **doze alturas diferentes**:
+`px-4 py-2`, `px-5 py-2`, `px-4 py-2.5`, `px-4 py-1.5`, `px-3.5 py-2`,
+`px-6 py-2.5`… Cada uma nasceu certa no lugar dela.
+
+O que torna isso invisível para quem escreve e óbvio para quem usa é que **com
+padding vertical a altura depende também da fonte**. "Novo Post"
+(`py-1.5 text-xs`, 30px) e "Novo Conteúdo" (`py-2.5 text-sm`, 40px) estavam a
+10px de distância, e nenhum dos dois parecia errado sozinho.
+
+Por isso a escala é `h-*`, não `py-*`:
+
+| tamanho | altura | onde |
+|---|---|---|
+| `sm` | 32px | barra de ação densa, linha de tabela |
+| `md` | **36px** | o padrão |
+| `lg` | 40px | ação principal da tela, botão de largura cheia |
+| `icon` / `icon-sm` | 36 / 32px | quadrado, na altura do irmão com texto |
+
+O canto (`rounded-lg`) mora na **base**, não em cada tamanho: botão pequeno
+com canto menor que o grande é a mesma inconsistência vista de perto.
+
+Variante nova sai do que já está em tela, levantado por contagem — a `primary`
+é a combinação de 13 botões; a `secondary` e a `success` entraram porque
+`bg-slate-100 …` e `bg-emerald-600 …` estavam repetidos à mão em 18 e 14
+botões. **A `success` não vira a cor da agência de propósito:** verde aqui não
+é marca, é o significado "aprovado", e trocá-lo pelo roxo do whitelabel
+apagaria a diferença entre a ação principal e a ação que aprova.
+
+**Nem todo `<button>` é um `Button`.** Item de menu, dia do calendário e aba
+têm estado "selecionado" e ocupam a largura do container — são
+`SidebarMenuButton` e `ToggleGroup`, não `Button`, e ficam de fora até a casca
+ser trocada. `tests/botoes.test.ts` guarda a lista fechada desses arquivos:
+um arquivo novo aparecendo ali quer dizer que alguém escreveu um botão por
+fora do componente, e é assim que as doze alturas voltam, uma de cada vez.
 
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta

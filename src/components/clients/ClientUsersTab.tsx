@@ -10,6 +10,7 @@ import {
 import { usePostfy } from '../../context/PostfyContext';
 import { pode } from '../../lib/permissions';
 import { safeDateFormat } from '../../lib/utils';
+import { Button } from '../ui/button';
 
 /**
  * Quem do lado do cliente entra no Portal, e até onde vai.
@@ -154,13 +155,13 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
           </p>
         </div>
         {podeGerenciar && (
-          <button
+          <Button
             onClick={() => setMostrarForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+            className="shrink-0"
           >
             <Plus className="w-4 h-4" />
             Novo Usuário
-          </button>
+          </Button>
         )}
       </div>
 
@@ -241,23 +242,22 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => {
                 setMostrarForm(false);
                 setErro(null);
               }}
-              className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+              className="dark:hover:text-white"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={salvando}
-              className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg disabled:opacity-60"
             >
               {salvando ? 'Salvando…' : 'Dar acesso'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -342,13 +342,13 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
                     >
                       {usuario.ativo ? 'Ativo' : 'Suspenso'}
                     </button>
-                    <button
+                    <Button variant="destructive" size="icon"
                       onClick={() => void remover(usuario)}
-                      className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:text-red-600"
                       title="Remover do portal"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>

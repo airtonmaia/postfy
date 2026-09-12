@@ -83,6 +83,7 @@ import { tela } from './lib/telaSobDemanda';
 import { ehAbaDeAdmin } from './lib/rotas';
 import { AcessoBloqueado } from './components/common/AcessoBloqueado';
 import { diasAteOExpurgo } from './lib/lixeira';
+import { Button } from './components/ui/button';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -294,42 +295,46 @@ const MainLayout: React.FC = () => {
             {/* Recolher/expandir. Fica no cabeçalho da própria barra, que é
                 onde o olho procura — e no trilho ele é a única coisa aqui,
                 então vira o caminho de volta. */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               type="button"
               onClick={() => setSidebarRecolhida(!recolhida)}
               title={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
               aria-label={recolhida ? 'Expandir o menu' : 'Recolher o menu'}
-              className={`hidden md:flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0 ${
-                recolhida ? 'mx-auto' : ''
-              }`}
+              className={`hidden md:inline-flex shrink-0 ${recolhida ? 'mx-auto' : ''}`}
             >
               {recolhida ? (
                 <PanelLeftOpen className="w-4 h-4" />
               ) : (
                 <PanelLeftClose className="w-4 h-4" />
               )}
-            </button>
+            </Button>
 
-            <button
+            <Button variant="ghost" size="icon-sm"
               onClick={() => setMobileMenuOpen(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white md:hidden shrink-0"
+              className="dark:hover:text-white md:hidden shrink-0"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
 
           {/* Quick Action: New Content Button */}
           <div className={recolhida ? 'p-3 md:px-2' : 'p-3'}>
-            <button
+            {/* `lg` porque é a ação principal do produto — o mesmo degrau do
+                "Novo Conteúdo" da lateral do calendário, que antes tinha 40px
+                contra os 34px daqui só pela diferença de `text-xs` para
+                `text-sm`. No trilho o padding lateral some, para o ícone ficar
+                centrado no quadrado. */}
+            <Button
+              size="lg"
               onClick={() => openCreateJobModal()}
               title={recolhida ? 'Novo Conteúdo' : undefined}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-600/20 transition cursor-pointer ${
-                recolhida ? 'px-0 md:px-0' : 'px-4'
-              }`}
+              className={`w-full ${recolhida ? 'px-0 md:px-0' : ''}`}
             >
               <Plus className="w-4 h-4 shrink-0" />
               <span className={recolhida ? 'md:hidden' : ''}>Novo Conteúdo</span>
-            </button>
+            </Button>
           </div>
 
           {/* Navigation Links */}
@@ -435,10 +440,10 @@ const MainLayout: React.FC = () => {
           <div className={`flex items-center gap-1 border-t border-slate-200 dark:border-slate-800/80 pt-2 ${
             recolhida ? 'md:flex-col md:gap-2' : ''
           }`}>
-            <button 
+            <Button variant="ghost" 
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex-1 flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer min-w-0"
+              className="flex-1 justify-between text-left min-w-0"
               title="Gerenciar Sessão & Alternar Usuário"
             >
               <div className={`flex items-center gap-2.5 min-w-0 ${recolhida ? 'md:justify-center md:w-full' : ''}`}>
@@ -459,16 +464,16 @@ const MainLayout: React.FC = () => {
                 </div>
               </div>
               <ShieldCheck className={`w-4 h-4 text-purple-600 shrink-0 ${recolhida ? 'md:hidden' : ''}`} />
-            </button>
+            </Button>
 
-            <button
+            <Button variant="destructive" size="icon"
               type="button"
               onClick={() => logout()}
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer shrink-0"
+              className="shrink-0"
               title="Sair do Sistema"
             >
               <LogOut className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </aside>
@@ -478,12 +483,12 @@ const MainLayout: React.FC = () => {
         {/* Top Navbar */}
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 transition-colors duration-200">
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
+            <Button variant="ghost" size="icon"
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
+              className="md:hidden"
             >
               <Menu className="w-5 h-5" />
-            </button>
+            </Button>
             
             {/* O seletor de agência mora na barra lateral, no lugar da logo. */}
 
@@ -493,28 +498,28 @@ const MainLayout: React.FC = () => {
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden md:block mx-0.5"></div>
 
             {/* Global Search shortcut button (Cmd + K) */}
-            <button
+            <Button variant="secondary"
               onClick={() => setIsSearchModalOpen(true)}
-              className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-xs text-slate-500 dark:text-slate-400 transition border border-slate-200 dark:border-slate-700 cursor-pointer"
+              className="hidden lg:flex text-slate-500 dark:text-slate-400"
             >
               <Search className="w-3.5 h-3.5 text-slate-400" />
               <span>Pesquisar jobs, clientes, leads...</span>
-              <kbd className="inline-block px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700">
+              <kbd className="inline-block px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-700">
                 ⌘K
               </kbd>
-            </button>
+            </Button>
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Quick Status Pill */}
             {inAdjustmentCount > 0 && (
-              <button
+              <Button variant="destructive" size="sm"
                 onClick={() => setActiveTab('aprovacoes')}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold transition cursor-pointer"
+                className="hidden sm:flex bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20"
               >
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                 <span>{inAdjustmentCount} Ajustes</span>
-              </button>
+              </Button>
             )}
 
             {/*
@@ -527,47 +532,45 @@ const MainLayout: React.FC = () => {
               quem digitar `/admin` mesmo assim recebe a recusa explicada.
             */}
             {isPlatformAdmin && (
-              <button
+              <Button variant="soft"
                 onClick={() => setActiveTab('admin_agencias')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-900 text-xs font-bold transition cursor-pointer"
+                className="text-slate-500 dark:text-slate-400 hover:text-purple-700 dark:hover:text-purple-300 border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-900"
                 title="Administração do Orquesia (/admin)"
               >
                 <Crown className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">Admin</span>
-              </button>
+              </Button>
             )}
 
             {/* What's New / Novidades Changelog button */}
-            <button
+            <Button variant="soft"
               onClick={() => setIsChangelogOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 text-xs font-bold transition cursor-pointer"
               title="Ver Novidades do Sistema (Changelog)"
             >
               <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
               <span className="hidden md:inline">Novidades</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </button>
+            </Button>
 
             {/* Theme Toggle */}
-            <button
+            <Button variant="ghost"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               title="Alternar Tema"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            </Button>
 
             {/* Notifications toggle */}
             <div className="relative">
-              <button
+              <Button variant="ghost"
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="relative"
               >
                 <Bell className="w-4 h-4" />
                 {unreadNotifs > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-500" />
                 )}
-              </button>
+              </Button>
 
               {/* Notification Popover */}
               {showNotifications && (

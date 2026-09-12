@@ -13,6 +13,7 @@ import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { ClientUsersTab } from './ClientUsersTab';
 import { ConexoesDoPerfil } from './ConexoesDoPerfil';
+import { Button } from '../ui/button';
 
 interface ClientDetailProps {
   client: Client;
@@ -197,13 +198,13 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       <div className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 pb-0 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <button 
+            <Button variant="ghost" 
               onClick={onBack} 
-              className="text-xs font-bold text-slate-500 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-1.5 mb-2 transition cursor-pointer"
+              className="mb-2"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Voltar para lista de clientes
-            </button>
+            </Button>
             <div className="flex items-center gap-3">
               <Avatar
                 nome={client.name}
@@ -407,12 +408,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-              <button 
+              <Button size="lg" 
                 type="submit" 
-                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
               >
                 Salvar Alterações
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -432,13 +432,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos e Pastas do Cliente</h4>
                 <p className="text-xs text-slate-500">Repositório de identidade visual, fotos brutas e pastas na nuvem.</p>
               </div>
-              <button 
+              <Button 
                 onClick={() => setShowAddFile(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Adicionar Arquivo / Drive
-              </button>
+              </Button>
             </div>
 
             {/* Add File Modal/Form */}
@@ -489,19 +488,18 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <button 
+                  <Button variant="ghost" 
                     type="button" 
                     onClick={() => setShowAddFile(false)} 
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className="dark:hover:text-white"
                   >
                     Cancelar
-                  </button>
-                  <button 
+                  </Button>
+                  <Button 
                     type="submit" 
-                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg cursor-pointer transition"
                   >
                     Salvar Arquivo
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -538,13 +536,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
-                    <button 
+                    <Button variant="destructive" size="icon" 
                       onClick={() => deleteClientFile(client.id, file.id)} 
-                      className="p-2 text-slate-400 hover:text-rose-600 transition rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 cursor-pointer"
                       title="Excluir arquivo"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -565,13 +562,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Cofre de Senhas e Credenciais</h4>
                 <p className="text-xs text-slate-500">Armazene de forma segura as senhas de Instagram, Meta Ads, TikTok e ferramentas do cliente.</p>
               </div>
-              <button 
+              <Button 
                 onClick={() => setShowAddPassword(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Nova Credencial
-              </button>
+              </Button>
             </div>
 
             {/* Add Password Form */}
@@ -634,19 +630,18 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button 
+                  <Button variant="ghost" 
                     type="button" 
                     onClick={() => setShowAddPassword(false)} 
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className="dark:hover:text-white"
                   >
                     Cancelar
-                  </button>
-                  <button 
+                  </Button>
+                  <Button 
                     type="submit" 
-                    className="px-4 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg"
                   >
                     Salvar Credencial
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -680,29 +675,27 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                         <span className="mr-2 text-slate-700 dark:text-slate-200">
                           {isRevealed ? pwd.password : '••••••••••••'}
                         </span>
-                        <button 
+                        <Button variant="ghost" size="icon" 
                           onClick={() => toggleShowPassword(pwd.id)}
-                          className="text-slate-400 hover:text-slate-700 dark:hover:text-white mr-1 cursor-pointer"
+                          className="dark:hover:text-white mr-1"
                           title={isRevealed ? 'Ocultar senha' : 'Ver senha'}
                         >
                           {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                        <button 
+                        </Button>
+                        <Button variant="ghost" size="icon" 
                           onClick={() => handleCopy(pwd.password, pwd.id)}
-                          className="text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer"
                           title="Copiar senha"
                         >
                           {copiedId === pwd.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
+                        </Button>
                       </div>
 
-                      <button 
+                      <Button variant="destructive" size="icon" 
                         onClick={() => deleteClientPassword(client.id, pwd.id)}
-                        className="p-2 text-slate-400 hover:text-rose-600 transition rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 cursor-pointer"
                         title="Excluir credencial"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 );
@@ -724,13 +717,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Notas Fiscais Emitidas</h4>
                 <p className="text-xs text-slate-500">Acompanhamento e faturamento mensal das notas emitidas contra este cliente.</p>
               </div>
-              <button 
+              <Button 
                 onClick={() => setShowAddInvoice(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Lançar Nova NF-e
-              </button>
+              </Button>
             </div>
 
             {/* Add Invoice Form */}
@@ -795,19 +787,18 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button 
+                  <Button variant="ghost" 
                     type="button" 
                     onClick={() => setShowAddInvoice(false)} 
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className="dark:hover:text-white"
                   >
                     Cancelar
-                  </button>
-                  <button 
+                  </Button>
+                  <Button 
                     type="submit" 
-                    className="px-4 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg"
                   >
                     Salvar Nota Fiscal
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -842,13 +833,12 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                     }`}>
                       {inv.status}
                     </span>
-                    <button 
+                    <Button variant="destructive" size="icon-sm" 
                       onClick={() => deleteClientInvoice(client.id, inv.id)} 
-                      className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer"
                       title="Excluir nota fiscal"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -869,12 +859,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Briefing & Manual Estratégico</h4>
                 <p className="text-xs text-slate-500">Diretrizes de conteúdo, tom de voz, persona e objetivos da marca acessíveis para a equipe.</p>
               </div>
-              <button 
+              <Button 
                 onClick={handleSaveBriefing}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
               >
                 Salvar Briefing
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

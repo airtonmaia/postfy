@@ -215,8 +215,20 @@ describe('as variáveis do shadcn existem e viram classe', () => {
 
     for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
       const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
-      for (const [, passo] of fonte.matchAll(
-        /\brounded-(?:[tblrse]{1,2}-)?([a-z0-9]+|\[[^\]]+\])\b/g
+      /**
+       * O `(?:-...)?` opcional, com o grupo caindo em `''`, é o conserto de
+       * um furo desta própria guarda: a primeira versão exigia o sufixo, e
+       * por isso **`rounded` puro passava batido** — 50 usos em 25 arquivos,
+       * um sexto canto de 4px que ninguém tinha declarado. Guarda que só
+       * procura o que você lembrou de escrever não é guarda.
+       *
+       * E o fim é `(?![\w-])`, não `\b`: depois de `rounded-[40px]` o último
+       * caractere é `]`, que não é de palavra, então o `\b` falhava ali, o
+       * regex retrocedia até o `rounded` pelado e acusava um canto vazio —
+       * culpando a exceção que a lista abaixo já nomeia.
+       */
+      for (const [, passo = ''] of fonte.matchAll(
+        /\brounded(?:-(?:[tblrse]{1,2}-)?([a-z0-9]+|\[[^\]]+\]))?(?![\w-])/g
       )) {
         if (permitidos.has(passo)) continue;
         if (passo === '[40px]') continue; // a moldura do mockup

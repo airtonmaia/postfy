@@ -14,6 +14,7 @@ import {
 import { usePostfy } from '../../context/PostfyContext';
 import { JobPlatform, JobStatus } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 interface CalendarSidebarProps {
   currentDate: Date;
@@ -111,14 +112,14 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
   return (
     <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 p-4 space-y-6 overflow-y-auto">
       {/* Primary Action Button */}
-      <button
+      <Button size="lg"
         id="btn-sidebar-new-job"
         onClick={() => openCreateJobModal(currentDate.toISOString())}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-sm font-semibold rounded-lg shadow-sm shadow-purple-200 transition duration-150 cursor-pointer"
+        className="w-full"
       >
         <Plus className="w-4 h-4" />
         Novo Conteúdo
-      </button>
+      </Button>
 
       {/* Mini Calendar */}
       <div className="bg-slate-50 dark:bg-slate-950/80 rounded-xl p-3 border border-slate-200 dark:border-slate-800/80">
@@ -127,20 +128,20 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
             {monthNames[month]} {year}
           </span>
           <div className="flex items-center gap-1">
-            <button
+            <Button size="icon-sm"
               onClick={handlePrevMiniMonth}
-              className="p-1 rounded hover:bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition"
+              className="hover:bg-white dark:bg-slate-900 dark:text-slate-200"
               title="Mês anterior"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
+            </Button>
+            <Button size="icon-sm"
               onClick={handleNextMiniMonth}
-              className="p-1 rounded hover:bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition"
+              className="hover:bg-white dark:bg-slate-900 dark:text-slate-200"
               title="Próximo mês"
             >
               <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -185,12 +186,12 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
           <span>Clientes</span>
           {clientFilter !== 'all' && (
-            <button
+            <Button variant="ghost" size="sm"
               onClick={() => setClientFilter('all')}
-              className="text-[11px] font-normal text-purple-600 hover:underline cursor-pointer"
+              className="font-normal text-purple-600 hover:underline"
             >
               Limpar
-            </button>
+            </Button>
           )}
         </div>
         <div className="space-y-1 max-h-40 overflow-y-auto pr-1">

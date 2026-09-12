@@ -16,6 +16,7 @@ import {
 } from '../../../lib/assinatura';
 import { pode } from '../../../lib/permissions';
 import { safeDateFormat } from '../../../lib/utils';
+import { Button } from '../../ui/button';
 
 /**
  * Visão geral da conta.
@@ -239,10 +240,10 @@ export const SettingsOverview: React.FC = () => {
             </div>
 
             {podeAssinar ? (
-              <button
+              <Button size="lg"
                 onClick={() => void irParaOStripe(acesso.temAssinatura ? 'portal' : 'checkout')}
                 disabled={indo}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                className="w-full sm:w-auto"
               >
                 <ExternalLink className="w-4 h-4" />
                 {indo
@@ -250,7 +251,7 @@ export const SettingsOverview: React.FC = () => {
                   : acesso.temAssinatura
                     ? 'Gerenciar cobrança'
                     : 'Assinar o Orquesia'}
-              </button>
+              </Button>
             ) : (
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Só o proprietário ou um administrador da agência mexe na assinatura.
@@ -305,13 +306,12 @@ export const SettingsOverview: React.FC = () => {
           literal, igual para toda conta.
         */}
         <div className="mt-6 flex justify-end">
-          <button
+          <Button
             onClick={() => setIsProfileModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
           >
             <User className="w-4 h-4" />
             Editar perfil
-          </button>
+          </Button>
         </div>
       </div>
     </div>

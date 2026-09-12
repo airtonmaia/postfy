@@ -3,6 +3,7 @@ import { Radio, Plus, Trash2, AlertCircle, CheckCircle2, Instagram } from 'lucid
 import { usePostfy } from '../../context/PostfyContext';
 import { listarContas, conectarConta, desconectarConta, type ContaConectada } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
+import { Button } from '../ui/button';
 
 /**
  * Contas de rede social da agência.
@@ -129,14 +130,13 @@ export const ConexoesSociais: React.FC = () => {
             ))}
           </select>
 
-          <button
+          <Button
             onClick={conectar}
             disabled={conectando || !clienteAlvo}
-            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             {conectando ? 'Aguardando autorização...' : 'Conectar Instagram'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -187,13 +187,13 @@ export const ConexoesSociais: React.FC = () => {
                 </span>
               </div>
 
-              <button
+              <Button variant="destructive" size="icon-sm"
                 onClick={() => desconectar(conta.id, conta.accountName)}
                 title="Desconectar"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer shrink-0"
+                className="shrink-0"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           ))}
         </div>

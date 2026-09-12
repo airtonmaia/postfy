@@ -4,6 +4,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { abrirCobranca, type AcessoDaAgencia } from '../../lib/assinatura';
 import { pode } from '../../lib/permissions';
 import { safeDateFormat } from '../../lib/utils';
+import { Button } from '../ui/button';
 
 /**
  * O teste acabou, ou a assinatura não está em dia.
@@ -108,10 +109,10 @@ export const AcessoBloqueado: React.FC<AcessoBloqueadoProps> = ({ acesso }) => {
         )}
 
         {podeAssinar ? (
-          <button
+          <Button size="lg"
             onClick={() => void irParaOStripe()}
             disabled={indo}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition cursor-pointer"
+            className="w-full"
           >
             <ExternalLink className="w-4 h-4" />
             {indo
@@ -119,7 +120,7 @@ export const AcessoBloqueado: React.FC<AcessoBloqueadoProps> = ({ acesso }) => {
               : acesso.temAssinatura
                 ? 'Atualizar forma de pagamento'
                 : 'Assinar o Orquesia'}
-          </button>
+          </Button>
         ) : (
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             Quem assina é o proprietário ou um administrador de{' '}
@@ -129,13 +130,13 @@ export const AcessoBloqueado: React.FC<AcessoBloqueadoProps> = ({ acesso }) => {
         )}
 
         {/* Bloqueio sem porta de saída é armadilha. */}
-        <button
+        <Button variant="ghost"
           onClick={() => void logout()}
-          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition cursor-pointer"
+          className="w-full dark:hover:text-white"
         >
           <LogOut className="w-3.5 h-3.5" />
           Sair da conta
-        </button>
+        </Button>
       </div>
     </div>
   );

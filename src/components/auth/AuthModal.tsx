@@ -7,6 +7,7 @@ import {
 import { Avatar } from '../common/Avatar';
 import { arquivosApi } from '../../lib/api';
 import { salvarPerfil, alterarSenha, pedirTrocaDeEmail } from '../../lib/perfil';
+import { Button } from '../ui/button';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -140,13 +141,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               Sessão autenticada no servidor
             </p>
           </div>
-          <button
+          <Button variant="ghost" size="icon-sm"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="dark:hover:text-white"
             aria-label="Fechar"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-5 space-y-5 overflow-y-auto">
@@ -191,23 +192,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                       e.target.value = '';
                     }}
                   />
-                  <button
+                  <Button variant="secondary" size="sm"
                     type="button"
                     disabled={enviando}
                     onClick={() => entradaDeArquivo.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                    className="disabled:cursor-wait"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     {enviando ? `Enviando ${progresso}%` : 'Enviar foto'}
-                  </button>
+                  </Button>
                   {avatar && (
-                    <button
+                    <Button variant="destructive" size="sm"
                       type="button"
                       onClick={() => setAvatar('')}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                      className="text-slate-500"
                     >
                       Remover
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -228,7 +229,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
 
-            <button
+            <Button size="lg"
               type="button"
               disabled={ocupado || enviando || !perfilMudou}
               onClick={() =>
@@ -240,10 +241,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     : `Perfil salvo — atualizado em ${vinculos} agências.`;
                 })
               }
-              className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition cursor-pointer"
+              className="w-full"
             >
               {ocupado ? 'Salvando...' : 'Salvar perfil'}
-            </button>
+            </Button>
           </Secao>
 
           <Secao titulo="Senha">
@@ -256,14 +257,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 autoComplete="current-password"
                 className={`${CAMPO} pr-9`}
               />
-              <button
+              <Button variant="ghost" size="icon-sm"
                 type="button"
                 onClick={() => setVerSenha((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2"
                 aria-label={verSenha ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {verSenha ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
+              </Button>
             </div>
 
             <input
@@ -280,7 +281,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               esquecida aberta trocaria a senha e tomaria a conta.
             </p>
 
-            <button
+            <Button variant="outline" size="lg"
               type="button"
               disabled={ocupado || !senhaAtual || !novaSenha}
               onClick={() =>
@@ -291,11 +292,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   return 'Senha alterada. A sessão continua aberta.';
                 })
               }
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full text-slate-700 dark:text-slate-200"
             >
               <KeyRound className="w-3.5 h-3.5" />
               Alterar senha
-            </button>
+            </Button>
           </Secao>
 
           <Secao titulo="E-mail">
@@ -321,7 +322,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               entrando com o e-mail de cima.
             </p>
 
-            <button
+            <Button variant="outline" size="lg"
               type="button"
               disabled={ocupado || !novoEmail}
               onClick={() =>
@@ -331,11 +332,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   return `Link de confirmação enviado para ${alvo}. O e-mail muda quando você abrir o link.`;
                 })
               }
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full text-slate-700 dark:text-slate-200"
             >
               <Mail className="w-3.5 h-3.5" />
               Enviar link de troca
-            </button>
+            </Button>
           </Secao>
 
           <Secao titulo="Sessão">
@@ -386,7 +387,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button
+              <Button variant="outline" size="lg"
                 onClick={() =>
                   executar(async () => {
                     const res = await forceSync();
@@ -394,12 +395,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   })
                 }
                 disabled={ocupado}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="flex-1 text-slate-700 dark:text-slate-200"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${ocupado ? 'animate-spin' : ''}`} />
                 Sincronizar agora
-              </button>
-              <button
+              </Button>
+              <Button variant="destructive" size="lg"
                 onClick={async () => {
                   setOcupado(true);
                   await logout();
@@ -407,11 +408,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   onClose();
                 }}
                 disabled={ocupado}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="flex-1 bg-rose-600 text-white"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 Sair da conta
-              </button>
+              </Button>
             </div>
           </Secao>
         </div>

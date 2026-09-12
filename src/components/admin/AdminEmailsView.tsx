@@ -7,6 +7,7 @@ import {
   VARIAVEIS_POR_EVENTO,
   type ModeloDeEmail,
 } from '../../lib/emailTemplates';
+import { Button } from '../ui/button';
 
 /**
  * Configuração dos disparos automáticos do sistema.
@@ -213,7 +214,7 @@ export const AdminEmailsView: React.FC = () => {
                 {variaveis.map((v) => (
                   <code
                     key={v}
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                   >
                     {v}
                   </code>
@@ -245,14 +246,13 @@ export const AdminEmailsView: React.FC = () => {
                   Salvo.
                 </span>
               )}
-              <button
+              <Button
                 onClick={() => gravar(modelo)}
                 disabled={salvando === modelo.evento}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Save className={`w-3.5 h-3.5 ${salvando === modelo.evento ? 'animate-pulse' : ''}`} />
                 {salvando === modelo.evento ? 'Salvando...' : 'Salvar'}
-              </button>
+              </Button>
             </div>
           </div>
         );

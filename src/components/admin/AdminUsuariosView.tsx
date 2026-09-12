@@ -149,7 +149,7 @@ export const AdminUsuariosView: React.FC = () => {
                       {u.nome || 'Sem nome'}
                       {u.adminDaPlataforma && (
                         <span
-                          className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
+                          className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
                           title="Administrador da plataforma"
                         >
                           <Crown className="w-2.5 h-2.5" />

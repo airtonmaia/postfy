@@ -14,6 +14,7 @@ import {
 import { usePostfy } from '../../context/PostfyContext';
 import { CalendarViewMode } from '../../types';
 import { InstagramGridModal } from './InstagramGridModal';
+import { Button } from '../ui/button';
 
 interface CalendarHeaderProps {
   currentDate: Date;
@@ -68,29 +69,29 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
-          <button
+          <Button size="icon-sm"
             id="btn-cal-prev"
             onClick={onPrev}
-            className="p-1 rounded hover:bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white transition shadow-xs"
+            className="hover:bg-white dark:bg-slate-900 dark:text-white"
             title="Anterior"
           >
             <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button size="sm"
             id="btn-cal-today"
             onClick={onToday}
-            className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-900 rounded transition shadow-xs"
+            className="text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-900"
           >
             Hoje
-          </button>
-          <button
+          </Button>
+          <Button size="icon-sm"
             id="btn-cal-next"
             onClick={onNext}
-            className="p-1 rounded hover:bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white transition shadow-xs"
+            className="hover:bg-white dark:bg-slate-900 dark:text-white"
             title="Próximo"
           >
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -134,25 +135,24 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
 
         {/* Instagram Visual Grid Preview Button */}
-        <button
+        <Button
           id="btn-header-instagram-grid"
           onClick={() => setIsGridModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 hover:opacity-95 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
+          className="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 hover:opacity-95"
           title="Simulador visual de feed 3x3 do Instagram"
         >
           <Instagram className="w-3.5 h-3.5" />
           <span>Grid Instagram</span>
-        </button>
+        </Button>
 
         {/* Add Content Button */}
-        <button
+        <Button
           id="btn-header-add-content"
           onClick={() => openCreateJobModal(currentDate.toISOString())}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-semibold rounded-lg shadow-sm shadow-purple-100 transition cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Novo Post</span>
-        </button>
+        </Button>
       </div>
 
       <InstagramGridModal

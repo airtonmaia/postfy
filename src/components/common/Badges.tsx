@@ -80,7 +80,7 @@ export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
 
   const c = configs[format] || configs.feed;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${c.color}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium border ${c.color}`}>
       {c.icon}
       {c.label}
     </span>
@@ -114,7 +114,7 @@ export const TipoBadge: React.FC<{ tipo: JobTipo }> = ({ tipo }) => {
 
   const c = configs[tipo] || configs.conteudo;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${c.color}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium border ${c.color}`}>
       {c.icon}
       {c.label}
     </span>
@@ -152,7 +152,7 @@ export const PriorityBadge: React.FC<{ priority: JobPriority }> = ({ priority })
   };
   const c = configs[priority];
   return (
-    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-medium ${c.color}`}>
+    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-medium ${c.color}`}>
       {c.label}
     </span>
   );

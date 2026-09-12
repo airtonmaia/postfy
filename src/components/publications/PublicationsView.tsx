@@ -28,6 +28,7 @@ import {
   type ContaConectada,
 } from '../../lib/redes';
 import { Client, Job, JobPlatform } from '../../types';
+import { Button } from '../ui/button';
 
 /**
  * Os canais de um conteúdo, separados pelo que de fato acontece na data.
@@ -248,16 +249,15 @@ export const PublicationsView: React.FC = () => {
                                 : item.status}
                             </span>
                             {podeTirar && (
-                              <button
+                              <Button variant="destructive" size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   void tirarDaFila(item.id);
                                 }}
                                 disabled={enfileirando === job.id}
-                                className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition cursor-pointer"
                               >
                                 tirar da fila
-                              </button>
+                              </Button>
                             )}
                           </div>
                         );
@@ -270,7 +270,7 @@ export const PublicationsView: React.FC = () => {
                       // publicada não volta.
                       if (automaticos.length > 0 && conta) {
                         return (
-                          <button
+                          <Button size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
                               void enfileirar(job);
@@ -279,10 +279,10 @@ export const PublicationsView: React.FC = () => {
                             // Qual perfil vai receber o post, por extenso:
                             // publicar na conta errada não tem volta.
                             title={`Publica em @${conta.accountName} em ${safeDateTimeFormat(job.scheduledDate)}`}
-                            className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-[11px] font-bold transition cursor-pointer shrink-0"
+                            className="shrink-0"
                           >
                             {enfileirando === job.id ? 'Colocando...' : 'Publicar na data'}
-                          </button>
+                          </Button>
                         );
                       }
 
@@ -337,7 +337,7 @@ export const PublicationsView: React.FC = () => {
                   <span className="text-slate-400 font-mono text-[11px]">
                     Postado em {safeDateFormat(job.scheduledDate)}
                   </span>
-                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-semibold border border-emerald-200">
+                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-[11px] font-semibold border border-emerald-200">
                     Publicado
                   </span>
                 </div>
