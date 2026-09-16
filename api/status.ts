@@ -105,6 +105,11 @@ async function handler(request: Request): Promise<Response> {
     // de um jeito diferente, e uma delas não é óbvia: o app id do Instagram
     // não é o do app da Meta.
     instagram: temTodas('INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'),
+    // **Outro app, outro par de credenciais.** `FACEBOOK_APP_ID` não é
+    // `INSTAGRAM_APP_ID`: são apps diferentes no mesmo painel, e usar um no
+    // lugar do outro falha depois de a pessoa já ter digitado a senha, com
+    // uma mensagem que não nomeia a causa.
+    facebook: temTodas('FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET'),
     // Assina o `state` do OAuth. Sem ele a conexão nem começa.
     estadoDoOauth: temTodas('OAUTH_STATE_SECRET') || temTodas('CRON_SECRET'),
     // Protege /api/publicar. Sem ele o agendador roda e leva 401 em todas as

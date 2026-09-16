@@ -5,6 +5,10 @@ import {
   trocarCodigoPorToken,
   contaDoToken,
 } from './_lib/instagram.js';
+import {
+  trocarCodigoPorToken as trocarCodigoDoFacebook,
+  paginasDoUsuario,
+} from './_lib/facebook.js';
 
 
 /**
@@ -55,17 +59,38 @@ async function handler(request: Request): Promise<Response> {
   }
 
   const segredo = process.env.OAUTH_STATE_SECRET || process.env.CRON_SECRET || '';
-  const appId = process.env.INSTAGRAM_APP_ID;
-  const appSecret = process.env.INSTAGRAM_APP_SECRET;
-
-  if (!segredo || !appId || !appSecret) {
-    return paginaDeRetorno('Conexão com o Instagram não configurada no servidor.', true);
+  if (!segredo) {
+    return paginaDeRetorno('Conexão social não configurada no servidor.', true);
   }
 
   const dados = conferirEstado(estado, segredo);
   if (!dados) {
     // Assinatura inválida ou vencida. Não dizemos qual das duas.
     return paginaDeRetorno('Autorização inválida ou expirada. Tente novamente.', true);
+  }
+
+  /**
+   * A rede vem do **estado assinado**, nunca da query — e por isso ela só
+   * pode ser lida depois de a assinatura conferir.
+   *
+   * Quem chega aqui veio da Meta, sem sessão: uma `rede` na URL faria o
+   * retorno do Instagram ser processado pelo fluxo do Facebook, que bate em
+   * outro endpoint com outro segredo — e o erro sairia como "código
+   * inválido", que não aponta para nada.
+   */
+  const rede = dados.rede;
+  const appId =
+    rede === 'facebook' ? process.env.FACEBOOK_APP_ID : process.env.INSTAGRAM_APP_ID;
+  const appSecret =
+    rede === 'facebook'
+      ? process.env.FACEBOOK_APP_SECRET
+      : process.env.INSTAGRAM_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    return paginaDeRetorno(
+      `Conexão com o ${rede === 'facebook' ? 'Facebook' : 'Instagram'} não configurada no servidor.`,
+      true
+    );
   }
 
   const supabase = clienteDeServico();
@@ -77,16 +102,55 @@ async function handler(request: Request): Promise<Response> {
     const base = process.env.APP_URL || 'https://app.orquesia.com.br';
     // A mesma string que `social-connect` mandou para a Meta. Se as duas
     // divergirem em um caractere, a troca do código é recusada aqui.
-    const { token, expiraEm } = await trocarCodigoPorToken(
-      codigo,
-      `${base}/api/social-callback`,
-      appId,
-      appSecret
-    );
+    let token: string;
+    let expiraEm: number | null;
+    let conta: { accountId: string; accountName: string };
 
-    // Uma conta por autorização: no login do Instagram é a conta que entrou,
-    // e não uma lista de Páginas como era no fluxo do Facebook.
-    const conta = await contaDoToken(token);
+    if (rede === 'facebook') {
+      const trocado = await trocarCodigoDoFacebook(
+        codigo,
+        `${base}/api/social-callback`,
+        appId,
+        appSecret
+      );
+      expiraEm = trocado.expiraEm;
+
+      /**
+       * **O token guardado é o da Página, não o do usuário.**
+       *
+       * O login devolve o token do usuário, que só serve para listar as
+       * Páginas. Guardar ele faria a publicação falhar com "permissão
+       * insuficiente" depois de a conexão já parecer pronta — o pior momento
+       * para descobrir.
+       */
+      const paginas = await paginasDoUsuario(trocado.token);
+      if (!paginas.length) {
+        return paginaDeRetorno(
+          'Nenhuma Página encontrada nesta conta do Facebook. Publicar exige ' +
+            'ser administrador de uma Página.',
+          true
+        );
+      }
+
+      // A primeira Página, que é o caso de quem administra uma. Escolher
+      // entre várias é tela, e ela ainda não existe — prometer a escolha aqui
+      // seria prometer o que ninguém construiu.
+      const pagina = paginas[0];
+      token = pagina.tokenDaPagina;
+      conta = { accountId: pagina.accountId, accountName: pagina.accountName };
+    } else {
+      const trocado = await trocarCodigoPorToken(
+        codigo,
+        `${base}/api/social-callback`,
+        appId,
+        appSecret
+      );
+      token = trocado.token;
+      expiraEm = trocado.expiraEm;
+
+      // Uma conta por autorização: no login do Instagram é a conta que entrou.
+      conta = await contaDoToken(token);
+    }
 
     // 60 dias, e renovável — `api/publicar.ts` renova antes de vencer. Fica
     // em `social_connections` porque é o que a tela mostra; o token, esse
@@ -104,7 +168,7 @@ async function handler(request: Request): Promise<Response> {
           // perfil publicar o conteúdo de cada cliente — a coluna existia e
           // ninguém escrevia nela.
           client_id: dados.clientId ?? null,
-          platform: 'instagram',
+          platform: rede,
           account_id: conta.accountId,
           account_name: conta.accountName,
           expires_at: expiraEmIso,

@@ -9,6 +9,7 @@ import {
 } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
+import { publicarNoFacebook } from './_lib/facebook.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 
 
@@ -438,7 +439,7 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
     .maybeSingle();
 
   if (!conexao) throw new Error('A conta conectada não existe mais.');
-  if (conexao.platform !== 'instagram') {
+  if (conexao.platform !== 'instagram' && conexao.platform !== 'facebook') {
     throw new Error(`Publicação em ${conexao.platform} ainda não implementada.`);
   }
 
@@ -468,7 +469,16 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
     .filter(Boolean)
     .join('\n\n');
 
-  return publicarNoInstagram(conexao.account_id, token.access_token, midia, legenda);
+  /**
+   * Dois caminhos, e eles não se parecem por dentro.
+   *
+   * O Instagram cria um contêiner e espera a Meta processar; o Facebook
+   * publica em um passo, e com o token **da Página**, que é o que
+   * `social-callback` guardou. Ver `api/_lib/facebook.ts`.
+   */
+  return conexao.platform === 'facebook'
+    ? publicarNoFacebook(conexao.account_id, token.access_token, midia, legenda)
+    : publicarNoInstagram(conexao.account_id, token.access_token, midia, legenda);
 };
 
 /**
@@ -509,10 +519,25 @@ const atualizarMetricas = async (
   // linha ser criada por qualquer motivo. Sem isto o histórico ficaria para
   // sempre sem medição, e a tela mostraria só o que nasceu depois do deploy —
   // uma tela que começa vazia escondendo o que já aconteceu.
+  /**
+   * **Só Instagram.** `buscarMetricas` fala com `graph.instagram.com`; um post
+   * de Página do Facebook precisa de outro endpoint, que ainda não existe
+   * aqui. Marcar a linha como `instagram` e medir mesmo assim encheria
+   * `ultimo_erro` de falha previsível e esconderia as reais no meio.
+   */
+  const { data: doInstagram } = await supabase
+    .from('social_connections')
+    .select('id')
+    .eq('platform', 'instagram');
+
+  const conexoesDoInstagram = (doInstagram || []).map((c: any) => c.id);
+  if (!conexoesDoInstagram.length) return { medidos, falhas };
+
   const { data: publicados } = await supabase
     .from('publish_queue')
     .select('id, job_id, connection_id, workspace_id, external_id, published_at')
     .eq('status', 'publicado')
+    .in('connection_id', conexoesDoInstagram)
     .not('external_id', 'is', null)
     .gte('published_at', desde)
     .limit(200);
@@ -537,6 +562,7 @@ const atualizarMetricas = async (
   const { data: aMedir } = await supabase
     .from('post_metrics')
     .select('id, connection_id, external_id')
+    .eq('platform', 'instagram')
     .gte('publicado_em', desde)
     .order('medido_em')
     .limit(METRICAS_POR_PASSADA);

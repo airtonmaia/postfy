@@ -27,7 +27,7 @@ import type { JobPlatform } from '../types';
  * servidor implementa — acrescentar uma rede aqui sem escrever o publicador
  * faz o teste falhar.
  */
-export const REDES_QUE_PUBLICAM: readonly JobPlatform[] = ['instagram'] as const;
+export const REDES_QUE_PUBLICAM: readonly JobPlatform[] = ['instagram', 'facebook'] as const;
 
 export const publicaSozinho = (rede: JobPlatform): boolean =>
   REDES_QUE_PUBLICAM.includes(rede);
@@ -41,7 +41,7 @@ export const publicaSozinho = (rede: JobPlatform): boolean =>
  */
 export const COMO_PUBLICA: Record<JobPlatform, string> = {
   instagram: 'Publica sozinho na data, se a conta estiver conectada.',
-  facebook: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
+  facebook: 'Publica sozinho na data, se a Página estiver conectada.',
   linkedin: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
   tiktok: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
   youtube: 'Postagem manual: o Orquesia organiza e aprova, você publica.',
@@ -81,12 +81,18 @@ export const REDES_DA_META: readonly RedeDaMeta[] = [
   {
     id: 'facebook',
     rotulo: 'Facebook',
-    disponivel: false,
-    // É outro fluxo, não o mesmo com outro nome: publicar numa Página usa o
-    // login do Facebook e o token **da Página**, via `/me/accounts` — o
-    // caminho que este projeto deliberadamente não seguiu para o Instagram.
+    // O fluxo existe (`api/_lib/facebook.ts`): login do Facebook, token **da
+    // Página** via `/me/accounts`, publicação em um passo. É outro fluxo, e
+    // não o do Instagram com outro nome — os escopos `pages_*` invalidam a
+    // autorização do Instagram, então os dois nunca vão no mesmo pedido.
+    disponivel: true,
+    // A conexão recusa com o nome da variável quando `FACEBOOK_APP_ID` não
+    // está definido, e a revisão de `pages_manage_posts` na Meta é o que
+    // libera publicar em Página de terceiro. Botão que abre e falha depois do
+    // login é pior que botão ausente — por isso a recusa vem antes, com o que
+    // falta escrito.
     pendencia:
-      'Exige o login do Facebook e o token da Página, que é um fluxo diferente do que está escrito, mais a revisão de pages_manage_posts.',
+      'Publicar em Página de cliente depende da revisão de pages_manage_posts na Meta. Com o app em desenvolvimento, funciona nas Páginas que você administra.',
   },
   {
     id: 'threads',
@@ -165,7 +171,13 @@ export const desconectarConta = async (id: string): Promise<void> => {
  */
 export const conectarConta = async (
   workspaceId: string,
-  clientId: string
+  clientId: string,
+  /**
+   * Qual rede. Cada uma tem app, diálogo e troca de código próprios — e os
+   * escopos de Página **invalidam** a autorização do Instagram, então os dois
+   * nunca vão no mesmo pedido (ver `api/_lib/facebook.ts`).
+   */
+  rede: 'instagram' | 'facebook' = 'instagram'
 ): Promise<void> => {
   const { data: sessao } = await supabase.auth.getSession();
   const token = sessao.session?.access_token;
@@ -174,7 +186,7 @@ export const conectarConta = async (
   const resposta = await fetch('/api/social-connect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ workspaceId, clientId }),
+    body: JSON.stringify({ workspaceId, clientId, rede }),
   });
 
   const ehJson = resposta.headers.get('content-type')?.includes('application/json');

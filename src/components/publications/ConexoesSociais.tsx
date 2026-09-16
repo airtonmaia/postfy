@@ -71,7 +71,11 @@ export const ConexoesSociais: React.FC = () => {
     setErro(null);
     setConectando(true);
     try {
-      await conectarConta(currentWorkspace.id, clienteAlvo);
+      // Esta tela ainda não tem seletor de rede; a escolha entre Instagram e
+      // Facebook mora na ficha do cliente (Conexões do perfil), onde cada
+      // rede é um item da lista. Prometer a escolha aqui com um botão só
+      // seria prometer tela que ninguém construiu.
+      await conectarConta(currentWorkspace.id, clienteAlvo, 'instagram');
     } catch (e) {
       setConectando(false);
       setErro(
