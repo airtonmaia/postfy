@@ -274,8 +274,10 @@ describe('as variáveis do shadcn existem e viram classe', () => {
     const BADGES = [
       // O componente de badge inteiro: Feed, Reels, Story, status.
       { arquivo: 'src/components/common/Badges.tsx', trecho: null },
-      // A bolinha de contagem do menu lateral.
-      { arquivo: 'src/App.tsx', trecho: '${item.badgeColor}' },
+      // A bolinha de contagem do menu lateral. Ela mudou de arquivo quando a
+      // casca passou a usar as peças do shadcn: agora é `SidebarMenuBadge`,
+      // usada pelas duas cascas em vez de escrita à mão em cada uma.
+      { arquivo: 'src/components/ui/sidebar.tsx', trecho: 'ml-auto text-[10px]' },
       // O selo "SVG Vetorial" do upload.
       { arquivo: 'src/components/ui/file-upload.tsx', trecho: 'bg-purple-100' },
     ];

@@ -1451,6 +1451,30 @@ e o `vite build` não mede caixa. Só aparece abrindo a tela. Por isso
 `<button>` à mão, nenhum `<Button>` com `<div>`/`<p>`/`<h*>`/`<img>` no corpo,
 e nenhum `size="icon"` com palavra dentro.
 
+#### O item de menu é a peça do shadcn, e nenhuma medida mudou
+
+As duas cascas escreviam o item de menu à mão, com a mesma string de classe
+copiada em cada uma. Agora é `SidebarMenuButton`, em
+`src/components/ui/sidebar.tsx`.
+
+**O `size` padrão do shadcn já é `h-8`** — os mesmos 32px que o item tinha. O
+que precisou de tradução foi o canto (`rounded-md` dele vira o `rounded-xl` de
+"item de menu" daqui) e a pintura do estado ativo, que sai do roxo que já
+estava em tela. Medido no Chromium, antes e depois: **34px de altura, 240px de
+largura, raio de 12px, fonte de 12px, peso 600, padding 8/12 — iguais**, badge
+incluído.
+
+**Só as peças de menu entraram, e o provider ficou de fora.** O `Sidebar`
+completo do shadcn guarda o estado recolhido **num cookie**; aqui essa
+preferência mora em `user_settings`, no banco, com RLS por linha — armadilha 4.
+Adotar o provider daria duas fontes para a mesma preferência, e a mesma pessoa
+encontraria a barra num estado no celular e noutro no computador.
+
+O que sobrou de `<button>` à mão nas cascas é um só: o cartão de perfil no
+rodapé, que é conteúdo em bloco — o papel "card clicável" da seção acima.
+
+Protegido por `tests/casca.test.ts`.
+
 #### `alert()` e `window.confirm()` não voltam
 
 Três razões, e nenhuma é gosto:
@@ -1506,6 +1530,7 @@ src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/components/ui/alert-dialog.tsx  confirmação e aviso; useConfirmacao/useAviso
+src/components/ui/sidebar.tsx   item de menu das duas cascas, sem o provider
 src/components/ui/dropdown-menu.tsx  primitivo shadcn, com o canto traduzido
 src/components/layout/WorkspaceSwitcher.tsx  troca de agência, no DropdownMenu
 src/components/layout/PlanoDaAgencia.tsx     o plano no rodapé, lido do banco

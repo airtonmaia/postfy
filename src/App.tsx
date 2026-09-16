@@ -87,6 +87,13 @@ import { ehAbaDeAdmin } from './lib/rotas';
 import { AcessoBloqueado } from './components/common/AcessoBloqueado';
 import { diasAteOExpurgo } from './lib/lixeira';
 import { Button } from './components/ui/button';
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  SidebarMenuDot,
+} from './components/ui/sidebar';
 
 const MainLayout: React.FC = () => {
   const { 
@@ -329,54 +336,52 @@ const MainLayout: React.FC = () => {
           </div>
 
           {/* Navigation Links */}
-          <nav className="px-2 space-y-1 mt-1 overflow-y-auto max-h-[calc(100vh-320px)]">
-            {navItems.map(item => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
+          <nav className="px-2 mt-1 overflow-y-auto max-h-[calc(100vh-320px)]">
+            {/* `SidebarMenu` do shadcn, com o canto e a pintura traduzidos na
+                entrada da peça. O `h-8` padrão dele é justamente os 32px que
+                o item já media — nenhuma medida mudou. */}
+            <SidebarMenu>
+              {navItems.map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                const temBadge = item.badge !== undefined && item.badge > 0;
 
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  // O rótulo vira `title` no trilho: ícone sem nome obriga a
-                  // decorar, e o produto tem onze menus.
-                  title={recolhida ? item.label : undefined}
-                  className={`w-full flex items-center px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                    recolhida ? 'justify-between md:justify-center md:px-0' : 'justify-between'
-                  } ${
-                    isActive
-                      ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 relative">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-                    <span className={recolhida ? 'md:hidden' : ''}>{item.label}</span>
-
-                    {/* No trilho o número não cabe ao lado, então vira um
-                        ponto no canto do ícone: some a contagem, fica o
-                        "tem coisa aqui" — que é o que faz a pessoa clicar. */}
-                    {recolhida && item.badge !== undefined && item.badge > 0 && (
-                      <span className="hidden md:block absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-purple-600 ring-2 ring-white dark:ring-slate-900" />
-                    )}
-                  </div>
-
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.badgeColor} ${
-                        recolhida ? 'md:hidden' : ''
-                      }`}
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      ativo={isActive}
+                      recolhida={recolhida}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      // O rótulo vira `title` no trilho: ícone sem nome obriga
+                      // a decorar, e o produto tem doze menus.
+                      title={recolhida ? item.label : undefined}
+                      className="justify-between"
                     >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                      <span className="flex items-center gap-3 relative">
+                        <Icon
+                          className={`w-4 h-4 shrink-0 ${
+                            isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className={recolhida ? 'md:hidden' : ''}>{item.label}</span>
+                        {recolhida && temBadge && <SidebarMenuDot />}
+                      </span>
 
+                      {temBadge && (
+                        <SidebarMenuBadge
+                          className={`${item.badgeColor} ${recolhida ? 'md:hidden' : ''}`}
+                        >
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
           </nav>
         </div>
 

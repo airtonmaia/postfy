@@ -185,6 +185,65 @@ describe('a barra lateral recolhe', () => {
   });
 });
 
+describe('o item de menu é a peça do shadcn nas duas cascas', () => {
+  /**
+   * Os itens eram `<button>` escritos à mão, um em cada casca, com a mesma
+   * string de classe copiada. Duas cópias da mesma decisão divergem na
+   * primeira vez que alguém mexe numa só — e foi assim que nasceram as doze
+   * alturas de botão.
+   *
+   * **Nenhuma medida mudou na troca**, e isso foi medido no Chromium: a peça
+   * e o botão antigo dão 34px de altura, 240px de largura, raio de 12px,
+   * fonte de 12px, peso 600 e padding 8/12 — iguais. O `size` padrão do
+   * shadcn já é `h-8`, que é a altura que o item tinha.
+   */
+  for (const [nome, fonte] of [
+    ['App.tsx', app],
+    ['AdminLayout.tsx', admin],
+  ] as const) {
+    it(`${nome} usa SidebarMenuButton`, () => {
+      expect(
+        fonte,
+        `${nome}: o item de menu voltou a ser escrito à mão — duas cópias da ` +
+          `mesma decisão divergem na primeira vez que alguém mexe numa só`
+      ).toMatch(/<SidebarMenuButton\b/);
+    });
+  }
+
+  it('nenhuma casca reescreve a pintura do item à mão', () => {
+    // A assinatura do item de menu: o roxo do estado ativo junto do canto e do
+    // padding dele. Fora da peça, isso é uma cópia.
+    for (const [nome, fonte] of [
+      ['App.tsx', app],
+      ['AdminLayout.tsx', admin],
+    ] as const) {
+      expect(
+        semComentarios(fonte),
+        `${nome}: a pintura do item de menu foi copiada de volta para a casca`
+      ).not.toMatch(/px-3 py-2 rounded-xl text-xs font-semibold[\s\S]{0,120}bg-purple-50/);
+    }
+  });
+
+  it('a peça não traz o provider do shadcn, que guardaria estado em cookie', () => {
+    /**
+     * O `Sidebar` completo do shadcn guarda o estado recolhido num cookie.
+     * Aqui essa preferência mora em `user_settings`, no banco — armadilha 4.
+     * Adotar o provider daria duas fontes para a mesma preferência, e a mesma
+     * pessoa encontraria a barra num estado no celular e noutro no
+     * computador.
+     */
+    const peca = readFileSync(
+      join(RAIZ, 'src', 'components', 'ui', 'sidebar.tsx'),
+      'utf-8'
+    );
+    expect(
+      semComentarios(peca),
+      'o provider do shadcn entrou junto — ele guarda o recolhimento em cookie, ' +
+        'e a preferência daqui mora no banco'
+    ).not.toMatch(/document\.cookie|SidebarProvider/);
+  });
+});
+
 describe('as classes de animação do shadcn existem', () => {
   it('o pacote que as define está importado no CSS', () => {
     /**

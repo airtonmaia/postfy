@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.36.0',
+    data: '2026-09-16',
+    resumo: 'O menu lateral das duas áreas passou a usar a mesma peça, sem mudar um pixel.',
+    melhorias: [
+      'Os itens do menu — da agência e da administração — eram escritos à mão em cada casca, com a mesma configuração copiada nas duas. Agora são a mesma peça do shadcn. Duas cópias da mesma decisão divergem na primeira vez que alguém mexe numa só, e foi assim que o sistema acabou com doze alturas de botão diferentes.',
+      'Nenhuma medida mudou: altura, largura, arredondamento, fonte e espaçamento foram conferidos no navegador antes e depois, e são idênticos. A troca é interna.',
+      'O menu ganhou navegação por teclado e a semântica de lista que leitores de tela esperam, que o botão solto não tinha.',
+    ],
+  },
+  {
     versao: '2.35.0',
     data: '2026-09-16',
     resumo: 'Relatórios passou a mostrar o que o conteúdo deu, e não só o que foi produzido.',

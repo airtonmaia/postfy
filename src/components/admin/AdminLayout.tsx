@@ -25,6 +25,11 @@ import { tela } from '../../lib/telaSobDemanda';
 import { ABA_INICIAL } from '../../lib/rotas';
 import type { TabType } from '../../types';
 import { Button } from '../ui/button';
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from '../ui/sidebar';
 
 /**
  * A área do dono do produto.
@@ -225,28 +230,28 @@ export const AdminLayout: React.FC = () => {
                 <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {grupo.titulo}
                 </span>
-                {grupo.itens.map((item) => {
-                  const Icon = item.icon;
-                  const ativo = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => abrir(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                        ativo
-                          ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                      }`}
-                    >
-                      <Icon
-                        className={`w-4 h-4 ${
-                          ativo ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'
-                        }`}
-                      />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
+                {/* A mesma peça da casca da agência. As duas cascas têm o
+                    mesmo item de menu porque o conteúdo é que é outro — casca
+                    com medida nova faria a mesma pessoa achar que trocou de
+                    produto ao clicar num botão. */}
+                <SidebarMenu>
+                  {grupo.itens.map((item) => {
+                    const Icon = item.icon;
+                    const ativo = activeTab === item.id;
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton ativo={ativo} onClick={() => abrir(item.id)}>
+                          <Icon
+                            className={`w-4 h-4 ${
+                              ativo ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'
+                            }`}
+                          />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
               </div>
             ))}
           </nav>
