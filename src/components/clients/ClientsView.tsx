@@ -25,7 +25,17 @@ import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 
 export const ClientsView: React.FC = () => {
-  const { clients, jobs, visualizarPortalDoCliente, addClient, setActiveTab, setClientFilter, clientFilter } = usePostfy();
+  const {
+    clients,
+    jobs,
+    visualizarPortalDoCliente,
+    addClient,
+    setActiveTab,
+    setClientFilter,
+    clientFilter,
+    pedidoDeNovoCliente,
+    consumirPedidoDeNovoCliente,
+  } = usePostfy();
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -78,6 +88,24 @@ export const ClientsView: React.FC = () => {
     if (atual !== caminho) setCaminho(atual);
   });
 
+  /**
+   * "Novo cliente" clicado fora daqui — hoje, no seletor de cliente do
+   * cabeçalho.
+   *
+   * O pedido é consumido na hora em que abre o formulário. Deixá-lo de pé
+   * faria a tela reabrir o cadastro toda vez que alguém voltasse para
+   * Clientes, sem ter pedido nada.
+   *
+   * Fica **acima** do `return <ClientDetail>` mais abaixo, como todo hook
+   * deste arquivo: declarado depois da guarda, ele rodaria em duas listas
+   * diferentes conforme a ficha estivesse aberta, e o React derruba a árvore
+   * com o erro #310 (armadilha 8.1).
+   */
+  useEffect(() => {
+    if (!pedidoDeNovoCliente) return;
+    consumirPedidoDeNovoCliente();
+    setIsAddingClient(true);
+  }, [pedidoDeNovoCliente, consumirPedidoDeNovoCliente]);
 
   const displayedClients = clientFilter === 'all'
     ? clients
