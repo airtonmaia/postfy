@@ -110,8 +110,7 @@ describe('a escala do botão', () => {
  * alturas voltam, uma de cada vez.
  */
 const COM_BOTAO_A_MAO = new Set([
-  'src/App.tsx',                                        // item do menu + seletor de agência
-  'src/components/admin/AdminLayout.tsx',               // idem, casca do /admin
+  'src/App.tsx',                                        // cartão de perfil no rodapé
   'src/components/admin/AdminAgenciasView.tsx',         // aba
   'src/components/admin/AdminSeoView.tsx',              // aba
   'src/components/auth/LoginView.tsx',                  // alternador de modo
