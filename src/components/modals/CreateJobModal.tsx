@@ -33,6 +33,7 @@ import {
 } from '../../lib/redes';
 import { BarraDeTexto } from '../common/BarraDeTexto';
 import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
 
@@ -153,6 +154,8 @@ export const CreateJobModal: React.FC = () => {
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('ideas');
   const [caption, setCaption] = useState('');
+  const [draft, setDraft] = useState('');
+  const [abaDoTexto, setAbaDoTexto] = useState<'legenda' | 'rascunho'>('legenda');
   // CTA e hashtags saíram do cadastro: enchiam o modal de campos que quase
   // ninguém preenchia na criação, e seguem editáveis no detalhe.
   //
@@ -203,6 +206,8 @@ export const CreateJobModal: React.FC = () => {
       setPriority('medium');
       setStatus('ideas');
       setCaption('');
+      setDraft('');
+      setAbaDoTexto('legenda');
       setFirstComment('');
       setConfiguracoes({});
       setMediaUrls([]);
@@ -381,6 +386,8 @@ export const CreateJobModal: React.FC = () => {
         priority,
         status: statusFinal,
         caption: caption.trim(),
+        // Só o texto de trabalho: quem é publicado é `caption`.
+        draft: draft.trim() || undefined,
         cta: '',
         hashtags: [],
         firstComment: firstComment.trim(),
@@ -652,63 +659,121 @@ export const CreateJobModal: React.FC = () => {
             entrega é o próprio texto, então ali vale o campo do tipo e não o
             da rede — um roteiro não tem localização nem capa de Reel.
           */}
-          {tipo.pedeArte ? (
-            <div className="space-y-4">
-              {camposEmLinha.map((campo) => (
-                <CampoDinamico
-                  key={campo.chave}
-                  campo={campo}
-                  valor={valorDoCampo(campo)}
-                  onChange={(v) => definirCampo(campo, v)}
-                  limite={limite?.limite}
-                  donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
-                  aoGerarComIA={gerarTextoComIA}
-                  /* Os acessórios pertencem ao texto principal, então moram
-                     na linha do rótulo dele — não numa barra solta que não
-                     diria a que campo se referem. */
-                  acoes={
-                    campo.barra ? (
-                      <AtalhosDoConteudo
-                        campos={camposEmAtalho}
-                        valorDoCampo={valorDoCampo}
-                        definirCampo={definirCampo}
-                        legenda={caption}
-                        canalPrincipal={platform}
-                      />
-                    ) : undefined
-                  }
+          {/*
+            O texto do conteúdo tem dois lados, e **só um deles é publicado.**
+
+            "Legenda" é o que vai para a rede: conta contra o limite de
+            caracteres, aparece na prévia e é o que a Meta recebe. "Rascunho" é
+            o texto de trabalho — versão descartada da legenda, gancho, o que o
+            cliente falou na reunião.
+
+            Eles dividem o lugar porque são o mesmo assunto, e por isso a aba é
+            `segmentado` e não sublinhado: o sublinhado, sob um formulário,
+            leria como se a tela inteira tivesse trocado.
+
+            **Os dois campos existem sempre**, e quem escolhe a aba não muda o
+            que é salvo: o rascunho não some por estar escondido, e a legenda
+            não vira rascunho por estar na outra aba. Guardar os dois no mesmo
+            campo significaria publicar o rascunho junto na primeira vez que
+            alguém esquecesse de apagar — e o que sai no perfil do cliente não
+            volta.
+          */}
+          <Tabs
+            value={abaDoTexto}
+            onValueChange={(v) => setAbaDoTexto(v as 'legenda' | 'rascunho')}
+          >
+            <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
+              <TabsList aparencia="segmentado">
+                <TabsTrigger value="legenda">
+                  {tipo.pedeArte ? 'Legenda' : tipo.rotuloDoTexto}
+                </TabsTrigger>
+                <TabsTrigger value="rascunho">
+                  Rascunho
+                  {/* O selo só aparece quando há texto do outro lado: sem ele,
+                      um rascunho escrito some de vista ao trocar de aba e
+                      ninguém lembra que ele existe. */}
+                  {draft.trim() !== '' && <TabsBadge>1</TabsBadge>}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Os acessórios pertencem ao texto que vai publicado, então
+                  ficam na linha das abas e só valem para a legenda. */}
+              {tipo.pedeArte && (
+                <AtalhosDoConteudo
+                  campos={camposEmAtalho}
+                  valorDoCampo={valorDoCampo}
+                  definirCampo={definirCampo}
+                  legenda={caption}
+                  canalPrincipal={platform}
                 />
-              ))}
+              )}
             </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {tipo.rotuloDoTexto}
-              </label>
-              <BarraDeTexto
-                valor={caption}
-                onChange={(v) => setCaption(String(v))}
-                areaRef={areaDoTexto}
-                /* O roteiro conta caracteres mas não tem teto: ele não é o
-                   texto que vai publicado. */
-                limite={tipo.respeitaLimiteDaRede ? limite?.limite : undefined}
-                donoDoLimite={
-                  tipo.respeitaLimiteDaRede && limite
-                    ? nomeDoCanal(limite.canal)
-                    : undefined
-                }
-                aoGerarComIA={gerarTextoComIA}
-              />
+
+            <TabsContent value="legenda">
+              {tipo.pedeArte ? (
+                <div className="space-y-4">
+                  {camposEmLinha.map((campo) => (
+                    <CampoDinamico
+                      key={campo.chave}
+                      campo={campo}
+                      valor={valorDoCampo(campo)}
+                      onChange={(v) => definirCampo(campo, v)}
+                      limite={limite?.limite}
+                      donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
+                      aoGerarComIA={gerarTextoComIA}
+                      /* O campo do texto principal perde o rótulo: quem o
+                         nomeia agora é a aba, logo acima. */
+                      semRotulo={campo.barra}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <BarraDeTexto
+                    valor={caption}
+                    onChange={(v) => setCaption(String(v))}
+                    areaRef={areaDoTexto}
+                    /* O roteiro conta caracteres mas não tem teto: ele não é o
+                       texto que vai publicado. */
+                    limite={tipo.respeitaLimiteDaRede ? limite?.limite : undefined}
+                    donoDoLimite={
+                      tipo.respeitaLimiteDaRede && limite
+                        ? nomeDoCanal(limite.canal)
+                        : undefined
+                    }
+                    aoGerarComIA={gerarTextoComIA}
+                  />
+                  <textarea
+                    ref={areaDoTexto}
+                    rows={12}
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder={tipo.exemploDoTexto}
+                    className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-t-none rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
+                  />
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="rascunho">
+              {/*
+                Sem barra de formatação e sem contador de caracteres, de
+                propósito: negrito e limite da rede pertencem ao texto que vai
+                publicado. Um contador aqui diria que este texto disputa o
+                mesmo teto, que é justamente o que ele não faz.
+              */}
               <textarea
-                ref={areaDoTexto}
-                rows={12}
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                placeholder={tipo.exemploDoTexto}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-t-none rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
+                rows={tipo.pedeArte ? 10 : 12}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Rascunho da legenda, ideias de gancho, o que o cliente pediu na reunião. Este texto não vai publicado."
+                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed text-slate-900 dark:text-white"
               />
-            </div>
-          )}
+              <p className="mt-1 text-[11px] text-slate-400">
+                Fica só aqui dentro: não entra na publicação nem aparece na prévia.
+              </p>
+            </TabsContent>
+          </Tabs>
 
           {/* A data desceu para cá, logo abaixo da legenda.
               Ela vinha no meio do formulário, ao lado de um "Status Inicial"

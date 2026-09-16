@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.41.0',
+    data: '2026-09-16',
+    resumo: 'Campo de rascunho ao lado da legenda, e todas as abas do sistema na mesma peça.',
+    novidades: [
+      'Nova aba "Rascunho" ao lado de "Legenda" no editor de conteúdo. É para o texto de trabalho: versão descartada da legenda, ideia de gancho, o que o cliente pediu na reunião. Ele fica guardado com o conteúdo e nunca é publicado — quem vai para a rede é a legenda.',
+      'A aba de Rascunho mostra um selo quando há texto nela, para ele não sumir de vista ao trocar de aba.',
+    ],
+    melhorias: [
+      'Todas as abas do sistema passaram a usar a mesma peça: ficha do cliente, Configurações, Aprovações, detalhe do conteúdo, Portal do Cliente e a Prévia. Eram sete barras escritas à mão, com quatro espaçamentos, três tamanhos de fonte e dois pesos diferentes — cada uma nascida certa no lugar dela.',
+      'As abas ganharam navegação por teclado (setas, Home e End) e a semântica que leitores de tela esperam, que o botão solto não tinha.',
+    ],
+    corrigido: [
+      'A tela de Aprovações chegou a mostrar um pedaço de código escrito em letras pretas no meio da lista, durante esta mesma entrega. Foi encontrado antes de subir, e agora há um teste que reprova esse tipo de erro.',
+    ],
+  },
+  {
     versao: '2.40.0',
     data: '2026-09-16',
     resumo: 'Anotações na ficha do cliente, e a lista de arquivos passou a dizer o que cada linha é.',

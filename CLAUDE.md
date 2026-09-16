@@ -1493,6 +1493,77 @@ e o `vite build` não mede caixa. Só aparece abrindo a tela. Por isso
 `<button>` à mão, nenhum `<Button>` com `<div>`/`<p>`/`<h*>`/`<img>` no corpo,
 e nenhum `size="icon"` com palavra dentro.
 
+#### A aba tem dois papéis, e o vocabulário saiu da contagem
+
+O produto tinha **sete barras de abas escritas à mão** e, entre elas, quatro
+paddings, três fontes e dois pesos:
+
+| tela | padding | fonte | peso |
+|---|---|---|---|
+| `ClientDetail` | `pb-3` | `text-sm` | bold |
+| `SettingsView` | `pb-3` | `text-sm` | bold |
+| `ApprovalsView` | `py-3.5 px-4` | `text-xs` | bold |
+| `ClientPortalView` | `py-3.5 px-4` | `text-xs` | bold |
+| `JobDetailModal` | `py-3 px-4` | `text-xs` | **semibold** |
+| `PreviaDaRede` (rede) | `px-3 py-2` | `text-xs` | bold |
+| `PreviaDaRede` (enquadramento) | `px-2 py-1.5` | `text-[11px]` | bold |
+
+É a mesma história das doze alturas de botão, e a resposta é a mesma: a altura
+é **fixa** (`h-*`), e os papéis são os que existem, não os que se pretendia.
+
+| papel | altura | onde |
+|---|---|---|
+| `pagina` | `pb-3 text-sm` | aba sob o cabeçalho da tela, sem caixa |
+| `painel` | `h-12 text-xs` | aba numa barra branca, dentro de card ou modal |
+| `segmentado` | `h-8 text-xs` | alternar **dois textos do mesmo campo** |
+
+O `segmentado` **já existia** — é o seletor Feed/Story da Prévia. A primeira
+versão dele aqui inventou uma borda em volta que não havia em tela; variante
+nova sai do que já está lá, levantado por contagem.
+
+**A aparência viaja por contexto, não como prop de cada gatilho.** Repeti-la em
+cada `TabsTrigger` é o convite para a oitava barra nascer com metade dos
+gatilhos num estilo e metade noutro — que é literalmente como as sete
+divergiram.
+
+Dois pixels se mexeram, de propósito: a aba de painel foi de 46px (e de 42px na
+modal de conteúdo) para 48px, e o segmentado da Prévia de 27px para 32px, a
+altura do botão `sm`. Medido no Chromium antes e depois; a aba de página ficou
+**idêntica** — 34px de altura, mesma largura, mesma cor, mesma borda.
+
+O seletor de visão do calendário fica de fora, e não é preguiça: ele é um
+**ToggleGroup**, não uma aba. Não troca painel, muda como a mesma tela desenha
+o mesmo dado.
+
+#### Expressão sem chaves vira texto na tela
+
+A conversão das abas trocou `{activeTab === 'x' && ( CORPO )}` por
+`<TabsContent value="x">CORPO</TabsContent>`. Com CORPO em JSX, funciona. Com
+CORPO sendo uma **expressão** — um ternário
+`pendingApprovalJobs.length === 0 ? (…) : (…)` —, ela perde as chaves que a
+faziam ser código e vira **filho de texto**: a tela de Aprovações passou a
+exibir, em letras pretas, `pendingApprovalJobs.length === 0 ? (`.
+
+`tsc`, vitest e `vite build` ficaram os três verdes — texto dentro de JSX é JSX
+válido. Só apareceu abrindo a tela no Chromium, e é a armadilha 0 outra vez.
+
+Protegido por `tests/abas.test.ts`, que procura filho de texto parecendo
+código. A primeira versão dessa guarda reprovou **doze trechos corretos**, todos
+continuação de ternário dentro de chaves (`) : isSvg ? (`) — por isso ela exige
+que o texto **comece** com identificador. Guarda que reprova código correto
+ensina a ignorá-la.
+
+#### Rascunho e legenda são colunas diferentes
+
+`jobs.caption` é o texto que **vai publicado**: a Meta recebe ele, ele conta
+contra o limite da rede e aparece na prévia. `jobs.draft` é o texto de trabalho
+— versão descartada, gancho, o que o cliente falou na reunião.
+
+Os dois num campo só significaria publicar o rascunho junto na primeira vez que
+alguém esquecesse de apagar, e o que sai no perfil do cliente não volta. Por
+isso `tests/abas.test.ts` reprova qualquer `draft` em `api/` e na
+`PreviaDaRede`.
+
 #### O item de menu é a peça do shadcn, e nenhuma medida mudou
 
 As duas cascas escreviam o item de menu à mão, com a mesma string de classe

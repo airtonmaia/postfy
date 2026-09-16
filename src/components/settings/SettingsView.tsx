@@ -11,6 +11,7 @@ import { SettingsCommunication } from './tabs/SettingsCommunication';
 import { SettingsUsers } from './tabs/SettingsUsers';
 import { SettingsTeams } from './tabs/SettingsTeams';
 import { subAbaDeConfiguracoes, urlDaAba } from '../../lib/rotas';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 
 export const SettingsView: React.FC = () => {
@@ -56,7 +57,11 @@ export const SettingsView: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+      className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto"
+    >
       <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 pb-0">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Sistema</span>
@@ -66,33 +71,25 @@ export const SettingsView: React.FC = () => {
           </p>
         </div>
         
-        <div className="flex items-center gap-6 mt-6 overflow-x-auto no-scrollbar">
+        <TabsList className="mt-6">
           {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id 
-                  ? 'border-purple-600 text-purple-600 dark:text-purple-400' 
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
+            <TabsTrigger key={tab.id} value={tab.id}>
               <tab.icon className="w-4 h-4" />
               {tab.label}
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
+        </TabsList>
       </div>
 
       <div className="p-6 max-w-5xl mx-auto w-full">
-        {activeTab === 'overview' && <SettingsOverview />}
-        {activeTab === 'whitelabel' && <SettingsWhitelabel />}
-        {activeTab === 'integrations' && <SettingsIntegrations />}
-        {activeTab === 'preferences' && <SettingsPreferences />}
-        {activeTab === 'communication' && <SettingsCommunication />}
-        {activeTab === 'users' && <SettingsUsers />}
-        {activeTab === 'teams' && <SettingsTeams />}
+        <TabsContent value="overview"><SettingsOverview /></TabsContent>
+        <TabsContent value="whitelabel"><SettingsWhitelabel /></TabsContent>
+        <TabsContent value="integrations"><SettingsIntegrations /></TabsContent>
+        <TabsContent value="preferences"><SettingsPreferences /></TabsContent>
+        <TabsContent value="communication"><SettingsCommunication /></TabsContent>
+        <TabsContent value="users"><SettingsUsers /></TabsContent>
+        <TabsContent value="teams"><SettingsTeams /></TabsContent>
       </div>
-    </div>
+    </Tabs>
   );
 };

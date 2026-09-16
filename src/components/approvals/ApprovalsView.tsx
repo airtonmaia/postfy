@@ -18,6 +18,7 @@ import {
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 export const ApprovalsView: React.FC = () => {
   const { 
@@ -61,7 +62,11 @@ export const ApprovalsView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto p-6 space-y-6">
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+      className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto p-6 space-y-6"
+    >
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -85,49 +90,25 @@ export const ApprovalsView: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 rounded-t-xl">
-        <button
-          onClick={() => setActiveTab('pending')}
-          className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition ${
-            activeTab === 'pending'
-              ? 'border-purple-600 text-purple-600'
-              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-          }`}
-        >
+      <TabsList aparencia="painel">
+        <TabsTrigger value="pending">
           <Clock className="w-4 h-4 text-amber-500" />
           Aguardando Cliente ({pendingApprovalJobs.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('adjustments')}
-          className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition ${
-            activeTab === 'adjustments'
-              ? 'border-purple-600 text-purple-600'
-              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-          }`}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="adjustments">
           <AlertCircle className="w-4 h-4 text-rose-500" />
           Pedidos de Ajuste ({inAdjustmentJobs.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('approved')}
-          className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition ${
-            activeTab === 'approved'
-              ? 'border-purple-600 text-purple-600'
-              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-          }`}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="approved">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           Aprovados / Prontos ({approvedJobs.length})
-        </button>
-      </div>
+        </TabsTrigger>
+      </TabsList>
 
       {/* Content List */}
       <div className="space-y-4">
-        {activeTab === 'pending' && (
-          pendingApprovalJobs.length === 0 ? (
+        <TabsContent value="pending">
+          {pendingApprovalJobs.length === 0 ? (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-xs text-slate-500 dark:text-slate-400">
               Nenhum conteúdo aguardando aprovação no momento.
             </div>
@@ -204,11 +185,11 @@ export const ApprovalsView: React.FC = () => {
                 );
               })}
             </div>
-          )
-        )}
+          )}
+        </TabsContent>
 
-        {activeTab === 'adjustments' && (
-          inAdjustmentJobs.length === 0 ? (
+        <TabsContent value="adjustments">
+          {inAdjustmentJobs.length === 0 ? (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-xs text-slate-500 dark:text-slate-400">
               Nenhum pedido de ajuste em aberto.
             </div>
@@ -250,10 +231,10 @@ export const ApprovalsView: React.FC = () => {
                 );
               })}
             </div>
-          )
-        )}
+          )}
+        </TabsContent>
 
-        {activeTab === 'approved' && (
+        <TabsContent value="approved">
           <div className="space-y-3">
             {approvedJobs.map(job => {
               const client = clientMap.get(job.clientId);
@@ -289,8 +270,8 @@ export const ApprovalsView: React.FC = () => {
               );
             })}
           </div>
-        )}
+        </TabsContent>
       </div>
-    </div>
+    </Tabs>
   );
 };

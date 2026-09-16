@@ -53,6 +53,7 @@ import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 /**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
@@ -617,7 +618,11 @@ export const ClientPortalView: React.FC = () => {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 max-w-[1400px] w-full mx-auto p-4 sm:p-6 space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+        className="flex-1 max-w-[1400px] w-full mx-auto p-4 sm:p-6 space-y-6"
+      >
         {/* Falha vinda das RPCs do portal. Aparece porque a aprovação daqui é
             gravada em segundo plano: sem aviso, a tela diria "aprovado" com o
             banco intacto. */}
@@ -660,28 +665,20 @@ export const ClientPortalView: React.FC = () => {
           do banco — esconder aba com o dado já no navegador seria a tela
           mentindo sobre o que entregou.
         */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 rounded-t-2xl overflow-x-auto no-scrollbar shadow-xs">
+        <TabsList aparencia="painel" className="rounded-t-2xl shadow-xs">
           {abasVisiveis.map((aba) => {
             const Icone = aba.icone;
             return (
-              <button
-                key={aba.id}
-                onClick={() => setActiveTab(aba.id)}
-                className={`flex items-center gap-2 py-3.5 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-                  activeTab === aba.id
-                    ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
+              <TabsTrigger key={aba.id} value={aba.id}>
                 <Icone className="w-4 h-4" />
                 {aba.rotulo}
-              </button>
+              </TabsTrigger>
             );
           })}
-        </div>
+        </TabsList>
 
         {/* Tab 1: Approvals */}
-        {activeTab === 'approvals' && (
+        <TabsContent value="approvals">
           <div className="space-y-4">
             {pendingApprovals.length === 0 ? (
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center space-y-3 shadow-xs">
@@ -798,10 +795,10 @@ export const ClientPortalView: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 2: Calendar */}
-        {activeTab === 'calendar' && (
+        <TabsContent value="calendar">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white capitalize">
@@ -836,10 +833,10 @@ export const ClientPortalView: React.FC = () => {
               onSelectJob={setCalendarPreviewJob}
             />
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 3: Arquivos & Drive */}
-        {activeTab === 'arquivos' && (
+        <TabsContent value="arquivos">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -967,10 +964,10 @@ export const ClientPortalView: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 4: Senhas (Cofre) */}
-        {activeTab === 'senhas' && (
+        <TabsContent value="senhas">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -1113,10 +1110,10 @@ export const ClientPortalView: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 5: Notas Fiscais */}
-        {activeTab === 'notas' && (
+        <TabsContent value="notas">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Notas Fiscais de Prestação de Serviços</h3>
@@ -1184,10 +1181,10 @@ export const ClientPortalView: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 6: Briefing */}
-        {activeTab === 'briefing' && (
+        <TabsContent value="briefing">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -1281,10 +1278,10 @@ export const ClientPortalView: React.FC = () => {
               </p>
             )}
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 7: Client Materials / Photo Upload */}
-        {activeTab === 'materiais' && (
+        <TabsContent value="materiais">
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -1513,10 +1510,10 @@ export const ClientPortalView: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* Tab 8: Usuários do portal — só o editor chega aqui */}
-        {activeTab === 'usuarios' && (
+        <TabsContent value="usuarios">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
             <div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
@@ -1659,8 +1656,8 @@ export const ClientPortalView: React.FC = () => {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Preview do job clicado no calendário: aprova/pede ajuste se ainda
           estiver aguardando aprovação, senão só mostra o conteúdo e o status. */}

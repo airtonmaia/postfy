@@ -17,6 +17,7 @@ import { ConexoesDoPerfil } from './ConexoesDoPerfil';
 import { AnotacoesDoCliente } from './AnotacoesDoCliente';
 import { Button } from '../ui/button';
 import { ComTooltip } from '../ui/tooltip';
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
 import { useAviso } from '../ui/alert-dialog';
 import {
   familiaDoArquivo,
@@ -285,7 +286,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+      className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto"
+    >
       {/* Sticky Top Header */}
       <div className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 pb-0 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -341,41 +346,24 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pt-2">
+        <TabsList>
           {tabs.map(tab => {
             const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                  isActive 
-                    ? 'border-purple-600 text-purple-600 dark:text-purple-400' 
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
+              <TabsTrigger key={tab.id} value={tab.id}>
                 <Icon className="w-4 h-4" />
                 {tab.label}
-                {tab.count !== undefined && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
-                    isActive 
-                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' 
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
+                {tab.count !== undefined && <TabsBadge>{tab.count}</TabsBadge>}
+              </TabsTrigger>
             );
           })}
-        </div>
+        </TabsList>
       </div>
 
       {/* Main Tab Content */}
       <div className="p-6 max-w-5xl">
         {/* TAB 1: CADASTRO */}
-        {activeTab === 'cadastro' && (
+        <TabsContent value="cadastro">
           <form onSubmit={handleSaveCadastro} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
@@ -507,17 +495,17 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               </Button>
             </div>
           </form>
-        )}
+        </TabsContent>
 
         {/* TAB 2: USUÁRIOS DO PORTAL */}
-        {activeTab === 'usuarios' && <ClientUsersTab client={client} />}
+        <TabsContent value="usuarios"><ClientUsersTab client={client} /></TabsContent>
 
-        {activeTab === 'conexoes' && (
+        <TabsContent value="conexoes">
           <ConexoesDoPerfil clientId={client.id} clientName={client.name} />
-        )}
+        </TabsContent>
 
         {/* TAB 3: ARQUIVOS & DRIVE */}
-        {activeTab === 'arquivos' && (
+        <TabsContent value="arquivos">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -685,10 +673,10 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               </div>
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* TAB 3: COFRE DE SENHAS */}
-        {activeTab === 'senhas' && (
+        <TabsContent value="senhas">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -840,10 +828,10 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* TAB 4: NOTAS FISCAIS */}
-        {activeTab === 'notas' && (
+        <TabsContent value="notas">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -982,10 +970,10 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               )}
             </div>
           </div>
-        )}
+        </TabsContent>
 
         {/* TAB 5: BRIEFING DA MARCA */}
-        {activeTab === 'briefing' && (
+        <TabsContent value="briefing">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
@@ -1079,7 +1067,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               </div>
             </div>
           </div>
-        )}
+        </TabsContent>
       </div>
 
       {/*
@@ -1089,6 +1077,6 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
         que ele existe para não fazer.
       */}
       {dialogoDeAviso}
-    </div>
+    </Tabs>
   );
 };
