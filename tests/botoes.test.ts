@@ -120,6 +120,7 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/clients/ClientDetail.tsx',            // aba
   'src/components/clients/ClientUsersTab.tsx',          // aba
   'src/components/common/AtalhosDoConteudo.tsx',        // atalho com badge
+  'src/components/common/MediaUploader.tsx',            // área quadrada de soltar arquivo
   'src/components/common/PreviaDaRede.tsx',             // navegação do carrossel
   'src/components/kanban/KanbanBoard.tsx',              // card do quadro
   'src/components/library/BibliotecaView.tsx',          // pasta selecionável na lateral
@@ -205,6 +206,56 @@ describe('botão novo passa pelo componente', () => {
           } — <Button> com conteúdo em bloco tem a altura fixa cortando o ` +
             `conteúdo. Card clicável não é Button: use <button> com as classes dele`
         ).toBeNull();
+      }
+    }
+  });
+
+  it('nenhum <Button> tenta ter altura própria', () => {
+    /**
+     * A irmã da guarda acima, e ela pega o caso que aquela deixa passar.
+     *
+     * A área de soltar arquivo do `MediaUploader` era
+     * `<Button className="w-32 aspect-[4/5] flex-col">` com um ícone e um
+     * `<span>` dentro. Conteúdo em bloco não tem: é ícone e rótulo, que é uso
+     * normal de botão — então a guarda do `<div>`/`<p>`/`<h*>`/`<img>` não
+     * tinha o que acusar. Em tela era uma tarja achatada com o rótulo saindo
+     * por baixo.
+     *
+     * As duas classes são a assinatura de quem queria um ladrilho e pegou um
+     * botão, e cada uma falha por um motivo próprio:
+     *
+     *   - **`aspect-*` é CSS morto aqui.** O `size` fixa a altura (`h-8`), e
+     *     com largura e altura definidas o `aspect-ratio` não resolve eixo
+     *     nenhum — ele só age sobre o que está em `auto`. Ou seja: a classe
+     *     está escrita, não faz nada, e quem leu o código acredita que faz.
+     *   - **`flex-col` empilha o que não cabe.** Ícone sobre rótulo pede mais
+     *     que os 32px do padrão, e a escala não tem degrau vertical. O
+     *     conteúdo transborda a caixa.
+     *
+     * E nada local mede caixa: `tsc` compila, o vitest não monta componente, o
+     * `vite build` não renderiza. Só abrindo a tela — a família de armadilha
+     * que este projeto mais paga.
+     */
+    for (const arquivo of listarFontes(join(RAIZ, 'src'))) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      for (const m of fonte.matchAll(/<Button\b/g)) {
+        const fim = fimDaTag(fonte, m.index! + 7);
+        if (fim === -1) continue;
+
+        const cls = fonte.slice(m.index!, fim + 1).match(/className="([^"]*)"/)?.[1];
+        if (!cls) continue;
+
+        const briga = cls
+          .split(/\s+/)
+          .filter((c) => /(?:^|:)(?:aspect-|flex-col\b)/.test(c));
+
+        expect(
+          briga,
+          `${arquivo.replace(`${RAIZ}/`, '')}:${
+            fonte.slice(0, m.index!).split('\n').length
+          } — <Button> com "${briga.join(' ')}": a altura vem do size e não ` +
+            `cede. Ladrilho não é Button: use <button> com as classes dele`
+        ).toEqual([]);
       }
     }
   });
