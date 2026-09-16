@@ -1,100 +1,95 @@
 import React from 'react';
-import { 
-  Instagram, 
-  Linkedin, 
-  Youtube, 
-  Facebook, 
-  Twitter, 
-  Video, 
-  Layers, 
+import {
+  Instagram,
+  Linkedin,
+  Youtube,
+  Facebook,
+  Twitter,
+  Video,
+  Layers,
   Image as ImageIcon,
   FileText,
   Smartphone,
   PenLine,
-  Clapperboard
+  Clapperboard,
 } from 'lucide-react';
-import { JobPlatform, JobFormat, JobStatus, JobPriority, JobTipo } from '../../types';
 
-export const PlatformBadge: React.FC<{ platform: JobPlatform; showLabel?: boolean; className?: string }> = ({ 
-  platform, 
-  showLabel = true,
-  className = '' 
-}) => {
-  switch (platform) {
-    case 'instagram':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200/70 dark:bg-pink-950/40 dark:text-pink-300 ${className}`}>
-          <Instagram className="w-3.5 h-3.5 text-pink-600" />
-          {showLabel && 'Instagram'}
-        </span>
-      );
-    case 'linkedin':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/70 dark:bg-sky-950/40 dark:text-sky-300 ${className}`}>
-          <Linkedin className="w-3.5 h-3.5 text-sky-600" />
-          {showLabel && 'LinkedIn'}
-        </span>
-      );
-    case 'tiktok':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-900 text-white border border-slate-700 ${className}`}>
-          <Video className="w-3.5 h-3.5 text-pink-400" />
-          {showLabel && 'TikTok'}
-        </span>
-      );
-    case 'youtube':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/70 ${className}`}>
-          <Youtube className="w-3.5 h-3.5 text-red-600" />
-          {showLabel && 'YouTube'}
-        </span>
-      );
-    case 'facebook':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 ${className}`}>
-          <Facebook className="w-3.5 h-3.5 text-blue-600" />
-          {showLabel && 'Facebook'}
-        </span>
-      );
-    case 'twitter':
-      return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 ${className}`}>
-          <Twitter className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
-          {showLabel && 'X / Twitter'}
-        </span>
-      );
-    default:
-      return null;
-  }
+import { JobPlatform, JobFormat, JobStatus, JobPriority, JobTipo } from '../../types';
+import { Badge, PontoDoBadge, type TomDoBadge } from '../ui/badge';
+
+/**
+ * Os selos do domínio: rede, formato, tipo, status e prioridade.
+ *
+ * **O desenho é do `Badge`; aqui mora só o significado.** Cada selo era um
+ * `<span>` com a própria string de classe, e entre os cinco havia três
+ * paddings, quatro fontes e dois raios — lado a lado no cabeçalho do conteúdo
+ * isso vira uma pílula, um retângulo arredondado e um rótulo sem borda, em
+ * quatro alturas. As cores continuam **as mesmas**; o que mudou foi de onde a
+ * caixa vem.
+ *
+ * Nenhum componente daqui escreve padding, altura, fonte ou canto. Se
+ * precisar, o lugar é `src/components/ui/badge.tsx` — e aí muda para todos de
+ * uma vez, que é o ponto.
+ */
+
+const REDES: Record<
+  JobPlatform,
+  { rotulo: string; tom: TomDoBadge; Icone: React.FC<{ className?: string }>; corDoIcone: string }
+> = {
+  instagram: { rotulo: 'Instagram', tom: 'rosa', Icone: Instagram, corDoIcone: 'text-pink-600 dark:text-pink-400' },
+  linkedin: { rotulo: 'LinkedIn', tom: 'ceu', Icone: Linkedin, corDoIcone: 'text-sky-600 dark:text-sky-400' },
+  tiktok: { rotulo: 'TikTok', tom: 'escuro', Icone: Video, corDoIcone: 'text-pink-400' },
+  youtube: { rotulo: 'YouTube', tom: 'vermelho', Icone: Youtube, corDoIcone: 'text-red-600 dark:text-red-400' },
+  facebook: { rotulo: 'Facebook', tom: 'azul', Icone: Facebook, corDoIcone: 'text-blue-600 dark:text-blue-400' },
+  twitter: { rotulo: 'X / Twitter', tom: 'neutro', Icone: Twitter, corDoIcone: 'text-slate-700 dark:text-slate-300' },
+};
+
+export const PlatformBadge: React.FC<{
+  platform: JobPlatform;
+  showLabel?: boolean;
+  className?: string;
+}> = ({ platform, showLabel = true, className }) => {
+  const r = REDES[platform];
+  if (!r) return null;
+
+  const { Icone } = r;
+  return (
+    <Badge tom={r.tom} className={className}>
+      <Icone className={r.corDoIcone} />
+      {showLabel && r.rotulo}
+    </Badge>
+  );
+};
+
+const FORMATOS: Record<JobFormat, { rotulo: string; tom: TomDoBadge; icone: React.ReactNode }> = {
+  carousel: { rotulo: 'Carrossel', tom: 'ambar', icone: <Layers /> },
+  reel: { rotulo: 'Reel', tom: 'roxo', icone: <Video /> },
+  story: { rotulo: 'Story', tom: 'esmeralda', icone: <Smartphone /> },
+  feed: { rotulo: 'Feed', tom: 'azul', icone: <ImageIcon /> },
+  /**
+   * Duas saídas, um selo. Ele herda o azul do feed de propósito: a peça é um
+   * post de feed que **também** vai ao story, e dar cor nova a ela faria o
+   * quadro parecer ter um tipo de conteúdo a mais do que tem.
+   */
+  feed_story: { rotulo: 'Feed + Story', tom: 'azul', icone: <Layers /> },
+  video: { rotulo: 'Vídeo Longo', tom: 'rubi', icone: <Video /> },
+  article: { rotulo: 'Artigo', tom: 'neutro', icone: <FileText /> },
 };
 
 export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
-  const configs: Record<JobFormat, { label: string; icon: React.ReactNode; color: string }> = {
-    carousel: { label: 'Carrossel', icon: <Layers className="w-3 h-3" />, color: 'bg-amber-50 text-amber-700 border-amber-200' },
-    reel: { label: 'Reel', icon: <Video className="w-3 h-3" />, color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    story: { label: 'Story', icon: <Smartphone className="w-3 h-3" />, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    feed: { label: 'Feed', icon: <ImageIcon className="w-3 h-3" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-    /**
-     * Duas saídas, um selo. Ele herda o azul do feed de propósito: a peça é um
-     * post de feed que **também** vai ao story, e dar cor nova a ela faria o
-     * quadro parecer ter um tipo de conteúdo a mais do que tem.
-     */
-    feed_story: {
-      label: 'Feed + Story',
-      icon: <Layers className="w-3 h-3" />,
-      color: 'bg-blue-50 text-blue-700 border-blue-200',
-    },
-    video: { label: 'Vídeo Longo', icon: <Video className="w-3 h-3" />, color: 'bg-rose-50 text-rose-700 border-rose-200' },
-    article: { label: 'Artigo', icon: <FileText className="w-3 h-3" />, color: 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800' },
-  };
-
-  const c = configs[format] || configs.feed;
+  const c = FORMATOS[format] || FORMATOS.feed;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium border ${c.color}`}>
-      {c.icon}
-      {c.label}
-    </span>
+    <Badge tom={c.tom}>
+      {c.icone}
+      {c.rotulo}
+    </Badge>
   );
+};
+
+const TIPOS: Record<JobTipo, { rotulo: string; tom: TomDoBadge; icone: React.ReactNode }> = {
+  conteudo: { rotulo: 'Conteúdo', tom: 'neutro', icone: <ImageIcon /> },
+  copy: { rotulo: 'Copy', tom: 'indigo', icone: <PenLine /> },
+  roteiro: { rotulo: 'Roteiro', tom: 'turquesa', icone: <Clapperboard /> },
 };
 
 /**
@@ -104,66 +99,70 @@ export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
  * quadro — e a diferença é justamente o que o cliente vai olhar.
  */
 export const TipoBadge: React.FC<{ tipo: JobTipo }> = ({ tipo }) => {
-  const configs: Record<JobTipo, { label: string; icon: React.ReactNode; color: string }> = {
-    conteudo: {
-      label: 'Conteúdo',
-      icon: <ImageIcon className="w-3 h-3" />,
-      color: 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800',
-    },
-    copy: {
-      label: 'Copy',
-      icon: <PenLine className="w-3 h-3" />,
-      color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800',
-    },
-    roteiro: {
-      label: 'Roteiro',
-      icon: <Clapperboard className="w-3 h-3" />,
-      color: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800',
-    },
-  };
-
-  const c = configs[tipo] || configs.conteudo;
+  const c = TIPOS[tipo] || TIPOS.conteudo;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium border ${c.color}`}>
-      {c.icon}
-      {c.label}
-    </span>
+    <Badge tom={c.tom}>
+      {c.icone}
+      {c.rotulo}
+    </Badge>
   );
 };
 
-export const StatusBadge: React.FC<{ status: JobStatus; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
-  const configs: Record<JobStatus, { label: string; bg: string; dot: string }> = {
-    ideas: { label: 'Ideias', bg: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800', dot: 'bg-slate-400' },
-    in_production: { label: 'Em Produção', bg: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
-    for_approval: { label: 'Para Aprovação', bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
-    in_adjustment: { label: 'Em Ajuste', bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500 animate-pulse' },
-    approved: { label: 'Aprovado', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-    scheduled: { label: 'Agendado', bg: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
-    published: { label: 'Publicado', bg: 'bg-teal-50 text-teal-800 border-teal-200', dot: 'bg-teal-600' },
-  };
+const STATUS: Record<JobStatus, { rotulo: string; tom: TomDoBadge; ponto: string }> = {
+  ideas: { rotulo: 'Ideias', tom: 'neutro', ponto: 'bg-slate-400' },
+  in_production: { rotulo: 'Em Produção', tom: 'azul', ponto: 'bg-blue-500' },
+  for_approval: { rotulo: 'Para Aprovação', tom: 'ambar', ponto: 'bg-amber-500' },
+  in_adjustment: { rotulo: 'Em Ajuste', tom: 'rubi', ponto: 'bg-rose-500 animate-pulse' },
+  approved: { rotulo: 'Aprovado', tom: 'esmeralda', ponto: 'bg-emerald-500' },
+  scheduled: { rotulo: 'Agendado', tom: 'roxo', ponto: 'bg-purple-500' },
+  published: { rotulo: 'Publicado', tom: 'turquesa', ponto: 'bg-teal-600' },
+};
 
-  const c = configs[status] || configs.ideas;
-  const padding = size === 'sm' ? 'px-1.5 py-0.2 text-[10px]' : 'px-2 py-0.5 text-xs';
-
+/**
+ * O `size` saiu.
+ *
+ * Ele tinha dois valores e um só era usado fora do padrão — e era justamente
+ * ele que produzia o quarto tamanho de fonte (`text-[10px]`) e a quinta
+ * altura. Um selo menor que o vizinho, na mesma linha, não comunica nada além
+ * de descuido.
+ */
+export const StatusBadge: React.FC<{ status: JobStatus }> = ({ status }) => {
+  const c = STATUS[status] || STATUS.ideas;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full font-medium border ${c.bg} ${padding}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-      {c.label}
-    </span>
+    <Badge tom={c.tom}>
+      <PontoDoBadge className={c.ponto} />
+      {c.rotulo}
+    </Badge>
   );
+};
+
+const PRIORIDADES: Record<JobPriority, { rotulo: string; tom: TomDoBadge }> = {
+  low: { rotulo: 'Baixa', tom: 'neutro' },
+  medium: { rotulo: 'Média', tom: 'azul' },
+  high: { rotulo: 'Alta', tom: 'ambar' },
+  urgent: { rotulo: 'Urgente', tom: 'rubi' },
 };
 
 export const PriorityBadge: React.FC<{ priority: JobPriority }> = ({ priority }) => {
-  const configs: Record<JobPriority, { label: string; color: string }> = {
-    low: { label: 'Baixa', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800' },
-    medium: { label: 'Média', color: 'text-blue-600 bg-blue-50' },
-    high: { label: 'Alta', color: 'text-amber-600 bg-amber-50' },
-    urgent: { label: 'Urgente', color: 'text-rose-600 bg-rose-50 font-bold' },
-  };
-  const c = configs[priority];
+  const c = PRIORIDADES[priority] || PRIORIDADES.medium;
+  // `uppercase` fica: prioridade é o único selo que se lê como etiqueta, e é
+  // ela que precisa saltar num cabeçalho cheio de selos.
   return (
-    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-medium ${c.color}`}>
-      {c.label}
-    </span>
+    <Badge tom={c.tom} className="uppercase tracking-wide">
+      {c.rotulo}
+    </Badge>
   );
 };
+
+/**
+ * A versão do conteúdo — "v1", "v2".
+ *
+ * Estava escrito à mão no cabeçalho da modal, com `font-mono`, `text-xs` e
+ * `rounded-md` próprios: o sétimo desenho de selo, na mesma linha dos outros
+ * seis. Virou componente porque é selo, e selo tem um desenho só.
+ */
+export const VersaoBadge: React.FC<{ versao: number }> = ({ versao }) => (
+  <Badge tom="neutro" className="font-mono">
+    v{versao}
+  </Badge>
+);
