@@ -4,6 +4,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { listarContas, conectarConta, desconectarConta, type ContaConectada } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
 import { Button } from '../ui/button';
+import { useConfirmacao } from '../ui/alert-dialog';
 
 /**
  * Contas de rede social da agência.
@@ -27,6 +28,7 @@ export const ConexoesSociais: React.FC = () => {
   const { currentWorkspace, clients } = usePostfy();
 
   const [contas, setContas] = useState<ContaConectada[]>([]);
+  const { pedir, dialogo } = useConfirmacao();
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
@@ -82,19 +84,26 @@ export const ConexoesSociais: React.FC = () => {
     }
   };
 
-  const desconectar = async (id: string, nome: string) => {
-    if (!window.confirm(`Desconectar @${nome}? As publicações agendadas para ela serão canceladas.`)) {
-      return;
-    }
-    try {
-      await desconectarConta(id);
-      setContas((atuais) => atuais.filter((c) => c.id !== id));
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falha ao desconectar.');
-    }
-  };
+  const desconectar = (id: string, nome: string) =>
+    pedir({
+      titulo: `Desconectar @${nome}?`,
+      // A consequência, não "tem certeza?": é ela que decide, e era o que não
+      // cabia no `window.confirm()`.
+      descricao:
+        'As publicações já agendadas para esta conta serão canceladas. Para voltar a publicar nela, será preciso conectar de novo pela Meta.',
+      rotuloConfirmar: 'Desconectar',
+      aoConfirmar: async () => {
+        try {
+          await desconectarConta(id);
+          setContas((atuais) => atuais.filter((c) => c.id !== id));
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : 'Falha ao desconectar.');
+        }
+      },
+    });
 
   return (
+    <>
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="flex items-start gap-3">
@@ -199,5 +208,8 @@ export const ConexoesSociais: React.FC = () => {
         </div>
       )}
     </div>
+
+      {dialogo}
+    </>
   );
 };

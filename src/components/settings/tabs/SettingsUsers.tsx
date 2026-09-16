@@ -22,6 +22,7 @@ import {
 import { pode } from '../../../lib/permissions';
 import { copyToClipboard, safeDateFormat } from '../../../lib/utils';
 import { Button } from '../../ui/button';
+import { useConfirmacao } from '../../ui/alert-dialog';
 
 const PAPEIS: { valor: Role; rotulo: string; classe: string }[] = [
   { valor: 'admin', rotulo: 'Administrador', classe: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
@@ -65,6 +66,7 @@ export const SettingsUsers: React.FC = () => {
   const podeGerenciar = pode(currentUser?.role, 'gerenciar_usuarios');
 
   const [membros, setMembros] = useState<MembroDaEquipe[]>([]);
+  const { pedir, dialogo } = useConfirmacao();
   const [convites, setConvites] = useState<ConvitePendente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -249,10 +251,18 @@ export const SettingsUsers: React.FC = () => {
     }
   };
 
-  const excluirMembro = async (membro: MembroDaEquipe) => {
+  const excluirMembro = (membro: MembroDaEquipe) => {
     const nome = membro.name || 'este membro';
-    if (!window.confirm(`Remover ${nome} da agência? Ela perde o acesso imediatamente.`)) return;
+    pedir({
+      titulo: `Remover ${nome} da agência?`,
+      descricao:
+        'O acesso é cortado na hora, inclusive nas abas que a pessoa já tiver abertas. O conteúdo que ela criou continua na agência.',
+      rotuloConfirmar: 'Remover',
+      aoConfirmar: () => void removerDeVez(membro),
+    });
+  };
 
+  const removerDeVez = async (membro: MembroDaEquipe) => {
     setErro(null);
     setSalvandoMembro(membro.userId);
     try {
@@ -321,6 +331,7 @@ export const SettingsUsers: React.FC = () => {
   };
 
   return (
+    <>
     <div className="space-y-6">
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
@@ -687,5 +698,8 @@ export const SettingsUsers: React.FC = () => {
         </div>
       )}
     </div>
+
+      {dialogo}
+    </>
   );
 };

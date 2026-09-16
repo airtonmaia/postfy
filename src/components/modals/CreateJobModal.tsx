@@ -34,6 +34,7 @@ import {
 import { BarraDeTexto } from '../common/BarraDeTexto';
 import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
 import { Button } from '../ui/button';
+import { useAviso } from '../ui/alert-dialog';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -137,6 +138,7 @@ export const CreateJobModal: React.FC = () => {
   const tipo = definicaoDoTipo(createJobTipo);
 
   const [clientId, setClientId] = useState(clients[0]?.id || '');
+  const { avisar, dialogo } = useAviso();
   const [title, setTitle] = useState('');
   // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
   // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
@@ -406,7 +408,11 @@ export const CreateJobModal: React.FC = () => {
       return newJob;
     } catch (err) {
       console.error('Erro ao cadastrar conteúdo:', err);
-      alert('Ocorreu um erro ao cadastrar a postagem. Por favor verifique os dados e tente novamente.');
+      avisar({
+        titulo: 'O conteúdo não foi salvo',
+        descricao:
+          'O banco recusou a gravação. Confira os campos obrigatórios — cliente, título e data — e tente de novo. Se persistir, o conteúdo pode ter ficado só nesta aba.',
+      });
       return undefined;
     }
   };
@@ -496,6 +502,7 @@ export const CreateJobModal: React.FC = () => {
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         onClick={(e) => e.stopPropagation()}
@@ -846,5 +853,8 @@ export const CreateJobModal: React.FC = () => {
         </div>
       </div>
     </div>
+
+      {dialogo}
+    </>
   );
 };

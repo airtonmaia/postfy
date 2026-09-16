@@ -42,6 +42,7 @@ import {
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Button } from '../ui/button';
+import { useAviso } from '../ui/alert-dialog';
 
 export const ReportsView: React.FC = () => {
   const {
@@ -52,6 +53,7 @@ export const ReportsView: React.FC = () => {
 
   // Filter States
   const [periodPreset, setPeriodPreset] = useState<string>('last30');
+  const { avisar, dialogo } = useAviso();
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('day');
   const [detailMode, setDetailMode] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -313,13 +315,18 @@ export const ReportsView: React.FC = () => {
       pdf.save(`Relatorio_Performance_Postfy_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
-      alert('Não foi possível exportar o PDF. Tente novamente.');
+      avisar({
+        titulo: 'O PDF não foi gerado',
+        descricao:
+          'A montagem do arquivo falhou no navegador. Relatórios de período muito longo são os que mais estouram memória — tente um intervalo menor.',
+      });
     } finally {
       setIsExportingPdf(false);
     }
   };
 
   return (
+    <>
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
       
       {/* Printable Report Container */}
@@ -1002,5 +1009,8 @@ export const ReportsView: React.FC = () => {
 
       </div>
     </div>
+
+      {dialogo}
+    </>
   );
 };
