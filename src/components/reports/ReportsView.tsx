@@ -43,6 +43,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
+import { DesempenhoReal } from './DesempenhoReal';
 
 export const ReportsView: React.FC = () => {
   const {
@@ -1006,6 +1007,15 @@ export const ReportsView: React.FC = () => {
             </table>
           </div>
         </div>
+
+        {/* O resto desta tela mede produção — quantas peças, prazos
+            cumpridos. Esta seção mede **resultado**, que é o que o cliente da
+            agência pergunta ao ler o relatório. */}
+        <DesempenhoReal
+          desde={dateRange.start}
+          ate={dateRange.end}
+          clientId={clientFilter}
+        />
 
       </div>
     </div>

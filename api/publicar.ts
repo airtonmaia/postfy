@@ -8,7 +8,7 @@ import {
   textoValido,
 } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
-import { publicarNoInstagram, renovarToken, ErroDaMeta } from './_lib/instagram.js';
+import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 
 
@@ -174,6 +174,13 @@ async function handler(request: Request): Promise<Response> {
     }
   }
 
+  /**
+   * As métricas vêm por último de propósito: publicar é o compromisso desta
+   * rota, medir é o que pode esperar cinco minutos. Com o orçamento já gasto
+   * pela fila, `atualizarMetricas` não faz nada e a próxima passada pega.
+   */
+  const metricas = await atualizarMetricas(supabase, comecou);
+
   return json({
     processados: resultados.length,
     publicados: resultados.filter((r) => r.ok).length,
@@ -184,6 +191,7 @@ async function handler(request: Request): Promise<Response> {
     adiados,
     renovadas,
     email,
+    metricas,
   });
 }
 
@@ -461,6 +469,124 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
     .join('\n\n');
 
   return publicarNoInstagram(conexao.account_id, token.access_token, midia, legenda);
+};
+
+/**
+ * Quantos dias de publicação a medição cobre.
+ *
+ * Métrica de post antigo não muda mais, e remedi-la gastaria a passada
+ * inteira num número que ninguém vai olhar. Trinta dias é a janela em que um
+ * post ainda ganha alcance — e é o período que um relatório mensal pede.
+ */
+const DIAS_DE_METRICA = 30;
+
+/** Quantos posts por passada. O teto real é o orçamento de tempo. */
+const METRICAS_POR_PASSADA = 15;
+
+/**
+ * Atualiza as métricas do que já foi publicado.
+ *
+ * **Quem mede é o cron, e isso não é escolha de arquitetura — é a única
+ * opção.** O número vem da Meta pelo token, e `social_tokens` tem RLS ligada
+ * com zero políticas: nem o dono da agência alcança. O navegador não tem como
+ * buscar isso, então a tela lê `post_metrics`, que só a chave de serviço
+ * escreve.
+ *
+ * A linha nasce **sem número**, no momento da publicação, com `medido_em` no
+ * epoch — assim ela é a primeira da fila de medição em vez de depender de
+ * alguém lembrar de criá-la.
+ */
+const atualizarMetricas = async (
+  supabase: any,
+  comecou: number
+): Promise<{ medidos: number; falhas: number }> => {
+  let medidos = 0;
+  let falhas = 0;
+
+  const desde = new Date(Date.now() - DIAS_DE_METRICA * 24 * 60 * 60_000).toISOString();
+
+  // Backfill: o que foi publicado antes desta rotina existir, ou antes de a
+  // linha ser criada por qualquer motivo. Sem isto o histórico ficaria para
+  // sempre sem medição, e a tela mostraria só o que nasceu depois do deploy —
+  // uma tela que começa vazia escondendo o que já aconteceu.
+  const { data: publicados } = await supabase
+    .from('publish_queue')
+    .select('id, job_id, connection_id, workspace_id, external_id, published_at')
+    .eq('status', 'publicado')
+    .not('external_id', 'is', null)
+    .gte('published_at', desde)
+    .limit(200);
+
+  for (const item of publicados || []) {
+    await supabase.from('post_metrics').upsert(
+      {
+        workspace_id: item.workspace_id,
+        job_id: item.job_id,
+        connection_id: item.connection_id,
+        platform: 'instagram',
+        external_id: item.external_id,
+        publicado_em: item.published_at,
+        // Epoch: primeira da fila de medição. `ignoreDuplicates` impede que
+        // este valor sobrescreva a medição de uma linha que já existe.
+        medido_em: new Date(0).toISOString(),
+      },
+      { onConflict: 'connection_id,external_id', ignoreDuplicates: true }
+    );
+  }
+
+  const { data: aMedir } = await supabase
+    .from('post_metrics')
+    .select('id, connection_id, external_id')
+    .gte('publicado_em', desde)
+    .order('medido_em')
+    .limit(METRICAS_POR_PASSADA);
+
+  for (const linha of aMedir || []) {
+    if (Date.now() - comecou > ORCAMENTO_MS) break;
+
+    try {
+      const { data: token } = await supabase
+        .from('social_tokens')
+        .select('access_token')
+        .eq('connection_id', linha.connection_id)
+        .maybeSingle();
+
+      if (!token?.access_token) throw new Error('Conexão sem token.');
+
+      const m = await buscarMetricas(linha.external_id, token.access_token);
+
+      await supabase
+        .from('post_metrics')
+        .update({
+          alcance: m.alcance,
+          curtidas: m.curtidas,
+          comentarios: m.comentarios,
+          salvamentos: m.salvamentos,
+          compartilhamentos: m.compartilhamentos,
+          permalink: m.permalink,
+          medido_em: new Date().toISOString(),
+          ultimo_erro: null,
+        })
+        .eq('id', linha.id);
+
+      medidos += 1;
+    } catch (erro) {
+      // `medido_em` avança mesmo na falha: sem isso a mesma linha quebrada
+      // seria tentada em toda passada e seguraria a fila inteira atrás dela.
+      // O motivo fica gravado, à vista.
+      await supabase
+        .from('post_metrics')
+        .update({
+          medido_em: new Date().toISOString(),
+          ultimo_erro: erro instanceof Error ? erro.message : 'Falha desconhecida.',
+        })
+        .eq('id', linha.id);
+
+      falhas += 1;
+    }
+  }
+
+  return { medidos, falhas };
 };
 
 /**

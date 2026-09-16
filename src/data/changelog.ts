@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.35.0',
+    data: '2026-09-16',
+    resumo: 'Relatórios passou a mostrar o que o conteúdo deu, e não só o que foi produzido.',
+    novidades: [
+      'Nova seção "Desempenho real no Instagram" em Relatórios: alcance, curtidas, comentários, salvamentos e compartilhamentos de cada publicação, lidos da própria Meta. Até aqui o relatório media produção — quantas peças, prazos cumpridos —, que responde como a agência trabalha e não responde o que o cliente dela pergunta.',
+      'Os números são atualizados pelo agendador, em segundo plano, e a tela mostra desde quando estão medidos. Cada publicação tem link direto para o post no Instagram.',
+    ],
+    melhorias: [
+      'A tela distingue "não medido" de "zero", e isso é decisão: alcance zero num post de ontem é um problema de conteúdo, alcance não medido é a Meta ainda não ter respondido. O traço (—) quer dizer o segundo, e cada total diz de quantas publicações ele saiu.',
+      'A seção diz, sempre à vista, que cobre apenas o que foi publicado pela fila do Orquesia — post feito direto no Instagram não entra na conta.',
+    ],
+  },
+  {
     versao: '2.34.0',
     data: '2026-09-16',
     resumo: 'As caixas cinzas do navegador saíram — as confirmações agora têm a cara do sistema.',

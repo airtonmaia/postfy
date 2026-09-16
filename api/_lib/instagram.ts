@@ -271,3 +271,78 @@ const esperarProcessamento = async (
     `${oQueE} não ficou pronta a tempo no Instagram. O arquivo pode estar grande ou a URL lenta — tente de novo.`
   );
 };
+
+/**
+ * O que a Meta respondeu sobre um post. **Nulo é "não medi", nunca zero.**
+ *
+ * Os dois são verdade diferente: alcance 0 num post de ontem é um problema de
+ * conteúdo, e alcance nulo é a Meta não ter respondido. Devolver `0` no
+ * segundo caso faria a tela afirmar o que ninguém mediu — é a armadilha 9, e
+ * numa tela que a agência mostra para o cliente dela.
+ */
+export interface MetricasDoPost {
+  alcance: number | null;
+  curtidas: number | null;
+  comentarios: number | null;
+  salvamentos: number | null;
+  compartilhamentos: number | null;
+  permalink: string | null;
+  publicadoEm: string | null;
+}
+
+const numeroOuNulo = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) ? v : null;
+
+/**
+ * Métricas de um post, em duas chamadas — e isso é decisão, não descuido.
+ *
+ * `like_count` e `comments_count` vêm no **próprio objeto da mídia** e estão
+ * disponíveis desde sempre. `reach`, `saved` e `shares` vêm de `/insights`,
+ * que é outro endpoint, com outro conjunto de permissões e um catálogo de
+ * métricas que a Meta **muda entre versões** — `impressions` foi descontinuado
+ * para mídia criada depois de julho de 2024, por exemplo.
+ *
+ * Juntar tudo numa chamada só significaria perder curtidas e comentários toda
+ * vez que o catálogo de insights mudar. Separadas, o que dá para medir é
+ * medido, e o que não dá fica nulo — e a tela diz qual é qual.
+ */
+export const buscarMetricas = async (
+  mediaId: string,
+  token: string
+): Promise<MetricasDoPost> => {
+  const auth = encodeURIComponent(token);
+
+  const media = await chamar(
+    `${GRAPH}/${mediaId}?fields=like_count,comments_count,permalink,timestamp&access_token=${auth}`
+  );
+
+  const metricas: MetricasDoPost = {
+    curtidas: numeroOuNulo(media.like_count),
+    comentarios: numeroOuNulo(media.comments_count),
+    alcance: null,
+    salvamentos: null,
+    compartilhamentos: null,
+    permalink: typeof media.permalink === 'string' ? media.permalink : null,
+    publicadoEm: typeof media.timestamp === 'string' ? media.timestamp : null,
+  };
+
+  // O `insights` é o que falha primeiro quando a revisão do app não cobre a
+  // permissão, então ele é opcional: perder o alcance não pode levar junto as
+  // curtidas que já vieram.
+  try {
+    const insights = await chamar(
+      `${GRAPH}/${mediaId}/insights?metric=reach,saved,shares&access_token=${auth}`
+    );
+
+    for (const linha of insights.data || []) {
+      const valor = numeroOuNulo(linha?.values?.[0]?.value);
+      if (linha?.name === 'reach') metricas.alcance = valor;
+      if (linha?.name === 'saved') metricas.salvamentos = valor;
+      if (linha?.name === 'shares') metricas.compartilhamentos = valor;
+    }
+  } catch (erro) {
+    console.warn('[instagram] insights indisponível', (erro as Error).message);
+  }
+
+  return metricas;
+};
