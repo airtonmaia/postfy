@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.38.0',
+    data: '2026-09-16',
+    resumo: 'A área de anexar mídia virou um quadrado de verdade, e o botão ficou com cara de botão.',
+    melhorias: [
+      'O campo de adicionar mídia era uma tarja achatada com o rótulo saindo por baixo dela. Agora é um quadrado de 160px, do mesmo tamanho das miniaturas ao lado, com o texto inteiro visível e um alvo de clique que se acerta sem mirar.',
+      'O aviso de que dá para arrastar o arquivo mudou de lugar: ficava embaixo da fileira e só aparecia depois da primeira mídia — ou seja, nunca na hora em que adiantaria. Agora está dentro do próprio quadrado onde o arquivo é solto.',
+      'O botão "Adicionar mídia" passou a ser da cor principal, e a caixa que o envolvia saiu. Ele era roxo pálido dentro de mais uma moldura roxa: três linhas em volta de uma ação só, que fazia o par parecer um campo de formulário em vez de um botão.',
+    ],
+    corrigido: [
+      'Com a fileira de mídias cheia, a opção "Por link da web" ainda adicionava, passando do limite de arquivos — o botão principal desligava e o menu ao lado não.',
+    ],
+  },
+  {
     versao: '2.37.0',
     data: '2026-09-16',
     resumo: 'O Facebook entrou na fila: Página conectada publica sozinha na data.',

@@ -187,22 +187,42 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           origens ficam na seta. Antes eram quatro botões soltos disputando a
           mesma linha — e a que quase todo mundo usa, o upload do computador,
           não tinha destaque nenhum.
+
+          **Ele é primário, e a caixa em volta saiu.** Na versão anterior os
+          dois lados eram `soft` — roxo pálido com borda — dentro de um `div`
+          com mais uma borda roxa. Três linhas para uma ação só: o par lia como
+          campo de formulário, não como botão, e a ação mais usada desta seção
+          ficava com menos peso que o "Adicionar" ao lado do campo de URL, que
+          é primário.
+
+          O que mostra que são dois controles agora é a **emenda**, não uma
+          moldura: canto reto do lado colado (a mesma composição de campo
+          grudado no vizinho) e uma linha translúcida na cor do texto sobre o
+          primário — que acompanha a marca da agência em vez de fixar branco.
         */}
         <div className="relative shrink-0">
-          <div className="flex items-stretch rounded-xl overflow-hidden border border-purple-200 dark:border-purple-900">
-            <Button variant="soft"
+          <div className="flex items-stretch">
+            <Button
               type="button"
               disabled={cheio}
               onClick={() => fileInputRef.current?.click()}
+              className="rounded-none rounded-l-lg"
             >
               <UploadCloud className="w-4 h-4" />
               Adicionar mídia
             </Button>
-            <Button variant="soft" size="icon-sm"
+            {/*
+              A seta desliga junto com o botão: as duas origens do menu também
+              acrescentam mídia, e a do link nem passava pelo limite — com a
+              fileira cheia ela ainda adicionava, porque `handleAddCustomUrl`
+              não confere `maxFiles`.
+            */}
+            <Button size="icon-sm"
               type="button"
+              disabled={cheio}
               onClick={() => setMenuAberto((a) => !a)}
               aria-label="Outras origens"
-              className="border-l"
+              className="rounded-none rounded-r-lg border-l border-primary-foreground/25"
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuAberto ? 'rotate-180' : ''}`} />
             </Button>
@@ -388,21 +408,47 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           </div>
         ))}
 
+        {/*
+          **Área de soltar arquivo, e por isso `<button>` à mão.**
+
+          Ela era um `<Button>`, e o resultado em tela era uma faixa achatada
+          com o rótulo saindo por baixo. O motivo é a escala: o tamanho do
+          botão fixa a altura (`h-8`, 32px), e com largura **e** altura
+          definidas o `aspect-[4/5]` que estava no `className` não tem como
+          agir — `aspect-ratio` só resolve o eixo que está em `auto`. Sobrava
+          um ícone de 20px e um rótulo empilhados numa caixa de 32px.
+
+          É o papel "card clicável" que o `tests/botoes.test.ts` já nomeia:
+          conteúdo em bloco e altura própria não cabem na escala do botão. E
+          nada local acusava — `tsc` compila, o vitest não monta componente e o
+          `vite build` não mede caixa.
+
+          Quadrada de 160px: é a altura que a fileira já tem (a miniatura é
+          `w-32` em 4/5 = 128×160), então o fundo da fileira fecha reto, e o
+          alvo de clique deixa de ser uma tarja. O aviso de arrastar mora aqui
+          dentro agora, que é onde o arquivo é solto — antes ele só aparecia
+          embaixo **depois** da primeira mídia, ou seja, nunca na hora em que
+          adianta.
+        */}
         {!cheio && (
-          <Button
+          <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-32 shrink-0 aspect-[4/5] border-2 border-dashed hover:border-purple-400 bg-slate-50 dark:bg-slate-950/60 flex-col text-slate-400 hover:text-purple-600"
+            className="w-40 h-40 shrink-0 px-3 flex flex-col items-center justify-center gap-1.5
+              rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700
+              bg-slate-50 dark:bg-slate-950/60 text-slate-400 transition cursor-pointer
+              hover:border-purple-400 hover:text-purple-600"
           >
-            <Plus className="w-5 h-5" />
-            <span className="text-[11px] font-bold">Adicionar</span>
-          </Button>
+            <Plus className="w-6 h-6" />
+            <span className="text-xs font-bold">Adicionar</span>
+            <span className="text-[10px] font-medium">ou arraste aqui</span>
+          </button>
         )}
       </div>
 
       {mediaUrls.length > 0 && (
         <span className="block text-[11px] text-slate-400">
-          {mediaUrls.length} de {maxFiles} — arraste aqui para adicionar mais
+          {mediaUrls.length} de {maxFiles}
         </span>
       )}
     </div>
