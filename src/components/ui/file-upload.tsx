@@ -16,6 +16,7 @@ import { cn } from '../../lib/utils';
 import { arquivosApi, ApiError } from '../../lib/api';
 import { usePostfy } from '../../context/PostfyContext';
 import { Button } from './button';
+import { RecorteQuadrado } from './recorte-quadrado';
 
 export interface UploadedFileInfo {
   name: string;
@@ -40,6 +41,18 @@ interface FileUploadProps {
   disabled?: boolean;
   compact?: boolean;
   imageOnly?: boolean;
+  /**
+   * Pede o enquadramento quadrado antes de enviar.
+   *
+   * Ligado só onde o destino é desenhado num quadrado — avatar de cliente,
+   * logo da agência. Um contrato ou uma arte de post não têm o que recortar, e
+   * um passo a mais no caminho de quem só queria anexar um PDF é atrito puro.
+   *
+   * **SVG passa direto**, mesmo com isto ligado: recortá-lo exigiria
+   * rasterizar, e um logo em vetor perde exatamente o que o torna a melhor
+   * escolha para marca.
+   */
+  recorteQuadrado?: boolean;
 }
 
 const DEFAULT_IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp,image/avif,image/gif,image/x-icon,image/*,.svg,.png,.jpg,.jpeg,.webp,.avif,.gif,.ico";
@@ -59,7 +72,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   className,
   disabled = false,
   compact = false,
-  imageOnly = false
+  imageOnly = false,
+  recorteQuadrado = false
 }) => {
   const effectiveAccept = accept || (imageOnly ? DEFAULT_IMAGE_ACCEPT : DEFAULT_ALL_ACCEPT);
   const effectiveHelperText = helperText || (
@@ -96,6 +110,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
   }, [value, fileName, fileSize]);
 
+  // Arquivo escolhido esperando o enquadramento. Fica aqui, e não dentro de
+  // `processFile`, porque a modal do recorte é assíncrona: ela devolve o
+  // arquivo cortado num callback, depois de a função já ter terminado.
+  const [aRecortar, setARecortar] = useState<File | null>(null);
   const [isUrlMode, setIsUrlMode] = useState(false);
   const [inputUrl, setInputUrl] = useState(value && !value.startsWith('data:') ? value : '');
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +153,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     // logo ocupou 4,8 MB, estourou a cota do navegador e ainda foi parar
     // numa coluna de texto no Postgres. A string acompanhava o registro em
     // toda leitura, deixando lenta uma tela que só queria o nome do cliente.
+    /**
+     * O recorte vem **antes** do envio, e é o recortado que sobe.
+     *
+     * Guardar o original e cortar só na tela pareceria a mesma coisa e não é:
+     * o arquivo grande viajaria em toda leitura, e qualquer lugar que o
+     * desenhasse sem `object-cover` mostraria a foto inteira — inclusive o
+     * e-mail, que não tem como recortar nada.
+     */
+    if (recorteQuadrado && !isSvg) {
+      setARecortar(file);
+      return;
+    }
+
     void enviarParaOArmazenamento(file, isSvg);
   };
 
@@ -420,6 +451,29 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </p>
           </div>
         </div>
+      )}
+
+      {/*
+        A modal do recorte. Sem esta linha o `setARecortar` guarda o arquivo e
+        **nada acontece**: o clique em "enviar" fica sem efeito, sem erro, sem
+        pista — a mesma família do `useConfirmacao()` sem o `{dialogo}`
+        renderizado.
+      */}
+      {aRecortar && (
+        <RecorteQuadrado
+          arquivo={aRecortar}
+          aoCancelar={() => {
+            setARecortar(null);
+            // Zera o input: sem isso, escolher **o mesmo arquivo** de novo não
+            // dispara `change`, e a modal não reabre.
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          }}
+          aoConfirmar={(recortado) => {
+            setARecortar(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            void enviarParaOArmazenamento(recortado, false);
+          }}
+        />
       )}
     </div>
   );

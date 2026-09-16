@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { iniciaisDe } from '../src/components/common/Avatar';
+import { semComentarios } from './util/semComentarios';
 
 const varrer = (dir: string): string[] =>
   readdirSync(dir).flatMap((nome) => {
@@ -11,8 +12,6 @@ const varrer = (dir: string): string[] =>
     return /\.tsx?$/.test(caminho) ? [caminho] : [];
   });
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 /**
  * Nenhuma foto de desconhecido no lugar de gente de verdade.

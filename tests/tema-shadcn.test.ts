@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * As variáveis do shadcn, e a ponte entre elas e a cor da agência.
@@ -31,14 +32,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-/**
- * O projeto registra nos comentários o que deu errado antes — inclusive as
- * classes exatas do bug. Sem tirar os comentários, a guarda acusaria a
- * explicação que ela existe para preservar; é o mesmo tratamento de
- * `tests/telas-honestas.test.ts` e `tests/fuso-horario.test.ts`.
- */
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 /**
  * O CSS **sem comentário nenhum**, e isso é obrigatório aqui.

@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { agregar, medicaoMaisAntiga, type MetricaDePost } from '../src/lib/metricas';
+import { semComentariosTudo as semComentarios } from './util/semComentarios';
 
 /**
  * Métricas reais, e a regra que sustenta todas elas: **nulo não é zero.**
@@ -18,10 +19,6 @@ import { agregar, medicaoMaisAntiga, type MetricaDePost } from '../src/lib/metri
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*--.*$/gm, '')
-    .replace(/^\s*\/\/.*$/gm, '');
 
 const migracao = readFileSync(
   join(RAIZ, 'supabase', 'migrations', '20260916120000_metricas_das_publicacoes.sql'),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * As duas cascas têm as mesmas medidas, e a marca alinha com o cabeçalho.
@@ -21,13 +22,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-/**
- * O projeto registra nos comentários o que deu errado antes — inclusive o
- * texto exato que saiu da tela. Sem removê-los, uma guarda que proíbe
- * "Teste Grátis" acusaria a própria explicação de por que ele saiu.
- */
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const app = readFileSync(join(RAIZ, 'src', 'App.tsx'), 'utf-8');
 const admin = readFileSync(

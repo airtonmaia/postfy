@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * A Biblioteca, e as três decisões que sustentam ela.
@@ -23,8 +24,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const rota = readFileSync(join(RAIZ, 'api', 'upload-url.ts'), 'utf-8');
 const cliente = readFileSync(join(RAIZ, 'src', 'lib', 'biblioteca.ts'), 'utf-8');

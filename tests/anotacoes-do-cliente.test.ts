@@ -8,6 +8,7 @@ import {
   tipoDoArquivo,
 } from '../src/lib/arquivosDoCliente';
 import type { ClientFile } from '../src/types';
+import { semComentariosTudo as semComentarios } from './util/semComentarios';
 
 /**
  * Anotações do cliente, e a lista de arquivos que ficou ao lado delas.
@@ -23,10 +24,6 @@ import type { ClientFile } from '../src/types';
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*--.*$/gm, '')
-    .replace(/^\s*\/\/.*$/gm, '');
 
 /**
  * A definição que **vale** de `portal_dados`.

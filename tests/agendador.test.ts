@@ -36,11 +36,9 @@ describe('um agendador só', () => {
     const yml = readFileSync(WORKFLOW, 'utf8');
 
     // Só as linhas de verdade: o porquê da remoção está nos comentários, e
-    // sem esta limpeza a guarda acusaria a própria memória da decisão.
-    const semComentarios = yml
-      .split('\n')
-      .filter((l) => !l.trimStart().startsWith('#'))
-      .join('\n');
+    // sem esta limpeza a guarda acusaria a própria memória da decisão. O
+    // comentário aqui é `#`, de YAML — o helper de TS/SQL não serve.
+    const semComentarios = yml.replace(/^\s*#.*$/gm, '');
 
     expect(semComentarios).not.toMatch(/^\s*schedule:/m);
     expect(semComentarios).not.toMatch(/cron:/);

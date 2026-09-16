@@ -481,6 +481,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                   value={cadAvatar}
                   compact
                   imageOnly
+                  recorteQuadrado
                   onFileSelect={(file) => setCadAvatar(file.url)}
                   onFileRemove={() => setCadAvatar('')}
                 />

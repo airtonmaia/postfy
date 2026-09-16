@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 import { urlDeAutorizacao, ESCOPOS_INSTAGRAM } from '../api/_lib/instagram.js';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * O projeto implementava o fluxo errado.
@@ -25,17 +26,6 @@ import { urlDeAutorizacao, ESCOPOS_INSTAGRAM } from '../api/_lib/instagram.js';
  * sintoma aparece na frente de quem está conectando, depois de já ter
  * digitado a senha.
  */
-/**
- * Comentário não é código.
- *
- * O projeto registra nos comentários o que deu errado antes — aqui, os hosts
- * do fluxo do Facebook e o porquê de eles terem saído. Sem esta limpeza a
- * guarda acusaria justamente a explicação do bug que ela existe para
- * impedir, e a saída seria apagar a memória do bug. Mesma razão do
- * `semComentarios` em tests/telas-honestas.test.ts.
- */
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 describe('fluxo do Instagram, não o do Facebook', () => {
   const instagram = semComentarios(readFileSync('api/_lib/instagram.ts', 'utf-8'));

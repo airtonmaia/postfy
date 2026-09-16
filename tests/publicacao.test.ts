@@ -10,6 +10,7 @@ import {
   proximaPassada,
   MINUTOS_ENTRE_PASSADAS,
 } from '../src/lib/redes';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * A tela não promete disparo que o servidor não faz.
@@ -32,8 +33,6 @@ import {
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const publicarTs = semComentarios(
   readFileSync(join(RAIZ, 'api', 'publicar.ts'), 'utf-8')

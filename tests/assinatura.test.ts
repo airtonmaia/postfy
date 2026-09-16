@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * Cobrança: o que promete precisa acontecer.
@@ -25,8 +26,6 @@ const sqlDeTodasAsMigracoes = (): string =>
     .map((f) => readFileSync(join(MIGRACOES, f), 'utf-8'))
     .join('\n');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 describe('o teste grátis tem prazo, e alguém o lê', () => {
   it('criar_agencia escreve a data de fim do teste', () => {
