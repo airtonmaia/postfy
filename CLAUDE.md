@@ -1402,6 +1402,45 @@ e o `vite build` não mede caixa. Só aparece abrindo a tela. Por isso
 `<button>` à mão, nenhum `<Button>` com `<div>`/`<p>`/`<h*>`/`<img>` no corpo,
 e nenhum `size="icon"` com palavra dentro.
 
+#### `alert()` e `window.confirm()` não voltam
+
+Três razões, e nenhuma é gosto:
+
+- **A caixa do navegador não tem a marca da agência.** O produto é whitelabel;
+  um cinza do Chrome no meio do portal do cliente diz que a página é de outra
+  pessoa — o oposto do que o whitelabel existe para fazer.
+- **Ela trava a aba, e o celular pode suprimi-la.** `confirm()` é síncrono:
+  nada pinta e nada responde enquanto está aberta. E alguns navegadores móveis
+  simplesmente **não a mostram** — aí a pergunta não aparece, a ação não
+  acontece, e não há erro em lugar nenhum. Clicar em "remover" não faz nada.
+- **Ela não cabe a explicação.** "Tem certeza?" é a pergunta errada; o que
+  decide é a consequência — "as publicações agendadas serão canceladas", "o
+  acesso cai na hora, inclusive nas abas abertas" —, e `confirm()` tem uma
+  linha só. Por isso `descricao` é **obrigatória** no componente: opcional, ela
+  seria omitida, e o diálogo viraria o `confirm()` com outra pintura.
+
+`useConfirmacao()` e `useAviso()` em `src/components/ui/alert-dialog.tsx`
+existem para que a troca seja de uma linha. `confirm()` é expressão — o resto
+da função segue embaixo do `if`; um diálogo é assíncrono, então a conversão
+quebra a função em duas, e fazer isso à mão em cada tela é como nasceram as
+doze alturas de botão.
+
+**A falha silenciosa aqui é o hook sem o `{dialogo}` renderizado.** Ele
+devolve `{ pedir, dialogo }`, e `dialogo` só aparece se quem chamou o puser na
+árvore. Esquecer não quebra `tsc`, nem o vitest, nem o build — e o efeito é o
+pior possível: o clique não faz nada, sem erro, sem pergunta, sem pista. Mesma
+família da armadilha 0.
+
+`useAviso()` é para **falha que interrompe** (o conteúdo que não salvou, o PDF
+que não saiu). Confirmação de que deu certo não usa diálogo: "Copiado!" merece
+um ícone que muda por dois segundos, não uma caixa que precisa ser fechada.
+
+Protegido por `tests/dialogos.test.ts` — inclusive contra o hook cair depois
+de um `return`, que é o erro #310 da armadilha 8.1. A primeira versão dessa
+guarda olhava o arquivo inteiro antes do hook e reprovava um `return` de
+função auxiliar declarada acima do componente: guarda que reprova código
+correto é pior que guarda nenhuma, porque ensina a ignorá-la.
+
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
 `/api/status` e mostra o estado real do servidor em vez de uma lista fixa.
@@ -1417,6 +1456,7 @@ src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
+src/components/ui/alert-dialog.tsx  confirmação e aviso; useConfirmacao/useAviso
 src/components/ui/dropdown-menu.tsx  primitivo shadcn, com o canto traduzido
 src/components/layout/WorkspaceSwitcher.tsx  troca de agência, no DropdownMenu
 src/components/layout/PlanoDaAgencia.tsx     o plano no rodapé, lido do banco

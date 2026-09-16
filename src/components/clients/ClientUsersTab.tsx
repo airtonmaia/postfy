@@ -11,6 +11,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { pode } from '../../lib/permissions';
 import { safeDateFormat } from '../../lib/utils';
 import { Button } from '../ui/button';
+import { useConfirmacao } from '../ui/alert-dialog';
 
 /**
  * Quem do lado do cliente entra no Portal, e até onde vai.
@@ -37,6 +38,7 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
   const podeGerenciar = pode(currentUser?.role, 'gerenciar_clientes');
 
   const [usuarios, setUsuarios] = useState<ClientUser[]>([]);
+  const { pedir, dialogo } = useConfirmacao();
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -130,8 +132,15 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
     }
   };
 
-  const remover = async (usuario: ClientUser) => {
-    if (!window.confirm(`Remover o acesso de ${usuario.email} ao portal?`)) return;
+  const remover = (usuario: ClientUser) =>
+    pedir({
+      titulo: 'Remover o acesso ao portal?',
+      descricao: `${usuario.email} deixa de entrar no portal deste cliente. O que já foi aprovado continua registrado.`,
+      rotuloConfirmar: 'Remover acesso',
+      aoConfirmar: () => removerDeVez(usuario),
+    });
+
+  const removerDeVez = async (usuario: ClientUser) => {
     const antes = usuarios;
     setUsuarios((atual) => atual.filter((u) => u.id !== usuario.id));
     try {
@@ -144,6 +153,7 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
   };
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -364,5 +374,8 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
         briefing — não é escondido na tela: o banco não devolve esses campos para ele.
       </div>
     </div>
+
+      {dialogo}
+    </>
   );
 };

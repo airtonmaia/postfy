@@ -78,6 +78,9 @@ export const JobDetailModal: React.FC = () => {
   const [adjustmentFeedback, setAdjustmentFeedback] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [commentText, setCommentText] = useState('');
+  // "Copiado!" é confirmação de que deu certo — merece um ícone que muda por
+  // dois segundos, não uma caixa que a pessoa precisa fechar para seguir.
+  const [legendaCopiada, setLegendaCopiada] = useState(false);
   const [newVersionCaption, setNewVersionCaption] = useState('');
   const [newVersionMedia, setNewVersionMedia] = useState('');
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
@@ -494,12 +497,17 @@ export const JobDetailModal: React.FC = () => {
                         type="button"
                         onClick={async () => {
                           await copyToClipboard(selectedJob.caption);
-                          alert('Legenda copiada para a área de transferência!');
+                          setLegendaCopiada(true);
+                          setTimeout(() => setLegendaCopiada(false), 2000);
                         }}
                         className="text-purple-600 hover:underline"
                       >
-                        <Copy className="w-3 h-3" />
-                        Copiar texto
+                        {legendaCopiada ? (
+                          <Check className="w-3 h-3 text-emerald-500" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        {legendaCopiada ? 'Copiado!' : 'Copiar texto'}
                       </Button>
                     </div>
                   </div>

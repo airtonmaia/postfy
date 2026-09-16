@@ -24,6 +24,7 @@ import {
 import { ApiError } from '../../lib/api';
 import { ComTooltip } from '../ui/tooltip';
 import { Button } from '../ui/button';
+import { useConfirmacao } from '../ui/alert-dialog';
 
 /**
  * As conexões de **um cliente**.
@@ -63,6 +64,7 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
   const { currentWorkspace } = usePostfy();
 
   const [contas, setContas] = useState<ContaConectada[]>([]);
+  const { pedir, dialogo } = useConfirmacao();
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
@@ -109,26 +111,27 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
     }
   };
 
-  const desconectar = async (id: string, nome: string) => {
-    if (
-      !window.confirm(
-        `Desconectar @${nome}? As publicações agendadas para esta conta serão canceladas.`
-      )
-    ) {
-      return;
-    }
-    try {
-      await desconectarConta(id);
-      setContas((atuais) => atuais.filter((c) => c.id !== id));
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falha ao desconectar.');
-    }
-  };
+  const desconectar = (id: string, nome: string) =>
+    pedir({
+      titulo: `Desconectar @${nome}?`,
+      descricao:
+        'As publicações já agendadas para esta conta serão canceladas. Para voltar a publicar nela, será preciso conectar de novo pela Meta.',
+      rotuloConfirmar: 'Desconectar',
+      aoConfirmar: async () => {
+        try {
+          await desconectarConta(id);
+          setContas((atuais) => atuais.filter((c) => c.id !== id));
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : 'Falha ao desconectar.');
+        }
+      },
+    });
 
   const contaDaRede = (rede: RedeDaMeta) =>
     contas.find((c) => c.platform === rede.id);
 
   return (
+    <>
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5">
       <div>
         <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
@@ -235,5 +238,8 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
         </div>
       )}
     </div>
+
+      {dialogo}
+    </>
   );
 };

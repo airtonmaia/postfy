@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.34.0',
+    data: '2026-09-16',
+    resumo: 'As caixas cinzas do navegador saíram — as confirmações agora têm a cara do sistema.',
+    melhorias: [
+      'Remover um membro, tirar o acesso de alguém ao portal ou desconectar uma conta do Instagram passou a abrir uma janela do próprio sistema, com a cor da agência. A caixa cinza do navegador não tinha marca nenhuma, e no portal do cliente ela parecia de outro site.',
+      'Cada confirmação agora diz o que acontece depois, e não só "tem certeza?". Desconectar uma conta avisa que as publicações agendadas serão canceladas; remover alguém avisa que o acesso cai na hora, inclusive nas abas já abertas.',
+      'No celular, o botão que confirma fica acima do cancelar — a ação destrutiva embaixo do polegar era a que mais errava.',
+      'Copiar a legenda de um conteúdo mostra "Copiado!" no próprio botão por dois segundos, em vez de abrir uma caixa que precisa ser fechada.',
+    ],
+    corrigido: [
+      'As confirmações podiam simplesmente não aparecer no celular: alguns navegadores suprimem a caixa nativa, e quando isso acontecia a ação não era executada e nada avisava. Clicar em "remover" não fazia nada.',
+    ],
+  },
+  {
     versao: '2.33.0',
     data: '2026-09-16',
     resumo: 'A Biblioteca: todo arquivo da agência num lugar só, com pasta por cliente.',

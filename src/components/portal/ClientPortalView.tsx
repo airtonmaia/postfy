@@ -52,6 +52,7 @@ import { ClientPortalLogin } from './ClientPortalLogin';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { useConfirmacao } from '../ui/alert-dialog';
 
 /**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
@@ -320,6 +321,7 @@ export const ClientPortalView: React.FC = () => {
   );
 
   const [activeTab, setActiveTab] = useState<AbaDoPortal>('approvals');
+  const { pedir, dialogo } = useConfirmacao();
 
   // O papel chega depois dos dados. Se a aba aberta deixar de existir (a
   // pessoa era editora, virou aprovadora), a tela cairia num branco — nenhum
@@ -523,9 +525,18 @@ export const ClientPortalView: React.FC = () => {
     }
   };
 
-  const removerUsuario = async (id: string, email: string) => {
+  const removerUsuario = (id: string, email: string) => {
     if (!tokenDoPortal) return;
-    if (!window.confirm(`Remover o acesso de ${email} ao portal?`)) return;
+    pedir({
+      titulo: 'Remover o acesso ao portal?',
+      descricao: `${email} deixa de entrar neste portal. O que já foi aprovado continua registrado.`,
+      rotuloConfirmar: 'Remover acesso',
+      aoConfirmar: () => removerDeVez(id),
+    });
+  };
+
+  const removerDeVez = async (id: string) => {
+    if (!tokenDoPortal) return;
     try {
       await removerUsuarioPeloPortal(tokenDoPortal, id);
       setErroUsuarios(null);
@@ -544,6 +555,7 @@ export const ClientPortalView: React.FC = () => {
   const clientFullName = client.name || client.contacts?.[0]?.name || 'Cliente';
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 dark:bg-slate-950 overflow-y-auto animate-in fade-in duration-200">
       {/* Client Portal Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 px-4 sm:px-6 py-3.5 shadow-xs">
@@ -1783,5 +1795,8 @@ export const ClientPortalView: React.FC = () => {
         </div>
       )}
     </div>
+
+      {dialogo}
+    </>
   );
 };
