@@ -79,19 +79,49 @@ describe('o diálogo é de fato renderizado', () => {
    * É a mesma família da armadilha 0 e do `size="icon"` com rótulo: tudo
    * verde, tela morta.
    */
+  /**
+   * A guarda segue o **nome que o arquivo deu**, e não o literal `{dialogo}`.
+   *
+   * A primeira versão procurava `{dialogo}` colado. Funcionava enquanto todo
+   * mundo escrevia `const { pedir, dialogo } = useConfirmacao()` — e reprovou
+   * na primeira tela que chama os dois hooks, onde um dos dois **precisa** ser
+   * renomeado (`dialogo: dialogoDeAviso`), porque o mesmo nome não pode ser
+   * declarado duas vezes.
+   *
+   * Reprovar código correto é pior que não guardar nada: ensina a ignorar a
+   * guarda, e a próxima vez que ela acusar — com razão — alguém vai renomear
+   * a variável para calá-la. Lendo o apelido do próprio `destructuring`, ela
+   * afirma o que interessa: **este** diálogo está na árvore.
+   */
   for (const hook of ['useConfirmacao', 'useAviso'] as const) {
-    it(`quem chama ${hook}() renderiza {dialogo}`, () => {
-      const semRender = fontes
-        .filter(({ caminho, texto }) =>
-          caminho !== 'src/components/ui/alert-dialog.tsx' &&
-          new RegExp(`${hook}\\s*\\(`).test(texto) &&
-          !/\{dialogo\}/.test(texto)
-        )
-        .map(({ caminho }) => caminho);
+    it(`quem chama ${hook}() renderiza o diálogo que ele devolve`, () => {
+      const semRender: string[] = [];
+
+      for (const { caminho, texto } of fontes) {
+        if (caminho === 'src/components/ui/alert-dialog.tsx') continue;
+
+        // `const { pedir, dialogo } = useConfirmacao()` →  "pedir, dialogo"
+        // `const { avisar, dialogo: aviso } = useAviso()` → "avisar, dialogo: aviso"
+        const chamadas = [
+          ...texto.matchAll(new RegExp(`const\\s*\\{([^}]*)\\}\\s*=\\s*${hook}\\s*\\(`, 'g')),
+        ];
+
+        // Chamado sem desestruturar o retorno: o diálogo não tem como estar
+        // na árvore, e é o caso que a guarda mais quer pegar.
+        if (new RegExp(`${hook}\\s*\\(`).test(texto) && chamadas.length === 0) {
+          semRender.push(caminho);
+          continue;
+        }
+
+        for (const [, dentro] of chamadas) {
+          const nome = dentro.match(/\bdialogo\s*:\s*(\w+)/)?.[1] ?? 'dialogo';
+          if (!new RegExp(`\\{\\s*${nome}\\s*\\}`).test(texto)) semRender.push(caminho);
+        }
+      }
 
       expect(
         semRender,
-        `${hook}() sem {dialogo} na árvore — o diálogo nunca aparece e a ação ` +
+        `${hook}() sem o diálogo na árvore — ele nunca aparece e a ação ` +
           `simplesmente não acontece, com tsc, vitest e build os três verdes`
       ).toEqual([]);
     });

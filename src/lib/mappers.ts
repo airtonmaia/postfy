@@ -97,6 +97,7 @@ export const clientDaLinha = (l: Linha): Client => ({
   passwords: l.passwords ?? [],
   invoices: l.invoices ?? [],
   briefing: l.briefing ?? undefined,
+  annotations: l.annotations ?? [],
   notes: ounull(l.notes),
   createdAt: l.created_at,
   portalToken: l.portal_token,
@@ -123,6 +124,7 @@ export const clientParaLinha = (c: Partial<Client>): Linha =>
     passwords: c.passwords,
     invoices: c.invoices,
     briefing: c.briefing,
+    annotations: c.annotations,
     notes: c.notes,
     // `slug` fica de fora de propósito: quem gera e mantém é o trigger no
     // banco, a partir do nome. Mandá-lo daqui deixaria a tela sobrescrever o

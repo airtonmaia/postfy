@@ -102,6 +102,32 @@ export interface ClientFile {
   url: string;
   size: string;
   uploadedAt: string;
+  /**
+   * Arquivo enviado para o R2 ou link colado (Drive, Dropbox, o que for).
+   *
+   * A diferença decide a ação da linha: um baixa, o outro abre em outra aba.
+   * Opcional porque as linhas gravadas antes disto não têm o campo —
+   * `tipoDoArquivo()` em `src/lib/arquivosDoCliente.ts` deriva o valor delas.
+   */
+  kind?: 'arquivo' | 'link';
+}
+
+/**
+ * Anotação da agência sobre o cliente.
+ *
+ * Não confundir com `Client.notes`, que é um texto solto e continua onde
+ * estava: aqui são blocos, cada um com título e data própria, para
+ * visualizar, editar e excluir um a um.
+ *
+ * **Nunca sai para o Portal do Cliente.** É o que a agência escreve *sobre* o
+ * cliente, e quem recorta é o banco (`portal_dados`), não a tela.
+ */
+export interface ClientAnnotation {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ClientPassword {
@@ -162,6 +188,7 @@ export interface Client {
   passwords?: ClientPassword[];
   invoices?: ClientInvoice[];
   briefing?: ClientBriefing;
+  annotations?: ClientAnnotation[];
   notes?: string;
   createdAt: string;
   /**

@@ -495,13 +495,25 @@ uma tela que mente sobre o que gravou.
 E o recorte por papel é do **banco**, não da tela: `portal_dados` não devolve
 `passwords`, `invoices`, `briefing` nem `files` para o aprovador. Esconder aba
 com o dado já no navegador seria a armadilha 9 outra vez. `portal_token`
-também não sai mais de lá, para papel nenhum.
+também não sai mais de lá, para papel nenhum — e `annotations` e `notes`
+acompanham, pela mesma regra e para papel nenhum: é o que a agência escreve
+*sobre* o cliente, lido pelo próprio cliente.
+
+**A função responde com `to_jsonb(cliente)`, que é a linha inteira.** Coluna
+nova, portanto, nasce visível no portal sem ninguém ter decidido isso — foi
+assim que `passwords`, `invoices` e `briefing` saíram na primeira versão. Toda
+coluna acrescentada a `clients` passa por esta decisão, e a subtração que vale
+para todos os papéis vai **antes** do `if usuario.role`: dentro dele, ela
+poupa só quem não é editor, e o editor é o cliente.
 
 Protegido por `tests/usuarios-do-cliente.test.ts`, que lê a migração depois de
 remover os comentários e confere o recorte, o papel em cada escrita, os
 `grant ... to anon` e que cada `supabase.rpc` do portal aponta para função que
 existe — nome de RPC é string, e um erro de digitação só aparece na frente do
-cliente.
+cliente. `tests/anotacoes-do-cliente.test.ts` cobre a parte que envelhece
+sozinha: `portal_dados` é redefinida por `create or replace` em mais de uma
+migração, e ler a primeira que aparecer afirmaria o recorte de uma versão que
+o banco já não tem — a guarda toma a **última** pelo nome do arquivo.
 
 ---
 

@@ -22,6 +22,7 @@ import {
   ClientInvoice,
   ClientBriefing,
   ClientFile,
+  ClientAnnotation,
   ClientMaterial,
   TimesheetLog,
   TabType
@@ -257,6 +258,10 @@ interface PostfyContextType {
   deleteClientInvoice: (clientId: string, invoiceId: string) => void;
   addClientFile: (clientId: string, file: Omit<ClientFile, 'id' | 'uploadedAt'>) => void;
   deleteClientFile: (clientId: string, fileId: string) => void;
+  /** Anotações internas da agência. Nunca saem para o Portal do Cliente. */
+  addClientAnnotation: (clientId: string, dados: { title: string; content: string }) => void;
+  updateClientAnnotation: (clientId: string, annotationId: string, dados: { title: string; content: string }) => void;
+  deleteClientAnnotation: (clientId: string, annotationId: string) => void;
   updateClientBriefing: (clientId: string, briefing: Partial<ClientBriefing>) => void;
   addLead: (leadData: Partial<Lead>) => Lead;
   updateLeadStage: (leadId: string, stage: LeadStage) => void;
@@ -1871,6 +1876,55 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (noPortal) void gravarClienteNoPortal({ files: proximos });
   };
 
+  /**
+   * As anotações **não têm desvio de portal**, e isso é decisão.
+   *
+   * A armadilha 10 exige o `if (noPortal)` em toda mutação que o Portal do
+   * Cliente possa disparar — sem ele a tela mostra o resultado e o banco nunca
+   * é chamado. Aqui a mutação não chega a existir do outro lado: `portal_dados`
+   * nem devolve `annotations`, e `atualizar_cliente_do_portal` só aceita
+   * `files`, `passwords` e `briefing`. Um desvio aqui seria escrever o caminho
+   * para um dado que o portal não pode ler nem gravar.
+   */
+  const addClientAnnotation = (clientId: string, dados: { title: string; content: string }) => {
+    const agora = new Date().toISOString();
+    const nova: ClientAnnotation = {
+      ...dados,
+      id: novoId(),
+      createdAt: agora,
+      updatedAt: agora,
+    };
+    setAllClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, annotations: [nova, ...(c.annotations || [])] };
+    }));
+    logActivity('Criou anotação', `Cliente #${clientId}: ${dados.title}`);
+  };
+
+  const updateClientAnnotation = (
+    clientId: string,
+    annotationId: string,
+    dados: { title: string; content: string }
+  ) => {
+    setAllClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        annotations: (c.annotations || []).map(a =>
+          a.id === annotationId ? { ...a, ...dados, updatedAt: new Date().toISOString() } : a
+        ),
+      };
+    }));
+    logActivity('Editou anotação', `Cliente #${clientId}: ${dados.title}`);
+  };
+
+  const deleteClientAnnotation = (clientId: string, annotationId: string) => {
+    setAllClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, annotations: (c.annotations || []).filter(a => a.id !== annotationId) };
+    }));
+  };
+
   const updateClientBriefing = (clientId: string, briefingData: Partial<ClientBriefing>) => {
     const atual = allClients.find(c => c.id === clientId)?.briefing || {
       brandVoice: '',
@@ -2401,6 +2455,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteClientInvoice,
         addClientFile,
         deleteClientFile,
+        addClientAnnotation,
+        updateClientAnnotation,
+        deleteClientAnnotation,
         updateClientBriefing,
         addLead,
         updateLeadStage,
