@@ -163,6 +163,24 @@ interface PostfyContextType {
   setActiveTab: (tab: string) => void;
   calendarView: CalendarViewMode;
   setCalendarView: (view: CalendarViewMode) => void;
+  /**
+   * "Cadastrar novo cliente" pedido de fora da tela de Clientes.
+   *
+   * O formulário mora em `ClientsView`, em estado local, e quem clica está no
+   * cabeçalho — duas árvores diferentes, sem pai em comum abaixo daqui.
+   *
+   * **Não virou caminho (`/clientes/novo`) de propósito.** O segundo trecho de
+   * `/clientes/...` já é o slug de um cliente, e o slug nasce do nome, no
+   * banco: um cliente chamado "Novo" ocuparia o endereço do formulário, e a
+   * colisão só apareceria depois de ele existir — com a ficha dele abrindo um
+   * cadastro em branco.
+   *
+   * É consumido uma vez e apagado. Sem isso, sair da tela de Clientes e voltar
+   * reabriria o formulário sozinho, porque o pedido continuaria de pé.
+   */
+  abrirNovoCliente: () => void;
+  pedidoDeNovoCliente: boolean;
+  consumirPedidoDeNovoCliente: () => void;
   
   // Filters
   clientFilter: string; // 'all' or clientId
@@ -752,7 +770,20 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('month');
-  
+
+  // Ver a explicação no tipo: o pedido cruza duas árvores e é consumido uma
+  // vez, senão voltar para a tela de Clientes reabriria o formulário sozinho.
+  const [pedidoDeNovoCliente, setPedidoDeNovoCliente] = useState(false);
+
+  const abrirNovoCliente = useCallback(() => {
+    setPedidoDeNovoCliente(true);
+    setActiveTab('clientes');
+  }, [setActiveTab]);
+
+  const consumirPedidoDeNovoCliente = useCallback(() => {
+    setPedidoDeNovoCliente(false);
+  }, []);
+
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -2314,6 +2345,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveTab,
         calendarView,
         setCalendarView,
+        abrirNovoCliente,
+        pedidoDeNovoCliente,
+        consumirPedidoDeNovoCliente,
         clientFilter,
         setClientFilter,
         platformFilter,

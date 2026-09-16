@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, CheckCircle2, Users, Search, X, Building2 } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Users, Search, Building2, Plus } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 
 export const ClientSwitcher: React.FC = () => {
-  const { clients, clientFilter, setClientFilter, jobs } = usePostfy();
+  const { clients, clientFilter, setClientFilter, jobs, abrirNovoCliente } = usePostfy();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -75,26 +75,52 @@ export const ClientSwitcher: React.FC = () => {
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 hidden sm:block ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/*
+        Dropdown Menu.
+
+        `w-80` e não `w-72`: com o botão de cadastrar na linha do título, os
+        288px antigos deixavam 254px para 246px de conteúdo — passava, e sem
+        folga nenhuma para um rótulo mais longo. Os 32px a mais também dão ar
+        aos nomes de cliente, que hoje truncam.
+      */}
       {isOpen && (
-        <div className="absolute top-full left-0 sm:left-0 mt-1.5 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="px-2 py-1.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 mb-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3 h-3" />
-              Filtrar por Cliente
+        <div className="absolute top-full left-0 sm:left-0 mt-1.5 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="px-2 py-1.5 flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 mb-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+              <Building2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">Filtrar por Cliente</span>
             </span>
-            {clientFilter !== 'all' && (
-              <Button variant="ghost" 
-                onClick={() => {
-                  setClientFilter('all');
-                  setIsOpen(false);
-                }}
-                className="text-purple-600 dark:text-purple-400 hover:underline"
-              >
-                <X className="w-2.5 h-2.5" />
-                Limpar Filtro
-              </Button>
-            )}
+
+            {/*
+              Cadastrar sai de dentro do próprio seletor: é aqui que se
+              descobre que o cliente ainda não existe. Sem isto o caminho era
+              fechar o menu, achar "Clientes" na barra lateral e procurar o
+              botão lá — e quem chega com a agência vazia encontra primeiro
+              este menu, que não oferecia saída nenhuma.
+
+              Ele abre o formulário na tela de Clientes, e não uma modal
+              própria: dois cadastros do mesmo cliente em lugares diferentes
+              divergem no primeiro campo que alguém acrescentar num só.
+
+              **Ele ocupa o lugar do "Limpar Filtro", que saiu — e era um
+              duplicado.** Aquele botão chamava `setClientFilter('all')` e
+              fechava o menu; a linha "Todos os Clientes", logo abaixo e sempre
+              visível, chama exatamente as mesmas duas coisas. Os dois na mesma
+              linha não cabiam: medido no Chromium, o título da seção era
+              espremido de 118px para 27px — virava "F…" —, e manter duas
+              formas da mesma ação para isso é troca ruim.
+            */}
+            <Button
+              onClick={() => {
+                setIsOpen(false);
+                abrirNovoCliente();
+              }}
+              title="Cadastrar um novo cliente"
+              className="shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo cliente
+            </Button>
           </div>
 
           {/* Quick Search */}

@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.39.0',
+    data: '2026-09-16',
+    resumo: 'Dá para cadastrar cliente de dentro do próprio seletor de clientes.',
+    novidades: [
+      'Botão "Novo cliente" no menu do seletor de clientes, no topo do sistema. É ali que se descobre que o cliente ainda não está cadastrado — até agora o caminho era fechar o menu, achar "Clientes" no menu lateral e procurar o botão lá dentro.',
+    ],
+    melhorias: [
+      'O menu do seletor ficou um pouco mais largo, e os nomes de cliente que vinham cortados agora cabem.',
+    ],
+    corrigido: [
+      'O botão "Limpar Filtro" do menu saiu: ele fazia exatamente o mesmo que a linha "Todos os Clientes" logo abaixo dele, que continua ali. Duas formas da mesma ação espremiam o título da seção a ponto de ele virar reticências.',
+    ],
+  },
+  {
     versao: '2.38.0',
     data: '2026-09-16',
     resumo: 'A área de anexar mídia virou um quadrado de verdade, e o botão ficou com cara de botão.',
