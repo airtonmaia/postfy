@@ -140,14 +140,17 @@ async function handler(request: Request): Promise<Response> {
     if (erroTrava) continue;
 
     try {
-      const publicadoId = await publicarItem(supabase, item);
+      const publicado = await publicarItem(supabase, item);
       await supabase
         .from('publish_queue')
         .update({
           status: 'publicado',
-          external_id: publicadoId,
+          external_id: publicado.id,
+          story_external_id: publicado.idDoStory ?? null,
           published_at: new Date().toISOString(),
-          last_error: null,
+          // O aviso do story fica **em publicado**: o feed saiu, e marcar
+          // falhou faria a passada seguinte republicá-lo.
+          last_error: publicado.avisoDoStory ?? null,
         })
         .eq('id', item.id);
 
@@ -156,7 +159,11 @@ async function handler(request: Request): Promise<Response> {
         .update({ status: 'published', published_date: new Date().toISOString() })
         .eq('id', item.job_id);
 
-      resultados.push({ id: item.id, ok: true, detalhe: publicadoId });
+      resultados.push({
+        id: item.id,
+        ok: true,
+        detalhe: publicado.avisoDoStory ?? publicado.id,
+      });
     } catch (erro) {
       const motivo =
         erro instanceof ErroDaMeta || erro instanceof Error
@@ -324,7 +331,7 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
   }
 
   try {
-    const publicadoId = await publicarItem(supabase, {
+    const publicado = await publicarItem(supabase, {
       job_id: job.id,
       connection_id: conexao.id,
     });
@@ -333,9 +340,12 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
       .from('publish_queue')
       .update({
         status: 'publicado',
-        external_id: publicadoId,
+        external_id: publicado.id,
+        story_external_id: publicado.idDoStory ?? null,
         published_at: new Date().toISOString(),
-        last_error: null,
+        // Mesma regra do cron: o feed já saiu, então o item fecha como
+        // publicado e o aviso do story fica à vista.
+        last_error: publicado.avisoDoStory ?? null,
         attempts: (item.attempts ?? 0) + 1,
       })
       .eq('id', item.id);
@@ -345,7 +355,15 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
       .update({ status: 'published', published_date: new Date().toISOString() })
       .eq('id', job.id);
 
-    return json({ ok: true, externalId: publicadoId, conta: conexao.account_name });
+    return json({
+      ok: true,
+      externalId: publicado.id,
+      storyExternalId: publicado.idDoStory,
+      // A tela mostra a ressalva quando o story não saiu: "publicado" sem
+      // dizer isso seria a tela afirmando o que não aconteceu.
+      aviso: publicado.avisoDoStory,
+      conta: conexao.account_name,
+    });
   } catch (erro) {
     const motivo =
       erro instanceof ErroDaMeta || erro instanceof Error ? erro.message : 'Falha desconhecida.';
@@ -431,7 +449,22 @@ const renovarTokensQuePodemVencer = async (supabase: any): Promise<number> => {
   return renovadas;
 };
 
-const publicarItem = async (supabase: any, item: any): Promise<string> => {
+/**
+ * O resultado de publicar um item da fila.
+ *
+ * `avisoDoStory` existe para o caso em que o feed saiu e o story não: é
+ * publicado **com ressalva**, nunca falha, porque falhar republicaria o feed.
+ */
+type ResultadoDaPublicacao = {
+  id: string;
+  idDoStory?: string;
+  avisoDoStory?: string;
+};
+
+const publicarItem = async (
+  supabase: any,
+  item: any
+): Promise<ResultadoDaPublicacao> => {
   const { data: conexao } = await supabase
     .from('social_connections')
     .select('platform, account_id')
@@ -453,7 +486,7 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
 
   const { data: job } = await supabase
     .from('jobs')
-    .select('title, caption, media_urls, hashtags')
+    .select('title, caption, media_urls, story_media_urls, format, hashtags')
     .eq('id', item.job_id)
     .maybeSingle();
 
@@ -476,9 +509,58 @@ const publicarItem = async (supabase: any, item: any): Promise<string> => {
    * publica em um passo, e com o token **da Página**, que é o que
    * `social-callback` guardou. Ver `api/_lib/facebook.ts`.
    */
-  return conexao.platform === 'facebook'
-    ? publicarNoFacebook(conexao.account_id, token.access_token, midia, legenda)
-    : publicarNoInstagram(conexao.account_id, token.access_token, midia, legenda);
+  if (conexao.platform === 'facebook') {
+    return { id: await publicarNoFacebook(conexao.account_id, token.access_token, midia, legenda) };
+  }
+
+  /**
+   * "Feed + Story" é **uma peça com duas saídas**, e sai em dois contêineres.
+   *
+   * A ordem é feed primeiro, de propósito: é ele que tem métrica, permalink e
+   * vida longa. O story expira em 24h.
+   */
+  const ehFeedStory = job.format === 'feed_story';
+  const destino: 'feed' | 'story' = job.format === 'story' ? 'story' : 'feed';
+
+  const idDoFeed = await publicarNoInstagram(
+    conexao.account_id,
+    token.access_token,
+    midia,
+    legenda,
+    destino
+  );
+
+  if (!ehFeedStory) return { id: idDoFeed };
+
+  /**
+   * **O feed já está no ar, e isso muda tudo o que vem depois.**
+   *
+   * Se o story falhar agora, a exceção subiria e o laço marcaria o item como
+   * `pendente` ou `falhou` — e a passada seguinte republicaria o **feed**.
+   * Post duplicado no perfil do cliente não volta, e é o pior desfecho desta
+   * rota.
+   *
+   * Por isso a falha do story é **capturada aqui**: o item fecha como
+   * publicado, com o motivo em `last_error`. O story não sai sozinho depois;
+   * quem decide republicar é uma pessoa, com o feed já no ar à vista.
+   */
+  const midiaDoStory = (job.story_media_urls || [])[0] || midia;
+  try {
+    const idDoStory = await publicarNoInstagram(
+      conexao.account_id,
+      token.access_token,
+      midiaDoStory,
+      '',
+      'story'
+    );
+    return { id: idDoFeed, idDoStory };
+  } catch (erro) {
+    const motivo = erro instanceof Error ? erro.message : 'Falha desconhecida.';
+    return {
+      id: idDoFeed,
+      avisoDoStory: `O feed saiu, o story não: ${motivo}`,
+    };
+  }
 };
 
 /**

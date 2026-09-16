@@ -182,17 +182,35 @@ export const publicarNoInstagram = async (
   accountId: string,
   token: string,
   mediaUrl: string,
-  legenda: string
+  legenda: string,
+  /**
+   * Onde a peça sai.
+   *
+   * **Isto faltava, e a falta era um bug em produção.** A função nunca mandou
+   * `media_type: 'STORIES'`: um conteúdo com formato "Story" criava um
+   * contêiner comum e ia parar **no feed**, com legenda e tudo. Não dava erro
+   * em lugar nenhum — a Meta aceita e publica —, e quem só olhasse a fila via
+   * "publicado".
+   *
+   * O padrão é `feed` para não mudar o comportamento de quem já usa a fila.
+   */
+  destino: 'feed' | 'story' = 'feed'
 ): Promise<string> => {
   const ehVideo = /\.(mp4|mov|webm)(\?|$)/i.test(mediaUrl);
+  const ehStory = destino === 'story';
 
   const container = await chamar(`${GRAPH}/${accountId}/media`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       [ehVideo ? 'video_url' : 'image_url']: mediaUrl,
-      ...(ehVideo ? { media_type: 'REELS' } : {}),
-      caption: legenda,
+      /**
+       * `STORIES` vence o `REELS`: um vídeo publicado como story é story, não
+       * reel. E a **legenda não vai** — a Meta ignora `caption` em story, e
+       * mandá-la faria a tela prometer um texto que não aparece.
+       */
+      ...(ehStory ? { media_type: 'STORIES' } : ehVideo ? { media_type: 'REELS' } : {}),
+      ...(ehStory ? {} : { caption: legenda }),
       access_token: token,
     }),
   });

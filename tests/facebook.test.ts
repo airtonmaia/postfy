@@ -116,9 +116,28 @@ describe('o token guardado é o da Página', () => {
 
 describe('publicar despacha pela rede da conexão', () => {
   it('o cron chama o publicador certo', () => {
-    expect(semComentarios(publicar)).toMatch(/publicarNoFacebook\(/);
-    expect(semComentarios(publicar)).toMatch(
-      /conexao\.platform === 'facebook'\s*\?\s*publicarNoFacebook/
+    /**
+     * A âncora é o **despacho**, não a forma de escrevê-lo.
+     *
+     * A primeira versão exigia o ternário literal
+     * `conexao.platform === 'facebook' ? publicarNoFacebook`, e reprovou
+     * quando o bloco virou um `if` — porque o caminho do Instagram passou a
+     * ter dois passos (feed e story) e não cabia mais numa expressão.
+     *
+     * O comportamento não mudou, só a sintaxe. Guarda presa à forma obriga a
+     * editá-la junto com o código, e editar a guarda junto com o código é como
+     * ela deixa de guardar.
+     */
+    const corpo = semComentarios(publicar);
+    const despacho = corpo.slice(corpo.indexOf("conexao.platform === 'facebook'"));
+
+    expect(despacho, 'o despacho por rede saiu de publicarItem').not.toBe('');
+    expect(
+      despacho.slice(0, 260),
+      'a rede facebook deixou de cair no publicador do Facebook'
+    ).toMatch(/publicarNoFacebook\(/);
+    expect(corpo, 'o publicador do Instagram saiu do caminho').toMatch(
+      /publicarNoInstagram\(/
     );
   });
 

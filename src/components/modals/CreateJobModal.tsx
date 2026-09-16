@@ -72,12 +72,14 @@ const CANAIS: {
 const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string }[]> = {
   instagram: [
     { valor: 'feed', rotulo: 'Feed' },
+    { valor: 'feed_story', rotulo: 'Feed + Story' },
     { valor: 'carousel', rotulo: 'Carrossel' },
     { valor: 'reel', rotulo: 'Reels' },
     { valor: 'story', rotulo: 'Story' },
   ],
   facebook: [
     { valor: 'feed', rotulo: 'Feed' },
+    { valor: 'feed_story', rotulo: 'Feed + Story' },
     { valor: 'carousel', rotulo: 'Carrossel' },
     { valor: 'reel', rotulo: 'Reels' },
     { valor: 'story', rotulo: 'Story' },
@@ -111,6 +113,19 @@ const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string
  * Interseção vazia (redes sem nada em comum) cai na lista do canal
  * principal: melhor do que um seletor sem nenhuma opção.
  */
+/**
+ * As outras origens da arte, no menu do botão "Adicionar mídia".
+ *
+ * Fora do componente porque agora são **dois** uploaders (feed e story), e
+ * duas cópias da mesma lista divergem na primeira vez que alguém acrescentar
+ * uma integração num só.
+ */
+const ORIGENS_DE_MIDIA = [
+  { rotulo: 'Canva', disponivel: false },
+  { rotulo: 'Google Drive', disponivel: false },
+  { rotulo: 'Dropbox', disponivel: false },
+];
+
 const formatosComuns = (canais: JobPlatform[]): { valor: JobFormat; rotulo: string }[] => {
   const listas = canais.map((c) => FORMATOS_POR_CANAL[c] || []);
   if (!listas.length) return FORMATOS_POR_CANAL.instagram;
@@ -170,6 +185,14 @@ export const CreateJobModal: React.FC = () => {
   // aqui virava a arte de todo post criado, e quem não reparasse publicava com
   // ela.
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  /**
+   * A arte do story, quando o formato é "Feed + Story".
+   *
+   * Lista própria, e não o segundo item de `mediaUrls`: ali o segundo item já
+   * é a página 2 do carrossel, e misturar os dois faria um carrossel de duas
+   * páginas virar feed+story sozinho.
+   */
+  const [storyMediaUrls, setStoryMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [erro, setErro] = useState('');
 
@@ -211,6 +234,7 @@ export const CreateJobModal: React.FC = () => {
       setFirstComment('');
       setConfiguracoes({});
       setMediaUrls([]);
+      setStoryMediaUrls([]);
       setErro('');
     }
   }, [isCreateJobModalOpen]);
@@ -388,6 +412,9 @@ export const CreateJobModal: React.FC = () => {
         caption: caption.trim(),
         // Só o texto de trabalho: quem é publicado é `caption`.
         draft: draft.trim() || undefined,
+        // Só quando o formato pede: guardar a arte do story num post de feed
+        // deixaria uma mídia órfã que nenhuma tela mostra.
+        storyMediaUrls: format === 'feed_story' ? storyMediaUrls : [],
         cta: '',
         hashtags: [],
         firstComment: firstComment.trim(),
@@ -637,20 +664,44 @@ export const CreateJobModal: React.FC = () => {
           {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
               upload neles seria pedir aprovação de algo que não existe. */}
           {tipo.pedeArte && (
-            <div className="pt-1">
+            <div className="pt-1 space-y-5">
               <MediaUploader
                 mediaUrls={mediaUrls}
                 onChange={setMediaUrls}
                 maxFiles={10}
-                label="Mídia e criativos"
+                label={format === 'feed_story' ? 'Mídia do Feed' : 'Mídia e criativos'}
+                helperText={
+                  format === 'feed_story'
+                    ? 'A arte que vai no feed, em 4:5. Para carrossel, você pode reordenar as páginas.'
+                    : undefined
+                }
                 /* Buscar a arte de onde ela já está é o próximo passo; hoje
                    não existe. Entram no menu desligadas, dizendo "em breve". */
-                origens={[
-                  { rotulo: 'Canva', disponivel: false },
-                  { rotulo: 'Google Drive', disponivel: false },
-                  { rotulo: 'Dropbox', disponivel: false },
-                ]}
+                origens={ORIGENS_DE_MIDIA}
               />
+
+              {/*
+                **Dois campos, porque são duas artes.**
+                
+                O feed é 4:5 e o story é 9:16: a mesma imagem nos dois sai
+                cortada num deles. Um campo só obrigaria a agência a escolher
+                qual dos dois sai errado — e o story é justamente o formato em
+                que a peça precisa ser vertical.
+
+                Um arquivo só em cada: story é uma tela, não uma sequência.
+                Quem quer mais de um story publica dois conteúdos, que é o que
+                a Meta também faz.
+              */}
+              {format === 'feed_story' && (
+                <MediaUploader
+                  mediaUrls={storyMediaUrls}
+                  onChange={setStoryMediaUrls}
+                  maxFiles={1}
+                  label="Mídia do Story"
+                  helperText="A arte vertical, em 9:16. Sai no story na mesma data do feed."
+                  origens={ORIGENS_DE_MIDIA}
+                />
+              )}
             </div>
           )}
 
@@ -904,6 +955,7 @@ export const CreateJobModal: React.FC = () => {
               avatar: clienteSelecionado?.avatar,
               canais,
               artes: tipo.pedeArte ? mediaUrls : [],
+              artesDoStory: format === 'feed_story' ? storyMediaUrls : [],
               legenda: caption,
               localizacao: String(configuracoes.localizacao || '') || undefined,
               dataPrevista: scheduledDate

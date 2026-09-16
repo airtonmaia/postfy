@@ -822,6 +822,45 @@ Protegido por `tests/instagram.test.ts`, que varre os arquivos **depois de
 remover os comentários** — o porquê de cada host do Facebook ter saído está
 registrado neles.
 
+### "Feed + Story" é uma peça com duas saídas, e o story não era story
+
+`publicarNoInstagram` **nunca mandou `media_type: 'STORIES'`**. Um conteúdo com
+formato `story` criava um contêiner comum e ia parar **no feed**, com legenda e
+tudo — a Meta aceita e publica, então não havia erro em lugar nenhum e a fila
+marcava "publicado". O formato nem chegava ao publicador: a assinatura era
+`(accountId, token, mediaUrl, legenda)`.
+
+O formato `feed_story` obrigou a consertar isso, e trouxe três decisões:
+
+- **A arte do story tem coluna própria** (`jobs.story_media_urls`), não é o
+  segundo item de `media_urls`. Ali o segundo item já significa "página 2 do
+  carrossel", e misturar os dois faria um carrossel de duas páginas virar
+  feed+story sozinho. E as proporções são outras — 4:5 e 9:16 —, então a mesma
+  imagem nos dois sai cortada num deles.
+- **`STORIES` vence `REELS`, e story não leva legenda.** Um vídeo publicado
+  como story é story, não reel. E a Meta **ignora** `caption` em story: mandá-la
+  faria a tela prometer um texto que nunca aparece.
+- **A falha do story não pode propagar.** Uma linha da fila publica dois
+  contêineres, feed primeiro. Se a exceção do story subir, o laço marca
+  `pendente` e a passada seguinte chama `publicarItem` de novo — que **começa
+  publicando o feed**. O cliente fica com dois posts iguais no perfil, e post
+  duplicado não volta.
+
+  Por isso a falha do story é capturada dentro de `publicarItem`: o item fecha
+  como **publicado**, com o motivo em `last_error` e `story_external_id` nulo.
+  `falhou` ali seria a fila mentindo nos dois sentidos — o feed saiu, e a
+  próxima passada republicaria.
+
+`external_id` continua sendo o do **feed**, que é o que `post_metrics` mede:
+story expira em 24h e não entra em relatório.
+
+Protegido por `tests/feed-mais-story.test.ts`. A guarda do despacho por rede,
+em `tests/facebook.test.ts`, precisou sair da sintaxe: ela exigia o ternário
+literal `conexao.platform === 'facebook' ? publicarNoFacebook` e reprovou quando
+o bloco virou um `if` — porque o caminho do Instagram passou a ter dois passos e
+não cabia numa expressão. Guarda presa à forma obriga a editá-la junto com o
+código, e editar a guarda junto com o código é como ela deixa de guardar.
+
 ### O agendador tinha tudo, menos as duas pontas
 
 Publicar de verdade precisa de três peças, e por meses existiam só a do meio:

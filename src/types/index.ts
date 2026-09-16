@@ -30,6 +30,15 @@ export type JobFormat =
   | 'carousel' 
   | 'reel' 
   | 'story' 
+  /**
+   * Uma peça, duas saídas: sai no feed **e** no story, na mesma data.
+   *
+   * A arte do story mora em `storyMediaUrls`, e não no segundo item de
+   * `mediaUrls`: ali o segundo item já significa "página 2 do carrossel". E as
+   * proporções são outras — 4:5 no feed, 9:16 no story —, então a mesma imagem
+   * nos dois sai cortada num deles.
+   */
+  | 'feed_story'
   | 'video' 
   | 'article';
 
@@ -309,6 +318,8 @@ export interface Job {
   firstComment?: string;
   link?: string;
   mediaUrls: string[];
+  /** A arte do story, quando `format` é `feed_story`. */
+  storyMediaUrls?: string[];
   
   // Versions and history
   currentVersion: number;

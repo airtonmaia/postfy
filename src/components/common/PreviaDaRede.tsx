@@ -35,6 +35,15 @@ export interface DadosDaPrevia {
   canais: JobPlatform[];
   /** Todas as artes: o carrossel precisa navegar entre elas. */
   artes: string[];
+  /**
+   * A arte do story, quando o formato é "Feed + Story".
+   *
+   * Separada de `artes` porque é isto que a prévia existe para mostrar: o
+   * story tem arte **própria**, em 9:16. Repetir a do feed na aba Story faria
+   * a prévia prometer um enquadramento que não vai ao ar — e a prévia é
+   * justamente onde a agência confere antes de mandar para aprovação.
+   */
+  artesDoStory?: string[];
   legenda: string;
   localizacao?: string;
   /** Data do agendamento, já formatada. Real — não é "Há 1 dia" de mockup. */
@@ -145,6 +154,17 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
   const perfil = dados.nomeDoPerfil || 'sua marca';
   const ehStory = quadro.chave === 'story';
 
+  /**
+   * No quadro de story, a arte do story — quando ela existe.
+   *
+   * Cai na do feed quando não existe, e isso é decisão: o quadro de story
+   * aparece para toda peça de Instagram, inclusive as que não são feed+story,
+   * e ali ele é só um enquadramento alternativo da mesma arte. Deixar vazio
+   * faria a aba parecer quebrada num post de feed comum.
+   */
+  const artesDoStory = (dados.artesDoStory || []).filter(Boolean);
+  const arteEmTela = ehStory && artesDoStory.length ? artesDoStory[0] : artes[pagina];
+
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -231,7 +251,7 @@ export const PreviaDaRede: React.FC<{ dados: DadosDaPrevia; className?: string }
         </div>
 
         <div className="relative">
-          <Arte url={artes[pagina]} proporcao={quadro.proporcao} />
+          <Arte url={arteEmTela} proporcao={quadro.proporcao} />
 
           {/* Carrossel: sem poder virar a página, a prévia só mostrava a
               primeira arte — e é justamente a terceira que costuma estar

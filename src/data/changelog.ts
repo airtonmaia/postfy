@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.43.0',
+    data: '2026-09-16',
+    resumo: 'Formato "Feed + Story": uma peça, duas artes, e o story saindo como story de verdade.',
+    novidades: [
+      'Novo formato "Feed + Story" no cadastro de conteúdo. Ao escolhê-lo, aparecem dois campos de mídia: um para a arte do feed (4:5) e um só para o story (9:16). Na data marcada, a peça sai nos dois.',
+      'O cliente vê as duas artes lado a lado na hora de aprovar, cada uma com o nome do lugar onde vai sair. Aprovar vendo só uma delas era aprovar metade da peça.',
+    ],
+    corrigido: [
+      'Conteúdo com formato "Story" era publicado no feed, com legenda e tudo. O aviso de publicação nunca disse isso: a Meta aceita o envio, então a fila marcava "publicado" e ninguém percebia. Agora o story sai como story.',
+      'Story não leva mais legenda no envio — o Instagram a ignora, e mandá-la fazia a tela prometer um texto que nunca apareceu.',
+    ],
+    melhorias: [
+      'Se o feed sair e o story falhar, o conteúdo fica como publicado e o motivo da falha do story aparece na fila. Marcá-lo como falho faria a próxima passada republicar o feed, e post repetido no perfil do cliente não volta.',
+    ],
+  },
+  {
     versao: '2.42.0',
     data: '2026-09-16',
     resumo: 'A foto do cliente agora é enquadrada por você, não cortada pelo meio.',

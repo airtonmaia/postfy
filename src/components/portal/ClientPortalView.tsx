@@ -56,6 +56,43 @@ import { useConfirmacao } from '../ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 /**
+ * As duas artes de "Feed + Story", lado a lado.
+ *
+ * O cliente aprova **o que vai ao ar**, e em feed+story vai ao ar duas coisas:
+ * a arte 4:5 do feed e a 9:16 do story. Mostrar só a primeira faria ele
+ * aprovar metade da peça sem saber — e a metade que ele não viu é a que sai
+ * vertical, que é onde o corte errado aparece.
+ *
+ * Elas dividem a largura em vez de virarem abas: a aprovação é uma decisão
+ * só, e esconder uma das duas atrás de um clique é a mesma omissão com um
+ * passo a mais.
+ */
+const CriativoDeFeedEStory: React.FC<{ feed?: string; story?: string }> = ({ feed, story }) => (
+  <div className="flex gap-0.5 bg-slate-900">
+    {([
+      { url: feed, rotulo: 'Feed', proporcao: 'aspect-[4/5]' },
+      { url: story, rotulo: 'Story', proporcao: 'aspect-[9/16]' },
+    ] as const).map(({ url, rotulo, proporcao }) => (
+      <div key={rotulo} className={`relative flex-1 ${proporcao} overflow-hidden bg-slate-900`}>
+        {url ? (
+          <img src={url} alt={`Arte do ${rotulo}`} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px]">
+            <Layers className="w-6 h-6" />
+            {/* Diz qual das duas falta, com nome: "Preview do Criativo" nas
+                duas metades não distinguiria a que está pendente. */}
+            <span>Sem arte de {rotulo}</span>
+          </div>
+        )}
+        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/70 text-white backdrop-blur-xs">
+          {rotulo}
+        </span>
+      </div>
+    ))}
+  </div>
+);
+
+/**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
  * quadrado ou 16:9 genérico. Vertical (Reels/Stories) vem antes da rede,
  * porque manda mais na proporção do que a plataforma em si.
@@ -706,11 +743,21 @@ export const ClientPortalView: React.FC = () => {
                     <div
                       className={`relative flex items-center justify-center overflow-hidden ${
                         definicaoDoTipo(job.tipo).pedeArte
-                          ? `${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900`
+                          ? job.format === 'feed_story'
+                            ? 'bg-slate-900'
+                            : `${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900`
                           : 'py-4 bg-slate-100 dark:bg-slate-800'
                       }`}
                     >
+                      {definicaoDoTipo(job.tipo).pedeArte && job.format === 'feed_story' && (
+                        <CriativoDeFeedEStory
+                          feed={job.mediaUrls?.[0]}
+                          story={job.storyMediaUrls?.[0]}
+                        />
+                      )}
+
                       {definicaoDoTipo(job.tipo).pedeArte &&
+                        job.format !== 'feed_story' &&
                         (job.mediaUrls && job.mediaUrls.length > 0 ? (
                           <img
                             src={job.mediaUrls[0]}
