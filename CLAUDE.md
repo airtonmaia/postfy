@@ -860,6 +860,55 @@ parâmetro a mais.
 
 ---
 
+## Relatórios media produção; métrica real é outra tabela
+
+Relatórios sempre somou o que a agência **faz** — quantas peças, prazos
+cumpridos, o que está atrasado. Isso responde como ela trabalha, e não
+responde a pergunta que o cliente dela faz ao ler o relatório: *o que isso
+deu?* `post_metrics` é o que responde.
+
+**Quem mede é o cron, e isso não é escolha de arquitetura — é a única opção.**
+O número vem da Meta pelo token, e `social_tokens` tem RLS ligada com zero
+políticas: nem o dono da agência alcança. O navegador não tem como buscar isso,
+então a tela lê `post_metrics`, que só a chave de serviço escreve. Pela mesma
+razão de `subscriptions`, a tabela **não tem política de escrita** para sessão
+autenticada: uma ali deixaria qualquer dono de agência afirmar o alcance que
+quisesse — e o número existe justamente para ser mostrado ao cliente.
+
+**Nulo é "não medi"; zero é "medi e deu zero".** É a regra central, e ela
+aparece em quatro lugares: nenhuma coluna de métrica tem `default 0`,
+`agregar()` pula os nulos **e devolve `medidos`** junto do total, a tela mostra
+`—` quando `medidos === 0`, e o rodapé explica o traço. Somar nulo como zero
+produziria um total que parece medido e não é — dez posts sem medição viram
+"alcance: 0", e a agência leva esse número para a reunião com o cliente. É a
+armadilha 9 na tela que mais custa caro: diferente do Financeiro, aqui quem é
+enganado não é o dono do produto, é o cliente de quem paga por ele.
+
+Quatro decisões que não são detalhe:
+
+- **Duas chamadas por post, de propósito.** `like_count` e `comments_count`
+  vêm no objeto da mídia; `reach`, `saved` e `shares` vêm de `/insights`, que
+  tem outras permissões e um catálogo que a Meta **muda entre versões**
+  (`impressions` saiu para mídia criada depois de julho de 2024). O
+  `/insights` fica num `try` próprio: perder o alcance não pode levar junto as
+  curtidas que já vieram.
+- **`medido_em` avança mesmo quando a medição falha.** A fila de medição é
+  ordenada por ele; sem avançar, a linha quebrada é tentada em toda passada e
+  segura todas as outras atrás dela — a medição para sem dar erro visível.
+- **A linha nasce sem número, com `medido_em` no epoch**, e o cron faz
+  *backfill* do que já foi publicado. Começar do deploy esconderia o histórico,
+  que é a mesma razão de a Biblioteca ler o balde e não um índice.
+- **A medição vem depois da fila na passada**, dentro do mesmo `ORCAMENTO_MS`.
+  Publicar é o compromisso desta rota; medir pode esperar cinco minutos.
+
+**Cobre só o que saiu pela fila do Orquesia**, e a tela diz isso. Post
+publicado à mão no Instagram não tem como ser associado a um conteúdo daqui, e
+omitir o recorte faria o número parecer o desempenho do perfil inteiro.
+
+Protegido por `tests/metricas.test.ts`.
+
+---
+
 ## Cobrança: `subscriptions` é a agência com o produto, `plans` é outra coisa
 
 Os dois nomes parecem a mesma coisa e não são. Confundi-los é o caminho mais
@@ -1461,6 +1510,8 @@ src/components/ui/dropdown-menu.tsx  primitivo shadcn, com o canto traduzido
 src/components/layout/WorkspaceSwitcher.tsx  troca de agência, no DropdownMenu
 src/components/layout/PlanoDaAgencia.tsx     o plano no rodapé, lido do banco
 src/lib/biblioteca.ts      lista o balde e deriva a pasta do cliente pelo uso
+src/lib/metricas.ts        alcance e engajamento reais; nulo != zero
+src/components/reports/DesempenhoReal.tsx  o que o conteúdo deu, com o recorte à vista
 src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
@@ -1483,7 +1534,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 33 migrações
+supabase/migrations/       schema é a fonte de verdade; 37 migrações
 ```
 
 ---
