@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * Nenhuma tela afirma o que não mediu.
@@ -24,16 +25,6 @@ const varrer = (dir: string): string[] =>
     return /\.tsx$/.test(caminho) ? [caminho] : [];
   });
 
-/**
- * Comentário não é tela.
- *
- * O projeto registra nos comentários o que deu errado antes — inclusive os
- * nomes das agências inventadas e os números que a tela afirmava. Sem tirar
- * os comentários, a guarda acusaria justamente a explicação do bug que ela
- * existe para impedir, e a saída seria apagar a memória do bug.
- */
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const telas = varrer('src/components').map((arquivo) => ({
   arquivo,

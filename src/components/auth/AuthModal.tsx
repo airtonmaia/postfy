@@ -5,6 +5,7 @@ import {
   Upload, KeyRound, Check, AlertTriangle, Eye, EyeOff, Link2, User as UserIcon,
 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
+import { RecorteQuadrado } from '../ui/recorte-quadrado';
 import { arquivosApi } from '../../lib/api';
 import { salvarPerfil, alterarSenha, pedirTrocaDeEmail } from '../../lib/perfil';
 import { Button } from '../ui/button';
@@ -108,6 +109,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  /**
+   * A foto escolhida, esperando o enquadramento.
+   *
+   * Este caminho **não passa pelo `FileUpload`** — ele chama `arquivosApi`
+   * direto —, então o recorte é montado aqui à mão. O avatar é desenhado num
+   * círculo por `Avatar`, e sem recorte o navegador corta o centro: numa foto
+   * de perfil o rosto quase nunca está no centro geométrico.
+   */
+  const [fotoARecortar, setFotoARecortar] = useState<File | null>(null);
+
   const enviarFoto = async (arquivo: File) => {
     if (!currentWorkspace?.id) {
       setErro('Sem agência aberta não dá para enviar arquivo. Cole o endereço da imagem.');
@@ -188,7 +199,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     className="hidden"
                     onChange={(e) => {
                       const arquivo = e.target.files?.[0];
-                      if (arquivo) void enviarFoto(arquivo);
+                      // SVG entra inteiro: recortá-lo exigiria rasterizar.
+                      if (arquivo) {
+                        if (arquivo.type === 'image/svg+xml') void enviarFoto(arquivo);
+                        else setFotoARecortar(arquivo);
+                      }
                       e.target.value = '';
                     }}
                   />
@@ -417,6 +432,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </Secao>
         </div>
       </div>
+
+      {/*
+        Sem esta linha o `setFotoARecortar` guarda a foto e **nada acontece**:
+        escolher o arquivo deixa de fazer efeito, sem erro e sem pista — a
+        mesma família do `useConfirmacao()` sem o `{dialogo}` na árvore.
+      */}
+      {fotoARecortar && (
+        <RecorteQuadrado
+          arquivo={fotoARecortar}
+          aoCancelar={() => setFotoARecortar(null)}
+          aoConfirmar={(recortada) => {
+            setFotoARecortar(null);
+            void enviarFoto(recortada);
+          }}
+        />
+      )}
     </div>
   );
 };

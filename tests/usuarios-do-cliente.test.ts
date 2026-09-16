@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentariosSql as semComentarios } from './util/semComentarios';
 
 /**
  * O recorte por papel mora no banco, e é invisível daqui.
@@ -34,13 +35,6 @@ const migracaoDosUsuarios = readFileSync(
   'utf-8'
 );
 
-/**
- * Comentário não é código — mesma razão do `semComentarios` em
- * tests/instagram.test.ts. A migração explica nos comentários exatamente o
- * que vazava; sem a limpeza, a guarda acharia a explicação e daria por
- * satisfeita.
- */
-const semComentarios = (sql: string): string => sql.replace(/^\s*--.*$/gm, '');
 
 /** O corpo de uma função, de `create or replace function <nome>` até o `$$;`. */
 const corpoDaFuncao = (sql: string, nome: string): string => {

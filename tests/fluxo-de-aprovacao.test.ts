@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * O caminho do conteúdo, do cadastro ao aviso ao cliente.
@@ -21,8 +22,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const modal = semComentarios(
   readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')

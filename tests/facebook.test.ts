@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * O Facebook é **outro fluxo**, e a armadilha é achar que é o mesmo com outro
@@ -20,8 +21,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), 'utf-8');
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * Botão tem uma escala só, e ela mora no componente.
@@ -21,8 +22,6 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
-const semComentarios = (fonte: string): string =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 function listarFontes(dir: string, saida: string[] = []): string[] {
   for (const entrada of readdirSync(dir)) {

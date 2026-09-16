@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.42.0',
+    data: '2026-09-16',
+    resumo: 'A foto do cliente agora é enquadrada por você, não cortada pelo meio.',
+    novidades: [
+      'Ao enviar o avatar de um cliente — no cadastro ou na ficha — abre uma tela para arrastar e dar zoom até a foto ficar como você quer. O que fica dentro do quadrado é o que é salvo, e a mesma tela vale para a sua própria foto de perfil.',
+      'Foto em pé abre já enquadrada no terço de cima, que é onde o rosto costuma estar. Antes o navegador cortava o centro, e o rosto ficava pela metade.',
+    ],
+    melhorias: [
+      'O arquivo que sobe é o recortado, não o original: as telas ficam mais leves e a foto aparece igual em todo lugar, inclusive no e-mail — que não tem como recortar nada.',
+      'Logo em SVG continua entrando inteiro, sem passar pelo recorte: recortá-lo tiraria dele justamente o que faz um vetor valer a pena. O logo da agência também fica de fora, porque ele é desenhado por inteiro nas telas, não dentro de um quadrado.',
+    ],
+    corrigido: [
+      'Uma falha na própria bateria de testes do sistema: a limpeza de comentários apagava até 44% de três arquivos antes de conferi-los, e as verificações passavam sem enxergar quase metade do código. Corrigido, com um teste que impede isso de voltar.',
+    ],
+  },
+  {
     versao: '2.41.0',
     data: '2026-09-16',
     resumo: 'Campo de rascunho ao lado da legenda, e todas as abas do sistema na mesma peça.',

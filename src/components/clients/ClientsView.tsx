@@ -253,6 +253,7 @@ export const ClientsView: React.FC = () => {
                 label="Logo / Avatar da Marca"
                 compact
                 imageOnly
+                recorteQuadrado
                 value={avatar}
                 onFileSelect={(file) => setAvatar(file.url)}
                 onFileRemove={() => setAvatar('')}
