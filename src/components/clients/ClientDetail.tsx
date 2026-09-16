@@ -3,17 +3,55 @@ import { Client, ClientPassword, ClientInvoice, ClientFile, ClientBriefing } fro
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard } from '../../lib/utils';
-import { 
-  User, FolderOpen, Key, Receipt, FileText, Upload, Plus, 
+import {
+  User, FolderOpen, Key, Receipt, FileText, Upload, Plus,
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
   ShieldCheck, AlertCircle, Calendar, DollarSign, Globe, Phone, Mail,
-  Share2, Sparkles, Building2, CheckCircle2, Users, Radio
+  Share2, Sparkles, Building2, CheckCircle2, Users, Radio,
+  Download, FileType2, Image as ImageIcon, Film, Sheet, Link2
 } from 'lucide-react';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { ClientUsersTab } from './ClientUsersTab';
 import { ConexoesDoPerfil } from './ConexoesDoPerfil';
+import { AnotacoesDoCliente } from './AnotacoesDoCliente';
 import { Button } from '../ui/button';
+import { ComTooltip } from '../ui/tooltip';
+import { useAviso } from '../ui/alert-dialog';
+import {
+  familiaDoArquivo,
+  tipoDoArquivo,
+  type FamiliaDeArquivo,
+} from '../../lib/arquivosDoCliente';
+
+/**
+ * O ícone de cada família, e a cor de cada um.
+ *
+ * Fora do componente porque são constantes: dentro, o objeto nasceria de novo
+ * a cada render, e um mapa de ícones recriado por linha da lista é trabalho
+ * que não rende pixel nenhum.
+ *
+ * O PDF tem cor própria — foi o pedido, e é o formato que mais aparece em
+ * contrato e briefing. Uma pasta roxa em cima de um contrato não diz nada
+ * sobre o que vai abrir.
+ */
+const ICONE_DO_ARQUIVO: Record<FamiliaDeArquivo, typeof FolderOpen> = {
+  pdf: FileType2,
+  imagem: ImageIcon,
+  video: Film,
+  planilha: Sheet,
+  documento: FileText,
+  outro: Link2,
+};
+
+const CORES_DO_ARQUIVO: Record<FamiliaDeArquivo, string> = {
+  pdf: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/40',
+  imagem: 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/40',
+  video: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40',
+  planilha: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40',
+  documento: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+  outro: 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-900/40',
+};
 
 interface ClientDetailProps {
   client: Client;
@@ -52,6 +90,56 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
   const [fileCat, setFileCat] = useState<ClientFile['category']>('identidade_visual');
   const [fileUrl, setFileUrl] = useState('');
   const [fileSize, setFileSize] = useState('1.5 MB');
+  const [fileKind, setFileKind] = useState<ClientFile['kind']>('arquivo');
+  const [baixando, setBaixando] = useState<string | null>(null);
+  const { avisar, dialogo: dialogoDeAviso } = useAviso();
+
+  /**
+   * Baixar de verdade, e não "abrir numa aba".
+   *
+   * `<a download>` **não funciona entre origens**: o arquivo mora no R2, em
+   * outro domínio, e nesse caso o navegador ignora o atributo e navega até a
+   * URL. PDF e imagem abrem na aba em vez de descer para a máquina — e o botão
+   * escrito "baixar" teria feito outra coisa, que é a armadilha 9 na sua forma
+   * mais barata.
+   *
+   * O caminho que funciona é buscar os bytes e entregar um blob da **própria**
+   * origem, onde o `download` vale. Isso depende de o balde liberar `GET` no
+   * CORS para este domínio — o `.env.example` já pede a regra por causa do
+   * `PUT` do upload, e sem ela o `fetch` falha.
+   *
+   * Quando falha, o arquivo abre em outra aba e a tela **diz** que abriu em
+   * vez de baixar, com o nome do que falta configurar. Cair para "abrir"
+   * calado deixaria a pessoa procurando o arquivo na pasta de downloads.
+   */
+  const baixarArquivo = async (file: ClientFile) => {
+    setBaixando(file.id);
+    try {
+      const resposta = await fetch(file.url);
+      if (!resposta.ok) throw new Error(String(resposta.status));
+
+      const blob = await resposta.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch {
+      window.open(file.url, '_blank', 'noopener,noreferrer');
+      avisar({
+        titulo: 'O arquivo abriu em outra aba',
+        descricao:
+          'O navegador não conseguiu baixar direto: o balde de arquivos precisa liberar o ' +
+          'método GET para este endereço na política de CORS (a mesma regra que o envio já usa). ' +
+          'Enquanto isso, salve pela aba que abriu.',
+      });
+    } finally {
+      setBaixando(null);
+    }
+  };
 
   const [showAddInvoice, setShowAddInvoice] = useState(false);
   const [invNumber, setInvNumber] = useState('');
@@ -143,10 +231,14 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       name: fileName,
       category: fileCat,
       url: fileUrl || 'https://drive.google.com',
-      size: fileSize || '2.0 MB'
+      size: fileSize || '2.0 MB',
+      // Gravado agora para que a linha nova não dependa da adivinhação que
+      // `tipoDoArquivo()` faz pelas antigas.
+      kind: fileKind,
     });
     setFileName('');
     setFileUrl('');
+    setFileKind('arquivo');
     setShowAddFile(false);
   };
 
@@ -482,6 +574,9 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                       setFileUrl(file.url);
                       if (!fileName) setFileName(file.name);
                       if (file.size) setFileSize(file.size);
+                      // `type === 'link'` é o que o FileUpload marca no modo
+                      // "inserir link", onde não há bytes para medir.
+                      setFileKind(file.type === 'link' ? 'link' : 'arquivo');
                     }}
                     onFileRemove={() => setFileUrl('')}
                   />
@@ -506,50 +601,88 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
 
             {/* File List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(client.files || []).map(file => (
-                <div 
-                  key={file.id} 
-                  className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 hover:border-purple-300 transition"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-900/40">
-                      <FolderOpen className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">{file.name}</span>
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
-                        <span className="capitalize">{file.category.replace('_', ' ')}</span>
-                        <span>&bull;</span>
-                        <span>{file.size}</span>
-                        <span>&bull;</span>
-                        <span>{file.uploadedAt}</span>
+              {(client.files || []).map(file => {
+                const tipo = tipoDoArquivo(file);
+                const familia = familiaDoArquivo(file);
+                const Icone = ICONE_DO_ARQUIVO[familia];
+
+                return (
+                  <div
+                    key={file.id}
+                    className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 hover:border-purple-300 transition"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/*
+                        O ícone diz o que vai abrir. Era `FolderOpen` para tudo
+                        — contrato em PDF, foto e link do Drive com a mesma
+                        pasta —, e "pasta" é justamente o que nenhum deles é.
+                      */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${CORES_DO_ARQUIVO[familia]}`}>
+                        <Icone className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">{file.name}</span>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                          <span className="capitalize">{file.category.replace('_', ' ')}</span>
+                          <span>&bull;</span>
+                          <span>{tipo === 'link' ? 'Link externo' : file.size}</span>
+                          <span>&bull;</span>
+                          <span>{file.uploadedAt}</span>
+                        </div>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/*
+                        Duas ações diferentes, porque são duas coisas
+                        diferentes: o anexo é nosso e desce para a máquina; o
+                        link é a pasta de outra pessoa e abre onde ela mora.
+                        Um só ícone para os dois fazia "abrir" a única saída
+                        para um arquivo que a pessoa quer guardar.
+                      */}
+                      {tipo === 'link' ? (
+                        <ComTooltip texto="Abrir link em nova aba">
+                          <Button variant="ghost" size="icon-sm" asChild>
+                            <a href={file.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </ComTooltip>
+                      ) : (
+                        <ComTooltip texto="Baixar arquivo">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={baixando === file.id}
+                            onClick={() => baixarArquivo(file)}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </ComTooltip>
+                      )}
+                      <ComTooltip texto="Excluir arquivo">
+                        <Button variant="destructive" size="icon-sm"
+                          onClick={() => deleteClientFile(client.id, file.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </ComTooltip>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <a 
-                      href={file.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="p-2 text-slate-400 hover:text-purple-600 transition rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
-                      title="Abrir arquivo"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <Button variant="destructive" size="icon-sm" 
-                      onClick={() => deleteClientFile(client.id, file.id)} 
-                      title="Excluir arquivo"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {(client.files || []).length === 0 && (
                 <div className="col-span-2 text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
                   Nenhum arquivo ou link cadastrado para este cliente.
                 </div>
               )}
+            </div>
+
+            {/* Anotações: bloco de texto da agência sobre o cliente. */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+              <div className="pt-6">
+                <AnotacoesDoCliente client={client} />
+              </div>
             </div>
           </div>
         )}
@@ -948,6 +1081,14 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
           </div>
         )}
       </div>
+
+      {/*
+        O `avisar` não abre nada sem esta linha: o hook devolve o diálogo e
+        quem chamou precisa pô-lo na árvore. Esquecer não quebra `tsc`, nem o
+        vitest, nem o build — o download falharia calado, que é exatamente o
+        que ele existe para não fazer.
+      */}
+      {dialogoDeAviso}
     </div>
   );
 };

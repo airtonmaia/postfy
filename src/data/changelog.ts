@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.40.0',
+    data: '2026-09-16',
+    resumo: 'Anotações na ficha do cliente, e a lista de arquivos passou a dizer o que cada linha é.',
+    novidades: [
+      'Nova seção "Anotações" na aba Arquivos do cliente: blocos de texto com título, cada um com visualizar, editar e excluir. São internas da agência — o Portal do Cliente não recebe o texto, e quem corta é o banco, não a tela.',
+      'Botão de baixar nos arquivos anexados, e de abrir em nova aba nos links. Antes era o mesmo ícone de "abrir" para os dois, e não havia como guardar um arquivo sem passar por uma aba.',
+    ],
+    melhorias: [
+      'Cada arquivo ganhou o ícone do que ele é — PDF, imagem, vídeo, planilha, documento ou link. Era uma pasta roxa para tudo, inclusive para contrato em PDF.',
+      'Os ícones soltos da lista agora têm dica ao passar o mouse, dizendo o que cada um faz.',
+      'A linha de um link mostra "Link externo" no lugar do tamanho, que nesse caso era sempre inventado.',
+    ],
+    corrigido: [
+      'A nota interna do cliente (a que aparece no card da lista) era enviada ao navegador de quem entrava no Portal do Cliente. Ela não era desenhada em tela, mas estava lá para quem abrisse o inspetor. Agora o banco a remove antes de responder.',
+    ],
+  },
+  {
     versao: '2.39.0',
     data: '2026-09-16',
     resumo: 'Dá para cadastrar cliente de dentro do próprio seletor de clientes.',
