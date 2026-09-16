@@ -92,13 +92,13 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
     return () => window.removeEventListener('message', aoReceber);
   }, [recarregar]);
 
-  const conectar = async () => {
+  const conectar = async (rede: 'instagram' | 'facebook') => {
     setErro(null);
     setConectando(true);
     try {
       // O cliente não é escolhido aqui: ele é o dono da ficha aberta. É a
       // diferença desta tela para a da agência, e o que a torna um clique só.
-      await conectarConta(currentWorkspace.id, clientId);
+      await conectarConta(currentWorkspace.id, clientId, rede);
     } catch (e) {
       setConectando(false);
       setErro(
@@ -215,7 +215,10 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                   ) : rede.disponivel ? (
                     <Button
                       type="button"
-                      onClick={conectar}
+                      // A rede vem do item da lista. Cada uma tem app e
+                      // diálogo próprios, e misturar os escopos invalida a
+                      // autorização do Instagram.
+                      onClick={() => conectar(rede.id as 'instagram' | 'facebook')}
                       disabled={conectando}
                     >
                       {conectando ? (

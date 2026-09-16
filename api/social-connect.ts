@@ -9,6 +9,7 @@ import {
   textoValido,
 } from './_lib/auth.js';
 import { urlDeAutorizacao } from './_lib/instagram.js';
+import { urlDeAutorizacao as urlDoFacebook } from './_lib/facebook.js';
 
 
 /**
@@ -49,9 +50,19 @@ export const montarEstado = (
   workspaceId: string,
   userId: string,
   segredo: string,
-  clientId?: string
+  clientId?: string,
+  /**
+   * Qual fluxo de OAuth está em curso.
+   *
+   * Vai **dentro do estado assinado**, e não na query do retorno, pela mesma
+   * razão que o cliente vai: quem chega em `social-callback` veio da Meta, sem
+   * sessão. Uma `rede` escolhida na URL faria o retorno do Instagram ser
+   * trocado pelo do Facebook — e as duas trocas de código batem em endpoints
+   * diferentes, com segredos de apps diferentes.
+   */
+  rede: 'instagram' | 'facebook' = 'instagram'
 ): string => {
-  const corpo = `${workspaceId}.${userId}.${Date.now()}.${clientId ?? ''}`;
+  const corpo = `${workspaceId}.${userId}.${Date.now()}.${clientId ?? ''}.${rede}`;
   return `${Buffer.from(corpo).toString('base64url')}.${assinarEstado(corpo, segredo)}`;
 };
 
@@ -60,7 +71,7 @@ export const conferirEstado = (
   estado: string,
   segredo: string,
   validadeMs = 15 * 60_000
-): { workspaceId: string; userId: string; clientId?: string } | null => {
+): { workspaceId: string; userId: string; clientId?: string; rede: 'instagram' | 'facebook' } | null => {
   const [corpoB64, assinatura] = estado.split('.');
   if (!corpoB64 || !assinatura) return null;
 
@@ -77,13 +88,17 @@ export const conferirEstado = (
   // caracteres iniciais estavam certos.
   if (esperada.length !== recebida.length || !timingSafeEqual(esperada, recebida)) return null;
 
-  const [workspaceId, userId, emissao, clientId] = corpo.split('.');
+  const [workspaceId, userId, emissao, clientId, redeCrua] = corpo.split('.');
+  // Estado antigo, emitido antes do Facebook existir, não tem o campo. Ele
+  // continua valendo por 15 minutos depois do deploy, e cai no Instagram —
+  // que era a única rede quando ele foi assinado.
+  const rede = redeCrua === 'facebook' ? 'facebook' : 'instagram';
   if (!workspaceId || !userId || !emissao) return null;
   if (Date.now() - Number(emissao) > validadeMs) return null;
 
   // Um corpo de três campos é um estado emitido antes de o cliente existir
   // aqui. Continua válido — vira conexão da agência, sem cliente.
-  return { workspaceId, userId, clientId: clientId || undefined };
+  return { workspaceId, userId, clientId: clientId || undefined, rede };
 };
 
 async function handler(request: Request): Promise<Response> {
@@ -94,17 +109,37 @@ async function handler(request: Request): Promise<Response> {
   const usuario = await usuarioDaRequisicao(request);
   if (!usuario) return naoAutenticado();
 
-  const appId = process.env.INSTAGRAM_APP_ID;
+  /**
+   * Qual rede, e **credenciais separadas para cada uma**.
+   *
+   * `FACEBOOK_APP_ID` não é `INSTAGRAM_APP_ID`: são apps diferentes no mesmo
+   * painel, e usar um no lugar do outro falha só depois de a pessoa já ter
+   * digitado a senha, com uma mensagem que não nomeia a causa.
+   */
+  const corpoDaRede = await request.clone().json().catch(() => ({} as any));
+  const rede: 'instagram' | 'facebook' =
+    corpoDaRede?.rede === 'facebook' ? 'facebook' : 'instagram';
+
+  const appId =
+    rede === 'facebook' ? process.env.FACEBOOK_APP_ID : process.env.INSTAGRAM_APP_ID;
+  const appSecret =
+    rede === 'facebook'
+      ? process.env.FACEBOOK_APP_SECRET
+      : process.env.INSTAGRAM_APP_SECRET;
   const segredo = SEGREDO_DO_ESTADO();
 
-  if (!appId || !process.env.INSTAGRAM_APP_SECRET || !segredo) {
+  if (!appId || !appSecret || !segredo) {
     return json(
       {
         error:
-          'Conexão com o Instagram não configurada. Defina INSTAGRAM_APP_ID, ' +
-          'INSTAGRAM_APP_SECRET e OAUTH_STATE_SECRET. Atenção: o app id do ' +
-          'Instagram não é o do app da Meta — ele fica em Instagram → ' +
-          'Configuração da API.',
+          rede === 'facebook'
+            ? 'Conexão com o Facebook não configurada. Defina FACEBOOK_APP_ID, ' +
+              'FACEBOOK_APP_SECRET e OAUTH_STATE_SECRET. Publicar numa Página ' +
+              'exige revisão do app na Meta para pages_manage_posts.'
+            : 'Conexão com o Instagram não configurada. Defina INSTAGRAM_APP_ID, ' +
+              'INSTAGRAM_APP_SECRET e OAUTH_STATE_SECRET. Atenção: o app id do ' +
+              'Instagram não é o do app da Meta — ele fica em Instagram → ' +
+              'Configuração da API.',
         code: 'SOCIAL_NOT_CONFIGURED',
       },
       503
@@ -160,11 +195,15 @@ async function handler(request: Request): Promise<Response> {
 
     const base = process.env.APP_URL || 'https://app.orquesia.com.br';
     const redirectUri = `${base}/api/social-callback`;
-    const estado = montarEstado(workspaceId, usuario.id, segredo, clientId || undefined);
+    const estado = montarEstado(workspaceId, usuario.id, segredo, clientId || undefined, rede);
 
-    // `www.instagram.com/oauth/authorize`, e não o diálogo do Facebook: a
-    // conta que autoriza é a do Instagram, sem Página no caminho.
-    const url = urlDeAutorizacao(appId, redirectUri, estado);
+    // Dois diálogos diferentes, e os escopos de um **invalidam** a
+    // autorização do outro: `pages_*` fazem a tela do Instagram recusar. Por
+    // isso a escolha acontece aqui, e nunca num pedido que junte os dois.
+    const url =
+      rede === 'facebook'
+        ? urlDoFacebook(appId, redirectUri, estado)
+        : urlDeAutorizacao(appId, redirectUri, estado);
 
     // A URL de redirecionamento vai junto porque ela precisa estar cadastrada
     // **igual** na Meta, e o erro de não bater só aparece depois de a pessoa

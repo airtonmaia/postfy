@@ -19,6 +19,10 @@ describe('estado assinado do OAuth', () => {
     expect(conferirEstado(estado, SEGREDO)).toEqual({
       workspaceId: AGENCIA,
       userId: USUARIO,
+      // A rede entra no estado pela mesma razão que o cliente: no retorno não
+      // há sessão, e uma `rede` escolhida na query faria o retorno do
+      // Instagram cair no fluxo do Facebook — outro endpoint, outro segredo.
+      rede: 'instagram',
     });
   });
 
@@ -32,6 +36,7 @@ describe('estado assinado do OAuth', () => {
       workspaceId: AGENCIA,
       userId: USUARIO,
       clientId: CLIENTE,
+      rede: 'instagram',
     });
   });
 
@@ -44,7 +49,26 @@ describe('estado assinado do OAuth', () => {
       workspaceId: AGENCIA,
       userId: USUARIO,
       clientId: undefined,
+      // Sem o campo, cai no Instagram — que era a única rede quando este
+      // estado foi assinado. Ele vale por mais 15 minutos depois do deploy.
+      rede: 'instagram',
     });
+  });
+
+  it('a rede vai no corpo assinado, e trocá-la invalida o estado', () => {
+    /**
+     * O ataque que isto barra: pegar um retorno legítimo do Instagram e
+     * reescrever a rede para `facebook`. As duas trocas de código batem em
+     * endpoints diferentes, com segredos de apps diferentes — e a conexão
+     * gravada diria Página onde é conta.
+     */
+    const estado = montarEstado(AGENCIA, USUARIO, SEGREDO, undefined, 'facebook');
+    expect(conferirEstado(estado, SEGREDO)?.rede).toBe('facebook');
+
+    const [corpoB64, assinatura] = estado.split('.');
+    const trocado = Buffer.from(corpoB64, 'base64url').toString().replace('facebook', 'instagram');
+    const forjado = `${Buffer.from(trocado).toString('base64url')}.${assinatura}`;
+    expect(conferirEstado(forjado, SEGREDO)).toBeNull();
   });
 
   it('recusa o cliente trocado no meio do caminho', () => {

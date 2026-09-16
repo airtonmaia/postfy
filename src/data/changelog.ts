@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.37.0',
+    data: '2026-09-16',
+    resumo: 'O Facebook entrou na fila: Página conectada publica sozinha na data.',
+    novidades: [
+      'Conectar uma Página do Facebook na ficha do cliente, e o conteúdo agendado sai sozinho na data — como já acontecia com o Instagram. Foto e vídeo.',
+      'A aba Integrações mostra se as credenciais do Facebook estão configuradas, separadas das do Instagram: são dois apps diferentes no mesmo painel da Meta, e trocar um pelo outro falha só depois de a senha já ter sido digitada.',
+    ],
+    melhorias: [
+      'Publicar numa Página exige a revisão de pages_manage_posts na Meta, e a tela diz isso em vez de prometer. Com o app em desenvolvimento, funciona nas Páginas que você administra.',
+    ],
+  },
+  {
     versao: '2.36.0',
     data: '2026-09-16',
     resumo: 'O menu lateral das duas áreas passou a usar a mesma peça, sem mudar um pixel.',

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { REDES_DA_META } from '../src/lib/redes';
 
@@ -73,14 +74,24 @@ describe('a ficha do cliente e o portal falam a mesma língua', () => {
 
 describe('conexões do perfil: só o que conecta de verdade', () => {
   /**
-   * A aba lista as quatro redes da Meta, e só o Instagram conecta. Marcar
-   * outra como disponível sem escrever o fluxo daria um botão que abre, pede
-   * a senha e falha depois — que é pior que botão ausente, e foi exatamente
-   * o custo de ter escolhido o fluxo errado do Instagram uma vez.
+   * A aba lista as quatro redes da Meta, e conecta as que têm o fluxo de
+   * OAuth **escrito no servidor**. Marcar uma como disponível sem isso daria
+   * um botão que abre, pede a senha e falha depois — pior que botão ausente,
+   * e foi exatamente o custo de ter escolhido o fluxo errado do Instagram
+   * uma vez.
+   *
+   * A guarda deixou de ser a lista literal e passou a exigir o arquivo: era
+   * a lista que teria de ser editada à mão para o Facebook entrar, e editar
+   * a guarda junto com o código é como ela deixa de guardar.
    */
-  it('só o Instagram está disponível, porque só ele tem OAuth escrito', () => {
-    const disponiveis = REDES_DA_META.filter((r) => r.disponivel).map((r) => r.id);
-    expect(disponiveis).toEqual(['instagram']);
+  it('toda rede disponível tem o fluxo de OAuth escrito', () => {
+    for (const rede of REDES_DA_META.filter((r) => r.disponivel)) {
+      const caminho = join('api', '_lib', `${rede.id}.ts`);
+      expect(
+        existsSync(caminho),
+        `${rede.id} está disponível sem ${caminho} — o botão abre, pede a senha e falha depois`
+      ).toBe(true);
+    }
   });
 
   it('toda rede indisponível diz o que falta, com nome', () => {

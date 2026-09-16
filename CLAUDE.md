@@ -849,14 +849,44 @@ sozinho, e hoje tem **só o Instagram**. `tests/publicacao.test.ts` falha se uma
 rede entrar nessa lista sem `publicarNo<Rede>` existir no servidor — a tela
 deriva dela o que dizer, então acrescentar um nome ali é prometer disparo.
 
-**O Facebook não é "mais um nome na lista".** É outro fluxo de OAuth, outro app
-id, e outra revisão na Meta: quem publica numa Página é o token **da Página**,
-obtido por `/me/accounts` no login do Facebook, com `pages_show_list`,
-`pages_read_engagement` e `pages_manage_posts`. Esses escopos **invalidam a
-autorização do Instagram** se forem misturados no fluxo atual (armadilha 2 da
-tabela acima), e `api/_lib/meta.ts` — que tinha esse caminho — foi apagado de
-propósito em `e9e7792`. Fazer os dois é ter dois fluxos convivendo, não um
-parâmetro a mais.
+**O Facebook não é "mais um nome na lista", e por isso ele é outro arquivo.**
+`api/_lib/facebook.ts` tem o fluxo inteiro, separado de `instagram.ts`:
+
+| | login do Instagram | login do Facebook |
+|---|---|---|
+| autorização | `www.instagram.com/oauth/authorize` | `www.facebook.com/.../dialog/oauth` |
+| troca do código | `api.instagram.com` (POST form) | `graph.facebook.com` (query) |
+| chamadas | `graph.instagram.com` | `graph.facebook.com` |
+| token que publica | o da conta | o **da Página**, via `/me/accounts` |
+| app id | `INSTAGRAM_APP_ID` | `FACEBOOK_APP_ID` — **outro app** |
+| publicar | contêiner + espera | um passo (`/photos` ou `/videos`) |
+
+Três coisas que não são detalhe:
+
+- **Os escopos nunca vão no mesmo pedido.** `pages_show_list`,
+  `pages_read_engagement` e `pages_manage_posts` fazem a tela do Instagram
+  recusar, com um erro que aparece só depois do login e não nomeia o escopo.
+  `api/_lib/meta.ts`, que tinha o caminho misturado, foi apagado em `e9e7792`.
+- **O token guardado é o da Página, não o do usuário.** O login devolve o do
+  usuário, que só serve para listar as Páginas; guardá-lo faz a publicação
+  falhar com "permissão insuficiente" **depois** de a conexão já parecer
+  pronta — o pior momento para descobrir.
+- **A rede viaja no `state` assinado**, como o cliente e pela mesma razão: no
+  retorno não há sessão. Uma `rede` na query faria o retorno do Instagram cair
+  no fluxo do Facebook, que bate em outro endpoint com outro segredo, e o erro
+  sairia como "código inválido". Ela só é lida **depois** de a assinatura
+  conferir.
+
+A métrica continua só do Instagram: `buscarMetricas` fala com
+`graph.instagram.com`, e a fila de medição filtra por `platform` — medir uma
+Página por ali falharia sempre e encheria `ultimo_erro` de falha previsível,
+escondendo as reais.
+
+Protegido por `tests/facebook.test.ts`. E a guarda de
+`REDES_QUE_PUBLICAM` deixou de conferir uma lista literal: agora ela exige
+`publicarNo<Rede>` existir em `api/_lib/` — era a lista que teria de ser
+editada à mão para o Facebook entrar, e editar a guarda junto com o código é
+como ela deixa de guardar.
 
 ---
 
@@ -1552,6 +1582,7 @@ src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 api/_lib/auth.ts           usuarioDaRequisicao, clienteDoUsuario, clienteDeServico
 api/_lib/ia.ts             IA independente de fornecedor (padrão: OpenRouter)
 api/_lib/instagram.ts      OAuth e publicação, no fluxo do login do Instagram
+api/_lib/facebook.ts       OAuth e publicação em Página; token da Página, outro app
 api/_lib/stripe.ts         cliente do Stripe e a tradução do status dele para o nosso
 api/assinatura.ts          checkout, portal de cobrança e webhook, numa função só
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook

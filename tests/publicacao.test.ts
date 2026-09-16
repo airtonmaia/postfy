@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -59,7 +59,9 @@ describe('REDES_QUE_PUBLICAM não afirma mais do que existe', () => {
   it('a rota recusa conexão de rede que não publica', () => {
     // O cinto: mesmo que a fila receba um item de outra rede, a rota não
     // tenta publicar às cegas.
-    expect(publicarTs).toMatch(/conexao\.platform !== 'instagram'/);
+    expect(publicarTs).toMatch(
+      /conexao\.platform !== 'instagram' && conexao\.platform !== 'facebook'/
+    );
   });
 
   it('toda rede do tipo tem uma explicação, inclusive as que não publicam', () => {
@@ -71,8 +73,29 @@ describe('REDES_QUE_PUBLICAM não afirma mais do que existe', () => {
     }
   });
 
+  it('toda rede automática tem publicador no servidor', () => {
+    /**
+     * A guarda que segurou o Facebook até ele existir de verdade: `tela deriva
+     * de `REDES_QUE_PUBLICAM` o que dizer, então acrescentar um nome ali é
+     * **prometer disparo**. Sem o publicador no servidor, a promessa vira um
+     * card "Agendado" cuja data passa e nada acontece.
+     */
+    const servidor = readdirSync(join(RAIZ, 'api', '_lib'))
+      .map((f) => readFileSync(join(RAIZ, 'api', '_lib', f), 'utf-8'))
+      .join('\n');
+
+    for (const rede of REDES_QUE_PUBLICAM) {
+      const nome = rede.charAt(0).toUpperCase() + rede.slice(1);
+      expect(
+        servidor,
+        `${rede} está em REDES_QUE_PUBLICAM sem publicarNo${nome} no servidor — ` +
+          `a tela promete disparo que não existe`
+      ).toMatch(new RegExp(`export const publicarNo${nome}\\b`));
+    }
+  });
+
   it('quem não publica sozinho diz que a postagem é sua', () => {
-    const redes = ['facebook', 'linkedin', 'tiktok', 'youtube', 'twitter'] as const;
+    const redes = ['linkedin', 'tiktok', 'youtube', 'twitter'] as const;
     for (const rede of redes) {
       expect(publicaSozinho(rede), `${rede} virou automática sem publicador`).toBe(false);
       expect(COMO_PUBLICA[rede]).toMatch(/manual/i);
