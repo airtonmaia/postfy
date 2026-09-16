@@ -265,8 +265,17 @@ describe('as variáveis do shadcn existem e viram classe', () => {
      * lugar reprova.
      */
     const BADGES = [
-      // O componente de badge inteiro: Feed, Reels, Story, status.
-      { arquivo: 'src/components/common/Badges.tsx', trecho: null },
+      /**
+       * `src/components/common/Badges.tsx` **saiu desta lista**, e isso é uma
+       * guarda ficando mais apertada de graça.
+       *
+       * Ele era a exceção mais larga que existia — o arquivo inteiro, sem
+       * trecho —, porque cada selo escrevia o próprio `px-`/`py-`. Agora todos
+       * saem de `src/components/ui/badge.tsx`, com altura fixa (`h-5`) e sem
+       * padding vertical nenhum: não há mais chip curto ali para a guarda
+       * pegar, e manter a exceção deixaria um buraco aberto no arquivo que
+       * mais tem selo no produto.
+       */
       // A bolinha de contagem do menu lateral. Ela mudou de arquivo quando a
       // casca passou a usar as peças do shadcn: agora é `SidebarMenuBadge`,
       // usada pelas duas cascas em vez de escrita à mão em cada uma.

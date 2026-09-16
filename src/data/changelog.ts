@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.44.0',
+    data: '2026-09-16',
+    resumo: 'Os selos de rede, formato, status e prioridade passaram a ter o mesmo tamanho e formato.',
+    melhorias: [
+      'Lado a lado no cabeçalho de um conteúdo, os selos tinham quatro alturas, três tamanhos de letra e dois formatos — uma pílula, um retângulo arredondado, um retângulo e um rótulo sem borda, na mesma linha. Agora todos têm a mesma altura, o mesmo canto e a mesma letra, com as cores de sempre.',
+      'O "v1" que marcava a versão era escrito à mão dentro da tela de detalhe, com desenho próprio. Virou selo como os outros.',
+    ],
+  },
+  {
     versao: '2.43.1',
     data: '2026-09-16',
     resumo: 'Correção: "Feed + Story" estava sendo oferecido no Facebook, onde só o feed saía.',

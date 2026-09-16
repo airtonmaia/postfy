@@ -4,7 +4,7 @@ import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
-import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
+import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge, VersaoBadge } from '../common/Badges';
 import { 
   X, 
   Check, 
@@ -263,9 +263,7 @@ export const JobDetailModal: React.FC = () => {
                 <span className="text-slate-300">•</span>
                 <PlatformBadge platform={selectedJob.platform} />
                 <FormatBadge format={selectedJob.format} />
-                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:text-slate-300">
-                  v{selectedJob.currentVersion}
-                </span>
+                <VersaoBadge versao={selectedJob.currentVersion} />
                 <PriorityBadge priority={selectedJob.priority} />
               </div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white truncate mt-0.5">
