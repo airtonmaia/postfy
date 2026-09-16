@@ -854,6 +854,23 @@ O formato `feed_story` obrigou a consertar isso, e trouxe três decisões:
 `external_id` continua sendo o do **feed**, que é o que `post_metrics` mede:
 story expira em 24h e não entra em relatório.
 
+**E o formato é oferecido só onde as duas saídas existem.** A primeira versão
+desta entrega ofereceu "Feed + Story" para o **Facebook**, onde `publicarItem`
+retornava logo depois do feed: a arte do story era **descartada em silêncio**,
+com a fila dizendo "publicado". A pessoa subia duas artes, aprovava as duas com
+o cliente, e uma não saía. Story de Página é outro fluxo
+(`/{page-id}/photo_stories`, com a foto enviada não publicada antes) e não
+existe em `api/_lib/facebook.ts`.
+
+É exatamente o motivo de `FORMATOS_POR_CANAL` ser por rede, escrito no próprio
+arquivo: *oferecer a lista inteira em toda rede deixava escolher combinação que
+não vai ao ar, e o erro só apareceria na hora de publicar.* A guarda deriva do
+código quais redes oferecem o formato e exige que o publicador de cada uma
+aceite o destino `story` — e o publicador do Facebook **recusa** feed+story com
+`throw`, que é o cinto para quando a lista e o publicador divergirem numa edição
+futura: a falha fica em `last_error`, à vista na fila, em vez de meia publicação
+com cara de sucesso.
+
 Protegido por `tests/feed-mais-story.test.ts`. A guarda do despacho por rede,
 em `tests/facebook.test.ts`, precisou sair da sintaxe: ela exigia o ternário
 literal `conexao.platform === 'facebook' ? publicarNoFacebook` e reprovou quando

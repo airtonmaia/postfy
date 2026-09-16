@@ -129,11 +129,22 @@ describe('publicar despacha pela rede da conexão', () => {
      * ela deixa de guardar.
      */
     const corpo = semComentarios(publicar);
-    const despacho = corpo.slice(corpo.indexOf("conexao.platform === 'facebook'"));
+    const inicio = corpo.indexOf("conexao.platform === 'facebook'");
+    expect(inicio, 'o despacho por rede saiu de publicarItem').toBeGreaterThan(-1);
 
-    expect(despacho, 'o despacho por rede saiu de publicarItem').not.toBe('');
+    /**
+     * O fim do trecho é **estrutural**, não um número de caracteres.
+     *
+     * A primeira versão desta âncora recortava 260 caracteres a partir do
+     * `if`, e quebrou na entrega seguinte: o bloco que recusa feed+story no
+     * Facebook entrou antes da chamada e empurrou ela para fora da janela.
+     * Guarda medida em caracteres envelhece a cada linha acrescentada — o
+     * limite certo é onde o próximo caminho começa.
+     */
+    const ramoDoFacebook = corpo.slice(inicio, corpo.indexOf('publicarNoInstagram(', inicio));
+
     expect(
-      despacho.slice(0, 260),
+      ramoDoFacebook,
       'a rede facebook deixou de cair no publicador do Facebook'
     ).toMatch(/publicarNoFacebook\(/);
     expect(corpo, 'o publicador do Instagram saiu do caminho').toMatch(
