@@ -24,12 +24,21 @@ export const CampoDinamico: React.FC<{
    * numa barra própria que não diria a que se referem.
    */
   acoes?: React.ReactNode;
-}> = ({ campo, valor, onChange, limite, donoDoLimite, aoGerarComIA, acoes }) => {
+  /**
+   * Some com a linha do rótulo.
+   *
+   * Existe para um caso só: no editor de conteúdo a legenda divide o lugar do
+   * rótulo com as abas "Legenda / Rascunho", e a barra de abas precisa ficar
+   * **fora** do campo — ela é a irmã do painel, não o cabeçalho dele. Rótulo e
+   * abas juntos diriam a mesma coisa duas vezes.
+   */
+  semRotulo?: boolean;
+}> = ({ campo, valor, onChange, limite, donoDoLimite, aoGerarComIA, acoes, semRotulo }) => {
   // Declarado fora dos desvios: hook não pode nascer dentro de `if`, e só o
   // campo com barra chega a usá-lo.
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
-  const rotulo = (
+  const rotulo = semRotulo ? null : (
     <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
         {campo.rotulo}

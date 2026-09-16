@@ -37,6 +37,7 @@ import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 const formatSafeDate = (dateStr?: string, options?: Intl.DateTimeFormatOptions): string => {
   if (!dateStr) return 'Não definida';
@@ -241,7 +242,9 @@ export const JobDetailModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as typeof activeTab)}
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
       >
@@ -298,67 +301,28 @@ export const JobDetailModal: React.FC = () => {
 
         {/* Navigation Tabs & Quick Actions bar */}
         <div className="flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('content')}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                activeTab === 'content'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-              }`}
-            >
+          <TabsList aparencia="painel" className="border-b-0 px-0 rounded-none bg-transparent dark:bg-transparent">
+            <TabsTrigger value="content">
               <FileText className="w-3.5 h-3.5" />
-              Conteúdo & Visualização
-            </button>
-
-            <button
-              onClick={() => setActiveTab('versions')}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                activeTab === 'versions'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-              }`}
-            >
+              Conteúdo &amp; Visualização
+            </TabsTrigger>
+            <TabsTrigger value="versions">
               <History className="w-3.5 h-3.5" />
               Versões ({selectedJob.versions.length || 1})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('checklist')}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                activeTab === 'checklist'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="checklist">
               <CheckSquare className="w-3.5 h-3.5" />
               Checklist ({selectedJob.checklist.filter(c => c.completed).length}/{selectedJob.checklist.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('comments')}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                activeTab === 'comments'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="comments">
               <MessageSquare className="w-3.5 h-3.5" />
               Comentários ({selectedJob.comments.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('timesheet')}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                activeTab === 'timesheet'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="timesheet">
               <Timer className="w-3.5 h-3.5" />
               Timesheet ({selectedJob.timesheetMinutes || 0}m)
-            </button>
-          </div>
+            </TabsTrigger>
+          </TabsList>
 
           <div className="flex items-center gap-2">
             <Button
@@ -385,7 +349,7 @@ export const JobDetailModal: React.FC = () => {
 
         {/* Tab Content Body */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/50">
-          {activeTab === 'content' && (
+          <TabsContent value="content">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column: Visual Media Preview */}
               <div className="space-y-4">
@@ -619,9 +583,9 @@ export const JobDetailModal: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+          </TabsContent>
 
-          {activeTab === 'versions' && (
+          <TabsContent value="versions">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -708,9 +672,9 @@ export const JobDetailModal: React.FC = () => {
                 ))}
               </div>
             </div>
-          )}
+          </TabsContent>
 
-          {activeTab === 'checklist' && (
+          <TabsContent value="checklist">
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">Checklist de Produção</h4>
               <div className="space-y-2">
@@ -732,9 +696,9 @@ export const JobDetailModal: React.FC = () => {
                 ))}
               </div>
             </div>
-          )}
+          </TabsContent>
 
-          {activeTab === 'comments' && (
+          <TabsContent value="comments">
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col h-96">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Comentários e Alinhamentos</h4>
 
@@ -779,9 +743,9 @@ export const JobDetailModal: React.FC = () => {
                 </Button>
               </form>
             </div>
-          )}
+          </TabsContent>
 
-          {activeTab === 'timesheet' && (
+          <TabsContent value="timesheet">
             <div className="space-y-5">
               {/* Timesheet Summary Card */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -968,9 +932,9 @@ export const JobDetailModal: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+          </TabsContent>
         </div>
-      </div>
+      </Tabs>
 
       {/* Sub-modals */}
       <AiCopyModal

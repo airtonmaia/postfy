@@ -295,6 +295,15 @@ export interface Job {
 
   // Content details
   caption: string;
+  /**
+   * Texto de trabalho do conteúdo: rascunho da legenda, gancho, o que o
+   * cliente falou na reunião.
+   *
+   * **Nunca é publicado.** Quem vai para a rede é `caption` — os dois num
+   * campo só significaria publicar o rascunho junto na primeira vez que
+   * alguém esquecesse de apagar, e o que sai no perfil do cliente não volta.
+   */
+  draft?: string;
   cta?: string;
   hashtags: string[];
   firstComment?: string;
