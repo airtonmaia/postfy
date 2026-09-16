@@ -16,23 +16,26 @@ import { Role, TabType } from '../types';
 /** Telas visíveis para cada papel. */
 const ABAS_POR_PAPEL: Record<Role, TabType[]> = {
   owner: [
-    'dashboard', 'calendario', 'producao', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
   ],
   admin: [
-    'dashboard', 'calendario', 'producao', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
   ],
   manager: [
-    'dashboard', 'calendario', 'producao', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes',
   ],
   social_media: [
-    'dashboard', 'calendario', 'producao', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
     'publicacoes', 'relatorios',
   ],
-  designer: ['dashboard', 'calendario', 'producao', 'aprovacoes'],
-  copywriter: ['dashboard', 'calendario', 'producao', 'aprovacoes'],
+  // Designer e copywriter veem a Biblioteca: é onde a arte que eles produzem
+  // fica, e reaproveitar é parte do trabalho deles, não um privilégio de
+  // gestão. O financeiro não — e o cliente vê pelo portal, não por aqui.
+  designer: ['dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes'],
+  copywriter: ['dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes'],
   financial: ['dashboard', 'clientes', 'comercial', 'relatorios'],
   client: ['aprovacoes'],
 };

@@ -7,6 +7,7 @@ import {
   publicaSozinho,
   COMO_PUBLICA,
   quandoDeveSair,
+  proximaPassada,
   MINUTOS_ENTRE_PASSADAS,
 } from '../src/lib/redes';
 
@@ -226,7 +227,23 @@ describe('a conta conectada pertence a um cliente', () => {
  * Omitir o que muda a expectativa é a armadilha 9 pela porta dos fundos.
  */
 describe('a tela diz quando o post sai, não só a data marcada', () => {
-  const passada = (iso: string) => quandoDeveSair(new Date(iso)).toISOString();
+  /**
+   * O arredondamento, testado em `proximaPassada` e **não** em
+   * `quandoDeveSair`.
+   *
+   * A primeira versão usava `quandoDeveSair` com uma data fixa de 2026-09-14,
+   * e passou por cinco dias: `quandoDeveSair` trata data no passado como
+   * agora — de propósito, é a regra do "agendei para agora" — então, assim
+   * que o calendário alcançou a data escrita aqui, as duas asserções
+   * passaram a receber a próxima passada a partir de *hoje*.
+   *
+   * O teste não pegou bug nenhum: ele apodreceu sozinho, com o código
+   * intacto. É a mesma armadilha do teste de `descreverBuild` (8.2), e a
+   * regra que fica é a mesma: **asserção com instante absoluto vai na função
+   * que não olha o relógio.** A que olha tem o teste logo abaixo, que usa
+   * `Date.now()` e por isso não envelhece.
+   */
+  const passada = (iso: string) => proximaPassada(new Date(iso)).toISOString();
 
   it('arredonda para a próxima passada de 5 minutos', () => {
     // O caso real: agendado para as 15:10, clicado 7 segundos depois.
@@ -252,6 +269,31 @@ describe('a tela diz quando o post sai, não só a data marcada', () => {
     // o relógio de lá — usar `getMinutes()` erraria por minutos, em silêncio.
     expect(passada('2026-09-14T00:01:00.000Z')).toBe('2026-09-14T00:05:00.000Z');
     expect(passada('2026-09-14T00:04:59.999Z')).toBe('2026-09-14T00:05:00.000Z');
+  });
+
+  it('nenhuma asserção fixa data absoluta contra quem olha o relógio', () => {
+    /**
+     * A guarda que faltava quando os dois testes acima apodreceram.
+     *
+     * `quandoDeveSair` clampa data passada para agora, então qualquer
+     * asserção que case a saída dela com um instante literal só vale
+     * enquanto esse instante estiver no futuro — e o calendário sempre
+     * alcança. Arredondamento se testa em `proximaPassada`, que não lê o
+     * relógio; a regra do clamp se testa com `Date.now()`, que acompanha.
+     */
+    const fonte = readFileSync(join(RAIZ, 'tests', 'publicacao.test.ts'), 'utf-8');
+
+    // O helper das asserções absolutas tem que sair da função que **não** lê
+    // o relógio. A primeira versão desta guarda procurava o literal colado em
+    // `quandoDeveSair(` e não achava nada: na prática o literal chega por um
+    // helper, que era exatamente o caso real. Guarda que só procura o que
+    // você lembrou de escrever não é guarda — a lição já está registrada em
+    // `tests/tema-shadcn.test.ts`, e valeu de novo aqui.
+    expect(
+      fonte,
+      'o helper das datas absolutas voltou a usar quandoDeveSair, que clampa ' +
+        'para agora — as asserções expiram sozinhas quando o calendário alcança a data'
+    ).toMatch(/const passada = \(iso: string\) => proximaPassada\(/);
   });
 
   it('data no passado vale como agora', () => {

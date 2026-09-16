@@ -427,6 +427,7 @@ export type TabType =
   | 'dashboard' 
   | 'calendario' 
   | 'producao' 
+  | 'biblioteca'
   | 'aprovacoes' 
   | 'clientes' 
   | 'comercial' 

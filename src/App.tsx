@@ -7,6 +7,7 @@ import {
   LayoutDashboard, 
   Calendar as CalendarIcon, 
   Kanban, 
+  Images,
   CheckCircle2, 
   Users, 
   Briefcase, 
@@ -49,6 +50,7 @@ import { Avatar } from './components/common/Avatar';
 const CalendarApp = tela(() => import('./components/calendar/CalendarApp'), 'CalendarApp');
 const DashboardView = tela(() => import('./components/dashboard/DashboardView'), 'DashboardView');
 const KanbanBoard = tela(() => import('./components/kanban/KanbanBoard'), 'KanbanBoard');
+const BibliotecaView = tela(() => import('./components/library/BibliotecaView'), 'BibliotecaView');
 const ApprovalsView = tela(() => import('./components/approvals/ApprovalsView'), 'ApprovalsView');
 const ClientsView = tela(() => import('./components/clients/ClientsView'), 'ClientsView');
 const CommercialView = tela(() => import('./components/commercial/CommercialView'), 'CommercialView');
@@ -170,6 +172,7 @@ const MainLayout: React.FC = () => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
     { id: 'producao', label: 'WorkFlow', icon: Kanban },
+    { id: 'biblioteca', label: 'Biblioteca', icon: Images },
     { 
       id: 'aprovacoes', 
       label: 'Aprovações', 
@@ -678,6 +681,7 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'dashboard' && <DashboardView />}
           {abaPermitida && activeTab === 'calendario' && <CalendarApp />}
           {abaPermitida && activeTab === 'producao' && <KanbanBoard />}
+          {abaPermitida && activeTab === 'biblioteca' && <BibliotecaView />}
           {abaPermitida && activeTab === 'aprovacoes' && <ApprovalsView />}
           {abaPermitida && activeTab === 'clientes' && <ClientsView />}
           {abaPermitida && activeTab === 'comercial' && <CommercialView />}

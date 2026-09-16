@@ -2,6 +2,7 @@ import {
   S3Client,
   ListObjectsV2Command,
   DeleteObjectsCommand,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 
 /**
@@ -87,4 +88,78 @@ export const apagarPrefixo = async (prefixo: string): Promise<number> => {
   } while (continuationToken);
 
   return apagados;
+};
+
+
+export interface ObjetoDoR2 {
+  key: string;
+  url: string | null;
+  tamanho: number;
+  modificadoEm: string | null;
+}
+
+/**
+ * Lista os objetos de um prefixo, do mais novo para o mais velho.
+ *
+ * É o que a Biblioteca mostra. Ela lê **o balde**, e não uma tabela de
+ * índice, porque índice só conheceria o que foi enviado depois de ele
+ * existir — e o acervo de uma agência em uso já está lá. A escolha tem um
+ * custo assumido: o balde não sabe de quem é cada arquivo, então a pasta do
+ * cliente é derivada do uso, no navegador.
+ *
+ * `teto` existe porque a resposta da função serverless tem limite e a
+ * listagem pagina de mil em mil: sem ele, uma agência com dez mil arquivos
+ * montaria um JSON que não cabe na resposta e a rota morreria sem dizer por
+ * quê.
+ */
+export const listarObjetos = async (
+  prefixo: string,
+  teto = 2000
+): Promise<ObjetoDoR2[]> => {
+  if (!r2Configurado()) return [];
+
+  const cliente = clienteR2();
+  const bucket = process.env.R2_BUCKET!;
+  const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, '');
+
+  const objetos: ObjetoDoR2[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const listados = await cliente.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefixo,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    for (const obj of listados.Contents || []) {
+      if (!obj.Key) continue;
+      objetos.push({
+        key: obj.Key,
+        url: base ? `${base}/${obj.Key}` : null,
+        tamanho: obj.Size ?? 0,
+        modificadoEm: obj.LastModified?.toISOString() ?? null,
+      });
+    }
+
+    continuationToken =
+      listados.IsTruncated && objetos.length < teto
+        ? listados.NextContinuationToken
+        : undefined;
+  } while (continuationToken);
+
+  // O mais novo primeiro: é o que a pessoa acabou de subir e vai procurar.
+  return objetos
+    .sort((a, b) => (b.modificadoEm || '').localeCompare(a.modificadoEm || ''))
+    .slice(0, teto);
+};
+
+/** Apaga um objeto. Diferente de `apagarPrefixo`, que leva a pasta inteira. */
+export const apagarObjeto = async (chave: string): Promise<void> => {
+  if (!r2Configurado()) return;
+  await clienteR2().send(
+    new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: chave })
+  );
 };
