@@ -151,3 +151,71 @@ describe('as duas artes existem em todo lugar que decide', () => {
     );
   });
 });
+
+describe('o formato só é oferecido onde as duas saídas existem', () => {
+  /**
+   * **Esta guarda nasceu de um erro da primeira versão desta entrega, e ele
+   * chegou a produção.**
+   *
+   * "Feed + Story" foi oferecido para o **Facebook** enquanto `publicarItem`
+   * retornava logo depois do feed: a arte do story era **descartada em
+   * silêncio**, e a fila dizia "publicado". A pessoa subia duas artes, aprovava
+   * as duas com o cliente, e uma não saía.
+   *
+   * Story de Página é outro fluxo (`/{page-id}/photo_stories`, com a foto
+   * enviada não publicada antes) e não existe em `api/_lib/facebook.ts`.
+   *
+   * É exatamente o motivo de `FORMATOS_POR_CANAL` ser por rede, escrito no
+   * próprio arquivo: "oferecer a lista inteira em toda rede deixava escolher
+   * combinação que não vai ao ar, e o erro só apareceria na hora de publicar".
+   */
+  const redesQueOferecem = (): string[] => {
+    const inicio = modal.indexOf('const FORMATOS_POR_CANAL');
+    const bloco = modal.slice(inicio, modal.indexOf('\n};', inicio));
+    const achadas: string[] = [];
+
+    // `instagram: [ … ],` — a rede e a lista dela.
+    for (const m of bloco.matchAll(/^\s{2}(\w+):\s*\[([\s\S]*?)\],?$/gm)) {
+      if (m[2].includes("'feed_story'")) achadas.push(m[1]);
+    }
+    return achadas;
+  };
+
+  it('só o Instagram oferece Feed + Story', () => {
+    expect(
+      redesQueOferecem(),
+      'uma rede passou a oferecer Feed + Story. O publicador dela precisa sair ' +
+        'com as duas peças, ou a arte do story é descartada em silêncio'
+    ).toEqual(['instagram']);
+  });
+
+  it('a rede que oferece tem caminho de story no publicador', () => {
+    // O que a guarda acima mede indiretamente, medido de frente: a rede
+    // oferecida precisa ter um publicador que aceite o destino `story`.
+    for (const rede of redesQueOferecem()) {
+      expect(
+        instagram,
+        `${rede} oferece Feed + Story sem o publicador aceitar o destino story`
+      ).toMatch(/destino: 'feed' \| 'story'/);
+    }
+  });
+
+  it('o publicador recusa em vez de publicar metade', () => {
+    /**
+     * O cinto. A lista de formatos e o publicador podem divergir numa edição
+     * futura — e quando divergirem, a falha tem que ser **barulhenta**: fica em
+     * `last_error`, à vista na fila, em vez de meia publicação com cara de
+     * sucesso.
+     */
+    const facebook = publicar.slice(publicar.indexOf("if (conexao.platform === 'facebook')"));
+    const recusa = facebook.indexOf("job.format === 'feed_story'");
+    const publica = facebook.indexOf('publicarNoFacebook(');
+
+    expect(recusa, 'o publicador do Facebook deixou de recusar feed+story').toBeGreaterThan(-1);
+    expect(
+      recusa,
+      'a recusa ficou depois da publicação — o feed sai e o story é descartado'
+    ).toBeLessThan(publica);
+    expect(facebook.slice(recusa, publica), 'a recusa deixou de lançar').toMatch(/throw new Error/);
+  });
+});

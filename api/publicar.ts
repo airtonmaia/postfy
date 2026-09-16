@@ -510,6 +510,25 @@ const publicarItem = async (
    * `social-callback` guardou. Ver `api/_lib/facebook.ts`.
    */
   if (conexao.platform === 'facebook') {
+    /**
+     * **Recusa em vez de publicar metade.**
+     *
+     * Story de Página é outro fluxo (`/{page-id}/photo_stories`) e não existe
+     * em `api/_lib/facebook.ts`. Sem este `throw`, um conteúdo feed+story numa
+     * Página publicaria só o feed e **descartaria a arte do story em
+     * silêncio**, com a fila dizendo "publicado" — foi o que a primeira versão
+     * desta entrega fazia.
+     *
+     * O formato já não é oferecido para o Facebook na tela. Isto é o cinto:
+     * a lista de formatos e o publicador podem divergir numa edição futura, e
+     * a falha aqui é barulhenta — fica em `last_error`, à vista na fila.
+     */
+    if (job.format === 'feed_story') {
+      throw new Error(
+        'Feed + Story ainda não publica em Página do Facebook: story de Página ' +
+          'é outro fluxo da Meta. Publique o feed e o story separadamente.'
+      );
+    }
     return { id: await publicarNoFacebook(conexao.account_id, token.access_token, midia, legenda) };
   }
 

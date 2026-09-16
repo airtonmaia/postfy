@@ -79,7 +79,19 @@ const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string
   ],
   facebook: [
     { valor: 'feed', rotulo: 'Feed' },
-    { valor: 'feed_story', rotulo: 'Feed + Story' },
+    /**
+     * **"Feed + Story" não entra aqui**, e a primeira versão desta entrega
+     * errou isso: o formato foi oferecido para o Facebook enquanto
+     * `publicarItem` publicava só o feed e **descartava a arte do story em
+     * silêncio** — com a fila dizendo "publicado".
+     *
+     * Story de Página é outro fluxo (`/{page-id}/photo_stories`, com a foto
+     * enviada não publicada antes) e outro escopo. Enquanto ele não existir em
+     * `api/_lib/facebook.ts`, oferecer o formato é prometer meia publicação —
+     * que é justamente o motivo de esta lista ser por rede: "oferecer a lista
+     * inteira em toda rede deixava escolher combinação que não vai ao ar, e o
+     * erro só apareceria na hora de publicar".
+     */
     { valor: 'carousel', rotulo: 'Carrossel' },
     { valor: 'reel', rotulo: 'Reels' },
     { valor: 'story', rotulo: 'Story' },

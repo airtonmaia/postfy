@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.43.1',
+    data: '2026-09-16',
+    resumo: 'Correção: "Feed + Story" estava sendo oferecido no Facebook, onde só o feed saía.',
+    corrigido: [
+      'O formato "Feed + Story" aparecia também para o Facebook, mas ali só o feed era publicado — a arte do story era descartada sem aviso, e a fila dizia "publicado". Story de Página é outro fluxo da Meta, que ainda não existe aqui; enquanto isso, o formato fica só no Instagram, e o publicador recusa em voz alta se receber essa combinação.',
+    ],
+  },
+  {
     versao: '2.43.0',
     data: '2026-09-16',
     resumo: 'Formato "Feed + Story": uma peça, duas artes, e o story saindo como story de verdade.',
