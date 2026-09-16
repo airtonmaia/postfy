@@ -30,6 +30,7 @@ export const CAMINHOS: Record<TabType, string> = {
   dashboard: '/dashboard',
   calendario: '/calendario',
   producao: '/kanban',
+  biblioteca: '/biblioteca',
   aprovacoes: '/aprovacoes',
   clientes: '/clientes',
   comercial: '/comercial',

@@ -123,6 +123,7 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/common/AtalhosDoConteudo.tsx',        // atalho com badge
   'src/components/common/PreviaDaRede.tsx',             // navegação do carrossel
   'src/components/kanban/KanbanBoard.tsx',              // card do quadro
+  'src/components/library/BibliotecaView.tsx',          // pasta selecionável na lateral
   'src/components/layout/ClientSwitcher.tsx',           // item de lista suspensa
   'src/components/layout/PlanoDaAgencia.tsx',           // cartão de duas linhas, no rodapé
   'src/components/layout/WorkspaceSwitcher.tsx',        // gatilho com marca + duas linhas

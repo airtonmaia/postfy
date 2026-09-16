@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.33.0',
+    data: '2026-09-16',
+    resumo: 'A Biblioteca: todo arquivo da agência num lugar só, com pasta por cliente.',
+    novidades: [
+      'Novo menu Biblioteca, abaixo do WorkFlow. Ele mostra tudo que a agência já enviou — arte anexada a conteúdo, material que o cliente mandou pelo portal, logo, PDF —, com miniatura, tamanho, data e busca por nome. Antes um arquivo só existia dentro do conteúdo em que foi usado: reaproveitar exigia lembrar em qual post ele estava.',
+      'A pasta de cada cliente é montada pelo uso, não por onde o arquivo foi salvo. O mesmo arquivo pode servir a dois clientes e aparece nos dois — e o acervo que já estava guardado entra organizado, sem ninguém precisar mover nada.',
+      'Cada arquivo mostra em quantos conteúdos está sendo usado, e a exclusão diz isso antes de confirmar. Excluir uma arte que está em três posts deixa a mídia quebrada nos três, e agora a tela avisa em vez de perguntar "tem certeza?".',
+      'Dá para enviar direto pela Biblioteca, sem precisar criar um conteúdo antes — arte aprovada costuma chegar antes do post que vai usá-la.',
+    ],
+    corrigido: [
+      'Dois testes internos do agendamento passaram a falhar sozinhos ao virar a data — eles comparavam com um dia fixo do calendário. O cálculo de quando o post sai sempre esteve certo; a verificação é que envelhecia.',
+    ],
+  },
+  {
     versao: '2.32.0',
     data: '2026-09-12',
     resumo: 'O seletor de agência virou um menu de verdade, e o plano saiu de cima do nome da agência.',

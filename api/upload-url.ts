@@ -10,7 +10,7 @@ import {
   textoValido,
   excedeuLimite,
 } from './_lib/auth.js';
-import { r2Configurado, clienteR2 } from './_lib/r2.js';
+import { r2Configurado, clienteR2, listarObjetos, apagarObjeto } from './_lib/r2.js';
 
 
 /**
@@ -49,14 +49,47 @@ const nomeSeguro = (nome: string): string =>
     .replace(/[^A-Za-z0-9._-]/g, '-')
     .slice(-120) || 'arquivo';
 
-async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return json({ error: 'Método não permitido.' }, 405);
-  }
+/**
+ * Confere que a pessoa é da agência, pela RLS, e devolve o papel.
+ *
+ * Extraído porque os três modos precisam da mesma conferência: pedir URL,
+ * listar a biblioteca e apagar um arquivo. Uma cópia por modo é o jeito mais
+ * rápido de um deles ficar para trás quando a regra mudar.
+ */
+const papelNaAgencia = async (
+  request: Request,
+  workspaceId: string,
+  userId: string
+): Promise<{ role: string } | Response> => {
+  const supabase = clienteDoUsuario(request);
+  const { data: membro, error } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', userId)
+    .maybeSingle();
 
+  if (error) return falharComSeguranca('upload/membership', error, 500);
+  if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
+  if (membro.role === 'client') {
+    return json({ error: 'Seu perfil não pode gerenciar arquivos.' }, 403);
+  }
+  return membro;
+};
+
+async function handler(request: Request): Promise<Response> {
   const usuario = await usuarioDaRequisicao(request);
   if (!usuario) return naoAutenticado();
 
+  /**
+   * **Antes dos três modos, e não só do POST.**
+   *
+   * `listarObjetos` devolve lista vazia quando o R2 não está configurado, e
+   * uma Biblioteca vazia é indistinguível de uma agência que ainda não subiu
+   * nada — a tela diria "nenhum arquivo" para um problema de configuração.
+   * É a armadilha 9: quem depende de configuração externa **diz o que
+   * falta, com o nome da variável**, em vez de mostrar o zero.
+   */
   if (!r2Configurado()) {
     return json(
       {
@@ -66,6 +99,21 @@ async function handler(request: Request): Promise<Response> {
       },
       503
     );
+  }
+
+  /**
+   * Três modos numa rota só, e isso é o limite de 12 funções da armadilha 6.
+   *
+   * A Biblioteca precisa listar e apagar arquivos do R2, e as credenciais do
+   * R2 já moram aqui — uma rota nova para cada verbo levaria o produto a 14
+   * e **o deploy inteiro falharia**, com a produção presa na versão anterior.
+   * Juntar é a resposta padrão daqui quando aparece rota nova.
+   */
+  if (request.method === 'GET') return listarDaBiblioteca(request, usuario.id);
+  if (request.method === 'DELETE') return apagarDaBiblioteca(request, usuario.id);
+
+  if (request.method !== 'POST') {
+    return json({ error: 'Método não permitido.' }, 405);
   }
 
   if (excedeuLimite(`upload:${usuario.id}`, 60, 60_000)) {
@@ -125,20 +173,8 @@ async function handler(request: Request): Promise<Response> {
     } else {
       // O usuário diz em qual agência quer gravar, então confirmamos que ele
       // pertence a ela — a consulta passa pela RLS, como qualquer outra.
-      const { data: membro, error } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', usuario.id)
-        .maybeSingle();
-
-      if (error) return falharComSeguranca('upload/membership', error, 500);
-      if (!membro) {
-        return json({ error: 'Você não pertence a esta agência.' }, 403);
-      }
-      if (membro.role === 'client') {
-        return json({ error: 'Seu perfil não pode enviar arquivos.' }, 403);
-      }
+      const membro = await papelNaAgencia(request, workspaceId, usuario.id);
+      if (membro instanceof Response) return membro;
     }
 
     // Prefixo por agência: mantém os arquivos separados e evita colisão.
@@ -166,6 +202,72 @@ async function handler(request: Request): Promise<Response> {
 }
 
 /**
+ * A Biblioteca: tudo que a agência tem no R2.
+ *
+ * Lê **o balde**, e não uma tabela de índice. Índice só conheceria o que foi
+ * enviado depois de ele existir, e o acervo de uma agência em uso já está
+ * lá — começar do zero esconderia meses de arquivo.
+ *
+ * O balde não sabe de quem é cada arquivo: a chave é `workspaceId/nome`,
+ * plana. A pasta do cliente é derivada do **uso** no navegador, cruzando com
+ * `jobs.media_urls`, `client_materials.url` e `clients.files`. Guardar o
+ * cliente na chave resolveria só os arquivos novos, e deixaria os antigos
+ * órfãos para sempre.
+ */
+const listarDaBiblioteca = async (request: Request, userId: string): Promise<Response> => {
+  const workspaceId = new URL(request.url).searchParams.get('workspaceId') || '';
+  if (!textoValido(workspaceId, 64)) {
+    return json({ error: 'Agência não informada.' }, 400);
+  }
+
+  const membro = await papelNaAgencia(request, workspaceId, userId);
+  if (membro instanceof Response) return membro;
+
+  try {
+    // O prefixo com a barra é o que impede uma agência de ler a de outra:
+    // sem ela, `abc` casaria com `abcdef/`.
+    const arquivos = await listarObjetos(`${workspaceId}/`);
+    return json({ arquivos });
+  } catch (erro) {
+    return falharComSeguranca('biblioteca/listar', erro);
+  }
+};
+
+/**
+ * Apaga um arquivo do R2.
+ *
+ * **A chave é conferida contra a agência**, e não aceita como veio: sem isso,
+ * uma sessão qualquer mandaria a chave de outra agência e apagaria o arquivo
+ * dela — a conferência de membro acima seria inútil, porque ela olha o
+ * `workspaceId` do corpo, não a chave.
+ */
+const apagarDaBiblioteca = async (request: Request, userId: string): Promise<Response> => {
+  const url = new URL(request.url);
+  const workspaceId = url.searchParams.get('workspaceId') || '';
+  const chave = url.searchParams.get('key') || '';
+
+  if (!textoValido(workspaceId, 64)) {
+    return json({ error: 'Agência não informada.' }, 400);
+  }
+  if (!textoValido(chave, 500)) {
+    return json({ error: 'Arquivo não informado.' }, 400);
+  }
+  if (!chave.startsWith(`${workspaceId}/`)) {
+    return json({ error: 'Este arquivo não é desta agência.' }, 403);
+  }
+
+  const membro = await papelNaAgencia(request, workspaceId, userId);
+  if (membro instanceof Response) return membro;
+
+  try {
+    await apagarObjeto(chave);
+    return json({ ok: true });
+  } catch (erro) {
+    return falharComSeguranca('biblioteca/apagar', erro);
+  }
+};
+
+/**
  * Export nomeado, e sem `export default`, de propósito.
  *
  * O builder da Vercel (@vercel/node) decide a assinatura pelo formato do
@@ -184,6 +286,8 @@ async function handler(request: Request): Promise<Response> {
  * O que a Vercel executa é o default abaixo.
  */
 export const POST = handler;
+export const GET = handler;
+export const DELETE = handler;
 
 /**
  * Default no formato (req, res), que toda versão do builder da Vercel

@@ -675,6 +675,70 @@ de três partes.
 
 ---
 
+## A Biblioteca lê o balde, e a pasta do cliente é derivada
+
+`Biblioteca` mostra todo arquivo que a agência tem no R2. Duas decisões de
+desenho, e as duas têm alternativa óbvia que não serve:
+
+**Ela lê o balde, não uma tabela de índice.** Índice seria mais simples de
+consultar e só conheceria o que foi enviado **depois de ele existir** — o
+acervo de uma agência em uso já está no R2, e a tela começaria vazia
+escondendo meses de arquivo. Mentir por omissão no primeiro dia é a armadilha
+9 com outra roupa.
+
+**A pasta do cliente sai do uso, não da chave.** A chave é
+`workspaceId/timestamp-uuid-nome`: plana, sem cliente. Pôr o cliente ali
+resolveria os arquivos novos e deixaria os antigos órfãos para sempre — e o
+mesmo arquivo pode servir a dois clientes, que uma pasta física não
+representa. `levantarUsos()` cruza `jobs.media_urls`, `client_materials.url` e
+`clients.files`, e isso dá de graça a resposta que importa antes de excluir:
+*em quantos conteúdos esta mídia está?*
+
+As três consultas vão ao **banco**, e não ao estado já carregado: `carregarTudo`
+traz só 90 dias de conteúdo concluído, então contar pelo estado marcaria como
+"sem uso" a mídia de um post mais antigo — exatamente no momento em que a
+pessoa confia no número para decidir se pode apagar.
+
+Três coisas que não são detalhe:
+
+- **Listar e apagar são modos de `api/upload-url.ts`**, não rotas novas. São
+  12 de 12 funções (armadilha 6), e as credenciais do R2 já moram lá. `GET`
+  lista, `DELETE` apaga, `POST` continua pedindo a URL de envio.
+- **A chave é conferida contra a agência antes de apagar.** A conferência de
+  membro olha o `workspaceId` da query; sem `chave.startsWith(workspaceId + '/')`
+  ela vira enfeite — quem tem uma agência qualquer mandaria a chave de outra e
+  apagaria o arquivo dela. Pelo mesmo motivo a listagem usa o prefixo **com a
+  barra**: `abc` casaria com `abcdef/`.
+- **Balde sem credencial não é biblioteca vazia.** `listarObjetos` devolve `[]`
+  sem configuração, então a checagem de `r2Configurado()` vem **antes** do
+  desvio de GET/DELETE, e a tela mostra o nome das variáveis que faltam. Pela
+  mesma razão o estado vazio não aparece quando a leitura falhou: "nenhum
+  arquivo" depois de um erro é a frase que faz a pessoa concluir que perdeu o
+  acervo.
+
+Protegido por `tests/biblioteca.test.ts`.
+
+### Teste com data absoluta apodrece sozinho
+
+Dois testes do agendamento comparavam a saída de `quandoDeveSair` com
+`2026-09-14T00:05:00.000Z`. Passaram cinco dias e começaram a falhar **com o
+código intacto**: `quandoDeveSair` trata data no passado como agora — que é a
+regra do "agendei para agora" —, então assim que o calendário alcançou a data
+escrita no teste, as asserções passaram a receber a próxima passada a partir
+de *hoje*.
+
+É a mesma família do teste de `descreverBuild` (armadilha 8.2), e a regra que
+fica é: **asserção com instante absoluto vai na função que não olha o
+relógio.** `proximaPassada` arredonda e não lê `Date.now()`; `quandoDeveSair`
+lê, e o teste dela usa `Date.now()`, por isso não envelhece.
+
+A primeira guarda que escrevi para isso procurava o literal colado em
+`quandoDeveSair(` e não achava nada — na prática o literal chega por um
+helper, que era o caso real. Guarda que só procura o que você lembrou de
+escrever não é guarda.
+
+---
+
 ## Instagram: é o login do **Instagram**, não o do Facebook
 
 Existem dois caminhos para publicar, e escolher o errado não dá erro nenhum
@@ -1356,6 +1420,8 @@ src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/components/ui/dropdown-menu.tsx  primitivo shadcn, com o canto traduzido
 src/components/layout/WorkspaceSwitcher.tsx  troca de agência, no DropdownMenu
 src/components/layout/PlanoDaAgencia.tsx     o plano no rodapé, lido do banco
+src/lib/biblioteca.ts      lista o balde e deriva a pasta do cliente pelo uso
+src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
