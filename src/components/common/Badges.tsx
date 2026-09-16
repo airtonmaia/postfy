@@ -74,6 +74,16 @@ export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
     reel: { label: 'Reel', icon: <Video className="w-3 h-3" />, color: 'bg-purple-50 text-purple-700 border-purple-200' },
     story: { label: 'Story', icon: <Smartphone className="w-3 h-3" />, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     feed: { label: 'Feed', icon: <ImageIcon className="w-3 h-3" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    /**
+     * Duas saídas, um selo. Ele herda o azul do feed de propósito: a peça é um
+     * post de feed que **também** vai ao story, e dar cor nova a ela faria o
+     * quadro parecer ter um tipo de conteúdo a mais do que tem.
+     */
+    feed_story: {
+      label: 'Feed + Story',
+      icon: <Layers className="w-3 h-3" />,
+      color: 'bg-blue-50 text-blue-700 border-blue-200',
+    },
     video: { label: 'Vídeo Longo', icon: <Video className="w-3 h-3" />, color: 'bg-rose-50 text-rose-700 border-rose-200' },
     article: { label: 'Artigo', icon: <FileText className="w-3 h-3" />, color: 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800' },
   };
