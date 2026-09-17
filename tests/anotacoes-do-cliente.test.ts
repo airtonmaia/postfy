@@ -278,3 +278,95 @@ describe('o bloco de notas mora em files e continua interno', () => {
     expect(tela, 'o filtro por tipo sumiu da lista de arquivos').toMatch(/setTipoVisivel/);
   });
 });
+
+/**
+ * O tipo é a primeira escolha, e ele governa o formulário.
+ *
+ * Antes o primeiro seletor era a **categoria** do conteúdo, e o tipo era
+ * **adivinhado** pelo que a pessoa fizesse depois: enviar um arquivo virava
+ * `arquivo`, colar um endereço virava `link`. Quem queria só colar um link do
+ * Drive encarava uma área de arrastar arquivo, e não havia caminho nenhum
+ * para escrever um texto.
+ */
+describe('o tipo decide qual campo aparece, e o que é gravado', () => {
+  const tela = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'clients', 'ClientDetail.tsx'), 'utf-8')
+  );
+
+  it('os três tipos existem no seletor', () => {
+    const seletor = tela.slice(tela.indexOf('setFileKind(e.target.value'));
+    for (const valor of ['arquivo', 'link', 'nota']) {
+      expect(
+        seletor.slice(0, 900),
+        `o tipo ${valor} sumiu do seletor`
+      ).toMatch(new RegExp(`<option value="${valor}"`));
+    }
+  });
+
+  it('cada tipo mostra só o campo dele', () => {
+    // Um formulário que mostra três campos e usa um é o mesmo que pedir à
+    // pessoa que adivinhe qual vale.
+    expect(tela, 'a área de envio deixou de depender do tipo').toMatch(
+      /\{fileKind === 'arquivo' && \(/
+    );
+    expect(tela, 'o campo de link deixou de depender do tipo').toMatch(
+      /\{fileKind === 'link' && \(/
+    );
+    expect(tela, 'o campo de texto deixou de depender do tipo').toMatch(
+      /\{fileKind === 'nota' && \(/
+    );
+  });
+
+  it('o envio não oferece colar endereço', () => {
+    /**
+     * Colar endereço agora é o tipo "Link". Deixar os dois caminhos abertos
+     * dentro do `FileUpload` traria de volta a adivinhação que o seletor veio
+     * resolver — e a linha nasceria marcada como `arquivo` com uma URL de
+     * terceiro dentro.
+     */
+    /*
+      A fatia começa no **desvio do tipo**, não no primeiro `<FileUpload>` do
+      arquivo: há três nesta tela — o avatar do cliente, este e o anexo da nota
+      fiscal —, e a primeira versão desta guarda mediu o do avatar. Guarda que
+      aceita o vizinho no lugar do alvo não guarda.
+    */
+    const envio = tela.slice(tela.indexOf("{fileKind === 'arquivo' && ("));
+    expect(envio.slice(0, 900), 'o envio voltou a aceitar link por dentro').toMatch(
+      /allowUrlFallback=\{false\}/
+    );
+  });
+
+  it('nada é inventado quando o campo fica vazio', () => {
+    /**
+     * A versão anterior gravava `url: fileUrl || 'https://drive.google.com'` e
+     * `size: fileSize || '2.0 MB'`: quem salvasse sem escolher arquivo nenhum
+     * ficava com uma linha apontando para a página do Drive, com o tamanho de
+     * um arquivo que não existe. É a armadilha 9 no lugar em que a pessoa
+     * clica esperando abrir o que guardou.
+     */
+    const grava = tela.slice(tela.indexOf('const handleCreateFile'));
+    const corpo = grava.slice(0, grava.indexOf('fecharFormDeArquivo();'));
+
+    expect(corpo, 'o endereço inventado voltou').not.toMatch(/\|\| 'https:\/\//);
+    expect(corpo, 'o tamanho inventado voltou').not.toMatch(/\|\| '[\d.,]+ [KMG]B'/);
+    expect(corpo, 'o tipo deixou de exigir o que ele precisa').toMatch(/setErroDoArquivo\(/);
+  });
+
+  it('trocar de tipo limpa o conteúdo do tipo anterior', () => {
+    /**
+     * Sem isto, quem enviasse um arquivo e trocasse para "link" gravaria a
+     * linha com a URL do R2 marcada como link — e a lista ofereceria "abrir em
+     * outra aba" para um anexo, com o botão de baixar sumido.
+     */
+    const troca = tela.slice(tela.indexOf("setFileKind(e.target.value as ClientFile['kind'])"));
+    expect(troca.slice(0, 300), 'a troca de tipo deixou de limpar o campo anterior').toMatch(
+      /setFileUrl\(''\)/
+    );
+  });
+
+  it('criar o bloco de notas tem um caminho só', () => {
+    // Dois botões para a mesma linha divergem na primeira pressa: quem cria é
+    // o formulário, pelo tipo.
+    expect(tela, 'voltou o segundo caminho de criar nota').not.toMatch(/setNotaAberta\('nova'\)/);
+  });
+});

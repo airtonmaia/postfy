@@ -15,10 +15,14 @@ import { semComentarios } from './util/semComentarios';
  * teste de componente ou build:
  *
  * 1. As coleções que só crescem vêm limitadas.
- * 2. O que é buscado sob demanda entra no estado com a bandeira de carga
- *    ligada. Sem ela o `useColecaoSincronizada` vê linhas novas e tenta
- *    **gravar de volta** o que acabou de ler — a chave primária recusaria
- *    uma a uma, em silêncio, na fila de gravação.
+ * 2. O que é buscado sob demanda entra no estado **marcado**. Sem a marca o
+ *    `useColecaoSincronizada` vê linhas novas e tenta **gravar de volta** o
+ *    que acabou de ler — a chave primária recusaria uma a uma, em silêncio,
+ *    na fila de gravação.
+ *
+ * A marca substituiu uma bandeira booleana global, e a troca não foi de
+ * estilo: a bandeira era baixada "no próximo render", e quando o render não
+ * vinha ela ficava erguida e **descartava a edição seguinte do usuário**.
  */
 
 const RAIZ = join(__dirname, '..');
@@ -77,18 +81,36 @@ describe('a carga inicial tem janela', () => {
 });
 
 describe('a busca sob demanda não vira inserção', () => {
-  it('garantirJobsDoPeriodo levanta a bandeira de carga antes de mexer no estado', () => {
+  it('garantirJobsDoPeriodo marca as linhas que vieram do banco', () => {
+    /**
+     * **Esta guarda pedia a bandeira, e a bandeira era o bug.**
+     *
+     * Ela exigia `aplicandoCargaDoBanco.current = true` **antes** do
+     * `setAllJobs` — e era justamente ali que a coisa quebrava: o updater
+     * devolve a mesma referência quando não há linha nova, o React desiste do
+     * render, e sem render o efeito que baixava a bandeira não roda. Ela
+     * ficava erguida, e a primeira edição de verdade depois disso era pulada
+     * com `anterior.current` já avançado — perdida para sempre.
+     *
+     * O que precisa valer é **a linha vinda do banco não virar insert**, e a
+     * marca dela ser feita onde o estado realmente muda: dentro do updater,
+     * depois da saída que devolve `atuais`.
+     */
     const inicio = contexto.indexOf('const garantirJobsDoPeriodo');
     expect(inicio).toBeGreaterThan(-1);
 
     const corpo = contexto.slice(inicio, contexto.indexOf('\n  };', inicio));
 
-    const bandeira = corpo.indexOf('aplicandoCargaDoBanco.current = true');
-    const mexeNoEstado = corpo.indexOf('setAllJobs');
+    const desiste = corpo.indexOf('if (!novos.length) return atuais;');
+    const marca = corpo.indexOf("marcarComoVindoDoBanco('jobs'");
 
-    expect(bandeira, 'a bandeira sumiu — a carga voltaria a ser gravada').toBeGreaterThan(-1);
-    expect(mexeNoEstado).toBeGreaterThan(-1);
-    expect(bandeira, 'a bandeira precisa vir antes do setAllJobs').toBeLessThan(mexeNoEstado);
+    expect(marca, 'a marca sumiu — a carga voltaria a ser gravada').toBeGreaterThan(-1);
+    expect(desiste, 'a saída sem linha nova sumiu').toBeGreaterThan(-1);
+    expect(
+      desiste,
+      'a marca voltou a ser feita antes de saber se o estado muda: sem render ' +
+        'ela fica pendurada, e a próxima edição do usuário é descartada'
+    ).toBeLessThan(marca);
   });
 
   it('não duplica o que já está em memória', () => {
