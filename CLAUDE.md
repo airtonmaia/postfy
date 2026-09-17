@@ -1780,9 +1780,29 @@ esses seria o erro dos nove cards que viraram `Button`:
   Virar `Dialog` seria errado: o `Esc` dispensaria um bloqueio de teste
   vencido, que existe justamente para não ser dispensado.
 
-Modais de verdade são **23, em 14 arquivos** — alguns têm várias
-(`ClientPortalView` e `CommercialView`, cinco cada). Dez migradas até aqui;
-faltam treze.
+Modais de verdade são **25**, e todas estão migradas. O número mudou três
+vezes no caminho — 18, depois 23, depois 25 — porque `grep` conta *locais* e
+só a triagem arquivo a arquivo conta modais: `ClientPortalView` parecia ter
+cinco e tem duas (as outras três são a casca do portal em tela cheia),
+enquanto `CommercialView` tinha cinco de verdade.
+
+**Três armadilhas da conversão, e as duas primeiras passam no `tsc`:**
+
+1. **`{estado && (` → `<Dialog open={!!estado}>` não basta.** JSX avalia os
+   filhos na **criação** do elemento, não na renderização: `estado.campo` roda
+   com a modal **fechada**, que é o estado normal dela, e derruba a tela
+   inteira. Deixei 17 dessas em três modais. A correção é manter o
+   `{estado && (` envolvendo o `DialogContent` — o `open` decide se abre, a
+   guarda decide se o conteúdo chega a existir. O `tsc` passa verde porque
+   `strictNullChecks` está desligado aqui.
+2. **`DialogTitle` fora de um `Dialog` estoura em tempo de execução.**
+   Conversão em lote de títulos por regex pega heading de seção junto: o meu
+   pegou cinco `<h4>` e só três estavam dentro.
+3. **O `)}` órfão** que sobra ao trocar `{estado && (` pelo `<Dialog>`. Esse
+   pelo menos o `tsc` acusa.
+
+As duas primeiras só aparecem em lote — um por um ninguém erra. As duas estão
+guardadas em `tests/celular.test.ts`.
 
 E vale repetir o que ficou claro medindo: adotar o `Dialog` **não conserta o
 celular sozinho**. O padrão dele é uma caixa centrada `max-w-lg`, que no

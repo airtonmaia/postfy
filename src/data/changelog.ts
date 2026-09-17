@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.51.0',
+    data: '2026-09-17',
+    resumo: 'Todas as janelas do sistema fecham com Esc, prendem o foco e travam a rolagem do fundo.',
+    novidades: [
+      'As últimas seis entraram no padrão: sua conta, a busca (Cmd+K), as políticas e os termos na porta do portal, e a prévia e o pedido de ajuste dentro do portal.',
+      'A busca continua abrindo perto do topo no computador, como toda busca por atalho, e passa a ocupar a tela inteira no celular.',
+    ],
+    melhorias: [
+      'O botão de fechar, a tela cheia no celular e o nome para leitores de tela agora vêm da mesma peça — janela nova já nasce com os três.',
+    ],
+  },
+  {
     versao: '2.50.0',
     data: '2026-09-17',
     resumo: 'Mais seis janelas no padrão novo, e a correção de um erro que derrubaria duas telas.',

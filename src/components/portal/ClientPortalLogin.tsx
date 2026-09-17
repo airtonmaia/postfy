@@ -4,6 +4,7 @@ import { ShieldCheck, X, FileText } from 'lucide-react';
 import { Workspace } from '../../types';
 import { usePostfy } from '../../context/PostfyContext';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface ClientPortalLoginProps {
   workspace: Workspace;
@@ -286,14 +287,15 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
       </div>
 
       {/* Privacy Policy Modal */}
-      {showPrivacyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      <Dialog open={showPrivacyModal} onOpenChange={setShowPrivacyModal}>
+        <DialogContent tamanho="formulario" className="p-6 gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <DialogTitle asChild>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-purple-600" />
                 Políticas de Privacidade & Segurança de Dados (LGPD)
               </h3>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowPrivacyModal(false)}
                 className="dark:hover:text-white"
@@ -319,19 +321,19 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 Entendi e Concordo
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Terms of Use Modal */}
-      {showTermsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+        <DialogContent tamanho="formulario" className="p-6 gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <DialogTitle asChild>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-4 h-4 text-purple-600" />
                 Termos de Uso do Portal de Conteúdo
               </h3>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" 
                 onClick={() => setShowTermsModal(false)}
                 className="dark:hover:text-white"
@@ -354,9 +356,8 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                 Fechar
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
