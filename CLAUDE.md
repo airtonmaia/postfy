@@ -1991,6 +1991,144 @@ com cara de certo.
 Protegido por `tests/anotacoes-do-cliente.test.ts`, que confere os dois
 recortes do banco na **última** definição de cada função.
 
+#### O quadro arrasta, e o mesmo gesto abre e move
+
+O comentário de `moveJobStatus` dizia, havia meses, que arrastar o card para
+"Para Aprovação" é *"como a maior parte do conteúdo chega"* àquela coluna — e
+**não havia como arrastar nada**. O quadro tinha um `<select>` dentro do card e
+mais nada. Comentário que descreve uma interação que não existe é a armadilha
+do `trial_ends_at` na interface: quem lê o código conclui que a capacidade está
+lá.
+
+`@dnd-kit` (`DndContext` + `useDraggable` + `useDroppable`), e cinco decisões
+que não são gosto:
+
+- **O clique que abre a peça e o arrasto que a move partem do mesmo gesto**, e
+  o que os separa é a **restrição de ativação** dos sensores. Sem ela o dnd-kit
+  começa a arrastar no `pointerdown` e o clique nunca acontece: **o quadro
+  deixa de abrir conteúdo**. No mouse a separação é distância (8px); parado, é
+  clique.
+- **No toque a ativação é por tempo, não por distância.** Distância ali
+  **sequestra a rolagem** — a coluna rola na vertical e o quadro na horizontal,
+  então qualquer deslize viraria arrasto e o quadro ficaria impossível de
+  percorrer no telefone. Com `delay: 250`, deslizar rola e segurar arrasta;
+  `tolerance` é o quanto o dedo pode tremer durante a pausa. Medido no
+  Chromium: toque curto chama `setSelectedJob`, segurar 400 ms e mover levanta
+  o overlay.
+- **Arrastar nunca enfileira publicação.** "Aprovado / Agendado" é uma coluna
+  só, alimentada por `['approved', 'scheduled']`, e o arrasto leva ao
+  **primeiro**. Levar a `scheduled` diria que a peça está na `publish_queue`
+  quando ela não está — e um disparo a partir de um gesto é a forma mais barata
+  de publicar o que ninguém decidiu publicar. Enfileirar continua sendo um
+  clique.
+- **Soltar onde a peça já estava não grava nada.** `statusAoSoltar` devolve
+  `null` quando a coluna de destino já contém o status atual: sem isso,
+  arrastar e desistir gravaria o mesmo status de novo, e cada gravação dessas
+  vira uma linha no histórico de atividade que não aconteceu.
+- **O card é um desenho só.** O `DragOverlay` precisa desenhá-lo fora da
+  coluna, e a saída fácil é copiar o JSX para lá — é a história das doze
+  alturas de botão, com o custo visível de imediato: o card sob o cursor
+  deixaria de parecer o card que a pessoa pegou. `CartaoDoQuadro` é
+  compartilhado, com a prop `flutuando`; `CartaoArrastavel` é o invólucro do
+  `useDraggable`.
+
+Dois detalhes que custaram tentativa:
+
+- **`onPointerDown={(e) => e.stopPropagation()}` no seletor de status.** Sem
+  ele, encostar no seletor começa a mover o card em vez de abrir a lista. E o
+  seletor **continua existindo**, sem ser redundância: ele alcança os sete
+  status, o quadro tem seis colunas, e é ele que escolhe entre "Aprovado" e
+  "Agendado" — o que o arrasto, pela regra acima, nunca faz.
+- **`draggable={false}` na imagem do card.** O navegador inicia o arrasto
+  nativo da figura por cima do do dnd-kit, e o que segue o cursor passa a ser a
+  imagem, não o card.
+
+A coluna vazia mantém `min-h-24` e troca "Nenhum conteúdo nesta etapa" por
+"Solte aqui" sob o cursor: sem altura mínima ela não tem área de soltura, e a
+primeira peça de uma coluna vazia é justamente a que alguém arrasta.
+
+Protegido por `tests/quadro.test.ts`. E `tests/fluxo-de-aprovacao.test.ts`
+precisou deixar de ler `KanbanBoard.tsx` e passar a ler a **pasta**
+`src/components/kanban` inteira — ela reprovou no dia em que o card saiu para
+um arquivo próprio, medindo o arquivo em vez da decisão.
+
+#### O e-mail da equipe vem por RPC, e a agência pode trocar de dono
+
+A tela de Usuários mostrava **"Membro da agência"** embaixo do nome de todo
+mundo que não fosse o próprio usuário. Não era desleixo: o e-mail mora em
+`auth.users`, que **nenhuma sessão autenticada lê** — o cliente montava a
+lista de `workspace_members`, onde só há nome e avatar. Numa equipe com dois
+"Airton" o nome não distingue ninguém, e é o e-mail que diz para qual conta o
+convite foi.
+
+`equipe_da_agencia` é `security definer` e **a conferência de pertencimento é
+a função inteira**: sem ela, qualquer sessão passa o id de outra agência e
+recebe a lista de e-mails dela. É o mesmo cuidado do `portal_dados`.
+
+**Uma coluna `email` em `workspace_members` seria mais simples e está errada.**
+A tabela já denormaliza `name` e `avatar`, mas os dois são editáveis pela
+própria pessoa no perfil — o e-mail é a credencial de login, e uma cópia dele
+envelhece em silêncio no dia em que alguém troca o endereço da conta: a tela
+passaria a mostrar o antigo com cara de certo.
+
+**Transferir a agência não existia.** Quem criou é `owner` para sempre, e a
+pessoa que de fato a administra fica em `admin`. Três regras, e a terceira só
+apareceu no banco:
+
+1. **Só o dono transfere.** Um `admin` pode quase tudo *dentro* da agência;
+   deixá-lo transferir seria deixá-lo tomá-la — é a única coisa que separa os
+   dois papéis hoje.
+2. **Quem transfere vira `admin`, não perde o acesso.** Transferir e ser
+   expulso no mesmo clique é armadilha.
+3. **O gatilho `membro_editado` recusava o último passo**, e a migração aplica
+   limpa sem isso aparecer. Ele barra *qualquer* sessão que mexa no próprio
+   papel — regra certa, que fecha a auto-promoção — e o último passo da
+   transferência é exatamente isso. Ser `security definer` não ajuda:
+   `auth.uid()` lê o JWT da sessão, não o dono da função.
+
+   A exceção aberta é **estreita de propósito**: sair de `owner` para `admin`,
+   com os dois lados ativos. Não é promoção, é o oposto; `admin` continua sem
+   virar `owner` sozinho, e mexer no próprio `ativo` continua barrado.
+
+**E a ordem das duas escritas é a entrega, não estilo.** O gatilho recusa
+deixar a agência sem nenhum dono ativo, e olha a tabela na hora: rebaixando
+antes de promover, o destino ainda é `admin`, não há outro dono, e a
+transferência inteira falha com `42501`. `tests/equipe-e-transferencia.test.ts`
+compara a posição dos dois `update` no corpo da função — é a única guarda
+possível para uma regra que só se manifesta em tempo de execução.
+
+Na tela, `souODono` sai da **lista recarregada**, não de `currentUser.role`:
+o papel da sessão é fixado quando ela começa, então logo depois de transferir a
+pessoa continuaria vendo o botão — que o banco recusa, mas um botão que promete
+o que não faz é pior que botão ausente.
+
+Conferido no banco com impersonação, num `qa-` descartável, com contagem antes
+e depois: **14 asserções**, incluindo o intruso (`designer` transferindo), a
+auto-promoção (`admin` virando `owner` pela tabela), a equipe de agência alheia
+(devolve `[]`), e o caso feliz.
+
+#### Função aplicada e não escrita é o agendador ao contrário
+
+A guarda nova encontrou `adicionar_membro_existente` **no banco e em nenhuma
+migração**. Ela foi aplicada à mão e nunca escrita: o produto funciona, e nada
+acusava — `tsc` não confere nome de RPC, o vitest não chama o banco, o
+`vite build` não sabe o que é função do Postgres.
+
+É a armadilha do agendador invertida. Lá, uma migração ficou quatro commits
+escrita e nunca aplicada, e o produto passou esse tempo sem agendador. Aqui,
+quem reconstruísse o banco a partir de `supabase/migrations/` — a pasta que
+este projeto trata como fonte de verdade do schema — teria "Adicionar à
+agência" falhando com `PGRST202`, e a regra de quem pode adicionar quem
+existiria só na memória de quem a escreveu. O corpo foi recuperado com
+`pg_get_functiondef` e **não reescrito**: uma versão "melhorada" mudaria o
+comportamento do ar sem ninguém ter pedido.
+
+A guarda que achou isso é a generalização de uma que existia: a do portal
+conferia só `src/lib/portal.ts`, porque foi ali que um nome digitado errado
+apareceu na frente do cliente. **A classe do bug nunca foi do portal** — agora
+todo `supabase.rpc` de `src/lib` tem de apontar para função que existe numa
+migração.
+
 #### O `<main>` corta; quem rola é cada tela
 
 `<main>` no `App.tsx` é `flex-1 min-h-0 overflow-hidden`: ele **dá a altura e
@@ -2187,6 +2325,7 @@ src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e co
 src/components/clients/EdicaoDeArquivo.tsx   corrige nome, categoria e — só em link — a URL
 src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na mesma janela
 src/lib/arquivosDoCliente.ts  o que a linha é: anexo, link ou bloco de notas
+src/components/kanban/CartaoDoQuadro.tsx  o card do quadro: um desenho só, na coluna e sob o cursor
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 
@@ -2201,7 +2340,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 37 migrações
+supabase/migrations/       schema é a fonte de verdade; 45 migrações
 ```
 
 ---

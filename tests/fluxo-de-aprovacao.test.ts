@@ -26,9 +26,19 @@ const RAIZ = join(__dirname, '..');
 const modal = semComentarios(
   readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')
 );
-const kanban = semComentarios(
-  readFileSync(join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'), 'utf-8')
-);
+/**
+ * **O quadro inteiro, e não um arquivo dele.**
+ *
+ * A guarda lia só `KanbanBoard.tsx`, e reprovou no dia em que o card saiu de
+ * lá para um arquivo próprio — o `DragOverlay` precisa desenhar o mesmo card
+ * fora da coluna, e a alternativa era copiar o JSX. Ela seguiu o arquivo, e o
+ * que ela protege é a decisão: o quadro diz "sem data" em vez de esconder a
+ * peça aprovada que ninguém agendou.
+ */
+const kanban = readdirSync(join(RAIZ, 'src', 'components', 'kanban'))
+  .filter((f) => f.endsWith('.tsx'))
+  .map((f) => semComentarios(readFileSync(join(RAIZ, 'src', 'components', 'kanban', f), 'utf-8')))
+  .join('\n');
 const automacoes = semComentarios(
   readFileSync(join(RAIZ, 'src', 'lib', 'automacoes.ts'), 'utf-8')
 );

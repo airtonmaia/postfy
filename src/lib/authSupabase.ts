@@ -460,30 +460,64 @@ export interface MembroDaEquipe {
   name?: string;
   avatar?: string;
   ativo: boolean;
+  /**
+   * Vem de `auth.users`, que nenhuma sessão autenticada lê — por isso a lista
+   * passa por RPC. Fica opcional porque a função é `left join`: um vínculo
+   * cujo usuário foi apagado ainda aparece, e sem nome nem e-mail seria uma
+   * linha invisível na tela.
+   */
+  email?: string;
 }
 
 /**
- * Equipe de UMA agência.
+ * Equipe de UMA agência, com o e-mail de cada pessoa.
  *
- * O filtro por `workspaceId` não é redundante com a RLS: ela deixa ler os
- * membros de todas as agências às quais a pessoa pertence, então sem o
- * recorte a tela de Usuários misturava as equipes de agências diferentes na
- * mesma lista.
+ * **Por que RPC e não `select` na tabela.** `workspace_members` guarda nome e
+ * avatar, não o e-mail: ele mora em `auth.users`, fora do alcance do
+ * PostgREST. A tela mostrava "Membro da agência" embaixo de todo mundo que
+ * não fosse o próprio usuário, e numa equipe com dois "Airton" o nome não
+ * distingue ninguém — é o e-mail que diz para qual conta o convite foi.
+ *
+ * `equipe_da_agencia` é `security definer` e confere pertencimento antes de
+ * devolver qualquer coisa: sem essa conferência, passar o id de outra agência
+ * daria a lista de e-mails dela. O recorte por agência, que antes era o
+ * `.eq()` daqui, agora é o parâmetro — a RLS deixa ler os membros de todas as
+ * agências às quais a pessoa pertence, e sem o recorte a tela misturava as
+ * equipes.
  */
 export const listarEquipe = async (workspaceId: string): Promise<MembroDaEquipe[]> => {
-  const { data, error } = await supabase
-    .from('workspace_members')
-    .select('*')
-    .eq('workspace_id', workspaceId);
+  const { data, error } = await supabase.rpc('equipe_da_agencia', {
+    p_workspace_id: workspaceId,
+  });
   if (error) throw new Error(error.message);
-  return (data || []).map((l: any) => ({
+  return ((data as any[]) || []).map((l: any) => ({
     userId: l.user_id,
-    workspaceId: l.workspace_id,
+    workspaceId,
     role: l.role as Role,
     name: l.name ?? undefined,
     avatar: l.avatar ?? undefined,
     ativo: l.ativo ?? true,
+    email: l.email ?? undefined,
   }));
+};
+
+/**
+ * Passa a propriedade da agência para outro membro.
+ *
+ * Quem transfere fica como `admin` — continua trabalhando na agência. As três
+ * regras (só o dono transfere, o destino precisa ser membro ativo, e a
+ * agência nunca fica sem dono) são conferidas **no banco**: a tela some com o
+ * botão para quem não é dono, mas quem decide é a RPC.
+ */
+export const transferirAgencia = async (
+  workspaceId: string,
+  novoDono: string
+): Promise<void> => {
+  const { error } = await supabase.rpc('transferir_agencia', {
+    p_workspace_id: workspaceId,
+    p_novo_dono: novoDono,
+  });
+  if (error) throw new Error(error.message);
 };
 
 /**

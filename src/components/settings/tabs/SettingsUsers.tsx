@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
 import {
   Users, Plus, Mail, Trash2, CheckCircle2, X, Copy, Check, Clock, AlertCircle,
-  UserX, UserCheck,
+  UserX, UserCheck, Crown,
 } from 'lucide-react';
 import { Role } from '../../../types';
 import { conviteApi } from '../../../lib/api';
@@ -15,6 +15,7 @@ import {
   removerMembro,
   situacaoDoConvidado,
   adicionarMembroExistente,
+  transferirAgencia,
   type MembroDaEquipe,
   type ConvitePendente,
   type SituacaoDoConvidado,
@@ -67,6 +68,15 @@ export const SettingsUsers: React.FC = () => {
   const podeGerenciar = pode(currentUser?.role, 'gerenciar_usuarios');
 
   const [membros, setMembros] = useState<MembroDaEquipe[]>([]);
+  /**
+   * Sai da lista recarregada, e **não** de `currentUser.role`.
+   *
+   * O papel da sessão é fixado quando ela começa: logo depois de transferir, a
+   * pessoa continuaria vendo o botão de transferir — que o banco recusaria com
+   * `42501`, então não é brecha, mas é um botão que promete o que não faz.
+   * `carregar()` roda depois da transferência, e daí a coroa desaparece sozinha.
+   */
+  const souODono = membros.some((m) => m.userId === currentUser?.id && m.role === 'owner');
   const { pedir, dialogo } = useConfirmacao();
   const [convites, setConvites] = useState<ConvitePendente[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -279,6 +289,46 @@ export const SettingsUsers: React.FC = () => {
   };
 
   /**
+   * Passar a agência para outra pessoa.
+   *
+   * **A descrição nomeia as duas consequências, e isso não é zelo.** Quem
+   * transfere deixa de poder transferir de volta — só o novo dono pode —, e
+   * continua na agência como `admin`. Sem as duas frases, "Transferir" lê como
+   * uma troca de rótulo reversível, e ela não é: desfazer depende da outra
+   * pessoa aceitar desfazer.
+   */
+  const transferir = (membro: MembroDaEquipe) => {
+    const alvo = membro.name || membro.email || 'esta pessoa';
+    pedir({
+      titulo: `Tornar ${alvo} proprietário da agência?`,
+      descricao:
+        `${alvo} passa a ser o proprietário e você fica como Administrador — ` +
+        'continua com acesso a tudo dentro da agência. Só o proprietário pode ' +
+        'transferir a propriedade, então desfazer isso depende de essa pessoa ' +
+        'transferir de volta.',
+      rotuloConfirmar: 'Transferir',
+      aoConfirmar: () => void transferirDeVez(membro),
+    });
+  };
+
+  const transferirDeVez = async (membro: MembroDaEquipe) => {
+    setErro(null);
+    setSalvandoMembro(membro.userId);
+    try {
+      await transferirAgencia(membro.workspaceId, membro.userId);
+      setFeedback(`${membro.name || membro.email} agora é o proprietário da agência.`);
+      setTimeout(() => setFeedback(null), 5000);
+      await carregar();
+    } catch (err) {
+      setErro(
+        err instanceof Error ? err.message : 'Não foi possível transferir a agência.'
+      );
+    } finally {
+      setSalvandoMembro(null);
+    }
+  };
+
+  /**
    * Reenvia o e-mail do convite que já existe.
    *
    * Antes a única saída para um e-mail que não chegou era criar outro
@@ -410,12 +460,18 @@ export const SettingsUsers: React.FC = () => {
                       )}
                     </p>
                     {/*
-                      O e-mail dos colegas não aparece de propósito: ele vive em
-                      auth.users, que a RLS não expõe entre membros. Mostramos o
-                      do próprio usuário, que ele já conhece.
+                      O e-mail vem da RPC `equipe_da_agencia`, porque ele mora
+                      em `auth.users` e nenhuma sessão autenticada lê aquela
+                      tabela. Aqui dizia "Membro da agência" para todo mundo
+                      que não fosse o próprio usuário — e numa equipe com dois
+                      "Airton" o nome não distingue ninguém.
+
+                      O fallback fica porque a função é `left join`: um vínculo
+                      cujo usuário foi apagado ainda aparece, e uma linha sem
+                      nada embaixo do nome lê como defeito.
                     */}
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {souEu ? currentUser.email : 'Membro da agência'}
+                      {membro.email || (souEu ? currentUser.email : 'Membro da agência')}
                     </p>
                   </div>
                 </div>
@@ -439,6 +495,26 @@ export const SettingsUsers: React.FC = () => {
                     </select>
                   ) : (
                     badgeDoPapel(membro.role)
+                  )}
+
+                  {/*
+                    Só o dono transfere, e só para quem está ativo.
+
+                    A conferência de verdade é da RPC; o que esta condição faz
+                    é não oferecer o que vai ser recusado. `membro.ativo` entra
+                    porque promover alguém suspenso deixaria a agência com um
+                    dono sem acesso — e o único que pode transferir de volta é
+                    justamente ele.
+                  */}
+                  {souODono && !souEu && membro.ativo && membro.role !== 'owner' && (
+                    <button
+                      onClick={() => transferir(membro)}
+                      disabled={ocupado}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition cursor-pointer disabled:opacity-50"
+                      title="Tornar proprietário da agência"
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                    </button>
                   )}
 
                   {podeMexer && (

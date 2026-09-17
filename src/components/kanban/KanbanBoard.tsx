@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { usePostfy } from '../../context/PostfyContext';
-import { safeDateFormat } from '../../lib/utils';
-import { PlatformBadge, FormatBadge, PriorityBadge, TipoBadge } from '../common/Badges';
 import {
   Plus,
-  MoreVertical,
-  MessageSquare,
-  CheckSquare,
-  Clock,
-  ArrowRight,
-  Filter,
   Search,
   ChevronDown,
   Image as ImageIcon,
@@ -18,10 +23,78 @@ import {
   MailCheck
 } from 'lucide-react';
 import { Job, JobStatus, Client, JobTipo } from '../../types';
-import { Avatar } from '../common/Avatar';
 import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
 import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
+import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
+
+interface Coluna {
+  id: string;
+  title: string;
+  statuses: JobStatus[];
+  color: string;
+  border: string;
+}
+
+/**
+ * A coluna, e o alvo de soltura que ela é.
+ *
+ * Componente próprio porque `useDroppable` é um hook: dentro do `.map` das
+ * colunas ele rodaria em quantidade variável, que é a armadilha 8.1 com outra
+ * roupa.
+ *
+ * **A lista tem altura mínima mesmo vazia.** Sem ela, a coluna sem card não
+ * tem área para soltar nada — e a primeira peça de uma coluna vazia é
+ * justamente a que alguém precisa arrastar para lá.
+ */
+const ColunaDoQuadro: React.FC<{
+  col: Coluna;
+  children: React.ReactNode;
+  vazia: boolean;
+  cabecalho: React.ReactNode;
+  /** `null` quando nada está sendo arrastado. */
+  statusArrastado: JobStatus | null;
+}> = ({ col, children, vazia, cabecalho, statusArrastado }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+
+  /*
+    Soltar na coluna de onde a peça saiu não muda nada, e a tela diz isso
+    antes: o realce só acende onde o gesto tem efeito. Alvo que acende para não
+    fazer nada é pior que alvo que não acende.
+  */
+  const mudaAlgo = statusArrastado !== null && !col.statuses.includes(statusArrastado);
+  const realcar = isOver && mudaAlgo;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-80 shrink-0 rounded-2xl p-3 flex flex-col max-h-full border shadow-xs transition-colors ${
+        realcar
+          ? 'bg-purple-100/80 dark:bg-purple-950/40 border-purple-400'
+          : 'bg-slate-200/70 border-slate-300/60'
+      }`}
+    >
+      {cabecalho}
+
+      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-24">
+        {children}
+
+        {vazia && (
+          <div
+            className={`h-20 rounded-xl border border-dashed flex items-center justify-center text-[11px] text-center px-3 leading-relaxed ${
+              realcar
+                ? 'border-purple-400 text-purple-700 dark:text-purple-300'
+                : 'border-slate-300 dark:border-slate-700 text-slate-400'
+            }`}
+          >
+            {realcar ? 'Solte aqui' : 'Nenhum conteúdo nesta etapa'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 /** Um ícone por tipo. Fica aqui e não no catálogo: lá é dado, aqui é desenho. */
 const ICONE_DO_TIPO: Record<JobTipo, React.FC<{ className?: string }>> = {
@@ -45,6 +118,34 @@ export const KanbanBoard: React.FC = () => {
   } = usePostfy();
 
   const [search, setSearch] = useState('');
+
+  /** O id do que está sendo arrastado. `null` quando nada está. */
+  const [arrastando, setArrastando] = useState<string | null>(null);
+
+  /**
+   * **Um gesto, duas ações — e o que as separa são as restrições de ativação.**
+   *
+   * O card abre a peça no clique e se move no arrasto. Sem restrição, o
+   * dnd-kit começa a arrastar já no `pointerdown` e o clique nunca acontece:
+   * o quadro deixaria de abrir conteúdo.
+   *
+   * No mouse a separação é **distância**: alguns pixels de movimento viram
+   * arrasto; parado, é clique.
+   *
+   * No toque é **tempo**, e isso não é preferência. Distância no toque
+   * sequestra a rolagem: a coluna rola na vertical e o quadro na horizontal,
+   * então qualquer deslize viraria arrasto e o quadro ficaria impossível de
+   * percorrer no telefone. Com a pausa de 250 ms, deslizar rola e segurar
+   * arrasta — o gesto que todo aplicativo de lista usa.
+   *
+   * `tolerance` é o quanto o dedo pode tremer durante a pausa sem cancelar:
+   * sem folga, ninguém consegue segurar parado o bastante.
+   */
+  const sensores = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
+    useSensor(KeyboardSensor)
+  );
   const [menuDeTipoAberto, setMenuDeTipoAberto] = useState(false);
 
   /**
@@ -136,6 +237,54 @@ export const KanbanBoard: React.FC = () => {
   });
 
   const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
+
+  const jobArrastado = useMemo(
+    () => (arrastando ? filteredJobs.find((j) => j.id === arrastando) ?? null : null),
+    [arrastando, filteredJobs]
+  );
+
+  /**
+   * Para onde a coluna leva a peça.
+   *
+   * Devolve `null` quando soltar não muda nada — soltar na coluna de onde a
+   * peça saiu, ou fora de qualquer coluna. Sem esse `null`, arrastar e
+   * desistir gravaria um status igual ao que já estava, enchendo o histórico
+   * de atividade de linhas que não aconteceram.
+   *
+   * **A coluna "Aprovado / Agendado" junta dois status, e o arrasto escolhe
+   * sempre `approved`.** "Agendado" significa que existe data marcada **e**
+   * que a peça está na fila de publicação — e enfileirar é um clique, nunca
+   * um efeito de arrastar um card: postagem no perfil do cliente não volta.
+   * Quem quer `scheduled` usa o seletor do card, ou o botão "Agendar
+   * publicação" na peça, que põe na fila de verdade.
+   */
+  const statusAoSoltar = (col: Coluna | undefined, job: Job): JobStatus | null => {
+    if (!col) return null;
+    if (col.statuses.includes(job.status)) return null;
+    return col.statuses[0];
+  };
+
+  const aoComecarArrasto = (evento: DragStartEvent) => setArrastando(String(evento.active.id));
+
+  const aoTerminarArrasto = (evento: DragEndEvent) => {
+    setArrastando(null);
+
+    const job = jobs.find((j) => j.id === String(evento.active.id));
+    if (!job) return;
+
+    const col = columns.find((c) => c.id === String(evento.over?.id ?? ''));
+    const novoStatus = statusAoSoltar(col, job);
+    if (!novoStatus) return;
+
+    /*
+      `moveJobStatus` e não `updateJob`: ele carimba a data de publicação
+      quando a peça entra em "Publicado" e dispara o aviso ao cliente quando
+      ela entra em "Para Aprovação". O comentário de lá já dizia que arrastar
+      o card é "como a maior parte do conteúdo chega" àquela coluna — e até
+      agora não havia como arrastar nada.
+    */
+    moveJobStatus(job.id, novoStatus);
+  };
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -234,142 +383,101 @@ export const KanbanBoard: React.FC = () => {
         </div>
       )}
 
-      {/* Kanban Horizontal Scroll Columns */}
-      <div className="flex-1 flex overflow-x-auto p-6 gap-4 items-start min-h-0">
-        {columns.map(col => {
-          const colJobs = filteredJobs.filter(j => col.statuses.includes(j.status));
+      {/*
+        **O quadro inteiro fica dentro de um `DndContext`.**
 
-          return (
-            <div
-              key={col.id}
-              className="w-80 shrink-0 bg-slate-200/70 rounded-2xl p-3 flex flex-col max-h-full border border-slate-300/60 shadow-xs"
-            >
-              {/* Column Header */}
-              <div className="flex items-center justify-between px-2 py-1.5 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md border ${col.color} ${col.border}`}>
-                    {col.title}
-                  </span>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono">
-                    {colJobs.length}
-                  </span>
-                </div>
+        `pointerWithin` e não o `rectIntersection` padrão: com retângulos, a
+        coluna vizinha ganha o alvo assim que o card **encosta** nela, e as
+        colunas ficam a 16px uma da outra — soltar na fronteira caía na errada
+        com frequência. `pointerWithin` decide pelo ponteiro, que é onde a
+        pessoa está olhando.
+      */}
+      <DndContext
+        sensors={sensores}
+        collisionDetection={pointerWithin}
+        onDragStart={aoComecarArrasto}
+        onDragCancel={() => setArrastando(null)}
+        onDragEnd={aoTerminarArrasto}
+      >
+        <div className="flex-1 flex overflow-x-auto p-6 gap-4 items-start min-h-0">
+          {columns.map(col => {
+            const colJobs = filteredJobs.filter(j => col.statuses.includes(j.status));
 
-                {col.id === 'ideas' && (
-                  <Button variant="ghost" size="icon-sm"
-                    onClick={() => openCreateJobModal()}
-                    className="hover:bg-slate-300"
-                    title="Adicionar ideia"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                )}
-
-                {col.id === 'for_approval' && agrupaAvisos && colJobs.length > 0 && (
-                  <Button
-                    onClick={() => void dispararLote()}
-                    disabled={enviandoLote}
-                    title="Manda um aviso só, com tudo que este cliente tem para aprovar."
-                    className="bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                  >
-                    <MailCheck className="w-3 h-3" />
-                    {enviandoLote ? 'Enviando...' : 'Aprovação em massa'}
-                  </Button>
-                )}
-              </div>
-
-              {/* Cards List */}
-              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-                {colJobs.map(job => {
-                  const client = clientMap.get(job.clientId);
-
-                  return (
-                    <div
-                      key={job.id}
-                      onClick={() => setSelectedJob(job)}
-                      className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800/90 hover:border-purple-300 p-3.5 shadow-xs transition-all cursor-pointer space-y-2.5 group"
-                    >
-                      {/* Top: Client & Platform & Version */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={16} />
-                          <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate">
-                            {client?.name}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                          v{job.currentVersion}
-                        </span>
-                      </div>
-
-                      {/* Title & Preview Image */}
-                      <div className="flex items-start gap-2.5">
-                        {job.mediaUrls && job.mediaUrls.length > 0 && (
-                          <img
-                            src={job.mediaUrls[0]}
-                            alt=""
-                            className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 transition line-clamp-2 leading-tight">
-                            {job.title}
-                          </h4>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <PlatformBadge platform={job.platform} showLabel={false} className="px-1 py-0" />
-                            <FormatBadge format={job.format} />
-                            {/* Conteúdo é a maioria e o padrão: marcar só o que
-                                foge disso deixa a exceção visível no quadro. */}
-                            {job.tipo !== 'conteudo' && <TipoBadge tipo={job.tipo} />}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer: Dates & Comments & Move Next */}
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                        <div className="flex items-center gap-2">
-                          {/* Sem data é um estado legítimo — aprovado antes de
-                              alguém marcar quando vai ao ar —, e dizê-lo é o
-                              que faz a pendência aparecer. */}
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            {job.scheduledDate
-                              ? safeDateFormat(job.scheduledDate, { day: '2-digit', month: '2-digit' })
-                              : 'sem data'}
-                          </span>
-                          {job.comments.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3 text-slate-400" />
-                              {job.comments.length}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Quick move forward button */}
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={job.status}
-                            onChange={(e) => moveJobStatus(job.id, e.target.value as JobStatus)}
-                            className="text-[10px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-1 py-0.5 text-slate-600 dark:text-slate-400 font-medium"
-                          >
-                            <option value="ideas">Ideias</option>
-                            <option value="in_production">Produção</option>
-                            <option value="for_approval">Aprovação</option>
-                            <option value="in_adjustment">Ajuste</option>
-                            <option value="approved">Aprovado</option>
-                            <option value="scheduled">Agendado</option>
-                            <option value="published">Publicado</option>
-                          </select>
-                        </div>
-                      </div>
+            return (
+              <ColunaDoQuadro
+                key={col.id}
+                col={col}
+                vazia={colJobs.length === 0}
+                statusArrastado={jobArrastado?.status ?? null}
+                cabecalho={
+                  <div className="flex items-center justify-between px-2 py-1.5 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md border ${col.color} ${col.border}`}>
+                        {col.title}
+                      </span>
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono">
+                        {colJobs.length}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {col.id === 'ideas' && (
+                      <Button variant="ghost" size="icon-sm"
+                        onClick={() => openCreateJobModal()}
+                        className="hover:bg-slate-300"
+                        title="Adicionar ideia"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+
+                    {col.id === 'for_approval' && agrupaAvisos && colJobs.length > 0 && (
+                      <Button
+                        onClick={() => void dispararLote()}
+                        disabled={enviandoLote}
+                        title="Manda um aviso só, com tudo que este cliente tem para aprovar."
+                        className="bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                      >
+                        <MailCheck className="w-3 h-3" />
+                        {enviandoLote ? 'Enviando...' : 'Aprovação em massa'}
+                      </Button>
+                    )}
+                  </div>
+                }
+              >
+                {colJobs.map(job => (
+                  <CartaoArrastavel
+                    key={job.id}
+                    job={job}
+                    client={clientMap.get(job.clientId)}
+                    aoAbrir={() => setSelectedJob(job)}
+                    aoTrocarStatus={(status) => moveJobStatus(job.id, status)}
+                  />
+                ))}
+              </ColunaDoQuadro>
+            );
+          })}
+        </div>
+
+        {/*
+          **O que segue o cursor sai do fluxo da coluna.**
+
+          Sem o `DragOverlay`, quem se move é o próprio card — e ele fica preso
+          dentro do `overflow` da coluna, sumindo atrás da borda assim que
+          passa para a de ao lado. O overlay desenha por cima de tudo, e o card
+          original fica no lugar, apagado, marcando de onde a peça saiu.
+        */}
+        <DragOverlay dropAnimation={null}>
+          {jobArrastado && (
+            <div className="w-72">
+              <CartaoDoQuadro
+                job={jobArrastado}
+                client={clientMap.get(jobArrastado.clientId)}
+                flutuando
+              />
             </div>
-          );
-        })}
-      </div>
+          )}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 };
