@@ -190,3 +190,91 @@ describe('baixar arquivo baixa mesmo', () => {
     expect(queda.slice(0, 1400)).toMatch(/CORS/);
   });
 });
+
+/**
+ * O bloco de notas mudou de coluna, e mudar de coluna é mudar de lado.
+ *
+ * `clients.annotations` **nunca sai da agência**; `clients.files`, ao
+ * contrário, **é lido pelo cliente editor** no portal — é lá que ele busca a
+ * identidade visual e manda foto. Juntar as duas listas numa só, que é o que a
+ * tela passou a mostrar, move o texto interno para o lado visível.
+ *
+ * Duas correções seguram isso, e **a segunda é a que ninguém veria falhar**.
+ */
+describe('o bloco de notas mora em files e continua interno', () => {
+  const ultimaDefinicao = (nome: string): string => {
+    const pasta = join(RAIZ, 'supabase', 'migrations');
+    const arquivos = readdirSync(pasta).filter((f) => f.endsWith('.sql')).sort();
+
+    let corpo = '';
+    for (const arquivo of arquivos) {
+      const texto = readFileSync(join(pasta, arquivo), 'utf-8');
+      const inicio = texto.indexOf(`create or replace function public.${nome}`);
+      if (inicio === -1) continue;
+      const fim = texto.indexOf('\n$$;', inicio);
+      corpo = texto.slice(inicio, fim === -1 ? undefined : fim);
+    }
+    return semComentarios(corpo);
+  };
+
+  it('portal_dados filtra a linha de nota de dentro de files', () => {
+    /**
+     * Subtrair a chave não serve aqui: `files` é a lista que o cliente
+     * **precisa** ver. O que sai é item por item, pelo `kind` — e a subtração
+     * fica **antes** do `if usuario.role`, porque vale para todos os papéis:
+     * o editor é o cliente.
+     */
+    const corpo = ultimaDefinicao('portal_dados');
+    expect(corpo, 'portal_dados sumiu das migrações').not.toBe('');
+
+    const filtro = corpo.indexOf(`<> 'nota'`);
+    const condicional = corpo.indexOf('if usuario.role');
+
+    expect(
+      filtro,
+      'portal_dados devolve o bloco de notas ao cliente: ele mora em files, que o ' +
+        'editor lê inteiro, e é o que a agência escreve *sobre* o cliente'
+    ).toBeGreaterThan(-1);
+    expect(
+      filtro,
+      'o bloco de notas só é filtrado dentro do if de papel — o editor, que é o ' +
+        'cliente, continua recebendo'
+    ).toBeLessThan(condicional);
+  });
+
+  it('gravar pelo portal não apaga o que o portal não viu', () => {
+    /**
+     * **Esta é a guarda que importa.**
+     *
+     * `portal_salvar_dados` grava `files` com o array inteiro que o navegador
+     * mandou — e o navegador do cliente nunca recebeu as notas, porque a
+     * guarda acima as removeu. Sem recolocá-las no servidor, o primeiro
+     * arquivo que o cliente enviasse pelo portal **apagaria todas as
+     * anotações da agência**: em silêncio, sem erro em lugar nenhum, e sem
+     * ninguém desconfiar até alguém procurar uma anotação que não está mais
+     * lá. É a troca de um vazamento por uma perda, que é pior.
+     */
+    const corpo = ultimaDefinicao('portal_salvar_dados');
+    expect(corpo, 'portal_salvar_dados sumiu das migrações').not.toBe('');
+
+    expect(
+      corpo,
+      'a gravação pelo portal voltou a substituir files inteiro — a primeira ' +
+        'gravação do cliente apaga os blocos de notas da agência'
+    ).toMatch(/= 'nota'/);
+    expect(
+      corpo,
+      'as linhas de nota deixaram de ser relidas do banco antes de gravar'
+    ).toMatch(/from public\.clients c,/);
+  });
+
+  it('a tela não tem mais duas listas', () => {
+    // Se a seção separada voltar, volta junto a pergunta feita duas vezes — e
+    // o risco de alguém religar a gravação em `annotations`, que já não é lida.
+    const tela = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'components', 'clients', 'ClientDetail.tsx'), 'utf-8')
+    );
+    expect(tela, 'a lista separada de anotações voltou').not.toMatch(/<AnotacoesDoCliente/);
+    expect(tela, 'o filtro por tipo sumiu da lista de arquivos').toMatch(/setTipoVisivel/);
+  });
+});

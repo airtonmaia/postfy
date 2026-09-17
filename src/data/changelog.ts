@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.53.0',
+    data: '2026-09-17',
+    resumo:
+      'Feed + Story agora vale para o Facebook, o seletor de canais virou uma lista, e os arquivos do cliente viraram uma lista só.',
+    novidades: [
+      'O Orquesia passou a publicar Story em Página do Facebook — e por isso "Feed + Story" agora aparece também quando o Facebook está escolhido. Antes o formato existia só no Instagram.',
+      'O campo Canais virou um seletor com lista, como o da Meta: você marca as redes, vê quantas escolheu e lê ali mesmo quais publicam sozinhas e quais são postagem manual.',
+      'A aba Arquivos do cliente virou uma lista só, com filtro por tipo: Anexos, Links e Bloco de notas.',
+      'As anotações do cliente viraram "Bloco de notas" e entraram nessa mesma lista, com a contagem à vista. Elas continuam sendo só da equipe — não aparecem no Portal do Cliente.',
+      'Arquivos e links agora podem ser editados. Antes, corrigir um nome ou trocar a categoria exigia excluir e cadastrar de novo — e num link isso perdia o endereço.',
+    ],
+    melhorias: [
+      'No link, o endereço é editável (é ele que quebra quando a pasta é movida). No arquivo enviado, não: ali o endereço aponta para o arquivo, e digitar outro não moveria nada.',
+    ],
+    corrigido: [
+      'Uma correção que peguei antes de subir: com o bloco de notas passando a morar junto dos arquivos, o primeiro arquivo que o cliente enviasse pelo portal apagaria todas as anotações da agência — em silêncio. O servidor agora preserva os blocos que o cliente nem chega a receber.',
+    ],
+  },
+  {
     versao: '2.52.0',
     data: '2026-09-17',
     resumo:

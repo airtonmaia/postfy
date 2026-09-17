@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
+import { Check } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 
@@ -85,6 +86,55 @@ export const DropdownMenuItem = React.forwardRef<
   />
 ));
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
+
+/**
+ * Item que marca e desmarca, sem fechar o menu.
+ *
+ * O `rounded-sm` que o shadcn usa em item de menu vira `rounded-lg`, que é o
+ * passo de "controle pequeno" do vocabulário daqui — a mesma tradução que
+ * `DropdownMenuItem` já faz. Nada de `--radius-*`: redefinir aquilo move toda
+ * classe `rounded-*` que já existe em tela.
+ *
+ * O `ItemIndicator` do Radix só desenha quando marcado, então a caixinha vazia
+ * é nossa: sem ela, o item desmarcado não parece marcável — e a lista inteira
+ * lê como um menu de ações, não como uma escolha múltipla.
+ */
+export const DropdownMenuCheckboxItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
+>(({ className, children, checked, ...props }, ref) => (
+  <DropdownMenuPrimitive.CheckboxItem
+    ref={ref}
+    checked={checked}
+    className={cn(
+      'relative flex cursor-pointer select-none items-center gap-2.5 rounded-lg py-1.5 pl-2 pr-2',
+      'text-xs outline-hidden transition',
+      'focus:bg-accent focus:text-accent-foreground',
+      'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      className
+    )}
+    {...props}
+  >
+    <span
+      className={cn(
+        // `rounded-md`, que é o passo de chip e badge: numa caixa de 16px ele
+        // rende os 6px escritos, enquanto o `lg` (8px) já é metade do lado e
+        // arredondaria a ponto de a caixinha deixar de ler como caixinha.
+        'flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition',
+        checked
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-slate-300 dark:border-slate-600'
+      )}
+    >
+      <DropdownMenuPrimitive.ItemIndicator>
+        <Check className="h-3 w-3" strokeWidth={3} />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.CheckboxItem>
+));
+DropdownMenuCheckboxItem.displayName = DropdownMenuPrimitive.CheckboxItem.displayName;
 
 export const DropdownMenuLabel = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Label>,

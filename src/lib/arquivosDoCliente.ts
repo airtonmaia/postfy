@@ -12,6 +12,11 @@ import type { ClientFile } from '../types';
 /**
  * O que a linha é.
  *
+ * São **três**: anexo nosso, link da pasta de outra pessoa, e bloco de notas.
+ * O terceiro entrou aqui, e não numa lista à parte, porque para quem usa os
+ * três respondem a mesma pergunta — *o que a agência guardou sobre este
+ * cliente?* — e duas listas empilhadas pediam a mesma decisão duas vezes.
+ *
  * Linha gravada antes de `kind` existir não tem o campo, e é a maioria: a
  * derivação abaixo é para elas.
  *
@@ -22,7 +27,7 @@ import type { ClientFile } from '../types';
  * `docs.google.com`, `dropbox`, `notion` e afins são pasta de alguém, não
  * arquivo nosso.
  */
-export const tipoDoArquivo = (file: ClientFile): 'arquivo' | 'link' => {
+export const tipoDoArquivo = (file: ClientFile): 'arquivo' | 'link' | 'nota' => {
   if (file.kind) return file.kind;
   if (file.size === 'Nuvem') return 'link';
 

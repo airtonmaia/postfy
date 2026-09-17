@@ -258,11 +258,12 @@ interface PostfyContextType {
   addClientInvoice: (clientId: string, invoice: Omit<ClientInvoice, 'id'>) => void;
   deleteClientInvoice: (clientId: string, invoiceId: string) => void;
   addClientFile: (clientId: string, file: Omit<ClientFile, 'id' | 'uploadedAt'>) => void;
+  updateClientFile: (
+    clientId: string,
+    fileId: string,
+    dados: Partial<Pick<ClientFile, 'name' | 'category' | 'url'>>
+  ) => void;
   deleteClientFile: (clientId: string, fileId: string) => void;
-  /** Anotações internas da agência. Nunca saem para o Portal do Cliente. */
-  addClientAnnotation: (clientId: string, dados: { title: string; content: string }) => void;
-  updateClientAnnotation: (clientId: string, annotationId: string, dados: { title: string; content: string }) => void;
-  deleteClientAnnotation: (clientId: string, annotationId: string) => void;
   updateClientBriefing: (clientId: string, briefing: Partial<ClientBriefing>) => void;
   addLead: (leadData: Partial<Lead>) => Lead;
   updateLeadStage: (leadId: string, stage: LeadStage) => void;
@@ -1894,6 +1895,37 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     logActivity('Adicionou arquivo', `Cliente #${clientId}: ${fileData.name}`);
   };
 
+  /**
+   * Corrigir o que já está cadastrado, sem apagar e recadastrar.
+   *
+   * A ficha do cliente só tinha "abrir/baixar" e "excluir": arrumar um nome
+   * digitado errado ou trocar a categoria passava por excluir e cadastrar de
+   * novo — e num **link externo** isso perde a URL, que é a única coisa que a
+   * linha carrega. O caminho de correção não pode ser o de perda.
+   *
+   * O `if (noPortal)` é obrigatório aqui pela mesma razão do `addClientFile`:
+   * o editor do cliente mexe nos arquivos dele de dentro do portal, onde não
+   * há sessão e a persistência por diff sai cedo (armadilha 10).
+   */
+  const updateClientFile = (
+    clientId: string,
+    fileId: string,
+    dados: Partial<Pick<ClientFile, 'name' | 'category' | 'url'>>
+  ) => {
+    const proximos = (allClients.find(c => c.id === clientId)?.files || []).map(f =>
+      f.id === fileId ? { ...f, ...dados } : f
+    );
+    setAllClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, files: proximos };
+    }));
+    if (noPortal) {
+      void gravarClienteNoPortal({ files: proximos });
+      return;
+    }
+    logActivity('Editou arquivo do cliente', `Cliente #${clientId}: ${dados.name || fileId}`);
+  };
+
   const deleteClientFile = (clientId: string, fileId: string) => {
     const proximos = (allClients.find(c => c.id === clientId)?.files || [])
       .filter(f => f.id !== fileId);
@@ -1905,53 +1937,19 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   /**
-   * As anotações **não têm desvio de portal**, e isso é decisão.
+   * **As anotações saíram daqui, e a coluna ficou.**
    *
-   * A armadilha 10 exige o `if (noPortal)` em toda mutação que o Portal do
-   * Cliente possa disparar — sem ele a tela mostra o resultado e o banco nunca
-   * é chamado. Aqui a mutação não chega a existir do outro lado: `portal_dados`
-   * nem devolve `annotations`, e `atualizar_cliente_do_portal` só aceita
-   * `files`, `passwords` e `briefing`. Um desvio aqui seria escrever o caminho
-   * para um dado que o portal não pode ler nem gravar.
+   * O bloco de notas virou uma linha de `clients.files`, com `kind: 'nota'` —
+   * para quem usa, ele responde a mesma pergunta que o anexo e o link, e duas
+   * listas empilhadas pediam a mesma decisão duas vezes. Quem grava agora é
+   * `addClientFile` / `updateClientFile`, que já têm o desvio do portal.
+   *
+   * `clients.annotations` **não foi apagada**: a migração copiou o conteúdo
+   * para `files` e deixou o original intacto, para o caso de algo na conversão
+   * estar errado. Nada lê nem escreve nela — e é por isso que as três funções
+   * que faziam isso saíram: função exportada que grava numa coluna que
+   * ninguém lê é a armadilha do `trial_ends_at`, que parece uma regra e não é.
    */
-  const addClientAnnotation = (clientId: string, dados: { title: string; content: string }) => {
-    const agora = new Date().toISOString();
-    const nova: ClientAnnotation = {
-      ...dados,
-      id: novoId(),
-      createdAt: agora,
-      updatedAt: agora,
-    };
-    setAllClients(prev => prev.map(c => {
-      if (c.id !== clientId) return c;
-      return { ...c, annotations: [nova, ...(c.annotations || [])] };
-    }));
-    logActivity('Criou anotação', `Cliente #${clientId}: ${dados.title}`);
-  };
-
-  const updateClientAnnotation = (
-    clientId: string,
-    annotationId: string,
-    dados: { title: string; content: string }
-  ) => {
-    setAllClients(prev => prev.map(c => {
-      if (c.id !== clientId) return c;
-      return {
-        ...c,
-        annotations: (c.annotations || []).map(a =>
-          a.id === annotationId ? { ...a, ...dados, updatedAt: new Date().toISOString() } : a
-        ),
-      };
-    }));
-    logActivity('Editou anotação', `Cliente #${clientId}: ${dados.title}`);
-  };
-
-  const deleteClientAnnotation = (clientId: string, annotationId: string) => {
-    setAllClients(prev => prev.map(c => {
-      if (c.id !== clientId) return c;
-      return { ...c, annotations: (c.annotations || []).filter(a => a.id !== annotationId) };
-    }));
-  };
 
   const updateClientBriefing = (clientId: string, briefingData: Partial<ClientBriefing>) => {
     const atual = allClients.find(c => c.id === clientId)?.briefing || {
@@ -2482,10 +2480,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addClientInvoice,
         deleteClientInvoice,
         addClientFile,
+        updateClientFile,
         deleteClientFile,
-        addClientAnnotation,
-        updateClientAnnotation,
-        deleteClientAnnotation,
         updateClientBriefing,
         addLead,
         updateLeadStage,
