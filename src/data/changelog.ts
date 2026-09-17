@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.49.0',
+    data: '2026-09-17',
+    resumo: 'As janelas do Comercial — lead, proposta e contrato — entraram no mesmo padrão das outras.',
+    novidades: [
+      'Cadastrar lead, gerar proposta e criar contrato agora fecham com Esc, prendem o foco e travam a rolagem da página atrás.',
+      'No celular as três usam a tela inteira, em vez de uma caixa centrada que perdia largura.',
+    ],
+    melhorias: [
+      'As três ganharam nome próprio para leitores de tela.',
+    ],
+  },
+  {
     versao: '2.48.0',
     data: '2026-09-17',
     resumo: 'Mais cinco janelas passaram a fechar com Esc e travar a rolagem do fundo.',

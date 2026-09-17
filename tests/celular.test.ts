@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
 
@@ -29,6 +29,15 @@ const RAIZ = join(__dirname, '..');
 const ler = (...p: string[]) => semComentarios(readFileSync(join(RAIZ, ...p), 'utf-8'));
 
 const app = ler('src', 'App.tsx');
+
+function listarTsx(dir: string, saida: string[] = []): string[] {
+  for (const entrada of readdirSync(dir)) {
+    const caminho = join(dir, entrada);
+    if (statSync(caminho).isDirectory()) listarTsx(caminho, saida);
+    else if (/\.tsx$/.test(entrada)) saida.push(caminho);
+  }
+  return saida;
+}
 
 describe('toda tela montada no <main> rola sozinha', () => {
   /**
@@ -215,6 +224,48 @@ describe('as modais usam a tela inteira no celular', () => {
         fonte.match(/fixed inset-0 z-50/)?.[0] ?? null,
         `${nome} voltou a montar a sobreposição à mão`
       ).toBeNull();
+    }
+  });
+
+  it('nenhum DialogTitle mora fora de um Dialog', () => {
+    /**
+     * **Esta guarda nasceu de um erro meu, e ele passou no `tsc`.**
+     *
+     * Ao converter os títulos de `CommercialView` em lote, o regex pegou
+     * cinco `<h4>` e só três estavam dentro de um `Dialog` — os outros dois
+     * eram título de seção e de uma modal ainda não migrada. `DialogTitle`
+     * fora do contexto do Radix **estoura em tempo de execução**, e `tsc` não
+     * sabe disso: para ele é um componente como outro qualquer.
+     *
+     * É a armadilha 0 de novo, e a conversão em lote é justamente onde ela
+     * acontece — um por um ninguém erra.
+     */
+    const arquivos = listarTsx(join(RAIZ, 'src'));
+    for (const caminho of arquivos) {
+      const fonte = semComentarios(readFileSync(caminho, 'utf-8'));
+      if (!fonte.includes('<DialogTitle')) continue;
+
+      // Intervalos [abre, fecha] de cada <Dialog> do arquivo, por posição.
+      const intervalos: [number, number][] = [];
+      const pilha: number[] = [];
+      for (const m of fonte.matchAll(/<Dialog(?:\s|>)|<\/Dialog>/g)) {
+        if (m[0].startsWith('</')) {
+          const abre = pilha.pop();
+          if (abre !== undefined) intervalos.push([abre, m.index!]);
+        } else {
+          pilha.push(m.index!);
+        }
+      }
+
+      for (const t of fonte.matchAll(/<DialogTitle/g)) {
+        const dentro = intervalos.some(([a, b]) => a < t.index! && t.index! < b);
+        expect(
+          dentro,
+          `${caminho.replace(RAIZ + '/', '')}: há um <DialogTitle fora de qualquer ` +
+            `<Dialog>. Isso passa no tsc e estoura ao abrir a tela — o Radix exige ` +
+            `o contexto. Se o título não é de um diálogo, ele é um <h*> comum`
+        ).toBe(true);
+      }
     }
   });
 

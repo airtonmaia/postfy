@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Lead, LeadStage, Proposal, Contract } from '../../types';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 export const CommercialView: React.FC = () => {
   const { 
@@ -445,7 +446,7 @@ export const CommercialView: React.FC = () => {
                         <FileText className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">{contract.title}</h4>
+            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">{contract.title}</h4>
                         <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">
                           Contratante: <strong className="text-slate-700 dark:text-slate-300">{contract.clientName}</strong>
                         </span>
@@ -513,11 +514,13 @@ export const CommercialView: React.FC = () => {
       )}
 
       {/* Modal: Add Lead */}
-      {showAddLeadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleCreateLead} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
+          <DialogContent tamanho="recado">
+            <form onSubmit={handleCreateLead} className="p-6 space-y-4">
             <div className="flex items-center justify-between">
+              <DialogTitle asChild>
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Cadastrar Novo Lead Comercial</h4>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddLeadModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
@@ -604,15 +607,17 @@ export const CommercialView: React.FC = () => {
               </Button>
             </div>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal: Add Proposal */}
-      {showAddProposalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleCreateProposal} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <Dialog open={showAddProposalModal} onOpenChange={setShowAddProposalModal}>
+          <DialogContent tamanho="formulario">
+            <form onSubmit={handleCreateProposal} className="p-6 space-y-4">
             <div className="flex items-center justify-between">
+              <DialogTitle asChild>
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Proposta Comercial</h4>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddProposalModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
@@ -675,15 +680,17 @@ export const CommercialView: React.FC = () => {
               </Button>
             </div>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal: Add Contract */}
-      {showAddContractModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleCreateContract} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <Dialog open={showAddContractModal} onOpenChange={setShowAddContractModal}>
+          <DialogContent tamanho="recado">
+            <form onSubmit={handleCreateContract} className="p-6 space-y-4">
             <div className="flex items-center justify-between">
+              <DialogTitle asChild>
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Gerar Novo Contrato de Serviços</h4>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" type="button" onClick={() => setShowAddContractModal(false)} className="dark:text-slate-200">
                 <X className="w-4 h-4" />
               </Button>
@@ -736,8 +743,8 @@ export const CommercialView: React.FC = () => {
               </Button>
             </div>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal: Full Contract Viewer with Dynamic Variables & Sign */}
       {viewingContract && (
@@ -746,7 +753,7 @@ export const CommercialView: React.FC = () => {
             <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-purple-600" />
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
                   {viewingContract.title}
                 </h4>
               </div>
