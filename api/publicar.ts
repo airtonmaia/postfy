@@ -461,6 +461,18 @@ type ResultadoDaPublicacao = {
   avisoDoStory?: string;
 };
 
+/**
+ * O motivo, quando a peça é feed+story e a arte vertical não existe.
+ *
+ * Numa constante porque as duas redes dão a mesma resposta, e porque o texto
+ * chega **ao cliente da agência** pela tela de Publicações: ele tem de dizer o
+ * que fazer, não só que algo faltou.
+ */
+const SEM_ARTE_DE_STORY =
+  'O feed saiu. O story não: este conteúdo é "Feed + Story" e não tem arte de story. ' +
+  'Suba a arte 9:16 em "Mídia do Story" e publique o story pelo aplicativo — ' +
+  'republicar aqui duplicaria o feed.';
+
 const publicarItem = async (
   supabase: any,
   item: any
@@ -543,11 +555,16 @@ const publicarItem = async (
      * seguinte começaria publicando o **feed** de novo. Post duplicado no
      * perfil do cliente não volta.
      */
+    const arteDoStoryNaPagina = (job.story_media_urls || [])[0];
+    if (!arteDoStoryNaPagina) {
+      return { id: idDoFeedNaPagina, avisoDoStory: SEM_ARTE_DE_STORY };
+    }
+
     try {
       const idDoStory = await publicarStoryNoFacebook(
         conexao.account_id,
         token.access_token,
-        (job.story_media_urls || [])[0] || midia
+        arteDoStoryNaPagina
       );
       return { id: idDoFeedNaPagina, idDoStory };
     } catch (erro) {
@@ -590,7 +607,32 @@ const publicarItem = async (
    * publicado, com o motivo em `last_error`. O story não sai sozinho depois;
    * quem decide republicar é uma pessoa, com o feed já no ar à vista.
    */
-  const midiaDoStory = (job.story_media_urls || [])[0] || midia;
+  /**
+   * **Sem arte de story, o story não sai — e isso é a correção de um post
+   * errado no perfil de um cliente.**
+   *
+   * Aqui havia `(job.story_media_urls || [])[0] || midia`: faltando a arte
+   * vertical, ele mandava a **do feed**. A Meta aceita, publica, e a fila
+   * fecha como `publicado` com `story_external_id` preenchido e `last_error`
+   * nulo — sucesso completo, story errado no ar. Foi o que aconteceu no
+   * primeiro teste real: feed certo, story com a arte 4:5 esticada no 9:16.
+   *
+   * O fallback parecia generoso e era o oposto. As proporções são outras —
+   * 4:5 e 9:16 —, então a mesma imagem nos dois **sai cortada num deles**;
+   * é a razão de `story_media_urls` ser coluna própria, escrita neste mesmo
+   * arquivo. Substituir uma arte por outra é decisão de quem produz a peça,
+   * nunca do publicador.
+   *
+   * O desfecho segue o padrão que já existe logo abaixo, para a falha do
+   * story: o feed fica no ar (ele está certo), o item fecha como publicado —
+   * marcar `falhou` republicaria o feed na passada seguinte — e o motivo vai
+   * para `last_error`, à vista na fila e na tela do conteúdo.
+   */
+  const midiaDoStory = (job.story_media_urls || [])[0];
+  if (!midiaDoStory) {
+    return { id: idDoFeed, avisoDoStory: SEM_ARTE_DE_STORY };
+  }
+
   try {
     const idDoStory = await publicarNoInstagram(
       conexao.account_id,

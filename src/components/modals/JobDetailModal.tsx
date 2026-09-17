@@ -44,7 +44,7 @@ import { PainelDeCompartilhamento } from '../jobs/PainelDeCompartilhamento';
 import { PainelDeTimesheet } from '../jobs/PainelDeTimesheet';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { camposVisiveis } from '../../lib/camposDoCanal';
-import { rotuloDoFormato } from '../../lib/formatos';
+import { rotuloDoFormato, faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { deParedeParaUtc, deUtcParaParede } from '../../lib/fusoHorario';
 import { safeDateFormat } from '../../lib/utils';
 import {
@@ -293,6 +293,19 @@ export const JobDetailModal: React.FC = () => {
     const atualizado = salvar();
     if (!atualizado) return;
 
+    /**
+     * Feed+story sem a arte vertical **não entra na fila**.
+     *
+     * O servidor já não substitui pela arte do feed — ele publica o feed e
+     * deixa o motivo em `last_error` —, mas descobrir ali é tarde: o feed já
+     * está no perfil e a peça ficou pela metade. Aqui ainda dá para subir a
+     * arte.
+     */
+    if (faltaArteDoStory(atualizado)) {
+      setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+      return;
+    }
+
     setAcao('agendando');
     setResultado(null);
     try {
@@ -337,6 +350,13 @@ export const JobDetailModal: React.FC = () => {
   const publicar = async () => {
     const atualizado = salvar();
     if (!atualizado) return;
+
+    // Mesma conferência do agendar, e aqui ela pesa mais: o que sai agora não
+    // volta.
+    if (faltaArteDoStory(atualizado)) {
+      setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+      return;
+    }
 
     setAcao('publicando');
     setResultado(null);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
 
@@ -311,5 +311,126 @@ describe('o formato só é oferecido onde as duas saídas existem', () => {
       bloco.slice(foto, foto + 400),
       'a foto do story voltou a ser publicada direto no feed'
     ).toMatch(/published: false/);
+  });
+});
+
+describe('a arte do story nunca é substituída pela do feed', () => {
+  /**
+   * **Esta é a guarda de um post errado que foi ao ar no perfil de um
+   * cliente.**
+   *
+   * `publicarItem` tinha `(job.story_media_urls || [])[0] || midia`. Faltando
+   * a arte vertical, ele mandava a **do feed** para o story: a Meta aceita e
+   * publica, então a fila fechou como `publicado`, com `story_external_id`
+   * preenchido e `last_error` nulo — sucesso completo, story errado no ar.
+   *
+   * Conferido na `publish_queue` de produção depois do primeiro teste real:
+   * item `publicado`, os dois ids, nenhum erro, e `story_media_urls` da peça
+   * **vazio**.
+   *
+   * O fallback parecia generoso e era o oposto: as proporções são 4:5 e 9:16,
+   * e a mesma imagem nos dois sai cortada num deles — é a razão de
+   * `story_media_urls` ser coluna própria. Substituir uma arte por outra é
+   * decisão de quem produz a peça, nunca do publicador.
+   */
+  it('nenhum publicador cai na mídia do feed quando falta a do story', () => {
+    /**
+     * O padrão procurado é o do bug: uma leitura de `story_media_urls`
+     * seguida de `||` com outra coisa. Vale para as duas redes — o Facebook
+     * tinha a mesma linha —, e a busca é pelo **efeito**, não pelo nome da
+     * variável, que muda.
+     */
+    expect(
+      publicar.match(/story_media_urls[^\n]*\|\|\s*midia/),
+      'o publicador voltou a usar a arte do feed como story — a peça sai ' +
+        'cortada no perfil do cliente e a fila diz "publicado"'
+    ).toBeNull();
+  });
+
+  it('faltando a arte, o feed sai e o motivo fica em last_error', () => {
+    /**
+     * `falhou` aqui seria a fila mentindo nos dois sentidos: o feed saiu, e a
+     * passada seguinte o republicaria. É a mesma regra da falha do story, e o
+     * desfecho tem de ser o mesmo.
+     */
+    expect(publicar, 'o caso "sem arte de story" deixou de ter motivo próprio').toMatch(
+      /SEM_ARTE_DE_STORY/
+    );
+    const trecho = publicar.slice(publicar.indexOf('const midiaDoStory'));
+    expect(
+      trecho.slice(0, 400),
+      'faltando a arte, o retorno deixou de ser o feed com aviso'
+    ).toMatch(/if \(!midiaDoStory\)[\s\S]{0,120}avisoDoStory: SEM_ARTE_DE_STORY/);
+  });
+
+  it('a conferência também mora antes da ação, num lugar só', () => {
+    /**
+     * Descobrir no publicador é tarde: o feed já está no perfil e a peça ficou
+     * pela metade. Antes da ação ainda dá para subir a arte.
+     *
+     * E a regra mora em `formatos.ts`, não em cada tela: são quatro botões em
+     * três telas que disparam publicação, e repetir a conferência em cada um
+     * garante esquecer um — que é exatamente como o `aviso` do story ficou
+     * sem ser lido na modal de cadastro.
+     */
+    const formatos = ler('src', 'lib', 'formatos.ts');
+    expect(formatos, 'faltaArteDoStory saiu da fonte única').toMatch(
+      /export const faltaArteDoStory/
+    );
+    expect(formatos, 'a conferência deixou de olhar o formato e a arte juntos').toMatch(
+      /format === 'feed_story'[\s\S]{0,200}storyMediaUrls/
+    );
+  });
+
+  it('os quatro caminhos que disparam publicação conferem antes', () => {
+    /**
+     * A lista é **derivada**: todo arquivo de `src` que chama
+     * `agendarPublicacao` ou `publicarAgora` precisa conferir. Lista literal
+     * teria de ser editada junto com o código — e é assim que uma guarda
+     * deixa de guardar.
+     */
+    const pastas = ['modals', 'publications'];
+    const arquivos: string[] = [];
+    for (const pasta of pastas) {
+      const dir = join(RAIZ, 'src', 'components', pasta);
+      if (!existsSync(dir)) continue;
+      for (const f of readdirSync(dir).filter((f) => f.endsWith('.tsx'))) {
+        const fonte = semComentarios(readFileSync(join(dir, f), 'utf-8'));
+        if (/agendarPublicacao\(|publicarAgora\(/.test(fonte)) arquivos.push(f);
+      }
+    }
+
+    expect(arquivos.length, 'nenhum arquivo dispara publicação — a busca quebrou')
+      .toBeGreaterThan(2);
+
+    for (const f of arquivos) {
+      const pasta = pastas.find((p) =>
+        existsSync(join(RAIZ, 'src', 'components', p, f))
+      )!;
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', pasta, f), 'utf-8')
+      );
+      expect(
+        fonte,
+        `${f} dispara publicação sem conferir a arte do story — ` +
+          'feed+story sem a arte vertical sairia pela metade'
+      ).toMatch(/faltaArteDoStory\(/);
+    }
+  });
+
+  it('a tela não diz "publicado" liso quando o story não saiu', () => {
+    /**
+     * `api/publicar.ts` devolve `aviso` desde que o feed+story existe, e a
+     * modal de **cadastro** o descartava: dizia "Publicado em @conta" onde
+     * houve uma saída de duas. É a mesma mentira do `|| midia`, só na tela em
+     * vez de no perfil.
+     */
+    for (const tela of telasQueSalvam) {
+      if (!/publicarAgora\(/.test(tela)) continue;
+      expect(
+        tela,
+        'uma tela que publica voltou a ignorar o aviso do story'
+      ).toMatch(/aviso/);
+    }
   });
 });

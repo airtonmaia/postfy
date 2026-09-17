@@ -27,6 +27,7 @@ import {
   type ItemDaFila,
   type ContaConectada,
 } from '../../lib/redes';
+import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { Client, Job, JobPlatform } from '../../types';
 import { Button } from '../ui/button';
 
@@ -87,6 +88,13 @@ export const PublicationsView: React.FC = () => {
   const enfileirar = async (job: Job) => {
     const conta = contaDoJob(job);
     if (!conta) return;
+
+    // Feed+story sem a arte vertical não entra na fila: ver `faltaArteDoStory`.
+    // Esta tela não abre o formulário, então o aviso aponta onde subir a arte.
+    if (faltaArteDoStory(job)) {
+      setErro(`${job.title}: ${AVISO_SEM_ARTE_DE_STORY}`);
+      return;
+    }
 
     setEnfileirando(job.id);
     setErro(null);
