@@ -33,16 +33,20 @@ export const FORMATOS_POR_CANAL: Record<JobPlatform, OpcaoDeFormato[]> = {
   facebook: [
     { valor: 'feed', rotulo: 'Feed' },
     /**
-     * **"Feed + Story" não entra aqui**, e a primeira versão daquela entrega
-     * errou isso: o formato foi oferecido para o Facebook enquanto
-     * `publicarItem` publicava só o feed e **descartava a arte do story em
-     * silêncio** — com a fila dizendo "publicado".
+     * **"Feed + Story" entrou aqui depois do publicador, nunca antes.**
+     *
+     * A primeira versão daquela entrega ofereceu o formato para o Facebook
+     * enquanto `publicarItem` publicava só o feed e **descartava a arte do
+     * story em silêncio** — com a fila dizendo "publicado". A pessoa subia
+     * duas artes, aprovava as duas com o cliente, e uma não saía.
      *
      * Story de Página é outro fluxo (`/{page-id}/photo_stories`, com a foto
-     * enviada não publicada antes) e outro escopo. Enquanto ele não existir em
-     * `api/_lib/facebook.ts`, oferecer o formato é prometer meia publicação —
-     * que é justamente o motivo de esta lista ser por rede.
+     * enviada **não publicada** antes; `/video_stories` em fases, para vídeo),
+     * e ele agora existe em `api/_lib/facebook.ts`. A ordem importa: acrescentar
+     * a linha desta lista é prometer a publicação, e a promessa só pode vir
+     * depois de haver quem a cumpra.
      */
+    { valor: 'feed_story', rotulo: 'Feed + Story' },
     { valor: 'carousel', rotulo: 'Carrossel' },
     { valor: 'reel', rotulo: 'Reels' },
     { valor: 'story', rotulo: 'Story' },

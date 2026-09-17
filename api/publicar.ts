@@ -9,7 +9,7 @@ import {
 } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
-import { publicarNoFacebook } from './_lib/facebook.js';
+import { publicarNoFacebook, publicarStoryNoFacebook } from './_lib/facebook.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 
 
@@ -511,25 +511,52 @@ const publicarItem = async (
    */
   if (conexao.platform === 'facebook') {
     /**
-     * **Recusa em vez de publicar metade.**
+     * **Story de Página agora existe**, e por isso o `throw` que morava aqui
+     * saiu. Ele era o cinto de quando `api/_lib/facebook.ts` não tinha o
+     * fluxo: sem publicador, um conteúdo feed+story numa Página publicaria só
+     * o feed e **descartaria a arte do story em silêncio**, com a fila dizendo
+     * "publicado".
      *
-     * Story de Página é outro fluxo (`/{page-id}/photo_stories`) e não existe
-     * em `api/_lib/facebook.ts`. Sem este `throw`, um conteúdo feed+story numa
-     * Página publicaria só o feed e **descartaria a arte do story em
-     * silêncio**, com a fila dizendo "publicado" — foi o que a primeira versão
-     * desta entrega fazia.
-     *
-     * O formato já não é oferecido para o Facebook na tela. Isto é o cinto:
-     * a lista de formatos e o publicador podem divergir numa edição futura, e
-     * a falha aqui é barulhenta — fica em `last_error`, à vista na fila.
+     * O que substitui o cinto não é confiança: é a mesma captura do Instagram,
+     * logo abaixo. O feed sai primeiro e a falha do story vira `last_error` —
+     * ou a arte sai, ou a tela nomeia o motivo de não ter saído.
      */
-    if (job.format === 'feed_story') {
-      throw new Error(
-        'Feed + Story ainda não publica em Página do Facebook: story de Página ' +
-          'é outro fluxo da Meta. Publique o feed e o story separadamente.'
-      );
+    if (job.format === 'story') {
+      return {
+        id: await publicarStoryNoFacebook(conexao.account_id, token.access_token, midia),
+      };
     }
-    return { id: await publicarNoFacebook(conexao.account_id, token.access_token, midia, legenda) };
+
+    const idDoFeedNaPagina = await publicarNoFacebook(
+      conexao.account_id,
+      token.access_token,
+      midia,
+      legenda
+    );
+
+    if (job.format !== 'feed_story') return { id: idDoFeedNaPagina };
+
+    /**
+     * **O feed já está no ar, e isso muda tudo o que vem depois.**
+     *
+     * Deixar a exceção subir marcaria o item como `pendente`, e a passada
+     * seguinte começaria publicando o **feed** de novo. Post duplicado no
+     * perfil do cliente não volta.
+     */
+    try {
+      const idDoStory = await publicarStoryNoFacebook(
+        conexao.account_id,
+        token.access_token,
+        (job.story_media_urls || [])[0] || midia
+      );
+      return { id: idDoFeedNaPagina, idDoStory };
+    } catch (erro) {
+      const motivo = erro instanceof Error ? erro.message : 'Falha desconhecida.';
+      return {
+        id: idDoFeedNaPagina,
+        avisoDoStory: `O feed saiu, o story não: ${motivo}`,
+      };
+    }
   }
 
   /**

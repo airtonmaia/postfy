@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
+  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2, ChevronDown,
 } from 'lucide-react';
 import type {
   Client, JobPlatform, JobFormat, JobPriority,
@@ -22,6 +22,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs'
 import {
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from '../ui/accordion';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
+} from '../ui/dropdown-menu';
 
 /**
  * O formulário do conteúdo — **um só, para cadastrar e para editar.**
@@ -191,6 +198,15 @@ export const FormularioDoConteudo: React.FC<Props> = ({
   const nomeDoCanal = (canal: JobPlatform) =>
     CANAIS.find((c) => c.valor === canal)?.rotulo || canal;
 
+  /**
+   * Os canais escolhidos, **na ordem da lista** e não na de clique.
+   *
+   * `canais.map(...)` seguiria a ordem em que a pessoa marcou, e o gatilho
+   * mudaria de texto ao desmarcar e remarcar a mesma rede — um rótulo que se
+   * reordena sozinho parece que mudou de valor.
+   */
+  const escolhidos = CANAIS.filter((c) => canais.includes(c.valor));
+
   /** Clicar num canal liga ou desliga. Nunca deixa a seleção vazia. */
   const alternarCanal = (canal: JobPlatform) => {
     if (canais.includes(canal)) {
@@ -244,32 +260,95 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           </select>
         </div>
 
-        {/* Canais: a logo diz para onde vai sem precisar abrir uma lista. */}
+        {/*
+          **Canais é um select de múltipla escolha, como o "Compartilhar em"
+          da Meta.**
+
+          Era uma fileira de seis ícones que ligam e desligam. Funcionava e
+          tinha dois problemas que só aparecem em uso: o estado desligado era
+          a mesma logo com opacidade — "apagado" e "aceso" ficam parecidos num
+          olhar rápido, e ninguém conta seis ícones para saber o que está
+          escolhido —, e a fileira não diz **quantos**. O gatilho do menu diz,
+          em texto, antes de abrir qualquer coisa.
+
+          O `DropdownMenu` e não um `<select multiple>`: o nativo abre uma
+          caixa com a fonte e o cinza do sistema operacional, sem logo nenhuma,
+          e o produto é whitelabel — "a cara do navegador" é justamente o que
+          ele existe para não mostrar. Em `multiple` o nativo ainda exige
+          Ctrl+clique no computador, que é a interação que mais gente erra.
+        */}
         <div>
           <label className={rotulo}>Canais *</label>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {CANAIS.map((canal) => {
-              const Icone = canal.icone;
-              const ativo = canais.includes(canal.valor);
-              return (
-                <button
-                  key={canal.valor}
-                  type="button"
-                  onClick={() => alternarCanal(canal.valor)}
-                  title={`${canal.rotulo} — ${COMO_PUBLICA[canal.valor]}`}
-                  aria-label={`${canal.rotulo}. ${COMO_PUBLICA[canal.valor]}`}
-                  aria-pressed={ativo}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center border transition cursor-pointer ${
-                    ativo
-                      ? `${canal.fundo} border-transparent text-white shadow-xs`
-                      : `bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${canal.cor} opacity-60 hover:opacity-100`
-                  }`}
-                >
-                  <Icone className="w-4 h-4" />
-                </button>
-              );
-            })}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`${classeDeEntrada} flex items-center gap-2 text-left cursor-pointer`}
+              >
+                <span className="flex -space-x-1.5 shrink-0">
+                  {escolhidos.map((canal) => {
+                    const Icone = canal.icone;
+                    return (
+                      <span
+                        key={canal.valor}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-white ring-2 ring-slate-50 dark:ring-slate-950 ${canal.fundo}`}
+                      >
+                        <Icone className="w-3 h-3" />
+                      </span>
+                    );
+                  })}
+                </span>
+                <span className="flex-1 min-w-0 truncate font-semibold">
+                  {escolhidos.map((c) => c.rotulo).join(' e ')}
+                </span>
+                <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
+              </button>
+            </DropdownMenuTrigger>
+
+            {/* `--radix-dropdown-menu-trigger-width`: o menu tem a largura do
+                campo, como todo seletor. Solto, ele encolhia para o texto e
+                ficava mais estreito que o gatilho. */}
+            <DropdownMenuContent
+              align="start"
+              className="w-(--radix-dropdown-menu-trigger-width)"
+            >
+              <DropdownMenuLabel>Publicar em</DropdownMenuLabel>
+              {CANAIS.map((canal) => {
+                const Icone = canal.icone;
+                const ativo = canais.includes(canal.valor);
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={canal.valor}
+                    checked={ativo}
+                    /* O Radix fecha o menu a cada escolha por padrão, e aqui
+                       a escolha é múltipla: fechar obrigaria a reabrir para
+                       marcar a segunda rede. */
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => alternarCanal(canal.valor)}
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                        ativo ? `${canal.fundo} text-white` : `bg-slate-100 dark:bg-slate-800 ${canal.cor}`
+                      }`}
+                    >
+                      <Icone className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200">
+                        {canal.rotulo}
+                      </span>
+                      {/* Quem publica e quem não publica, na hora da escolha.
+                          Descobrir na data agendada é tarde: o cliente aprovou
+                          e a peça não foi ao ar. */}
+                      <span className="block text-[10px] text-slate-400 leading-tight">
+                        {COMO_PUBLICA[canal.valor]}
+                      </span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/*
             Quem marca LinkedIn precisa saber, aqui, que ninguém vai publicar

@@ -860,9 +860,35 @@ story expira em 24h e não entra em relatório.
 desta entrega ofereceu "Feed + Story" para o **Facebook**, onde `publicarItem`
 retornava logo depois do feed: a arte do story era **descartada em silêncio**,
 com a fila dizendo "publicado". A pessoa subia duas artes, aprovava as duas com
-o cliente, e uma não saía. Story de Página é outro fluxo
-(`/{page-id}/photo_stories`, com a foto enviada não publicada antes) e não
-existe em `api/_lib/facebook.ts`.
+o cliente, e uma não saía.
+
+O Facebook passou a oferecer o formato — **depois** de `publicarStoryNoFacebook`
+existir, e essa ordem é a regra. Story de Página é outro fluxo, e ele tem três
+diferenças que já custaram tentativa:
+
+- **A foto entra não publicada.** `/{page-id}/photos` com `published: false`
+  devolve um `id`, e é esse `id` que `/photo_stories` transforma em story.
+  Mandar a URL direto para `/photo_stories` é recusado — ele só aceita
+  `photo_id`. E sem o `published: false` a arte vertical aparece **também no
+  feed** da Página: o cliente fica com uma peça a mais, cortada, sem nada
+  avisar.
+- **Vídeo é outro endpoint e outro protocolo.** `/video_stories` é upload em
+  fases: `start` devolve `video_id` e uma `upload_url` própria, o arquivo vai
+  **para essa URL** (não para o Graph, e com o token em `Authorization: OAuth`),
+  e um `finish` fecha.
+- **A permissão é a mesma do feed** (`pages_manage_posts`), então a conexão que
+  já publica no feed publica story. Se a Meta pedir mais alguma coisa, o erro
+  **aparece**: o feed sai primeiro e a falha do story vira `last_error`, à vista
+  na fila e na tela do conteúdo. É a diferença que importa em relação ao bug
+  antigo — antes a arte sumia calada; agora ou sai, ou a tela nomeia o motivo.
+
+**O `throw` que recusava feed+story no Facebook saiu junto.** Ele era o cinto de
+quando não havia publicador; o que o substitui não é confiança, é a captura do
+story — a mesma do Instagram. E a guarda deixou de exigir a lista literal
+`['instagram']`: ela agora deriva as redes que oferecem o formato e exige, de
+cada uma, um caminho de story no publicador e um `avisoDoStory` no despacho.
+Lista literal obriga a editar a guarda junto com o código, e é assim que ela
+deixa de guardar.
 
 É exatamente o motivo de `FORMATOS_POR_CANAL` ser por rede, escrito no próprio
 arquivo: *oferecer a lista inteira em toda rede deixava escolher combinação que
@@ -1731,6 +1757,37 @@ a asserção passou a afirmar sobre o lugar errado **sem falhar**. Guarda
 ancorada numa string do código morre na primeira refatoração; ela agora varre
 `src` e procura o padrão.
 
+#### Canais é um select, e o desligado precisa ler como desligado
+
+Era uma fileira de seis logos que ligam e desligam. Funcionava, e tinha dois
+problemas que só aparecem em uso: o estado desligado era **a mesma logo com
+opacidade** — "apagado" e "aceso" ficam parecidos num olhar rápido —, e a
+fileira não diz **quantos** estão escolhidos sem alguém contar ícone por ícone.
+O gatilho do menu diz, em texto, antes de abrir qualquer coisa.
+
+`DropdownMenu` com itens de checkbox, e **não** um `<select multiple>`: o
+nativo abre uma caixa com a fonte e o cinza do sistema operacional, sem logo
+nenhuma, e o produto é whitelabel — "a cara do navegador" é o que ele existe
+para não mostrar. Em `multiple` o nativo ainda exige Ctrl+clique no computador,
+que é a interação que mais gente erra.
+
+Três detalhes:
+
+- **`onSelect={(e) => e.preventDefault()}`.** O Radix fecha o menu a cada
+  escolha por padrão, e aqui a escolha é múltipla: fechar obrigaria a reabrir
+  para marcar a segunda rede.
+- **A caixinha vazia é nossa.** O `ItemIndicator` do Radix só desenha quando
+  marcado; sem o quadrado desenhado por fora, o item desmarcado não parece
+  marcável e a lista inteira lê como um menu de ações.
+- **O gatilho lista na ordem da tabela, não na de clique.** `canais.map(...)`
+  seguiria a ordem em que a pessoa marcou, e o rótulo mudaria de texto ao
+  desmarcar e remarcar a mesma rede — um rótulo que se reordena sozinho parece
+  que mudou de valor.
+
+E o que cada rede faz na data (`COMO_PUBLICA`) desceu para dentro do item:
+na fileira de ícones isso só existia no `title`, que ninguém lê com o mouse
+parado. Descobrir "o LinkedIn você publica" na data agendada é tarde.
+
 #### As três abas são Conteúdo, Revisões e Compartilhamento
 
 Eram cinco — Conteúdo, Versões, Checklist, Comentários, Timesheet — e o pedido
@@ -1820,6 +1877,58 @@ campanha, público e funil. A subtração vale para **todos os papéis**: o edit
 é o cliente.
 
 Protegido por `tests/revisoes-do-cliente.test.ts`.
+
+#### Uma lista só em Arquivos, e mudar de coluna é mudar de lado
+
+A aba Arquivos tinha **duas listas empilhadas** — "Arquivos e Pastas" e
+"Anotações" — e elas fazem a mesma pergunta para quem usa: *o que a agência
+guardou sobre este cliente?* Duas listas pediam a mesma decisão duas vezes, e a
+de baixo, mais longe da dobra, era a que ninguém abria.
+
+Agora é uma lista com **tipo**: anexo, link e bloco de notas. `kind` já
+existia com os dois primeiros valores; o terceiro entrou ali em vez de numa
+coluna nova, porque é a mesma pergunta que `tipoDoArquivo()` já responde. O
+filtro é a variante `segmentado` das abas — ele não troca de painel, muda o que
+a mesma lista mostra —, e a contagem fica em cada aba porque tipo vazio
+escondido atrás de um filtro é tipo esquecido.
+
+**Mudar a nota de coluna foi mudá-la de lado, e isso exigiu duas correções no
+banco.** `clients.annotations` nunca sai da agência; `clients.files`, ao
+contrário, **é lido pelo cliente editor** no portal.
+
+1. **`portal_dados` filtra as linhas de `kind = 'nota'` de dentro de `files`.**
+   Subtrair a chave não serve — `files` é a lista que o cliente precisa ver. O
+   que sai é item por item, e **antes** do `if usuario.role`: vale para todos os
+   papéis, porque o editor é o cliente.
+2. **`portal_salvar_dados` recoloca as linhas de nota na gravação**, e esta é a
+   que ninguém veria falhar. Ela grava `files` com o array inteiro que o
+   navegador mandou — e o navegador do cliente nunca recebeu as notas, por causa
+   do item 1. Sem relê-las do banco, **o primeiro arquivo que o cliente enviasse
+   pelo portal apagaria todas as anotações da agência**: em silêncio, sem erro,
+   e sem ninguém desconfiar até procurar uma anotação que não está mais lá. É a
+   troca de um vazamento por uma perda, que é pior.
+
+A conferência é por `kind`, e **não** pelos ids que faltam no payload: um id
+ausente também é o que acontece quando o cliente **exclui** um arquivo de
+verdade, e confundir os dois faria a exclusão parar de funcionar.
+
+`clients.annotations` **não foi apagada**. A migração copiou o conteúdo para
+`files` e deixou o original intacto — se algo na conversão estiver errado, o
+dado continua no banco para ser relido. As três funções do contexto que
+escreviam nela saíram junto: função exportada que grava numa coluna que ninguém
+lê é a armadilha do `trial_ends_at`, que parece uma regra e não é.
+
+**E o arquivo ganhou "editar".** O card tinha abrir/baixar e excluir, e nenhuma
+das duas corrige nada: arrumar um nome digitado errado passava por apagar e
+cadastrar de novo — e num link externo isso perde a URL, que é a única coisa
+que a linha carrega. O caminho de correção não pode ser o de perda. O que dá
+para editar depende do que a linha é: no **link** a URL é editável (é ela que
+quebra quando a pasta é movida); no **anexo** ela não aparece, porque digitar
+outra coisa não move arquivo nenhum — deixaria um card apontando para o vazio,
+com cara de certo.
+
+Protegido por `tests/anotacoes-do-cliente.test.ts`, que confere os dois
+recortes do banco na **última** definição de cada função.
 
 #### O `<main>` corta; quem rola é cada tela
 
@@ -2014,6 +2123,9 @@ src/lib/assinatura.ts      acesso da agência ao produto, e o link do checkout
 src/components/common/AcessoBloqueado.tsx  a tela de teste vencido, com a saída à mão
 src/components/admin/      a área /admin: casca própria + as nove telas
 src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
+src/components/clients/EdicaoDeArquivo.tsx   corrige nome, categoria e — só em link — a URL
+src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na mesma janela
+src/lib/arquivosDoCliente.ts  o que a linha é: anexo, link ou bloco de notas
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 

@@ -8,13 +8,14 @@ import {
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
   ShieldCheck, AlertCircle, Calendar, DollarSign, Globe, Phone, Mail,
   Share2, Sparkles, Building2, CheckCircle2, Users, Radio,
-  Download, FileType2, Image as ImageIcon, Film, Sheet, Link2
+  Download, FileType2, Image as ImageIcon, Film, Sheet, Link2, Pencil, StickyNote
 } from 'lucide-react';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { ClientUsersTab } from './ClientUsersTab';
 import { ConexoesDoPerfil } from './ConexoesDoPerfil';
-import { AnotacoesDoCliente } from './AnotacoesDoCliente';
+import { EdicaoDeArquivo } from './EdicaoDeArquivo';
+import { EditorDeNota } from './EditorDeNota';
 import { Button } from '../ui/button';
 import { ComTooltip } from '../ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
@@ -59,6 +60,9 @@ interface ClientDetailProps {
   onBack: () => void;
 }
 
+/** O filtro da lista de arquivos. `todos` não é um tipo de linha: é a ausência de filtro. */
+type TipoDeArquivo = 'todos' | 'arquivo' | 'link' | 'nota';
+
 export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
   const { 
     updateClient, 
@@ -67,6 +71,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     addClientInvoice, 
     deleteClientInvoice, 
     addClientFile, 
+    updateClientFile,
     deleteClientFile, 
     updateClientBriefing,
     visualizarPortalDoCliente,
@@ -87,6 +92,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
   const [pwdUrl, setPwdUrl] = useState('');
 
   const [showAddFile, setShowAddFile] = useState(false);
+  /** O arquivo aberto para correção. `null` = a modal fica fechada. */
+  const [arquivoEmEdicao, setArquivoEmEdicao] = useState<ClientFile | null>(null);
+  /** A nota aberta, ou `'nova'`. `null` = fechada. */
+  const [notaAberta, setNotaAberta] = useState<ClientFile | 'nova' | null>(null);
+  const [tipoVisivel, setTipoVisivel] = useState<TipoDeArquivo>('todos');
   const [fileName, setFileName] = useState('');
   const [fileCat, setFileCat] = useState<ClientFile['category']>('identidade_visual');
   const [fileUrl, setFileUrl] = useState('');
@@ -241,6 +251,36 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     setFileUrl('');
     setFileKind('arquivo');
     setShowAddFile(false);
+  };
+
+  const arquivosDoCliente = client.files || [];
+  const contarPorTipo = (tipo: 'arquivo' | 'link' | 'nota') =>
+    arquivosDoCliente.filter((f) => tipoDoArquivo(f) === tipo).length;
+  const arquivosVisiveis =
+    tipoVisivel === 'todos'
+      ? arquivosDoCliente
+      : arquivosDoCliente.filter((f) => tipoDoArquivo(f) === tipoVisivel);
+
+  /**
+   * Criar e editar o bloco de notas passam pela mesma linha de `files`.
+   *
+   * O bloco nasce sem categoria de conteúdo (`notas`), sem URL e sem tamanho:
+   * ele não é um arquivo, e inventar "2,0 MB" para ele faria a lista afirmar
+   * um número que não mediu nada.
+   */
+  const salvarNota = (dados: { name: string; content: string }) => {
+    if (notaAberta === 'nova') {
+      addClientFile(client.id, {
+        name: dados.name,
+        content: dados.content,
+        category: 'notas',
+        url: '',
+        size: '',
+        kind: 'nota',
+      });
+      return;
+    }
+    if (notaAberta) updateClientFile(client.id, notaAberta.id, dados);
   };
 
   const handleCreateInvoice = (e: React.FormEvent) => {
@@ -508,18 +548,59 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
         {/* TAB 3: ARQUIVOS & DRIVE */}
         <TabsContent value="arquivos">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/*
+              **Uma lista só, com tipo.** Eram duas empilhadas — "Arquivos e
+              Pastas" e "Anotações" — e elas fazem a mesma pergunta para quem
+              usa: *o que a agência guardou sobre este cliente?* Duas listas
+              pediam a mesma decisão duas vezes, e a de baixo, mais longe da
+              dobra, era a que ninguém abria.
+            */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos e Pastas do Cliente</h4>
-                <p className="text-xs text-slate-500">Repositório de identidade visual, fotos brutas e pastas na nuvem.</p>
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos do Cliente</h4>
+                <p className="text-xs text-slate-500">Anexos, links de pasta na nuvem e blocos de notas da equipe.</p>
               </div>
-              <Button 
-                onClick={() => setShowAddFile(true)}
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Arquivo / Drive
-              </Button>
+              <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+                <Button variant="outline" onClick={() => setNotaAberta('nova')}>
+                  <StickyNote className="w-4 h-4" />
+                  Novo bloco de notas
+                </Button>
+                <Button onClick={() => setShowAddFile(true)}>
+                  <Plus className="w-4 h-4" />
+                  Adicionar arquivo / link
+                </Button>
+              </div>
             </div>
+
+            {/*
+              O filtro é `segmentado` — a mesma peça do seletor Feed/Story da
+              Prévia. Ele não troca de painel: muda **o que a mesma lista
+              mostra**, que é exatamente o papel dessa variante.
+
+              A contagem fica em cada aba porque tipo vazio escondido atrás de
+              um filtro é tipo esquecido: sem o número, ninguém clica em "Links"
+              para descobrir que não há nenhum.
+            */}
+            <Tabs value={tipoVisivel} onValueChange={(v) => setTipoVisivel(v as TipoDeArquivo)}>
+              <TabsList aparencia="segmentado">
+                <TabsTrigger value="todos">
+                  Todos
+                  {arquivosDoCliente.length > 0 && <TabsBadge>{arquivosDoCliente.length}</TabsBadge>}
+                </TabsTrigger>
+                <TabsTrigger value="arquivo">
+                  Anexos
+                  {contarPorTipo('arquivo') > 0 && <TabsBadge>{contarPorTipo('arquivo')}</TabsBadge>}
+                </TabsTrigger>
+                <TabsTrigger value="link">
+                  Links
+                  {contarPorTipo('link') > 0 && <TabsBadge>{contarPorTipo('link')}</TabsBadge>}
+                </TabsTrigger>
+                <TabsTrigger value="nota">
+                  Bloco de notas
+                  {contarPorTipo('nota') > 0 && <TabsBadge>{contarPorTipo('nota')}</TabsBadge>}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             {/* Add File Modal/Form */}
             {showAddFile && (
@@ -590,10 +671,65 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
 
             {/* File List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(client.files || []).map(file => {
+              {arquivosVisiveis.map(file => {
                 const tipo = tipoDoArquivo(file);
                 const familia = familiaDoArquivo(file);
                 const Icone = ICONE_DO_ARQUIVO[familia];
+
+                /*
+                  **O bloco de notas tem card próprio, e precisa ter.**
+
+                  No card de arquivo ele cairia no ramo de "baixar" — um botão
+                  de download para um texto que não é arquivo nenhum. E o que
+                  a pessoa quer ver numa nota é o começo do texto, não a
+                  extensão e o tamanho que ela não tem.
+                */
+                if (tipo === 'nota') {
+                  return (
+                    <div
+                      key={file.id}
+                      className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-start justify-between gap-3 hover:border-purple-300 transition"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setNotaAberta(file)}
+                        className="flex items-start gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                      >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400">
+                          <StickyNote className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
+                            {file.name}
+                          </span>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 whitespace-pre-wrap">
+                            {file.content || 'Bloco vazio.'}
+                          </p>
+                          <span className="text-[11px] text-slate-400 block mt-0.5">
+                            {file.uploadedAt}
+                          </span>
+                        </div>
+                      </button>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <ComTooltip texto="Abrir bloco de notas">
+                          <Button variant="ghost" size="icon-sm" onClick={() => setNotaAberta(file)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </ComTooltip>
+                        <ComTooltip texto="Excluir bloco de notas">
+                          <Button
+                            variant="destructive"
+                            size="icon-sm"
+                            onClick={() => deleteClientFile(client.id, file.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </ComTooltip>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -649,6 +785,22 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                           </Button>
                         </ComTooltip>
                       )}
+                      {/*
+                        **Editar vem antes de excluir, e é por isso que ele
+                        existe.** Sem o lápis, corrigir um nome digitado errado
+                        ou trocar a categoria passava por apagar e cadastrar de
+                        novo — e num link externo isso perde a URL, que é a
+                        única coisa que a linha carrega.
+                      */}
+                      <ComTooltip texto="Editar arquivo">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setArquivoEmEdicao(file)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </ComTooltip>
                       <ComTooltip texto="Excluir arquivo">
                         <Button variant="destructive" size="icon-sm"
                           onClick={() => deleteClientFile(client.id, file.id)}
@@ -660,19 +812,30 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                   </div>
                 );
               })}
-              {(client.files || []).length === 0 && (
+              {arquivosVisiveis.length === 0 && (
                 <div className="col-span-2 text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
-                  Nenhum arquivo ou link cadastrado para este cliente.
+                  {tipoVisivel === 'nota'
+                    ? 'Nenhum bloco de notas. Use o botão acima para escrever o primeiro.'
+                    : tipoVisivel === 'todos'
+                    ? 'Nenhum arquivo, link ou bloco de notas cadastrado para este cliente.'
+                    : 'Nenhum item deste tipo. Troque o filtro acima para ver os outros.'}
                 </div>
               )}
             </div>
 
-            {/* Anotações: bloco de texto da agência sobre o cliente. */}
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="pt-6">
-                <AnotacoesDoCliente client={client} />
-              </div>
-            </div>
+            <EdicaoDeArquivo
+              arquivo={arquivoEmEdicao}
+              aoFechar={() => setArquivoEmEdicao(null)}
+              aoSalvar={(dados) =>
+                arquivoEmEdicao && updateClientFile(client.id, arquivoEmEdicao.id, dados)
+              }
+            />
+
+            <EditorDeNota
+              nota={notaAberta}
+              aoFechar={() => setNotaAberta(null)}
+              aoSalvar={salvarNota}
+            />
           </div>
         </TabsContent>
 

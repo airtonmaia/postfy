@@ -107,18 +107,42 @@ export interface ClientService {
 export interface ClientFile {
   id: string;
   name: string;
-  category: 'identidade_visual' | 'briefing' | 'fotos' | 'videos' | 'documentos' | 'contratos';
+  category:
+    | 'identidade_visual'
+    | 'briefing'
+    | 'fotos'
+    | 'videos'
+    | 'documentos'
+    | 'contratos'
+    /** Só do bloco de notas: ele não tem categoria de conteúdo. */
+    | 'notas';
   url: string;
   size: string;
   uploadedAt: string;
   /**
-   * Arquivo enviado para o R2 ou link colado (Drive, Dropbox, o que for).
+   * O texto do **bloco de notas**. Vazio nas outras linhas.
    *
-   * A diferença decide a ação da linha: um baixa, o outro abre em outra aba.
-   * Opcional porque as linhas gravadas antes disto não têm o campo —
-   * `tipoDoArquivo()` em `src/lib/arquivosDoCliente.ts` deriva o valor delas.
+   * A nota mora em `files` porque, para quem usa, ela responde a mesma
+   * pergunta que o anexo e o link: *o que a agência guardou sobre este
+   * cliente?* — e duas listas empilhadas pediam a mesma decisão duas vezes.
+   *
+   * **Ela continua sendo interna.** `portal_dados` filtra as linhas de
+   * `kind = 'nota'` de `files` para todos os papéis, e `portal_salvar_dados`
+   * as recoloca na gravação: o navegador do cliente nunca as recebe, então
+   * o array que ele devolve não as contém — sem isso, o primeiro arquivo
+   * enviado pelo portal apagaria as anotações da agência em silêncio.
    */
-  kind?: 'arquivo' | 'link';
+  content?: string;
+  /**
+   * O que a linha é: arquivo enviado para o R2, link colado (Drive, Dropbox)
+   * ou bloco de notas.
+   *
+   * A diferença decide a ação da linha: um baixa, o outro abre em outra aba, o
+   * terceiro abre para ler. Opcional porque as linhas gravadas antes disto não
+   * têm o campo — `tipoDoArquivo()` em `src/lib/arquivosDoCliente.ts` deriva o
+   * valor delas.
+   */
+  kind?: 'arquivo' | 'link' | 'nota';
 }
 
 /**

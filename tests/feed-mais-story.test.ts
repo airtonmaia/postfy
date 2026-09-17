@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
 
@@ -216,41 +216,100 @@ describe('o formato só é oferecido onde as duas saídas existem', () => {
     return achadas;
   };
 
-  it('só o Instagram oferece Feed + Story', () => {
-    expect(
-      redesQueOferecem(),
-      'uma rede passou a oferecer Feed + Story. O publicador dela precisa sair ' +
-        'com as duas peças, ou a arte do story é descartada em silêncio'
-    ).toEqual(['instagram']);
+  it('há pelo menos uma rede oferecendo, senão a guarda não mede nada', () => {
+    // Lista vazia faria os laços abaixo passarem sem afirmar coisa alguma —
+    // a forma mais silenciosa de uma guarda deixar de guardar.
+    expect(redesQueOferecem().length).toBeGreaterThan(0);
   });
 
-  it('a rede que oferece tem caminho de story no publicador', () => {
-    // O que a guarda acima mede indiretamente, medido de frente: a rede
-    // oferecida precisa ter um publicador que aceite o destino `story`.
+  /**
+   * **A regra não é "só o Instagram".**
+   *
+   * A primeira versão desta guarda exigia `['instagram']` literalmente, e ela
+   * estava certa enquanto o Facebook não tinha publicador de story. Mas uma
+   * lista literal obriga a editar a guarda junto com o código — e editar a
+   * guarda junto com o código é como ela deixa de guardar: quem acrescentasse
+   * uma rede trocaria a lista sem pensar no publicador, que é justamente a
+   * decisão.
+   *
+   * O que precisa valer é **a rede que oferece sabe publicar story**, venha
+   * ela de onde vier. É a mesma correção que a guarda de `REDES_QUE_PUBLICAM`
+   * já tinha precisado.
+   */
+  it('toda rede que oferece sabe publicar story', () => {
     for (const rede of redesQueOferecem()) {
+      const caminho = join(RAIZ, 'api', '_lib', `${rede}.ts`);
       expect(
-        instagram,
-        `${rede} oferece Feed + Story sem o publicador aceitar o destino story`
-      ).toMatch(/destino: 'feed' \| 'story'/);
+        existsSync(caminho),
+        `${rede} oferece Feed + Story e não tem api/_lib/${rede}.ts — a arte do ` +
+          `story não tem para onde ir`
+      ).toBe(true);
+
+      const lib = semComentarios(readFileSync(caminho, 'utf-8'));
+      /*
+        Duas formas legítimas, porque as duas redes resolvem isto de jeitos
+        diferentes: o Instagram passa um `destino` ao mesmo publicador; o
+        Facebook tem endpoint próprio (`/photo_stories`, `/video_stories`).
+        Exigir uma das duas formas engessaria a rede seguinte.
+      */
+      expect(
+        /destino: 'feed' \| 'story'/.test(lib) ||
+          /_stories`/.test(lib) ||
+          /publicarStoryNo/.test(lib),
+        `${rede} oferece Feed + Story sem caminho de story no publicador — a arte ` +
+          `seria descartada em silêncio, com a fila dizendo "publicado"`
+      ).toBe(true);
     }
   });
 
-  it('o publicador recusa em vez de publicar metade', () => {
+  it('a falha do story é capturada em toda rede que oferece', () => {
     /**
-     * O cinto. A lista de formatos e o publicador podem divergir numa edição
-     * futura — e quando divergirem, a falha tem que ser **barulhenta**: fica em
-     * `last_error`, à vista na fila, em vez de meia publicação com cara de
-     * sucesso.
+     * **É esta a guarda que substituiu o `throw` do Facebook.**
+     *
+     * O `throw` era o cinto de quando não havia publicador. Agora que há, o
+     * que protege contra a meia publicação é a captura: o feed sai primeiro, e
+     * se o story falhar o motivo vira `avisoDoStory` — `last_error`, à vista
+     * na fila e na tela do conteúdo.
+     *
+     * A contagem é o que pega a rede acrescentada sem a captura: uma rede a
+     * mais na lista de formatos sem um `avisoDoStory` a mais aqui significa
+     * que, naquela rede, a exceção sobe — e a passada seguinte **republica o
+     * feed**.
      */
-    const facebook = publicar.slice(publicar.indexOf("if (conexao.platform === 'facebook')"));
-    const recusa = facebook.indexOf("job.format === 'feed_story'");
-    const publica = facebook.indexOf('publicarNoFacebook(');
-
-    expect(recusa, 'o publicador do Facebook deixou de recusar feed+story').toBeGreaterThan(-1);
+    const capturas = [...publicar.matchAll(/avisoDoStory: `O feed saiu, o story não/g)];
     expect(
-      recusa,
-      'a recusa ficou depois da publicação — o feed sai e o story é descartado'
-    ).toBeLessThan(publica);
-    expect(facebook.slice(recusa, publica), 'a recusa deixou de lançar').toMatch(/throw new Error/);
+      capturas.length,
+      'uma rede oferece Feed + Story sem capturar a falha do story: a exceção ' +
+        'sobe, o item volta para pendente e a passada seguinte republica o feed'
+    ).toBe(redesQueOferecem().length);
+  });
+
+  it('o Facebook publica o feed antes do story', () => {
+    // Na ordem trocada, uma falha no feed deixaria um story órfão no ar — e o
+    // feed é o que tem métrica, permalink e vida longa.
+    const facebook = publicar.slice(publicar.indexOf("if (conexao.platform === 'facebook')"));
+    const feed = facebook.indexOf('publicarNoFacebook(');
+    const story = facebook.indexOf('publicarStoryNoFacebook(\n        conexao.account_id');
+
+    expect(feed, 'o publicador de feed do Facebook sumiu').toBeGreaterThan(-1);
+    expect(story, 'o publicador de story do Facebook sumiu do caminho feed+story').toBeGreaterThan(-1);
+    expect(feed, 'o story do Facebook passou a sair antes do feed').toBeLessThan(story);
+  });
+
+  it('a foto do story de Página entra não publicada', () => {
+    /**
+     * `/{page-id}/photos` publica **no feed** por padrão. Sem
+     * `published: false`, a arte vertical do story apareceria também no feed
+     * da Página — o cliente ficaria com uma peça a mais, cortada, e nada
+     * avisaria.
+     */
+    const facebook = ler('api', '_lib', 'facebook.ts');
+    const bloco = facebook.slice(facebook.indexOf('publicarStoryNoFacebook'));
+    const foto = bloco.indexOf('photos`');
+    expect(foto, 'o passo da foto sumiu do story de Página').toBeGreaterThan(-1);
+    expect(
+      bloco.slice(foto, foto + 400),
+      'a foto do story voltou a ser publicada direto no feed'
+    ).toMatch(/published: false/);
   });
 });
