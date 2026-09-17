@@ -22,6 +22,7 @@ import {
   listarFila,
   listarContas,
   agendarPublicacao,
+  textoDoAgendamento,
   cancelarPublicacao,
   quandoDeveSair,
   type ItemDaFila,
@@ -86,9 +87,6 @@ export const PublicationsView: React.FC = () => {
     contas.find((c) => publicaSozinho(c.platform) && c.clientId === job.clientId);
 
   const enfileirar = async (job: Job) => {
-    const conta = contaDoJob(job);
-    if (!conta) return;
-
     // Feed+story sem a arte vertical não entra na fila: ver `faltaArteDoStory`.
     // Esta tela não abre o formulário, então o aviso aponta onde subir a arte.
     if (faltaArteDoStory(job)) {
@@ -99,7 +97,17 @@ export const PublicationsView: React.FC = () => {
     setEnfileirando(job.id);
     setErro(null);
     try {
-      await agendarPublicacao(conta.workspaceId, job.id, conta.id, job.scheduledDate);
+      /**
+       * Um item por canal marcado. O `contaDoJob` continua aqui porque a
+       * **lista** usa ele para dizer em qual conta a peça vai sair; quem
+       * escolhe as contas do agendamento é `agendarPublicacao`, e era o `find`
+       * dele que deixava a segunda rede muda.
+       */
+      const r = await agendarPublicacao(job);
+      // Esta tela mostra a fila logo abaixo, então o texto só precisa contar o
+      // que **não** entrou nela — o resto aparece na lista, recarregada.
+      const deFora = textoDoAgendamento(r, job.scheduledDate);
+      if (!r.enfileiradas.length) setErro(`${job.title}: ${deFora.texto}`);
       await recarregarFila();
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível agendar.');

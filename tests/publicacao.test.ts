@@ -9,6 +9,8 @@ import {
   quandoDeveSair,
   proximaPassada,
   MINUTOS_ENTRE_PASSADAS,
+  textoDoAgendamento,
+  type ResultadoDoAgendamento,
 } from '../src/lib/redes';
 import { semComentarios } from './util/semComentarios';
 
@@ -334,20 +336,132 @@ describe('a tela diz quando o post sai, não só a data marcada', () => {
     expect(saida.getTime()).toBeGreaterThanOrEqual(Date.now());
   });
 
-  it('as duas telas dizem a janela', () => {
-    const modal = semComentarios(
-      readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')
-    );
-    expect(modal).toMatch(/quandoDeveSair\(/);
-    expect(modal).toMatch(/de 5 em 5 minutos/);
+  it('quem monta o texto do agendamento diz a janela', () => {
+    /**
+     * **Esta guarda apontava para as telas, e o texto mudou de casa.**
+     *
+     * Ela exigia `de 5 em 5 minutos` dentro da `CreateJobModal` e `sai até`
+     * dentro da `PublicationsView` — e as duas frases eram cópias, numa
+     * mensagem que cada tela montava à mão. Foi por isso que as três telas
+     * ficaram com o mesmo `find` errado ao lado: o que se copia, diverge.
+     *
+     * Agora quem monta é `textoDoAgendamento`, num lugar só, e é ele que a
+     * guarda mede. O que ela protege é a decisão, não o arquivo: a espera de
+     * até cinco minutos precisa estar **escrita**, senão ela parece falha —
+     * quem agenda para 15:10 e clica às 15:10:07 espera até 15:15, e foi
+     * exatamente o que aconteceu no primeiro teste do caminho agendado.
+     */
+    const redes = semComentarios(readFileSync(join(RAIZ, 'src', 'lib', 'redes.ts'), 'utf-8'));
+    const corpo = redes.slice(redes.indexOf('export const textoDoAgendamento'));
 
-    const publicacoes = semComentarios(
-      readFileSync(
-        join(RAIZ, 'src', 'components', 'publications', 'PublicationsView.tsx'),
-        'utf-8'
-      )
+    expect(corpo, 'o texto do agendamento deixou de calcular a próxima passada').toMatch(
+      /quandoDeveSair\(/
     );
-    expect(publicacoes).toMatch(/quandoDeveSair\(/);
-    expect(publicacoes).toMatch(/sai até/);
+    expect(
+      corpo,
+      'o texto deixou de dizer o intervalo do agendador — a espera volta a parecer falha'
+    ).toMatch(/MINUTOS_ENTRE_PASSADAS/);
+    expect(corpo, 'o texto deixou de dizer até quando a peça deve sair').toMatch(/deve sair até/);
+
+    // E ele chega às telas: função que ninguém chama é a armadilha do
+    // `agendarPublicacao` sem chamador, que deixou a fila vazia por meses.
+    const chamam = ['modals/CreateJobModal', 'modals/JobDetailModal', 'publications/PublicationsView'];
+    for (const rel of chamam) {
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', `${rel}.tsx`), 'utf-8')
+      );
+      expect(fonte, `${rel} não usa textoDoAgendamento`).toMatch(/textoDoAgendamento\(/);
+    }
+  });
+});
+
+/**
+ * O texto do agendamento, exercitado de verdade.
+ *
+ * `textoDoAgendamento` é **pura**, então dá para afirmar a saída em vez de
+ * procurar strings na fonte — que é a diferença entre exercitar a decisão e
+ * descrever o mecanismo. As asserções não olham a data: `quandoDeveSair` lê o
+ * relógio, e teste com instante absoluto apodrece sozinho (foi o que aconteceu
+ * com os dois testes de `quandoDeveSair` cinco dias depois de escritos).
+ */
+describe('o que a tela diz depois de agendar', () => {
+  const conta = (nome: string, platform: 'instagram' | 'facebook') => ({
+    id: `c-${nome}`,
+    workspaceId: 'w1',
+    clientId: 'cli1',
+    platform,
+    accountId: '1',
+    accountName: nome,
+    createdAt: '2026-01-01',
+  });
+
+  const vazio: ResultadoDoAgendamento = {
+    enfileiradas: [],
+    jaNaFila: [],
+    semConta: [],
+    manuais: [],
+  };
+  const quando = new Date(Date.now() + 3600_000).toISOString();
+
+  it('nomeia as duas contas quando as duas entram na fila', () => {
+    // O bug era exatamente este caso: a mensagem dizia uma conta só, porque
+    // uma conta só tinha ido para a fila.
+    const r = textoDoAgendamento(
+      { ...vazio, enfileiradas: [conta('perfil_ig', 'instagram'), conta('pagina_fb', 'facebook')] },
+      quando
+    );
+    expect(r.ok).toBe(true);
+    expect(r.texto).toContain('@perfil_ig');
+    expect(r.texto).toContain('@pagina_fb');
+  });
+
+  it('diz o que entrou E o que ficou de fora, na mesma mensagem', () => {
+    /**
+     * "Agendei em uma de duas" precisa ser dito por inteiro. A mensagem antiga
+     * só falava da conta que entrou — e quem lia concluía que estava tudo
+     * agendado.
+     */
+    const r = textoDoAgendamento(
+      { ...vazio, enfileiradas: [conta('perfil_ig', 'instagram')], semConta: ['facebook'] },
+      quando
+    );
+    expect(r.ok).toBe(true);
+    expect(r.texto).toContain('@perfil_ig');
+    expect(r.texto).toContain('Facebook');
+    expect(r.texto).toContain('não tem conta conectada');
+  });
+
+  it('nada na fila não é sucesso', () => {
+    /**
+     * **A decisão que mais importa aqui.** A versão antiga devolvia
+     * `ok: true` com "a postagem na data é sua" — verde, com cara de
+     * resolvido, para um conteúdo que não vai sair sozinho. Foi o que fez o
+     * primeiro agendamento parecer pronto sem estar.
+     */
+    const r = textoDoAgendamento({ ...vazio, semConta: ['instagram'] }, quando);
+    expect(r.ok).toBe(false);
+    expect(r.texto).toContain('Instagram');
+  });
+
+  it('rede que não publica sozinha é nomeada como manual', () => {
+    const r = textoDoAgendamento({ ...vazio, manuais: ['linkedin', 'tiktok'] }, quando);
+    expect(r.ok).toBe(false);
+    expect(r.texto).toContain('LinkedIn');
+    expect(r.texto).toContain('TikTok');
+    expect(r.texto).toMatch(/manual/i);
+  });
+
+  it('já estar na fila não vira erro nem silêncio', () => {
+    // A unicidade do banco recusa o par conteúdo/conta, e com vários canais
+    // isso não pode derrubar os outros nem passar calado.
+    const r = textoDoAgendamento({ ...vazio, jaNaFila: [conta('perfil_ig', 'instagram')] }, quando);
+    expect(r.texto).toContain('já estava na fila');
+    expect(r.texto).toContain('@perfil_ig');
+  });
+
+  it('conteúdo sem canal nenhum diz isso, em vez de mensagem vazia', () => {
+    const r = textoDoAgendamento(vazio, quando);
+    expect(r.ok).toBe(false);
+    expect(r.texto.length).toBeGreaterThan(10);
   });
 });

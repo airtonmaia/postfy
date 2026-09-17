@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.59.0',
+    data: '2026-09-17',
+    resumo:
+      'Agendar passou a valer para todos os canais marcados — antes, com duas redes, só uma ia para a fila.',
+    corrigido: [
+      'Um conteúdo marcado em duas redes só era agendado numa delas. A outra não publicava, sem erro em lugar nenhum, e a mensagem dizia "Na fila para @conta" nomeando só a que tinha entrado — verdadeira sobre o que ia sair, muda sobre o que não ia. Agora cada canal marcado tem seu lugar na fila.',
+    ],
+    melhorias: [
+      'A mensagem depois de agendar diz o que entrou na fila E o que ficou de fora, com o nome da rede: cliente sem conta conectada e redes de postagem manual aparecem na mesma frase.',
+      'Agendar sem nenhuma conta conectada deixou de aparecer como sucesso. Era verde, com "a postagem na data é sua" — e um conteúdo que não vai sair sozinho não é um agendamento resolvido.',
+      'A escolha da conta saiu das três telas para um lugar só. Eram três cópias do mesmo trecho, e foi por isso que as três tinham o mesmo defeito.',
+    ],
+  },
+  {
     versao: '2.58.0',
     data: '2026-09-17',
     resumo:

@@ -50,6 +50,7 @@ import { safeDateFormat } from '../../lib/utils';
 import {
   publicarAgora,
   agendarPublicacao,
+  textoDoAgendamento,
   quandoDeveSair,
   listarContas,
   publicaSozinho,
@@ -311,32 +312,10 @@ export const JobDetailModal: React.FC = () => {
     try {
       updateJob(selectedJob.id, { status: 'scheduled' });
 
-      const conta = (await listarContas()).find(
-        (c) => publicaSozinho(c.platform) && c.clientId === atualizado.clientId
-      );
-
-      if (!conta) {
-        setResultado({
-          ok: true,
-          texto:
-            'Agendado. Este cliente não tem conta conectada, então a postagem ' +
-            'na data é sua — conecte a conta dele para o disparo automático.',
-        });
-        return;
-      }
-
-      await agendarPublicacao(
-        conta.workspaceId,
-        atualizado.id,
-        conta.id,
-        atualizado.scheduledDate
-      );
-      setResultado({
-        ok: true,
-        texto:
-          `Na fila para @${conta.accountName}. O agendador passa de 5 em 5 minutos, ` +
-          `então deve sair até ${safeDateTimeFormat(quandoDeveSair(atualizado.scheduledDate))}.`,
-      });
+      // Um item por canal marcado, e a escolha da conta mora em
+      // `agendarPublicacao`: o `find` que estava aqui pegava uma conta só.
+      const resultadoDoAgendamento = await agendarPublicacao(atualizado);
+      setResultado(textoDoAgendamento(resultadoDoAgendamento, atualizado.scheduledDate));
     } catch (err) {
       setResultado({
         ok: false,
