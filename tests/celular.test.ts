@@ -151,38 +151,85 @@ describe('toda tela montada no <main> rola sozinha', () => {
 
 describe('as modais usam a tela inteira no celular', () => {
   /**
-   * Centrada com respiro em volta, uma modal densa perde largura justo onde
-   * ela é escassa. E o canto acompanha: `rounded-2xl` é o canto de uma
-   * superfície **sobre** outra, e em tela cheia não há o "sobre" — sobrariam
-   * quatro cantos do fundo aparecendo nas quinas do aparelho.
+   * **A regra mora no primitivo, e é por isso que esta guarda olha para ele.**
    *
-   * As duas modais aqui são as que o editor usa todo dia. As outras 23
-   * seguem no formato antigo, e isso está registrado como pendência: uma
-   * guarda que varresse todas passaria a reprovar código que ninguém
-   * prometeu ter arrumado.
+   * A primeira versão desta checagem media as duas modais **uma a uma** — e
+   * reprovou, certíssima, quando as classes saíram delas para o
+   * `ui/dialog.tsx`. Repontá-la foi o que a deixou mais forte: antes ela
+   * cobria duas modais e agora cobre a peça que serve a todas, incluindo as
+   * que ainda vão migrar.
+   *
+   * É a mesma lição da tabela de formatos: a guarda segue o lugar onde a
+   * decisão mora, não o arquivo onde ela estava.
    */
-  const MODAIS = ['JobDetailModal', 'CreateJobModal'];
+  const dialog = ler('src', 'components', 'ui', 'dialog.tsx');
+  const base = dialog.slice(dialog.indexOf('cva('), dialog.indexOf('{\n    variants'));
 
-  for (const nome of MODAIS) {
-    const fonte = ler('src', 'components', 'modals', `${nome}.tsx`);
+  it('a modal não perde largura com respiro no celular', () => {
+    /**
+     * Centrada com respiro em volta, uma modal densa perde 32px de 390 justo
+     * onde a largura é escassa. Abaixo do `sm` ela é `inset-0`: a tela toda.
+     */
+    expect(
+      base,
+      'o conteúdo do Dialog voltou a ser uma caixa centrada no celular'
+    ).toMatch(/inset-0 w-full h-full max-h-full/);
+    expect(base, 'a caixa centrada do desktop sumiu').toMatch(/sm:left-1\/2 sm:top-1\/2/);
+  });
 
-    it(`${nome} não perde largura com respiro no celular`, () => {
+  it('o canto só se solta em tela cheia', () => {
+    /**
+     * `rounded-2xl` é o canto de uma superfície **sobre** outra, e em tela
+     * cheia não há o "sobre" — sobrariam quatro cantos do fundo aparecendo
+     * nas quinas do aparelho. É a única exceção ao vocabulário de canto.
+     */
+    expect(base, 'a modal perdeu o canto reto do celular').toMatch(/rounded-none border-0/);
+    expect(base, 'a modal perdeu o canto do desktop').toMatch(/sm:rounded-2xl/);
+    expect(
+      base,
+      'a modal voltou a limitar a altura no celular, o que reintroduz a caixa ' +
+        'centrada que a tela cheia veio substituir'
+    ).toMatch(/max-h-full[\s\S]*sm:max-h-\[90vh\]/);
+  });
+
+  it('o rodapé empilha no celular, na ordem da decisão', () => {
+    // Com `flex-wrap justify-end` os cinco botões do cadastro caíam em três
+    // linhas desencontradas e nenhuma dizia qual era a principal.
+    expect(dialog, 'o rodapé do Dialog voltou a ser só uma linha').toMatch(
+      /flex flex-col sm:flex-row[\s\S]*\[&>\*\]:w-full sm:\[&>\*\]:w-auto/
+    );
+  });
+
+  it('as modais de conteúdo usam o primitivo, não uma sobreposição à mão', () => {
+    /**
+     * O que o `Dialog` traz não é acabamento: **2 das 25 sobreposições à mão
+     * fechavam com `Esc` e nenhuma travava a rolagem do fundo.** Voltar a
+     * escrever `fixed inset-0` aqui é perder trava de foco, `Esc`, bloqueio de
+     * rolagem e o `aria-hidden` nos irmãos de uma vez — e nada disso aparece
+     * em tela. Medido no Chromium: 40 `Tab` seguidos, nenhum saiu do diálogo.
+     */
+    for (const nome of ['JobDetailModal', 'CreateJobModal']) {
+      const fonte = ler('src', 'components', 'modals', `${nome}.tsx`);
+      expect(fonte, `${nome} deixou de usar o Dialog`).toMatch(/<DialogContent/);
       expect(
-        fonte,
-        `${nome} voltou a reservar respiro em volta no celular — são 32px de ` +
-          `390, tirados de onde a largura já é escassa`
-      ).toMatch(/p-0 sm:p-4/);
-    });
+        fonte.match(/fixed inset-0 z-50/)?.[0] ?? null,
+        `${nome} voltou a montar a sobreposição à mão`
+      ).toBeNull();
+    }
+  });
 
-    it(`${nome} solta o canto só em tela cheia`, () => {
-      expect(fonte, `${nome} perdeu o canto do desktop`).toMatch(/rounded-none sm:rounded-2xl/);
-      expect(
-        fonte,
-        `${nome} voltou a limitar a altura no celular, o que reintroduz a ` +
-          `caixa centrada que a tela cheia veio substituir`
-      ).toMatch(/max-h-full sm:max-h-\[9[02]vh\]/);
-    });
-  }
+  it('toda modal do Dialog tem nome acessível', () => {
+    /**
+     * Sem `DialogTitle` o Radix sobe o diálogo sem nome e avisa no console.
+     * Quando o título é desenhado de outro jeito — a modal de conteúdo mostra
+     * avatar, selos e o título editável —, o lugar dele é o `sr-only`, nunca
+     * a ausência.
+     */
+    for (const nome of ['JobDetailModal', 'CreateJobModal']) {
+      const fonte = ler('src', 'components', 'modals', `${nome}.tsx`);
+      expect(fonte, `${nome} abre um diálogo sem nome acessível`).toMatch(/<DialogTitle/);
+    }
+  });
 
   it('a barra de abas da modal de conteúdo pode encolher', () => {
     /**

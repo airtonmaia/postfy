@@ -5,6 +5,7 @@ import { copyToClipboard } from '../../lib/utils';
 import { X, Send, Copy, Check, MessageCircle, ExternalLink } from 'lucide-react';
 import { Job } from '../../types';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent } from '../ui/dialog';
 
 interface WhatsAppShareModalProps {
   job: Job | null;
@@ -58,7 +59,6 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, job?.id]);
 
-  if (!isOpen || !job) return null;
 
   const handleCopy = async () => {
     await copyToClipboard(message);
@@ -75,8 +75,8 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+    <Dialog open={isOpen && !!job} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent tamanho="formulario" className="p-0 gap-0">
         
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -149,7 +149,7 @@ Por favor, aprove ou solicite ajustes por lá para mantermos o cronograma em dia
             <span>Abrir no WhatsApp</span>
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

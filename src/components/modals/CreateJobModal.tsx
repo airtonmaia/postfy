@@ -39,6 +39,7 @@ import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
 import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /**
  * Os canais, na ordem em que aparecem.
@@ -227,7 +228,6 @@ export const CreateJobModal: React.FC = () => {
    */
   const [previaAberta, setPreviaAberta] = useState(false);
 
-  if (!isCreateJobModalOpen) return null;
 
   // A prévia mostra o perfil de quem vai publicar: é o cliente selecionado.
   const clienteSelecionado = clients.find((c) => c.id === clientId) || clients[0];
@@ -492,24 +492,23 @@ export const CreateJobModal: React.FC = () => {
   };
 
   return (
-    <>
-    /* Tela cheia no celular, pela mesma razão da modal de detalhe: os 32px de
-       respiro em volta saíam da largura de um formulário que já não cabia. */
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
-        onClick={(e) => e.stopPropagation()}
-        className="relative bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 w-full max-w-6xl h-full sm:h-auto max-h-full sm:max-h-[92vh] flex flex-col overflow-hidden"
-      >
-        {/* Sem faixa de cabeçalho: ela repetia o que o próprio formulário já
-            diz e comia altura útil num modal que já rola. Sobra o fechar. */}
-        <Button variant="ghost" size="icon-sm"
-          type="button"
-          onClick={closeCreateJobModal}
-          className="absolute top-3 right-3 z-10 dark:hover:text-white"
-          aria-label="Fechar"
-        >
-          <X className="w-5 h-5" />
-        </Button>
+    /*
+      `Dialog` do shadcn. A tela cheia no celular e o X do canto agora vêm do
+      primitivo — eram escritos aqui, e em mais 24 lugares com três posições e
+      dois tamanhos diferentes entre si.
+
+      O ganho maior é o que não se vê: trava de foco, `Esc` e bloqueio da
+      rolagem do fundo. Num formulário desta altura o terceiro é o que mais
+      pesa — rolar até o fim passava a rolar a tela de trás.
+    */
+    <Dialog
+      open={isCreateJobModalOpen}
+      onOpenChange={(aberto) => !aberto && closeCreateJobModal()}
+    >
+      <DialogContent tamanho="editorComPrevia" className="p-0 gap-0">
+        {/* O formulário se explica sozinho e a faixa de cabeçalho comia
+            altura útil, então o título existe só para o leitor de tela. */}
+        <DialogTitle className="sr-only">Novo conteúdo</DialogTitle>
 
         <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
         {/* Form */}
@@ -957,10 +956,9 @@ export const CreateJobModal: React.FC = () => {
           </div>
         </aside>
         </div>
-      </div>
-    </div>
+      </DialogContent>
 
       {dialogo}
-    </>
+    </Dialog>
   );
 };

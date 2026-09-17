@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.47.0',
+    data: '2026-09-17',
+    resumo: 'As janelas do sistema passaram a fechar com Esc, travar a rolagem do fundo e prender o foco.',
+    novidades: [
+      'Toda janela migrada agora fecha com a tecla Esc. Antes, das 25 do sistema, só duas faziam isso.',
+      'A rolagem da página de trás fica travada enquanto uma janela está aberta. Antes, rolar até o fim de uma janela passava a rolar a tela atrás dela e você perdia o lugar onde estava — o efeito era pior no celular.',
+      'O teclado não escapa mais da janela aberta: o Tab circula só dentro dela, e o foco volta para onde estava quando ela fecha.',
+    ],
+    melhorias: [
+      'A tela cheia no celular deixou de ser ajuste de cada janela e virou regra da peça que todas usam — janela nova já nasce certa.',
+      'O botão de fechar ficou igual em todas: mesma posição, mesmo tamanho e mesmo foco visível. Eram três posições e dois tamanhos diferentes.',
+    ],
+  },
+  {
     versao: '2.46.0',
     data: '2026-09-17',
     resumo: 'As telas de conteúdo passaram a funcionar no celular — e a Biblioteca voltou a rolar.',
