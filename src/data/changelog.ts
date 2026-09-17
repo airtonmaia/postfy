@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.55.0',
+    data: '2026-09-17',
+    resumo:
+      'Arrastar os cards no quadro, o e-mail de cada pessoa na equipe, e a agência pode trocar de proprietário.',
+    novidades: [
+      'O quadro virou um Kanban de verdade: arraste o card entre as colunas para mudar de etapa. No computador, o arrasto começa depois de alguns pixels de movimento — parado, o clique continua abrindo o conteúdo. No celular, deslizar rola o quadro e segurar o card começa a arrastar.',
+      'Em Configurações → Usuários, o e-mail de cada pessoa aparece embaixo do nome. Antes só o seu aparecia; para os colegas dizia "Membro da agência" — e numa equipe com dois "Airton" o nome não distingue ninguém.',
+      'A agência pode trocar de proprietário. O botão de coroa, na linha da pessoa, passa a propriedade para ela; quem transfere fica como Administrador e continua com acesso a tudo. Só o proprietário pode transferir, e o diálogo avisa que desfazer depende de a outra pessoa transferir de volta.',
+    ],
+    melhorias: [
+      'Arrastar nunca enfileira publicação. A coluna "Aprovado / Agendado" recebe a peça como aprovada, nunca como agendada: agendar é um clique, porque postagem que vai ao ar no perfil do cliente não volta.',
+      'Soltar o card na coluna de onde ele saiu não grava nada, em vez de registrar no histórico uma mudança que não aconteceu.',
+      'O seletor de status dentro do card continua lá, e não é repetição: ele alcança os sete status, enquanto o quadro tem seis colunas — e serve a quem prefere o teclado.',
+    ],
+    corrigido: [
+      'A função que adiciona à agência quem já tem conta estava aplicada no banco e em nenhum arquivo do projeto. Nada quebrava hoje, mas quem reconstruísse o banco a partir das migrações ficaria sem ela. Encontrada por uma verificação nova, que agora confere todas as chamadas ao banco, não só as do portal.',
+    ],
+  },
+  {
     versao: '2.54.0',
     data: '2026-09-17',
     resumo:
