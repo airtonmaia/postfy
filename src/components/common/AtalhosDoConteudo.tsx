@@ -10,6 +10,7 @@ import type { JobPlatform } from '../../types';
 import { ComTooltip } from '../ui/tooltip';
 import { BarraDeTexto } from './BarraDeTexto';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /**
  * Os acessórios do conteúdo, atrás de ícone.
@@ -148,20 +149,24 @@ const ModalDoAtalho: React.FC<{
     'w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white';
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div
-        /* O clique de dentro não pode fechar: selecionar texto arrastando até
-           fora da caixa contaria como clique no fundo e apagaria a edição. */
-        onClick={(e) => e.stopPropagation()}
-        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col overflow-hidden"
-      >
+    /*
+      Esta abre **por cima** da modal de cadastro, daí o `z-[60]`: o padrão do
+      `DialogContent` é `z-50`, o mesmo da que está embaixo.
+
+      O `stopPropagation` que existia aqui some junto e não faz falta — ele
+      estava lá porque selecionar texto arrastando até fora da caixa contava
+      como clique no fundo e apagava a edição. O Radix fecha por
+      `onPointerDownOutside`, que olha onde o gesto **começou**, então o
+      arrasto de dentro para fora não fecha nada.
+    */
+    <Dialog open onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent tamanho="formulario" semFechar className="z-[60] p-0 gap-0">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-            {campo.rotulo}
-          </h3>
+          <DialogTitle asChild>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              {campo.rotulo}
+            </h3>
+          </DialogTitle>
           <Button variant="ghost" size="icon-sm"
             type="button"
             onClick={onClose}
@@ -243,7 +248,7 @@ const ModalDoAtalho: React.FC<{
             Concluir
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

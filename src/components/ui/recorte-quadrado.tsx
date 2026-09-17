@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Crop } from 'lucide-react';
 
 import { Button } from './button';
+import { Dialog, DialogContent, DialogTitle } from './dialog';
 
 /**
  * Recorte quadrado, antes do envio.
@@ -197,13 +198,17 @@ export const RecorteQuadrado: React.FC<Props> = ({ arquivo, aoConfirmar, aoCance
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
+    /* `z-[60]`: abre por cima do formulário que pediu o arquivo, e o padrão
+       do `DialogContent` é `z-50`. */
+    <Dialog open onOpenChange={(aberto) => !aberto && aoCancelar()}>
+      <DialogContent tamanho="recado" semFechar className="z-[60] p-0 gap-0">
         <div className="p-5 border-b border-slate-100 dark:border-slate-800">
-          <h5 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Crop className="w-4 h-4 text-purple-600" />
-            Enquadrar a imagem
-          </h5>
+          <DialogTitle asChild>
+            <h5 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Crop className="w-4 h-4 text-purple-600" />
+              Enquadrar a imagem
+            </h5>
+          </DialogTitle>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Arraste para posicionar e use o zoom. O que estiver dentro do quadrado é o
             que será salvo.
@@ -273,7 +278,7 @@ export const RecorteQuadrado: React.FC<Props> = ({ arquivo, aoConfirmar, aoCance
             {gerando ? 'Recortando...' : 'Usar esta área'}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

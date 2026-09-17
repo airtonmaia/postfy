@@ -19,6 +19,7 @@ import {
 import { Job } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface InstagramGridModalProps {
   isOpen: boolean;
@@ -37,7 +38,6 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
   );
   const [previewJob, setPreviewJob] = useState<Job | null>(null);
 
-  if (!isOpen) return null;
 
   const currentClient = clients.find(c => c.id === selectedClientId) || clients[0];
 
@@ -50,8 +50,10 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
   const gridCells = [...clientJobs];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={(aberto) => !aberto && onClose()}>
+      {/* `semFechar`: o X desta já mora no cabeçalho, ao lado do seletor de
+          cliente. */}
+      <DialogContent tamanho="editor" semFechar className="p-0 gap-0">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
           <div className="flex items-center gap-3">
@@ -59,12 +61,14 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
               <Instagram className="w-5 h-5" />
             </div>
             <div>
+              <DialogTitle asChild>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 Simulador Visual de Feed (Grid 3x3)
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold">
                   Instagram
                 </span>
               </h3>
+              </DialogTitle>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Visualize a harmonia estética, paleta de cores e ordem dos posts antes de publicar.
               </p>
@@ -315,7 +319,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
