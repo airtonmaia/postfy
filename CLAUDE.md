@@ -1050,6 +1050,64 @@ Três decisões que saíram disso:
   um cliente no perfil de outro. A rota confere pela RLS que o cliente é da
   agência **antes** de assinar.
 
+#### Agendar é um item por canal, e a escolha da conta mora numa função só
+
+`agendarPublicacao` recebia um `connectionId`, e as **três** telas que agendam
+faziam, cada uma com sua cópia:
+
+```ts
+const conta = (await listarContas()).find(
+  (c) => publicaSozinho(c.platform) && c.clientId === job.clientId
+);
+```
+
+`find` devolve **uma** conta — a mais antiga, porque `listarContas` ordena por
+`created_at`. Com Instagram **e** Facebook marcados no mesmo conteúdo, só a
+primeira entrava na `publish_queue`: **a segunda rede não publicava, em
+silêncio**, e a tela dizia "Na fila para @conta" nomeando só a que entrou.
+Verdadeira sobre o que ia sair, muda sobre o que não ia.
+
+É a família que este arquivo já registra três vezes — o `feed_story` que o
+banco recusava, o `|| midia` que trocava a arte do story, a fila sem produtor:
+**a tela oferece mais do que o servidor honra.**
+
+Três decisões:
+
+- **A escolha da conta mora em `agendarPublicacao`, não em cada tela.** Três
+  cópias divergem na primeira pressa, e aqui foi pior: elas não divergiram,
+  ficaram as três com o **mesmo** defeito. Quem chama passa a peça; quem
+  decide em quais contas ela entra é a função.
+- **O `workspace_id` sai do job, não de um parâmetro.** A agência aberta na
+  tela não é necessariamente a dona do conteúdo, e passar a errada gravaria a
+  linha da fila em outra agência.
+- **A função não lança quando um canal fica de fora.** Ela devolve
+  `enfileiradas`, `jaNaFila`, `semConta` e `manuais` — "agendei em uma de
+  duas" precisa ser dito por inteiro, e uma exceção esconderia a que deu
+  certo. `jaEstava` também deixou de ser exceção: com vários canais, uma conta
+  já enfileirada não pode derrubar as outras.
+
+**`textoDoAgendamento` é o texto, num lugar só, e ele nomeia o que não
+entrou.** As frases eram copiadas nas três telas, ao lado do `find` errado.
+E `ok` é `false` quando nada foi para a fila: a versão antiga devolvia verde
+com *"a postagem na data é sua"*, o que fez o primeiro agendamento parecer
+resolvido sem estar.
+
+**Duas guardas quebraram nesta entrega, e as duas pelo motivo certo:** elas
+exigiam as frases **dentro** do corpo de cada tela, e o texto mudou de casa —
+a mesma lição das cinco guardas ancoradas em `CreateJobModal`. Agora medem
+`textoDoAgendamento`, exigem que as três telas o usem, e reprovam qualquer
+tela que volte a escolher a conta sozinha. Conferidas ao contrário, com o
+`find` recolocado numa tela e com o laço de canais reduzido a um: as duas
+reprovam.
+
+E `textoDoAgendamento` é **pura**, então ela tem teste de comportamento, não de
+fonte — sem afirmar data nenhuma, porque `quandoDeveSair` lê o relógio e
+asserção com instante absoluto apodrece sozinha.
+
+O `unique (job_id, connection_id)` da `publish_queue` é o que deixa um item
+por canal ser seguro: ele recusa o par repetido, então reagendar cai em
+`jaNaFila` em vez de duplicar o post.
+
 `REDES_QUE_PUBLICAM` em `src/lib/redes.ts` é a fonte única de quem publica
 sozinho, e hoje tem **só o Instagram**. `tests/publicacao.test.ts` falha se uma
 rede entrar nessa lista sem `publicarNo<Rede>` existir no servidor — a tela

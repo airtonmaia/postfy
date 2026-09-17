@@ -67,9 +67,69 @@ describe('o cadastro decide pelo botão, não por um campo', () => {
   });
 
   it('sem conta conectada, agendar diz que a postagem é sua', () => {
-    // Em vez de agendar em silêncio algo que nunca vai sair sozinho.
-    const corpo = modal.slice(modal.indexOf('const agendar ='), modal.indexOf('const publicarImediatamente'));
-    expect(corpo).toMatch(/não tem conta conectada/);
+    /**
+     * Em vez de agendar em silêncio algo que nunca vai sair sozinho.
+     *
+     * **A frase saiu do corpo da modal e foi para `textoDoAgendamento`**, que
+     * é quem monta a mensagem para as três telas — ela era copiada em cada
+     * uma, e é assim que as três acabaram com o mesmo `find` errado ao lado.
+     * A guarda seguiu a decisão: o aviso tem de existir onde o texto é
+     * montado, e o canal sem conta tem de chegar lá para disparar o aviso.
+     */
+    const redes = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'lib', 'redes.ts'), 'utf-8')
+    );
+    const corpo = redes.slice(redes.indexOf('export const textoDoAgendamento'));
+    expect(corpo, 'o aviso de cliente sem conta conectada desapareceu').toMatch(
+      /não tem conta conectada/
+    );
+
+    // E `semConta` é preenchido de verdade: sem isso o aviso existiria e
+    // nunca sairia — função que não é chamada é enfeite.
+    const agenda = redes.slice(
+      redes.indexOf('export const agendarPublicacao'),
+      redes.indexOf('export const textoDoAgendamento')
+    );
+    expect(agenda, 'o canal sem conta conectada deixou de ser registrado').toMatch(
+      /semConta\.push\(canal\)/
+    );
+  });
+
+  it('agendar cobre todos os canais marcados, não só o primeiro', () => {
+    /**
+     * **A guarda do bug que publicava menos do que a tela prometia.**
+     *
+     * As três telas faziam `listarContas().find(...)` e mandavam **um**
+     * `connectionId`: com Instagram e Facebook marcados, só a conta mais
+     * antiga entrava na fila, a segunda rede ficava muda, e a mensagem dizia
+     * "Na fila para @conta" nomeando só uma.
+     */
+    const redes = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'lib', 'redes.ts'), 'utf-8')
+    );
+    const agenda = redes.slice(
+      redes.indexOf('export const agendarPublicacao'),
+      redes.indexOf('export const textoDoAgendamento')
+    );
+    expect(agenda, 'o agendamento voltou a tratar um canal só').toMatch(
+      /for \(const canal of canaisDoJob\(job\)\)/
+    );
+
+    // E nenhuma tela volta a escolher a conta por conta própria: era a cópia
+    // desse `find` nas três que mantinha o bug em pé.
+    for (const rel of [
+      'modals/CreateJobModal',
+      'modals/JobDetailModal',
+      'publications/PublicationsView',
+    ]) {
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', `${rel}.tsx`), 'utf-8')
+      );
+      expect(
+        fonte.match(/listarContas\(\)\)?\.find\(/),
+        `${rel} voltou a escolher a conta do agendamento sozinho`
+      ).toBeNull();
+    }
   });
 });
 

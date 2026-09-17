@@ -18,6 +18,7 @@ import {
   publicaSozinho,
   publicarAgora,
   agendarPublicacao,
+  textoDoAgendamento,
   quandoDeveSair,
   listarContas,
 } from '../../lib/redes';
@@ -306,31 +307,22 @@ export const CreateJobModal: React.FC = () => {
     setAcao('agendando');
     setResultado(null);
     try {
-      const conta = (await listarContas()).find(
-        (c) => publicaSozinho(c.platform) && c.clientId === novo.clientId
-      );
-
-      if (!conta) {
-        setResultado({
-          ok: true,
-          texto:
-            'Agendado. Este cliente não tem conta conectada, então a postagem ' +
-            'na data é sua — conecte a conta dele para o disparo automático.',
-        });
-        return;
-      }
-
-      await agendarPublicacao(conta.workspaceId, novo.id, conta.id, novo.scheduledDate);
-      // A janela, e não só a data marcada. O agendador passa de 5 em 5
-      // minutos: quem agenda para 15:10 e clica às 15:10:07 perde a passada
-      // por sete segundos e espera até 15:15. Sem dizer isso, a espera parece
-      // falha — foi o que aconteceu no primeiro teste do caminho agendado.
-      setResultado({
-        ok: true,
-        texto:
-          `Na fila para @${conta.accountName}. O agendador passa de 5 em 5 minutos, ` +
-          `então deve sair até ${safeDateTimeFormat(quandoDeveSair(novo.scheduledDate))}.`,
-      });
+      /**
+       * `agendarPublicacao` enfileira **um item por canal marcado**, e a
+       * escolha da conta mora nela.
+       *
+       * Aqui havia um `listarContas().find(...)` — a mesma cópia que estava
+       * nas outras duas telas —, e ele pegava **uma** conta: com Instagram e
+       * Facebook marcados, só a primeira entrava na fila e a segunda rede não
+       * publicava, em silêncio.
+       *
+       * O texto também é da biblioteca: ele nomeia o que **não** entrou na
+       * fila, que é a metade que a mensagem antiga omitia. E a janela, não só
+       * a data — o agendador passa de 5 em 5 minutos, e quem clica às 15:10:07
+       * espera até 15:15.
+       */
+      const resultadoDoAgendamento = await agendarPublicacao(novo);
+      setResultado(textoDoAgendamento(resultadoDoAgendamento, novo.scheduledDate));
     } catch (err) {
       setResultado({
         ok: false,

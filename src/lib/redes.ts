@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { ApiError } from './api';
+import { safeDateTimeFormat } from './utils';
 import type { JobPlatform } from '../types';
 
 /**
@@ -225,18 +226,19 @@ export const listarFila = async (): Promise<ItemDaFila[]> => {
 };
 
 /**
- * Põe um conteúdo na fila.
+ * Enfileira **uma** conta.
  *
  * A restrição de unicidade no banco recusa o mesmo par conteúdo/conta duas
  * vezes: sem ela, um clique duplicado publicaria duas vezes no perfil do
- * cliente. Aqui a violação vira uma mensagem, não um erro cru.
+ * cliente. Aqui a violação vira `jaEstava`, e não exceção: com vários canais,
+ * uma conta já enfileirada não pode derrubar as outras.
  */
-export const agendarPublicacao = async (
+const enfileirarNaConta = async (
   workspaceId: string,
   jobId: string,
   connectionId: string,
   quando: string
-): Promise<void> => {
+): Promise<{ jaEstava: boolean }> => {
   const { error } = await supabase.from('publish_queue').insert({
     workspace_id: workspaceId,
     job_id: jobId,
@@ -244,16 +246,173 @@ export const agendarPublicacao = async (
     scheduled_for: quando,
   });
 
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error('Este conteúdo já está na fila para esta conta.');
-    }
-    if (error.code === '42501') {
-      throw new Error('Seu perfil não pode agendar publicações.');
-    }
-    throw new Error(error.message);
-  }
+  if (!error) return { jaEstava: false };
+  if (error.code === '23505') return { jaEstava: true };
+  if (error.code === '42501') throw new Error('Seu perfil não pode agendar publicações.');
+  throw new Error(error.message);
 };
+
+/** O que aconteceu com cada canal marcado no conteúdo. */
+export interface ResultadoDoAgendamento {
+  /** Contas que entraram na fila agora. */
+  enfileiradas: ContaConectada[];
+  /** Contas que já estavam na fila para este conteúdo. */
+  jaNaFila: ContaConectada[];
+  /** Redes que publicam sozinhas, mas este cliente não tem conta conectada. */
+  semConta: JobPlatform[];
+  /** Redes que não publicam sozinhas: a postagem na data é manual. */
+  manuais: JobPlatform[];
+}
+
+/**
+ * Os canais da peça.
+ *
+ * `canais` é o conjunto completo e `platform` é o primeiro dele — as telas
+ * antigas leem uma rede só. Peça gravada antes do multicanal não tem `canais`,
+ * e aí a rede é a `platform`: sem esse recuo, o conteúdo do acervo deixaria de
+ * ser agendável.
+ */
+const canaisDoJob = (job: { canais?: JobPlatform[]; platform: JobPlatform }): JobPlatform[] => {
+  const marcados = (job.canais || []).filter(Boolean);
+  return marcados.length ? marcados : [job.platform];
+};
+
+/**
+ * Põe um conteúdo na fila — **um item por canal marcado**.
+ *
+ * **Isto era um bug, e ele publicava menos do que a tela prometia.** As três
+ * telas que agendam faziam, cada uma com sua cópia:
+ *
+ * ```ts
+ * const conta = (await listarContas()).find(
+ *   (c) => publicaSozinho(c.platform) && c.clientId === job.clientId
+ * );
+ * ```
+ *
+ * `find` devolve **uma** conta — a mais antiga, porque `listarContas` ordena
+ * por `created_at` —, e a função recebia um `connectionId` só. Com Instagram
+ * **e** Facebook marcados, só a primeira entrava na `publish_queue`: a segunda
+ * rede não publicava, em silêncio, e a tela dizia "Na fila para @conta"
+ * nomeando só uma. Verdadeira sobre o que ia sair, muda sobre o que não ia.
+ *
+ * É a mesma família do `feed_story` que o banco recusava e do `|| midia` que
+ * trocava a arte do story: **a tela oferece mais do que o servidor honra.**
+ *
+ * A escolha da conta mora aqui, e não em cada tela, pela razão de sempre: três
+ * cópias divergem na primeira pressa, e foi exatamente assim que as três
+ * ficaram com o mesmo `find` errado. Quem chama passa o conteúdo; quem decide
+ * em quais contas ele entra é esta função.
+ *
+ * **Ela não lança quando algum canal fica de fora.** O resultado diz o que
+ * aconteceu com cada um, porque "agendei em duas de três" precisa ser dito por
+ * inteiro — uma exceção esconderia as duas que deram certo.
+ */
+export const agendarPublicacao = async (
+  /**
+   * A peça inteira, e o `workspace_id` sai **dela**.
+   *
+   * Ele era um parâmetro à parte, e a agência aberta na tela não é
+   * necessariamente a dona do conteúdo: passar a errada gravaria a linha da
+   * fila em outra agência. O dado certo já viaja no job.
+   */
+  job: {
+    id: string;
+    workspaceId: string;
+    clientId: string;
+    canais?: JobPlatform[];
+    platform: JobPlatform;
+    scheduledDate: string;
+  }
+): Promise<ResultadoDoAgendamento> => {
+  const contas = await listarContas();
+  const saida: ResultadoDoAgendamento = {
+    enfileiradas: [],
+    jaNaFila: [],
+    semConta: [],
+    manuais: [],
+  };
+
+  for (const canal of canaisDoJob(job)) {
+    if (!publicaSozinho(canal)) {
+      saida.manuais.push(canal);
+      continue;
+    }
+
+    const conta = contas.find((c) => c.platform === canal && c.clientId === job.clientId);
+    if (!conta) {
+      saida.semConta.push(canal);
+      continue;
+    }
+
+    const { jaEstava } = await enfileirarNaConta(
+      job.workspaceId,
+      job.id,
+      conta.id,
+      job.scheduledDate
+    );
+    (jaEstava ? saida.jaNaFila : saida.enfileiradas).push(conta);
+  }
+
+  return saida;
+};
+
+/**
+ * O que dizer depois de agendar — **um texto só, para as três telas**.
+ *
+ * Repeti-lo em cada uma é como as três ficaram com o mesmo `find` errado. E
+ * ele nomeia o que **não** entrou na fila, que é a metade que a mensagem
+ * antiga omitia.
+ */
+export const textoDoAgendamento = (
+  r: ResultadoDoAgendamento,
+  quando: string
+): { ok: boolean; texto: string } => {
+  const partes: string[] = [];
+  const contas = [...r.enfileiradas, ...r.jaNaFila].map((c) => `@${c.accountName}`);
+
+  if (r.enfileiradas.length) {
+    partes.push(
+      `Na fila para ${contas.join(' e ')}. O agendador passa de ${MINUTOS_ENTRE_PASSADAS} em ` +
+        `${MINUTOS_ENTRE_PASSADAS} minutos, então deve sair até ` +
+        `${safeDateTimeFormat(quandoDeveSair(quando))}.`
+    );
+  } else if (r.jaNaFila.length) {
+    partes.push(`Este conteúdo já estava na fila para ${contas.join(' e ')}.`);
+  }
+
+  if (r.semConta.length) {
+    // A frase é a mesma de antes, e a guarda de `fluxo-de-aprovacao` a exige:
+    // sem ela, a tela agendaria em silêncio algo que nunca sairia sozinho.
+    partes.push(
+      `${nomesDasRedes(r.semConta)}: este cliente não tem conta conectada, então a ` +
+        'postagem na data é sua — conecte a conta dele para o disparo automático.'
+    );
+  }
+
+  if (r.manuais.length) {
+    partes.push(`${nomesDasRedes(r.manuais)}: postagem manual, o Orquesia não dispara sozinho.`);
+  }
+
+  if (!partes.length) {
+    return { ok: false, texto: 'Nenhum canal marcado neste conteúdo.' };
+  }
+
+  // `ok: false` quando nada entrou na fila: verde com "a postagem é sua" foi o
+  // que fez o primeiro agendamento parecer resolvido sem estar.
+  return { ok: r.enfileiradas.length > 0, texto: partes.join(' ') };
+};
+
+const NOME_DA_REDE: Record<JobPlatform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  linkedin: 'LinkedIn',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  twitter: 'X',
+};
+
+const nomesDasRedes = (redes: JobPlatform[]): string =>
+  redes.map((r) => NOME_DA_REDE[r] ?? r).join(' e ');
 
 /**
  * De quantos em quantos minutos o agendador passa.
