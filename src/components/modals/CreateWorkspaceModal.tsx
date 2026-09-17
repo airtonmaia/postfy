@@ -3,6 +3,7 @@ import { Building2, Sparkles, X, Check, ShieldCheck, Link2} from 'lucide-react';
 import { gerarSlug } from '../../lib/slug';
 import { usePostfy } from '../../context/PostfyContext';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent } from '../ui/dialog';
 
 const COLOR_PRESETS = [
   { label: 'Orquesia Indigo', value: '#6366f1' },
@@ -19,7 +20,6 @@ export const CreateWorkspaceModal: React.FC = () => {
   const [primaryColor, setPrimaryColor] = useState('#6366f1');
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isCreateWorkspaceModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +36,8 @@ export const CreateWorkspaceModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden transition-all">
+    <Dialog open={isCreateWorkspaceModalOpen} onOpenChange={setIsCreateWorkspaceModalOpen}>
+      <DialogContent tamanho="recado" className="p-0 gap-0">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -139,8 +139,7 @@ export const CreateWorkspaceModal: React.FC = () => {
             </Button>
           </div>
         </form>
-
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

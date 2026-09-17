@@ -17,6 +17,7 @@ import {
   Target
 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent } from '../ui/dialog';
 
 interface AiCopyModalProps {
   isOpen: boolean;
@@ -51,7 +52,6 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
-  if (!isOpen) return null;
 
   const currentClient = clients.find(c => c.id === selectedClientId) || clients[0];
 
@@ -91,8 +91,8 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent tamanho="largo" className="p-0 gap-0">
         
         {/* Header */}
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent">
@@ -330,7 +330,7 @@ export const AiCopyModal: React.FC<AiCopyModalProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

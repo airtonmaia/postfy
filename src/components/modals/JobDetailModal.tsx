@@ -46,6 +46,7 @@ import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { MediaUploader } from '../common/MediaUploader';
 import { CampoEditavel, DataEditavel } from '../common/CampoEditavel';
 import { SeloEditavel } from '../common/SeloEditavel';
@@ -329,24 +330,33 @@ export const JobDetailModal: React.FC = () => {
 
   return (
     /*
-      **No celular a modal ocupa a tela inteira, e isso é decisão.**
+      **`Dialog` do shadcn, e o que ele traz não é acabamento.**
 
-      Centrada com `p-4` em volta, ela perdia 32px de largura dos 390 que o
-      aparelho tem — e esta modal é um editor denso, com selo, seletor de
-      status, abas e duas colunas. O que sobrava espremia tudo: o nome do
-      cliente quebrava em três linhas e o título virava "D..".
+      Esta modal era uma das 25 sobreposições à mão do produto, e entre as 25
+      **duas** fechavam com `Esc` e **nenhuma** travava a rolagem do fundo —
+      rolar aqui até o fim passava a rolar a tela de trás, e a pessoa perdia o
+      lugar onde estava. Também não havia trava de foco: com a modal aberta o
+      `Tab` passeava pelos campos de baixo, alcançáveis pelo teclado e
+      invisíveis para o olho.
 
-      O canto sai junto: `rounded-2xl` é o canto de uma superfície **sobre**
-      outra, e em tela cheia não há o "sobre" — o arredondado deixaria quatro
-      cantos do fundo aparecendo. É a única exceção ao vocabulário de canto, e
-      ela vale só abaixo do `sm`.
+      A tela cheia no celular mora **no primitivo**, não aqui: deixada a cargo
+      de cada modal ela seria esquecida na primeira pressa, e esquecer não
+      quebra nada visível no monitor de quem escreve.
+
+      `semFechar` porque o X desta já mora no cabeçalho, ao lado do seletor de
+      status — dois fechares na mesma quina seriam um a mais.
     */
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <Dialog open onOpenChange={(aberto) => !aberto && setSelectedJob(null)}>
+      <DialogContent tamanho="editor" semFechar className="p-0 gap-0">
+        {/* O título é desenhado no cabeçalho, editável. Aqui ele existe para
+            o leitor de tela: sem `DialogTitle` o Radix sobe o diálogo sem
+            nome acessível. */}
+        <DialogTitle className="sr-only">{selectedJob.title || 'Conteúdo'}</DialogTitle>
+
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 w-full max-w-4xl h-full sm:h-auto max-h-full sm:max-h-[90vh] flex flex-col overflow-hidden"
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
       >
         {/*
           Header — **empilha no celular.**
@@ -1301,8 +1311,14 @@ export const JobDetailModal: React.FC = () => {
           </TabsContent>
         </div>
       </Tabs>
+      </DialogContent>
 
-      {/* Sub-modals */}
+      {/*
+        As sub-modais ficam **fora** do `DialogContent`, dentro do `Dialog`.
+        Aninhadas no conteúdo elas herdariam a trava de foco dele: o `Tab`
+        dentro da modal de IA continuaria circulando pelos campos desta,
+        atrás. Fora, cada uma abre o próprio diálogo, com a própria trava.
+      */}
       <AiCopyModal
         isOpen={isAiCopyOpen}
         onClose={() => setIsAiCopyOpen(false)}
@@ -1316,6 +1332,6 @@ export const JobDetailModal: React.FC = () => {
         onClose={() => setIsWhatsAppOpen(false)}
         job={selectedJob}
       />
-    </div>
+    </Dialog>
   );
 };
