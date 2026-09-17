@@ -15,6 +15,9 @@ import {
   type CampoDoCanal,
 } from '../../lib/camposDoCanal';
 import { CampoDinamico } from '../common/CampoDinamico';
+// A tabela de formatos saiu daqui: a modal de detalhe passou a editar o
+// formato da peça já criada, e duas cópias divergiriam na primeira pressa.
+import { formatosComuns } from '../../lib/formatos';
 import {
   deParedeParaUtc,
   deUtcParaParede,
@@ -60,72 +63,6 @@ const CANAIS: {
 ];
 
 /**
- * Formato só existe dentro de uma rede.
- *
- * "Story" não existe no YouTube e "Short" não existe no Instagram — oferecer
- * a lista inteira em toda rede deixava escolher combinação que não vai ao ar,
- * e o erro só apareceria na hora de publicar.
- *
- * O rótulo muda com a rede porque a mesma coisa tem nome diferente em cada
- * uma: vídeo curto é Reels no Instagram e Short no YouTube.
- */
-const FORMATOS_POR_CANAL: Record<JobPlatform, { valor: JobFormat; rotulo: string }[]> = {
-  instagram: [
-    { valor: 'feed', rotulo: 'Feed' },
-    { valor: 'feed_story', rotulo: 'Feed + Story' },
-    { valor: 'carousel', rotulo: 'Carrossel' },
-    { valor: 'reel', rotulo: 'Reels' },
-    { valor: 'story', rotulo: 'Story' },
-  ],
-  facebook: [
-    { valor: 'feed', rotulo: 'Feed' },
-    /**
-     * **"Feed + Story" não entra aqui**, e a primeira versão desta entrega
-     * errou isso: o formato foi oferecido para o Facebook enquanto
-     * `publicarItem` publicava só o feed e **descartava a arte do story em
-     * silêncio** — com a fila dizendo "publicado".
-     *
-     * Story de Página é outro fluxo (`/{page-id}/photo_stories`, com a foto
-     * enviada não publicada antes) e outro escopo. Enquanto ele não existir em
-     * `api/_lib/facebook.ts`, oferecer o formato é prometer meia publicação —
-     * que é justamente o motivo de esta lista ser por rede: "oferecer a lista
-     * inteira em toda rede deixava escolher combinação que não vai ao ar, e o
-     * erro só apareceria na hora de publicar".
-     */
-    { valor: 'carousel', rotulo: 'Carrossel' },
-    { valor: 'reel', rotulo: 'Reels' },
-    { valor: 'story', rotulo: 'Story' },
-    { valor: 'video', rotulo: 'Vídeo' },
-  ],
-  linkedin: [
-    { valor: 'feed', rotulo: 'Publicação' },
-    { valor: 'carousel', rotulo: 'Carrossel' },
-    { valor: 'article', rotulo: 'Artigo' },
-    { valor: 'video', rotulo: 'Vídeo' },
-  ],
-  tiktok: [{ valor: 'reel', rotulo: 'Vídeo' }],
-  youtube: [
-    { valor: 'video', rotulo: 'Vídeo' },
-    { valor: 'reel', rotulo: 'Short' },
-  ],
-  twitter: [
-    { valor: 'feed', rotulo: 'Post' },
-    { valor: 'video', rotulo: 'Vídeo' },
-  ],
-};
-
-/**
- * Os formatos que existem em **todas** as redes escolhidas.
- *
- * Instagram e Facebook compartilham feed, carrossel, reel e story; já
- * Instagram e YouTube só compartilham o vídeo curto. Oferecer a união
- * deixaria escolher Story para o YouTube, que não tem — e o erro só
- * apareceria na hora de publicar.
- *
- * Interseção vazia (redes sem nada em comum) cai na lista do canal
- * principal: melhor do que um seletor sem nenhuma opção.
- */
-/**
  * As outras origens da arte, no menu do botão "Adicionar mídia".
  *
  * Fora do componente porque agora são **dois** uploaders (feed e story), e
@@ -137,16 +74,6 @@ const ORIGENS_DE_MIDIA = [
   { rotulo: 'Google Drive', disponivel: false },
   { rotulo: 'Dropbox', disponivel: false },
 ];
-
-const formatosComuns = (canais: JobPlatform[]): { valor: JobFormat; rotulo: string }[] => {
-  const listas = canais.map((c) => FORMATOS_POR_CANAL[c] || []);
-  if (!listas.length) return FORMATOS_POR_CANAL.instagram;
-
-  const comuns = listas[0].filter((f) =>
-    listas.every((lista) => lista.some((o) => o.valor === f.valor))
-  );
-  return comuns.length ? comuns : listas[0];
-};
 
 export const CreateJobModal: React.FC = () => {
   const {

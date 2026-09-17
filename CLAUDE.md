@@ -864,7 +864,16 @@ existe em `api/_lib/facebook.ts`.
 
 É exatamente o motivo de `FORMATOS_POR_CANAL` ser por rede, escrito no próprio
 arquivo: *oferecer a lista inteira em toda rede deixava escolher combinação que
-não vai ao ar, e o erro só apareceria na hora de publicar.* A guarda deriva do
+não vai ao ar, e o erro só apareceria na hora de publicar.*
+
+**A tabela mora em `src/lib/formatos.ts`, e saiu da `CreateJobModal` quando a
+modal de detalhe passou a editar o formato.** Duas cópias divergem na primeira
+pressa, e divergir *aqui* é caro nos dois sentidos: a rede que ganhasse
+"Feed + Story" num lado só voltaria a descartar a arte do story em silêncio, e
+o formato que sumisse do outro deixaria de ser oferecido sem ninguém notar. A
+guarda seguiu a tabela — é ela que decide, não o arquivo onde ela mora.
+
+A guarda deriva do
 código quais redes oferecem o formato e exige que o publicador de cada uma
 aceite o destino `story` — e o publicador do Facebook **recusa** feed+story com
 `throw`, que é o cinto para quando a lista e o publicador divergirem numa edição
@@ -1644,6 +1653,63 @@ rodapé, que é conteúdo em bloco — o papel "card clicável" da seção acima
 
 Protegido por `tests/casca.test.ts`.
 
+#### Editar onde se lê, e nada é salvo sem confirmar
+
+A tela de detalhe do conteúdo **mostrava tudo e não editava nada**. Corrigir
+uma vírgula na legenda exigia abrir outra tela; trocar o formato de uma peça,
+idem. `CampoEditavel` é o valor que vira campo ao ser clicado, e `SeloEditavel`
+é o selo que troca de valor pelo `DropdownMenu`.
+
+Os dois existem **fora** da modal porque a mesma interação aparece em onze
+campos dela — título, legenda, rascunho, CTA, hashtags, primeiro comentário,
+duas datas, formato, prioridade, mídia. Onze cópias divergem na primeira
+pressa: foi assim que nasceram as doze alturas de botão e as sete barras de
+abas.
+
+Quatro regras, e nenhuma é gosto:
+
+- **Nada é salvo no `blur`.** Sair do campo mantém o texto em edição; quem
+  grava é o ✓ ou o `Enter` (`Ctrl+Enter` no texto longo, onde `Enter` é quebra
+  de linha). Salvar no `blur` publica o rascunho de quem só clicou fora para
+  reler a peça — e o que sai no perfil do cliente não volta. Fora de foco o
+  `Esc` não chega ao campo, por isso o X fica sempre visível ao lado do ✓.
+- **O estado local é reposto quando o valor muda por fora.** `useState(valor)`
+  é lido só na primeira renderização: sem o efeito, o campo guardaria o texto
+  de quando montou depois de a peça ser salva noutro lugar. É a armadilha 8.1
+  outra vez.
+- **Campo vazio continua em tela.** CTA, hashtags e primeiro comentário eram
+  `{campo && (...)}` — vazios, sumiam, e **o que some não pode ser
+  preenchido**. Mesma classe da frase "nenhuma imagem cadastrada nesta versão":
+  informar a falta e mandar procurar outra tela para resolvê-la.
+- **A rede fica de leitura.** Trocá-la muda o que a peça *pode ser* — formato,
+  limite de texto, campos do canal — e pode deixar uma arte 9:16 num feed 4:5.
+  É decisão do cadastro, não um clique no cabeçalho.
+
+Duas coisas que o Chromium mostrou e nenhuma ferramenta local acusa:
+
+- **O menu de formato dizia "Reel" enquanto o cadastro, do lado, oferecia
+  "Reels".** O selo carrega o nome do domínio; a lista por rede carrega o nome
+  da rede — "Short" no YouTube. `FormatBadge` ganhou `rotulo` para receber o
+  segundo sem mexer na cor nem no ícone.
+- **As duas datas lado a lado cortavam o próprio dia** ("20/09..."): sobravam
+  ~195px por cartão dentro da coluna, o rótulo quebrava em três linhas e a
+  informação era a parte escondida. Empilhadas, cabem inteiras.
+
+**O `aviso` de "o feed saiu e o story não" já vinha do servidor e ninguém
+lia.** `api/publicar.ts` devolvia o campo — a rota fecha o item como publicado,
+com o motivo em `last_error`, porque marcar `falhou` republicaria o feed —, e a
+tela dizia "Publicado em @conta" para uma peça que foi ao ar pela metade. É a
+armadilha 9 no lugar mais caro: quem lê o resultado decide se avisa o cliente.
+
+A resposta da publicação aparece **em linha, não em diálogo**, como já fazia a
+modal de cadastro: `useAviso` é para falha que interrompe, e o erro em texto
+continua legível enquanto a pessoa relê a peça — num diálogo ele some ao ser
+dispensado, que é quando ela precisa dele.
+
+Protegido por `tests/campo-editavel.test.ts`, que confere o caminho da gravação
+(`updateJob(id, { campo })`) e não o rótulo: rótulo muda com a redação, o
+caminho só muda se a edição sair.
+
 #### `alert()` e `window.confirm()` não voltam
 
 Três razões, e nenhuma é gosto:
@@ -1708,6 +1774,9 @@ src/lib/metricas.ts        alcance e engajamento reais; nulo != zero
 src/components/reports/DesempenhoReal.tsx  o que o conteúdo deu, com o recorte à vista
 src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
+src/lib/formatos.ts        que formato existe em cada rede, e o nome que ela dá
+src/components/common/CampoEditavel.tsx  o valor que vira campo ao ser clicado
+src/components/common/SeloEditavel.tsx   o selo que troca de valor, no DropdownMenu
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
 src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre

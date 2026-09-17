@@ -31,6 +31,27 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.45.0',
+    data: '2026-09-17',
+    resumo: 'A tela de detalhe do conteúdo virou editor: dá para alterar ali tudo o que o cadastro insere.',
+    novidades: [
+      'Clique no texto e ele vira campo. Título, legenda, rascunho, CTA, hashtags e primeiro comentário se editam onde são lidos — antes era preciso abrir outra tela para corrigir uma vírgula.',
+      'Formato e prioridade trocam pelo próprio selo do cabeçalho, num menu com as opções desenhadas como vão ficar. O formato só oferece o que a rede da peça aceita.',
+      'As duas datas — agendamento e prazo de aprovação — têm "Editar" ao lado, e o campo abre no fuso da agência, não no do aparelho.',
+      'CTA, hashtags e primeiro comentário aparecem mesmo vazios. Antes sumiam da tela quando não tinham valor, e o que some não pode ser preenchido.',
+      '"Publicar agora" e "Enviar para aprovação" ficaram como as duas ações principais do conteúdo, com a resposta da rede aparecendo ali mesmo.',
+    ],
+    melhorias: [
+      'Nada é salvo por engano: sair do campo mantém o texto em edição, e quem grava é o ✓ ou o Enter. O Esc devolve o valor original.',
+      'As duas datas passaram a ficar uma embaixo da outra. Lado a lado, o próprio dia era cortado ("20/09...") para caber o rótulo.',
+    ],
+    corrigido: [
+      'Quando o feed sai e o story não, a tela agora diz isso. O aviso já vinha do servidor e ninguém mostrava: aparecia "Publicado" para uma peça que foi ao ar pela metade.',
+      'O menu de formato mostra o nome que cada rede usa — "Reels" no Instagram, "Short" no YouTube —, o mesmo da tela de cadastro. Antes dizia "Reel" nos dois.',
+      'No modo escuro, "Registrar ajuste" ficava com o fundo claro do modo claro.',
+    ],
+  },
+  {
     versao: '2.44.0',
     data: '2026-09-16',
     resumo: 'Os selos de rede, formato, status e prioridade passaram a ter o mesmo tamanho e formato.',

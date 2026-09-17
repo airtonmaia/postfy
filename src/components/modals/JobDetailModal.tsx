@@ -4,7 +4,14 @@ import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
 import { copyToClipboard, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
-import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge, VersaoBadge } from '../common/Badges';
+import {
+  PlatformBadge,
+  FormatBadge,
+  StatusBadge,
+  PriorityBadge,
+  VersaoBadge,
+  rotuloDaPrioridade,
+} from '../common/Badges';
 import { 
   X, 
   Check, 
@@ -30,14 +37,28 @@ import {
   Plus,
   Timer
 } from 'lucide-react';
-import { JobStatus, JobVersion } from '../../types';
+import { JobPriority, JobStatus, JobVersion } from '../../types';
 import { AiCopyModal } from './AiCopyModal';
 import { ApiError } from '../../lib/api';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import { Badge } from '../ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
+import { MediaUploader } from '../common/MediaUploader';
+import { CampoEditavel, DataEditavel } from '../common/CampoEditavel';
+import { SeloEditavel } from '../common/SeloEditavel';
+import { formatosComuns, rotuloDoFormato } from '../../lib/formatos';
+import { publicarAgora } from '../../lib/redes';
+
+/**
+ * As prioridades, na ordem em que elas crescem.
+ *
+ * O rótulo sai do próprio `PriorityBadge`, que é quem já os tinha — repetir a
+ * tradução aqui faria "Média" virar "Media" num lado só na primeira pressa.
+ */
+const PRIORIDADES: JobPriority[] = ['low', 'medium', 'high', 'urgent'];
 
 const formatSafeDate = (dateStr?: string, options?: Intl.DateTimeFormatOptions): string => {
   if (!dateStr) return 'Não definida';
@@ -78,6 +99,21 @@ export const JobDetailModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'content' | 'versions' | 'comments' | 'checklist' | 'timesheet'>('content');
   const [adjustmentFeedback, setAdjustmentFeedback] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [abaDoTexto, setAbaDoTexto] = useState<'legenda' | 'rascunho'>('legenda');
+  const [publicando, setPublicando] = useState(false);
+  /**
+   * O que a Meta respondeu, em linha e não em diálogo.
+   *
+   * É o mesmo desenho do "Publicar agora" da modal de cadastro, de propósito:
+   * é a mesma ação, com a mesma resposta. E aviso de sucesso não é caso de
+   * `useAviso` — "deu certo" não merece uma caixa que precisa ser fechada; o
+   * erro fica em texto justamente para continuar legível enquanto a pessoa
+   * relê a peça.
+   */
+  const [resultadoDaPublicacao, setResultadoDaPublicacao] = useState<{
+    ok: boolean;
+    texto: string;
+  } | null>(null);
   const [commentText, setCommentText] = useState('');
   // "Copiado!" é confirmação de que deu certo — merece um ícone que muda por
   // dois segundos, não uma caixa que a pessoa precisa fechar para seguir.
@@ -116,6 +152,15 @@ export const JobDetailModal: React.FC = () => {
 
   const client = clients.find(c => c.id === selectedJob.clientId);
 
+  /**
+   * Os formatos que cabem nas redes desta peça.
+   *
+   * Sai de `lib/formatos.ts`, a mesma tabela que o cadastro usa: oferecer aqui
+   * a lista inteira deixaria trocar uma peça do YouTube para "Story", que não
+   * existe lá — e o erro só apareceria na hora de publicar.
+   */
+  const formatosDaPeca = formatosComuns(selectedJob.canais?.length ? selectedJob.canais : [selectedJob.platform]);
+
   const handleCopyApprovalLink = () => {
     // Levava `?portal=<id do cliente>`, e o portal espera o token opaco: o
     // cliente abria numa tela vazia. Agora leva a agência, e quem chega prova
@@ -124,6 +169,48 @@ export const JobDetailModal: React.FC = () => {
     copyToClipboard(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleEnviarParaAprovacao = () => {
+    if (!selectedJob) return;
+    /**
+     * Só muda o status. Quem avisa o cliente é `dispararAutomacoes`, pelo
+     * evento `conteudo_aguardando_aprovacao` — e ele respeita a preferência de
+     * "cada" ou "lote" da agência, que é a razão de a checagem morar lá e não
+     * aqui (armadilha 9.2).
+     */
+    updateJob(selectedJob.id, { status: 'for_approval' });
+  };
+
+  const handlePublicarAgora = async () => {
+    if (!selectedJob) return;
+    setPublicando(true);
+    setResultadoDaPublicacao(null);
+    try {
+      const { conta, aviso } = await publicarAgora(selectedJob.id);
+      /**
+       * `aviso` é o caso do feed que saiu e do story que não. Ele não pode ler
+       * como sucesso liso: a peça está no perfil pela metade, e é isso que a
+       * tela precisa dizer.
+       */
+      setResultadoDaPublicacao(
+        aviso
+          ? { ok: false, texto: aviso }
+          : { ok: true, texto: `Publicado em @${conta}.` }
+      );
+    } catch (e) {
+      /**
+       * A falha traz o motivo que o servidor deu. "Publicado" sem conferir
+       * seria a tela afirmando o que não aconteceu — e publicação no perfil do
+       * cliente é o pior lugar para isso.
+       */
+      setResultadoDaPublicacao({
+        ok: false,
+        texto: e instanceof Error ? e.message : 'Falha ao publicar.',
+      });
+    } finally {
+      setPublicando(false);
+    }
   };
 
   const handleSendAdjustment = () => {
@@ -257,18 +344,67 @@ export const JobDetailModal: React.FC = () => {
               tamanho={40}
               className="border border-slate-200 dark:border-slate-800"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap text-xs">
                 <span className="font-bold text-slate-800 dark:text-slate-200">{client?.name}</span>
                 <span className="text-slate-300">•</span>
+
+                {/* A rede fica de leitura: trocá-la muda o que a peça pode
+                    ser (formato, limite de texto, campos do canal) e pode
+                    deixar uma arte de 9:16 num feed 4:5. É decisão do
+                    cadastro, não um clique no cabeçalho. */}
                 <PlatformBadge platform={selectedJob.platform} />
-                <FormatBadge format={selectedJob.format} />
+
+                <SeloEditavel
+                  valor={selectedJob.format}
+                  rotulo="Formato"
+                  opcoes={formatosDaPeca.map((f) => ({
+                    valor: f.valor,
+                    rotulo: f.rotulo,
+                    // O nome que **esta rede** dá ao formato: "Reels" no
+                    // Instagram, "Short" no YouTube. Sem isto o menu dizia
+                    // "Reel" enquanto o cadastro, do lado, oferecia "Reels".
+                    amostra: <FormatBadge format={f.valor} rotulo={f.rotulo} />,
+                  }))}
+                  aoTrocar={(f) => updateJob(selectedJob.id, { format: f })}
+                >
+                  <FormatBadge
+                    format={selectedJob.format}
+                    rotulo={rotuloDoFormato(selectedJob.format, selectedJob.platform)}
+                  />
+                </SeloEditavel>
+
                 <VersaoBadge versao={selectedJob.currentVersion} />
-                <PriorityBadge priority={selectedJob.priority} />
+
+                <SeloEditavel
+                  valor={selectedJob.priority}
+                  rotulo="Prioridade"
+                  opcoes={PRIORIDADES.map((p) => ({
+                    valor: p,
+                    rotulo: rotuloDaPrioridade(p),
+                    amostra: <PriorityBadge priority={p} />,
+                  }))}
+                  aoTrocar={(p) => updateJob(selectedJob.id, { priority: p })}
+                >
+                  <PriorityBadge priority={selectedJob.priority} />
+                </SeloEditavel>
               </div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white truncate mt-0.5">
-                {selectedJob.title}
-              </h2>
+
+              {/* O título vira campo ao ser clicado, como a legenda. Ele era o
+                  único dado do cabeçalho que exigia abrir outra tela para
+                  corrigir um erro de digitação. */}
+              <CampoEditavel
+                valor={selectedJob.title}
+                tipo="texto"
+                vazio="Sem título. Clique para dar um."
+                placeholder="O título do conteúdo"
+                className="-ml-1.5 px-1.5 py-0.5 mt-0.5"
+                aoSalvar={(t) => updateJob(selectedJob.id, { title: t })}
+              >
+                <span className="block text-base font-bold text-slate-900 dark:text-white truncate">
+                  {selectedJob.title || 'Sem título'}
+                </span>
+              </CampoEditavel>
             </div>
           </div>
 
@@ -328,20 +464,22 @@ export const JobDetailModal: React.FC = () => {
               className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border-emerald-200 dark:border-emerald-800"
               title="Disparo direto com mensagem formatada para o WhatsApp do cliente"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
+              <Share2 className="w-3.5 h-3.5" />
+              {/* "Compartilhamento" e não "WhatsApp": o botão abre a tela de
+                  compartilhar, e o WhatsApp é um dos destinos dela, não o
+                  nome dela. */}
+              <span>Compartilhamento</span>
             </Button>
 
-            <Button variant="ghost"
-              onClick={handleCopyApprovalLink}
-              className="dark:bg-slate-800"
-              title="Copiar link seguro para o WhatsApp do cliente"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>{copiedLink ? 'Copiado!' : 'Link de Aprovação'}</span>
-            </Button>
+            {/*
+              **"Portal do Cliente" e "Copiar link" saíram desta barra.**
 
-            {client && <BotaoDoPortal clientId={client.id} />}
+              Os dois levam para fora do conteúdo que está aberto: um abre a
+              prévia do portal inteiro, o outro copia um endereço. Numa barra
+              cujo resto é ação **sobre esta peça**, eles competiam com
+              "aprovar" e "publicar" pelo mesmo olhar — e o portal continua a
+              um clique na ficha do cliente, que é onde ele pertence.
+            */}
           </div>
         </div>
 
@@ -379,33 +517,50 @@ export const JobDetailModal: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="aspect-square rounded-lg border border-dashed border-slate-300 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center text-slate-400 p-6 text-center">
-                      <Layers className="w-10 h-10 mb-2" />
-                      <p className="text-xs">Nenhuma imagem cadastrada nesta versão.</p>
-                    </div>
+                    /*
+                      **Onde dizia "Nenhuma imagem cadastrada nesta versão" agora
+                      dá para cadastrar.**
+
+                      A frase estava certa e não servia para nada: ela informava
+                      a falta e deixava a pessoa procurar outra tela para
+                      resolvê-la. O campo de envio no mesmo lugar responde à
+                      mesma pergunta e resolve.
+                    */
+                    <MediaUploader
+                      mediaUrls={selectedJob.mediaUrls || []}
+                      onChange={(urls) => updateJob(selectedJob.id, { mediaUrls: urls })}
+                      maxFiles={10}
+                      label=""
+                      helperText="Nenhuma arte nesta versão ainda. Envie aqui."
+                    />
                   )}
                 </div>
 
                 {/* Workflow dates */}
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <CalendarIcon className="w-3.5 h-3.5 text-purple-500" />
-                      Data Agendada:
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {formatSafeDate(selectedJob.scheduledDate)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-amber-500" />
-                      Deadline de Aprovação:
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {formatSafeDate(selectedJob.deadlineApproval)}
-                    </span>
-                  </div>
+                {/*
+                  **As duas datas ficam uma embaixo da outra, e isso foi
+                  medido.** Lado a lado dentro desta coluna sobram ~195px por
+                  cartão: o rótulo quebra em três linhas e a data — que é a
+                  informação — sai como "20/09/...". Empilhadas, cada uma tem a
+                  largura da coluna e cabe inteira, com o "Editar" ao lado.
+                */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 shadow-xs flex flex-col gap-2">
+                  <DataEditavel
+                    rotulo="Data agendada"
+                    valorIso={selectedJob.scheduledDate}
+                    formatar={formatSafeDate}
+                    Icone={CalendarIcon}
+                    corDoIcone="text-purple-500"
+                    aoSalvar={(iso) => updateJob(selectedJob.id, { scheduledDate: iso })}
+                  />
+                  <DataEditavel
+                    rotulo="Deadline de aprovação"
+                    valorIso={selectedJob.deadlineApproval}
+                    formatar={formatSafeDate}
+                    Icone={Clock}
+                    corDoIcone="text-amber-500"
+                    aoSalvar={(iso) => updateJob(selectedJob.id, { deadlineApproval: iso })}
+                  />
                 </div>
               </div>
 
@@ -442,8 +597,11 @@ export const JobDetailModal: React.FC = () => {
 
                 {/* Legenda formatada */}
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  {/* `flex-wrap`: com os dois botões na mesma linha o título
+                      quebrava em "LEGENDA / DO POST" em vez de a linha
+                      dobrar. */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider whitespace-nowrap">
                       Legenda do Post
                     </span>
                     <div className="flex items-center gap-2">
@@ -473,40 +631,136 @@ export const JobDetailModal: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800/80 text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto font-sans">
-                    {selectedJob.caption || 'Sem legenda inserida.'}
+                  {/*
+                    **A legenda e o rascunho dividem o lugar, como no cadastro.**
+
+                    São os dois textos da mesma peça, e só um é publicado — por
+                    isso a aba é `segmentado` e não sublinhado: o sublinhado, sob
+                    um painel, leria como se a tela tivesse trocado.
+
+                    Clicar no texto abre a edição, que é o que o documento pediu.
+                    Antes a legenda era só leitura aqui: corrigir uma vírgula
+                    exigia outra tela.
+                  */}
+                  <Tabs
+                    value={abaDoTexto}
+                    onValueChange={(v) => setAbaDoTexto(v as 'legenda' | 'rascunho')}
+                    className="space-y-2"
+                  >
+                    <TabsList aparencia="segmentado">
+                      <TabsTrigger value="legenda">Legenda</TabsTrigger>
+                      <TabsTrigger value="rascunho">
+                        Rascunho
+                        {(selectedJob.draft || '').trim() !== '' && <TabsBadge>1</TabsBadge>}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="legenda">
+                      <CampoEditavel
+                        valor={selectedJob.caption || ''}
+                        tipo="textoLongo"
+                        linhas={8}
+                        vazio="Sem legenda inserida. Clique para escrever."
+                        placeholder="O texto que acompanha a publicação..."
+                        className="bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800/80 max-h-56 overflow-y-auto"
+                        aoSalvar={(texto) => updateJob(selectedJob.id, { caption: texto })}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="rascunho">
+                      <CampoEditavel
+                        valor={selectedJob.draft || ''}
+                        tipo="textoLongo"
+                        linhas={8}
+                        vazio="Sem rascunho. Clique para escrever."
+                        placeholder="Rascunho da legenda, ideias de gancho, o que o cliente pediu na reunião."
+                        className="bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800/80 max-h-56 overflow-y-auto"
+                        aoSalvar={(texto) => updateJob(selectedJob.id, { draft: texto })}
+                      />
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Fica só aqui dentro: não entra na publicação nem aparece na prévia.
+                      </p>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/*
+                    **CTA, hashtags e primeiro comentário aparecem sempre, e
+                    não só quando já têm valor.**
+
+                    Eles eram `{campo && (...)}`: vazios, sumiam da tela — e o
+                    que some não pode ser preenchido. Era o mesmo problema da
+                    frase "nenhuma imagem cadastrada": a tela informava a falta
+                    e mandava procurar outra tela para resolvê-la.
+                  */}
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">
+                      Chamada para Ação (CTA)
+                    </span>
+                    <CampoEditavel
+                      valor={selectedJob.cta || ''}
+                      vazio="Sem CTA. Clique para escrever."
+                      placeholder="Ex: Comente EU QUERO para receber o link"
+                      className="p-2 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900"
+                      aoSalvar={(t) => updateJob(selectedJob.id, { cta: t })}
+                    />
                   </div>
 
-                  {selectedJob.cta && (
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">Chamada para Ação (CTA):</span>
-                      <p className="text-xs font-semibold text-purple-700 bg-purple-50/70 p-2 rounded-md border border-purple-100">
-                        {selectedJob.cta}
-                      </p>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">
+                      Hashtags
+                    </span>
+                    {/*
+                      **A lista viaja como texto separado por espaço.**
 
-                  {selectedJob.hashtags && selectedJob.hashtags.length > 0 && (
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">Hashtags:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedJob.hashtags.map((tag, i) => (
-                          <span key={i} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                      É como a pessoa escreve hashtag, e é como ela cola de
+                      outro lugar. A `#` é acrescentada na volta: quem digita
+                      "verao" espera uma hashtag, não um erro silencioso na
+                      publicação.
+                    */}
+                    <CampoEditavel
+                      valor={(selectedJob.hashtags || []).join(' ')}
+                      vazio="Sem hashtags. Clique para escrever."
+                      placeholder="#verao #promo #novidade"
+                      aoSalvar={(texto) =>
+                        updateJob(selectedJob.id, {
+                          hashtags: texto
+                            .split(/[\s,]+/)
+                            .map((t) => t.trim().replace(/^#*/, ''))
+                            .filter(Boolean)
+                            .map((t) => `#${t}`),
+                        })
+                      }
+                    >
+                      {selectedJob.hashtags && selectedJob.hashtags.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {selectedJob.hashtags.map((tag, i) => (
+                            <Badge key={i} tom="neutro" className="font-mono">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="block text-xs text-slate-400 italic">
+                          Sem hashtags. Clique para escrever.
+                        </span>
+                      )}
+                    </CampoEditavel>
+                  </div>
 
-                  {selectedJob.firstComment && (
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">Primeiro Comentário:</span>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/70 p-2 rounded-md italic">
-                        {selectedJob.firstComment}
-                      </p>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1">
+                      Primeiro Comentário
+                    </span>
+                    <CampoEditavel
+                      valor={selectedJob.firstComment || ''}
+                      tipo="textoLongo"
+                      linhas={3}
+                      vazio="Sem primeiro comentário. Clique para escrever."
+                      placeholder="O que vai no primeiro comentário do post — hashtags, link, crédito."
+                      className="p-2 bg-slate-100 dark:bg-slate-800/70"
+                      aoSalvar={(t) => updateJob(selectedJob.id, { firstComment: t })}
+                    />
+                  </div>
                 </div>
 
                 {/* Approval actions toolbar */}
@@ -515,23 +769,94 @@ export const JobDetailModal: React.FC = () => {
                     Ações de Workflow
                   </span>
 
+                  {/*
+                    **Duas ações principais, e elas são as do fluxo.**
+
+                    Antes eram "Aprovar Conteúdo" e "Solicitar Ajuste" no lugar
+                    de destaque — e essas duas são o que o **cliente** decide,
+                    no portal. A agência, olhando a peça pronta, decide outra
+                    coisa: mandar para o cliente ou pôr no ar.
+
+                    As de aprovação continuam, logo abaixo e **só quando
+                    significam algo**: com a peça aguardando o cliente. Fora
+                    desse momento elas eram quatro botões disputando o mesmo
+                    olhar com os dois que importam.
+                  */}
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="success"
-                      onClick={() => approveJob(selectedJob.id, 'Agência')}
-                      className="active:bg-emerald-800"
+                    <Button
+                      onClick={handleEnviarParaAprovacao}
+                      disabled={selectedJob.status === 'for_approval'}
+                      title={
+                        selectedJob.status === 'for_approval'
+                          ? 'Esta peça já está com o cliente'
+                          : 'Manda para o cliente aprovar no portal'
+                      }
                     >
-                      <Check className="w-4 h-4" />
-                      Aprovar Conteúdo
+                      <Send className="w-4 h-4" />
+                      Enviar para aprovação
                     </Button>
 
-                    <Button variant="destructive"
-                      onClick={() => setIsAdjusting(true)}
-                      className="bg-rose-50 text-rose-700 border border-rose-200"
+                    <Button
+                      variant="success"
+                      onClick={handlePublicarAgora}
+                      disabled={publicando || selectedJob.status === 'published'}
+                      title={
+                        selectedJob.status === 'published'
+                          ? 'Esta peça já foi publicada'
+                          : 'Publica no perfil conectado do cliente, agora'
+                      }
                     >
-                      <AlertCircle className="w-4 h-4" />
-                      Solicitar Ajuste
+                      <Send className="w-4 h-4" />
+                      {publicando ? 'Publicando...' : 'Publicar agora'}
                     </Button>
                   </div>
+
+                  {/*
+                    O que a Meta respondeu, com o texto que ela mandou.
+
+                    Enfileirar e esperar o cron faz a falha aparecer cinco
+                    minutos depois, escrita em `last_error`, num canto do
+                    banco. Aqui ela aparece na tela.
+                  */}
+                  {resultadoDaPublicacao && (
+                    <p
+                      className={`text-[11px] font-semibold p-2 rounded-lg border ${
+                        resultadoDaPublicacao.ok
+                          ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900'
+                          : 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900'
+                      }`}
+                    >
+                      {resultadoDaPublicacao.texto}
+                    </p>
+                  )}
+
+                  {/* As decisões do cliente, no momento em que elas existem. */}
+                  {selectedJob.status === 'for_approval' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="success"
+                        onClick={() => approveJob(selectedJob.id, 'Agência')}
+                        className="active:bg-emerald-800"
+                      >
+                        <Check className="w-4 h-4" />
+                        Aprovar pelo cliente
+                      </Button>
+
+                      <Button variant="destructive"
+                        onClick={() => setIsAdjusting(true)}
+                        // O par escuro faltava: no modo escuro o botão ficava
+                        // com o rosa claro do modo claro, do lado de um verde
+                        // escuro — o único elemento da modal sem par.
+                        className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        {/* "Registrar ajuste pedido" não cabia na metade da
+                            grade: a base tem `whitespace-nowrap`, então o
+                            texto escapava para fora da área clicável — o que
+                            a pessoa lê deixava de ser o que ela clica. */}
+                        Registrar ajuste
+                      </Button>
+                    </div>
+                  )}
 
                   {isAdjusting && (
                     <div className="p-3 bg-rose-50/60 rounded-lg border border-rose-200 space-y-2 animate-in fade-in duration-150">
