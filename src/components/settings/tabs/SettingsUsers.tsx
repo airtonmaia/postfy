@@ -23,6 +23,7 @@ import { pode } from '../../../lib/permissions';
 import { copyToClipboard, safeDateFormat } from '../../../lib/utils';
 import { Button } from '../../ui/button';
 import { useConfirmacao } from '../../ui/alert-dialog';
+import { Dialog, DialogContent, DialogTitle } from '../../ui/dialog';
 
 const PAPEIS: { valor: Role; rotulo: string; classe: string }[] = [
   { valor: 'admin', rotulo: 'Administrador', classe: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
@@ -534,13 +535,14 @@ export const SettingsUsers: React.FC = () => {
       )}
 
       {/* Modal de convite */}
-      {mostrarModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
+      <Dialog open={!!mostrarModal} onOpenChange={(aberto) => !aberto && setMostrarModal(false)}>
+        <DialogContent tamanho="recado" className="p-6">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Convidar para a agência
-              </h3>
+              <DialogTitle asChild>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Convidar para a agência
+                </h3>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm"
                 onClick={fecharModal}
                 className="dark:hover:text-white"
@@ -694,9 +696,8 @@ export const SettingsUsers: React.FC = () => {
                 </Button>
               </form>
             )}
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
 
       {dialogo}

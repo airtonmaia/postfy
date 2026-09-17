@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../common/Avatar';
 import { Button } from '../../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../../ui/dialog';
 
 interface Squad {
   id: string;
@@ -204,11 +205,13 @@ export const SettingsTeams: React.FC = () => {
       </div>
 
       {/* Add Squad Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleCreateSquad} className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <Dialog open={!!showAddModal} onOpenChange={(aberto) => !aberto && setShowAddModal(false)}>
+        <DialogContent tamanho="recado">
+          <form onSubmit={handleCreateSquad} className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Criar Nova Squad</h4>
+              <DialogTitle asChild>
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Criar Nova Squad</h4>
+              </DialogTitle>
               <Button variant="ghost" size="icon-sm" 
                 type="button" 
                 onClick={() => setShowAddModal(false)}
@@ -257,8 +260,8 @@ export const SettingsTeams: React.FC = () => {
               </Button>
             </div>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

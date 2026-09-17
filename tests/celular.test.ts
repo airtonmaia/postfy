@@ -227,6 +227,48 @@ describe('as modais usam a tela inteira no celular', () => {
     }
   });
 
+  it('Dialog com estado nulo protege o próprio conteúdo', () => {
+    /**
+     * **Esta também nasceu de um erro meu, e ele era pior que o anterior.**
+     *
+     * `{estado && (<div overlay>…)}` vira `<Dialog open={!!estado}>`, e a
+     * tentação é achar que o `open` já resolve. Não resolve: **JSX avalia os
+     * filhos na criação do elemento, não na renderização.** Com a modal
+     * fechada, `estado.titulo` roda do mesmo jeito e derruba a tela inteira —
+     * e a tela fechada é o estado normal dela.
+     *
+     * Deixei 17 dessas em três modais antes de perceber. O `tsc` não acusa
+     * porque `strictNullChecks` está desligado no projeto, então a única
+     * defesa é esta guarda.
+     *
+     * A correção é manter o `{estado && (…)}` **dentro** do `Dialog`,
+     * envolvendo o `DialogContent`. O `open` decide se abre; a guarda decide
+     * se o conteúdo chega a existir.
+     */
+    const arquivos = listarTsx(join(RAIZ, 'src'));
+    for (const caminho of arquivos) {
+      const fonte = semComentarios(readFileSync(caminho, 'utf-8'));
+
+      for (const m of fonte.matchAll(/<Dialog open=\{!!(\w+)\}/g)) {
+        const estado = m[1];
+        const fim = fonte.indexOf('</Dialog>', m.index!);
+        const bloco = fonte.slice(m.index!, fim < 0 ? undefined : fim);
+
+        // `estado.algo` dentro do bloco só é seguro atrás de `{estado && (`.
+        const desreferencia = new RegExp(`\\b${estado}\\.`).test(bloco);
+        if (!desreferencia) continue;
+
+        expect(
+          bloco.includes(`{${estado} && (`),
+          `${caminho.replace(RAIZ + '/', '')}: o <Dialog open={!!${estado}}> lê ` +
+            `\`${estado}.…\` sem a guarda \`{${estado} && (\` por dentro. JSX avalia ` +
+            `os filhos na criação do elemento, então isso roda com a modal FECHADA ` +
+            `e derruba a tela. O tsc não acusa — strictNullChecks está desligado`
+        ).toBe(true);
+      }
+    }
+  });
+
   it('nenhum DialogTitle mora fora de um Dialog', () => {
     /**
      * **Esta guarda nasceu de um erro meu, e ele passou no `tsc`.**

@@ -4,6 +4,7 @@ import { useServerCollection } from '../../lib/useServerCollection';
 import { novoId } from '../../lib/sincronizacao';
 import { Crown, Check, Plus, Edit2, Trash2, Shield, DollarSign, Users } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface Plan {
   id: string;
@@ -241,12 +242,13 @@ export const AdminPlanosView: React.FC = () => {
       </div>
 
       {/* Modal for Create/Edit Plan */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl animate-fade-in">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-              {editingPlan ? 'Editar Plano' : 'Criar Novo Plano'}
-            </h2>
+      <Dialog open={!!isModalOpen} onOpenChange={(aberto) => !aberto && setIsModalOpen(false)}>
+        <DialogContent tamanho="recado" className="p-6">
+            <DialogTitle asChild>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+                {editingPlan ? 'Editar Plano' : 'Criar Novo Plano'}
+              </h2>
+            </DialogTitle>
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome do Plano</label>
@@ -307,9 +309,8 @@ export const AdminPlanosView: React.FC = () => {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
