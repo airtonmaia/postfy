@@ -37,14 +37,33 @@ const fontes = listarFontes(join(RAIZ, 'src')).map((arquivo) => ({
 }));
 
 describe('a caixa do navegador não volta', () => {
-  it('nenhuma tela chama window.confirm', () => {
+  it('nenhuma tela chama confirm, com ou sem o `window.`', () => {
+    /**
+     * **Esta guarda era cega para a forma mais comum.**
+     *
+     * Ela exigia `window.confirm` literal, e `confirm(...)` puro é a mesma
+     * função global — o `window.` é opcional. O `ApprovalsView` tinha um
+     * `confirm()` assim, aprovando **todos** os conteúdos pendentes em lote,
+     * e passou por aqui desde que a regra existe. Só apareceu ao ler o
+     * arquivo para apagá-lo.
+     *
+     * É a mesma falha da guarda do `--radius` e das três versões da guarda de
+     * formato: ela afirmava a **forma** que alguém lembrou de escrever, não o
+     * efeito. A versão de `alert` logo abaixo já fazia certo — bastava ter
+     * copiado a regra dela.
+     *
+     * A lookbehind é o que evita o falso positivo: `useConfirmacao(` e um
+     * `algo.confirm(` de biblioteca não são a caixa do navegador.
+     */
+    const CHAMA_CONFIRM = /(?:window\.confirm|(?<![.\w])confirm)\s*\(/;
+
     const achados = fontes
-      .filter(({ texto }) => /\bwindow\.confirm\s*\(/.test(texto))
+      .filter(({ texto }) => CHAMA_CONFIRM.test(texto))
       .map(({ caminho }) => caminho);
 
     expect(
       achados,
-      'window.confirm trava a aba e alguns navegadores de celular o suprimem — ' +
+      'confirm() trava a aba e alguns navegadores de celular o suprimem — ' +
         'aí a ação não acontece e nada acusa. Use useConfirmacao()'
     ).toEqual([]);
   });

@@ -48,10 +48,21 @@ describe('permissões por papel', () => {
     expect(pode('social_media', 'criar_conteudo')).toBe(true);
   });
 
-  it('restringe o papel de cliente às aprovações', () => {
-    expect(abasPermitidas('client')).toEqual(['aprovacoes']);
-    expect(podeAcessarAba('client', 'clientes')).toBe(false);
-    expect(podeAcessarAba('client', 'relatorios')).toBe(false);
+  it('o papel de cliente não alcança a gestão da agência', () => {
+    /**
+     * A lista dele era `['aprovacoes']`, e aquele menu saiu do produto —
+     * o ciclo de aprovação mora no quadro e, para o cliente, no portal.
+     *
+     * O que esta guarda protege não é **qual** tela sobrou, é o recorte: ele
+     * não vê clientes, comercial, relatórios nem configurações. Afirmar a
+     * lista inteira faria o teste ser editado junto com qualquer mudança de
+     * menu, e é assim que uma guarda deixa de guardar.
+     */
+    for (const proibida of ['clientes', 'comercial', 'relatorios', 'configuracoes'] as const) {
+      expect(podeAcessarAba('client', proibida), `cliente alcançou ${proibida}`).toBe(false);
+    }
+    // E continua com alguma porta: lista vazia monta o app sem menu nenhum.
+    expect(abasPermitidas('client').length).toBeGreaterThan(0);
   });
 
   it('nega tudo quando não há papel', () => {

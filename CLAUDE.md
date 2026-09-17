@@ -2031,6 +2031,50 @@ com cara de certo.
 Protegido por `tests/anotacoes-do-cliente.test.ts`, que confere os dois
 recortes do banco na **última** definição de cada função.
 
+#### O menu Aprovações saiu, e tirar um menu mexe em sete lugares
+
+A tela listava as peças por status de aprovação — que é o que as colunas
+"Para Aprovação", "Em Ajuste" e "Aprovado / Agendado" do quadro já fazem,
+agora com arrastar. E o lado do cliente nunca foi ali: ele aprova pelo
+**portal**. Duas telas para a mesma pergunta é a história das duas listas em
+Arquivos e das cinco abas do conteúdo.
+
+**Tirar um menu não é apagar o item da lista**, e é isso que torna a operação
+mais caro do que parece. Os sete pontos ligados:
+
+| ponto | o que acontece se ficar |
+|---|---|
+| `App.tsx`: import lazy, item do menu, `activeTab === …` | chunk órfão no bundle |
+| `rotas.ts` | URL que responde e não existe em menu nenhum |
+| `types`: `TabType` | o `tsc` aceita navegar para uma tela que não monta |
+| `permissions.ts`: seis listas | papel apontando para tela inexistente |
+| `PostfyContext`: `linkContext` da notificação | clicar no aviso não vai a lugar nenhum |
+| a pílula "N Ajustes" do cabeçalho | atalho para o vazio |
+| `pendingApprovalsCount` | contador sem leitor — a armadilha do `trial_ends_at` |
+
+Os dois últimos são os que somem calados: o `tsc` não reclama de variável que
+ninguém lê nem de `setActiveTab` com string válida.
+
+**E `client: ['aprovacoes']` era a contradição mais antiga do arquivo.** O
+comentário três linhas acima já dizia *"o cliente vê pelo portal, não por
+aqui"*, e a lista dele tinha essa única tela. Ela virou `['dashboard']` — e
+não lista vazia, que montaria o app com zero menus, sem nada explicando.
+Conferido no banco antes de mexer: **ninguém tem esse papel** (só owner e
+admin), e a tela de Usuários nem o oferece.
+
+A guarda de permissões afirmava `abasPermitidas('client')` igual a
+`['aprovacoes']`, e o que ela existe para proteger é o **recorte** — o cliente
+não alcança clientes, comercial, relatórios nem configurações. Agora é isso
+que ela afirma; a lista inteira obrigaria a editá-la a cada mudança de menu.
+
+**A Fila de Publicações foi considerada e fica.** Ela parece o mesmo tipo de
+redundância e não é: `publish_queue` é outra coisa que `job.status` — é a
+distinção que este arquivo já registra como bug real (*"uma fila de mentira em
+cima de uma fila vazia"*). Ela é o **único** lugar que mostra `falhou`,
+`pendente` e o `last_error` — inclusive o aviso do story que não saiu —, o
+único com "tirar da fila", e é nela que a morte do `pg_cron` aparece. Tirá-la
+deixaria publicação falhada invisível, com o quadro dizendo "Agendado".
+
 #### Lista fechada na tela e `check` no banco são a mesma decisão em dois lugares
 
 A 2.53.0 acrescentou o formato **"Feed + Story"** a `FORMATOS_POR_CANAL`, com a
@@ -2376,6 +2420,19 @@ de um `return`, que é o erro #310 da armadilha 8.1. A primeira versão dessa
 guarda olhava o arquivo inteiro antes do hook e reprovava um `return` de
 função auxiliar declarada acima do componente: guarda que reprova código
 correto é pior que guarda nenhuma, porque ensina a ignorá-la.
+
+**E ela era cega para a forma mais comum.** Exigia `window.confirm` literal, e
+`confirm(...)` puro é a mesma função global — o `window.` é opcional. Passaram
+por ali, desde que a regra existe, **dois** casos: o aprovar-tudo-em-lote da
+tela de Aprovações (descoberto ao ler o arquivo para apagá-lo) e o
+`confirm()` que mandava uma agência para a lixeira no `/admin` — uma ação que
+tira o produto do ar e apaga clientes, conteúdos e arquivos em 30 dias.
+
+É a mesma falha da guarda do `--radius` e das três versões da guarda de
+formato: ela afirmava a **forma** que alguém lembrou de escrever, não o
+efeito. A asserção de `alert` ao lado já fazia certo — bastava ter copiado a
+regra dela. Agora as duas olham o efeito, com uma lookbehind para não acusar
+`useConfirmacao(` nem um `algo.confirm(` de biblioteca.
 
 Toda tela que depende de configuração externa **diz o que falta**, com o nome
 da variável. Nunca finja sucesso: `Configurações → Integrações` consulta

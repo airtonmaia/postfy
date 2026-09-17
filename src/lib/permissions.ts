@@ -16,28 +16,39 @@ import { Role, TabType } from '../types';
 /** Telas visíveis para cada papel. */
 const ABAS_POR_PAPEL: Record<Role, TabType[]> = {
   owner: [
-    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
   ],
   admin: [
-    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
   ],
   manager: [
-    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
     'comercial', 'publicacoes', 'relatorios', 'automacoes',
   ],
   social_media: [
-    'dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes', 'clientes',
+    'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
     'publicacoes', 'relatorios',
   ],
   // Designer e copywriter veem a Biblioteca: é onde a arte que eles produzem
   // fica, e reaproveitar é parte do trabalho deles, não um privilégio de
   // gestão. O financeiro não — e o cliente vê pelo portal, não por aqui.
-  designer: ['dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes'],
-  copywriter: ['dashboard', 'calendario', 'producao', 'biblioteca', 'aprovacoes'],
+  designer: ['dashboard', 'calendario', 'producao', 'biblioteca'],
+  copywriter: ['dashboard', 'calendario', 'producao', 'biblioteca'],
   financial: ['dashboard', 'clientes', 'comercial', 'relatorios'],
-  client: ['aprovacoes'],
+  /**
+   * O cliente entra pelo **portal**, não por aqui — é o que o comentário
+   * acima já dizia, e `client: ['aprovacoes']` o contradizia: era a única
+   * tela dele, e ela saiu do produto.
+   *
+   * Fica no Dashboard, e não em lista vazia, porque lista vazia monta o app
+   * com zero menus: a pessoa entra e não há nada, sem nada explicando. Papel
+   * que não tem lugar aqui é decisão separada — hoje **ninguém** o tem
+   * (conferido no banco: só owner e admin), e a tela de Usuários nem o
+   * oferece.
+   */
+  client: ['dashboard'],
 };
 
 export type Permissao =

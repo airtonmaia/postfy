@@ -507,7 +507,6 @@ export type TabType =
   | 'calendario' 
   | 'producao' 
   | 'biblioteca'
-  | 'aprovacoes' 
   | 'clientes' 
   | 'comercial' 
   | 'publicacoes' 

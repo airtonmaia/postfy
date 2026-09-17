@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.58.0',
+    data: '2026-09-17',
+    resumo:
+      'O menu Aprovações saiu: o ciclo inteiro já vive no WorkFlow e, para o cliente, no portal.',
+    melhorias: [
+      'O menu Aprovações foi removido. Ele mostrava as peças por status de aprovação — que é o que as colunas "Para Aprovação", "Em Ajuste" e "Aprovado / Agendado" do WorkFlow já mostram, agora com arrastar. Aprovar, pedir ajuste, copiar o link do portal e conversar com o cliente continuam no conteúdo (abas Revisões e Compartilhamento), no calendário e no Portal do Cliente.',
+      'O atalho de "Ajustes" no cabeçalho e o aviso de conteúdo aguardando revisão passaram a levar ao WorkFlow, que é onde a peça aparece.',
+    ],
+    corrigido: [
+      'Mover uma agência para a lixeira usava a caixa cinza do navegador. Num produto com a sua marca ela já era errada, mas o problema real é outro: alguns navegadores de celular simplesmente não a mostram — e aí o clique não faz nada, sem erro e sem pergunta. Agora é o diálogo do sistema, com o prazo e o que vai junto escritos.',
+    ],
+  },
+  {
     versao: '2.57.0',
     data: '2026-09-17',
     resumo:

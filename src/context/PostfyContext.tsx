@@ -1570,7 +1570,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         type: 'approval',
         read: false,
         createdAt: new Date().toISOString(),
-        linkContext: { tab: 'aprovacoes', jobId: job.id, clientId: job.clientId }
+        // O quadro, e não mais a tela de Aprovações: a coluna "Para Aprovação"
+        // é onde a peça aparece, e aquele menu saiu.
+        linkContext: { tab: 'producao', jobId: job.id, clientId: job.clientId }
       };
       setAllNotifications(prev => [newNotif, ...prev]);
     }

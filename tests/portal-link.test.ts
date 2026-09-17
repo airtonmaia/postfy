@@ -7,7 +7,8 @@ import { urlDoPortalDaAgencia, urlDaPreviaDoPortal, agenciaDoCaminho } from '../
 /**
  * O link do portal já saiu errado duas vezes, das duas em produção:
  *
- *   - `?portal=<id do cliente>` em JobDetailModal e ApprovalsView. O portal
+ *   - `?portal=<id do cliente>` em JobDetailModal e na tela de Aprovações
+ *     (que saiu do produto depois). O portal
  *     resolve `clients.portal_token`, que é hex de 24 bytes — o id nunca
  *     casa, e `portal_dados` devolve null. O cliente abria numa tela vazia.
  *   - `/#portal-<id>` no WhatsAppShareModal, formato que nada no app lê, com
