@@ -21,6 +21,7 @@ import {
   quandoDeveSair,
   listarContas,
 } from '../../lib/redes';
+import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -296,6 +297,12 @@ export const CreateJobModal: React.FC = () => {
     const novo = salvar(e, 'scheduled', { fecharDepois: false });
     if (!novo) return;
 
+    // Feed+story sem a arte vertical não entra na fila: ver `faltaArteDoStory`.
+    if (faltaArteDoStory(novo)) {
+      setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+      return;
+    }
+
     setAcao('agendando');
     setResultado(null);
     try {
@@ -349,11 +356,28 @@ export const CreateJobModal: React.FC = () => {
     const novo = salvar(e, 'scheduled', { fecharDepois: false });
     if (!novo) return;
 
+    // Mesma conferência do agendar, e aqui ela pesa mais: o que sai agora não
+    // volta.
+    if (faltaArteDoStory(novo)) {
+      setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+      return;
+    }
+
     setAcao('publicando');
     setResultado(null);
     try {
-      const { conta, externalId } = await publicarAgora(novo.id);
-      setResultado({ ok: true, texto: `Publicado em @${conta}. Id na Meta: ${externalId}` });
+      const { conta, externalId, aviso } = await publicarAgora(novo.id);
+      /**
+       * **O `aviso` era descartado aqui**, e a modal de detalhe já o lia. Ele é
+       * o caso do feed que saiu e do story que não: dizer "Publicado" liso
+       * afirma duas saídas onde houve uma, e é o mesmo tipo de mentira que o
+       * `|| midia` do servidor produzia — só na tela em vez de no perfil.
+       */
+      setResultado(
+        aviso
+          ? { ok: false, texto: aviso }
+          : { ok: true, texto: `Publicado em @${conta}. Id na Meta: ${externalId}` }
+      );
     } catch (err) {
       setResultado({
         ok: false,

@@ -100,3 +100,34 @@ export const formatosComuns = (canais: JobPlatform[]): OpcaoDeFormato[] => {
  */
 export const rotuloDoFormato = (formato: JobFormat, rede: JobPlatform): string =>
   (FORMATOS_POR_CANAL[rede] || []).find((f) => f.valor === formato)?.rotulo ?? formato;
+
+/**
+ * A peça é "Feed + Story" e não tem a arte do story?
+ *
+ * **Isto existe porque um story errado foi ao ar no perfil de um cliente.**
+ * `api/publicar.ts` tinha um `|| midia` que, faltando a arte vertical, mandava
+ * a **do feed** para o story. A Meta aceita e publica, então a fila fechou
+ * como `publicado`, com `story_external_id` preenchido e `last_error` nulo:
+ * sucesso completo, story errado no perfil. E o que sai não volta.
+ *
+ * O servidor já não substitui — ele publica o feed e deixa o motivo em
+ * `last_error`. Mas descobrir ali é tarde: o feed já está no ar, e a peça
+ * ficou pela metade. Por isso a conferência também mora **antes da ação**,
+ * onde ainda dá para subir a arte.
+ *
+ * Fica em `formatos.ts`, e não em cada tela, pela mesma razão de
+ * `FORMATOS_POR_CANAL` ter saído da `CreateJobModal`: são quatro botões em
+ * três telas que disparam publicação, e repetir a regra em cada um garante
+ * esquecer um — e esquecer aqui não quebra nada visível.
+ */
+export const faltaArteDoStory = (peca: {
+  format?: JobFormat;
+  storyMediaUrls?: string[];
+}): boolean =>
+  peca.format === 'feed_story' &&
+  !(peca.storyMediaUrls || []).some((u) => (u || '').trim().length > 0);
+
+/** O que dizer quando falta. Um texto só, pelos mesmos motivos. */
+export const AVISO_SEM_ARTE_DE_STORY =
+  'Este conteúdo é "Feed + Story" e não tem arte de story. Suba a arte 9:16 em ' +
+  '"Mídia do Story" — sem ela, só o feed vai ao ar.';

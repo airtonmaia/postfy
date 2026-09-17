@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.57.0',
+    data: '2026-09-17',
+    resumo:
+      'O story de "Feed + Story" saía com a arte do feed quando faltava a arte vertical. Agora não sai errado — e a tela avisa antes.',
+    corrigido: [
+      'Publicando "Feed + Story" sem a arte do story, o sistema mandava a arte do feed para o story. A Meta aceita e publica, então a fila registrava sucesso completo e ninguém percebia: o story ia ao ar com a arte 4:5 esticada no 9:16. Agora o story simplesmente não sai com a arte errada — o feed vai ao ar e a fila diz exatamente o que faltou.',
+      'A modal de cadastro dizia "Publicado" mesmo quando só o feed havia saído. O aviso existia no servidor e era descartado ali; a modal de detalhe já o mostrava.',
+    ],
+    melhorias: [
+      'Agendar ou publicar "Feed + Story" sem a arte do story agora é recusado na hora, nas quatro telas que disparam publicação, dizendo onde subir a arte. Antes você só descobria depois — com o feed já no perfil do cliente e a peça pela metade.',
+    ],
+  },
+  {
     versao: '2.56.0',
     data: '2026-09-17',
     resumo:

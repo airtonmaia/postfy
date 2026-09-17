@@ -917,6 +917,46 @@ O formato `feed_story` obrigou a consertar isso, e trouxe três decisões:
 `external_id` continua sendo o do **feed**, que é o que `post_metrics` mede:
 story expira em 24h e não entra em relatório.
 
+#### A arte do story nunca é substituída pela do feed
+
+O publicador tinha `(job.story_media_urls || [])[0] || midia`: **faltando a
+arte vertical, ele mandava a do feed para o story.** O fallback parece
+generoso e é o oposto — as proporções são 4:5 e 9:16, que é a razão de
+`story_media_urls` ser coluna própria, e a mesma imagem nos dois sai cortada
+num deles.
+
+**O que torna isso caro é que a Meta aceita.** Ela publica, então não há erro
+em lugar nenhum: o item fecha como `publicado`, com `story_external_id`
+preenchido e `last_error` nulo. Sucesso completo na fila, story errado no
+perfil do cliente. Foi o desfecho do primeiro teste real de feed+story —
+verificado na `publish_queue` depois: item publicado, os dois ids, nenhum
+erro, e `story_media_urls` da peça **vazio**.
+
+Substituir uma arte por outra é decisão de quem produz a peça, nunca do
+publicador. Sem a arte, o story não sai: o feed fica no ar (ele está certo), o
+item fecha como **publicado** — marcar `falhou` republicaria o feed na passada
+seguinte — e o motivo vai para `last_error`, que é o mesmo desfecho da falha
+do story. As duas redes davam a mesma resposta, então o texto é uma constante
+(`SEM_ARTE_DE_STORY`), e ele diz o que fazer, porque chega à tela de
+Publicações.
+
+**E a conferência também mora antes da ação**, em `faltaArteDoStory` de
+`src/lib/formatos.ts`. Descobrir no publicador é tarde: o feed já está no
+perfil e a peça ficou pela metade; antes da ação ainda dá para subir a arte.
+Ela fica na fonte única pela mesma razão de `FORMATOS_POR_CANAL` ter saído da
+`CreateJobModal` — são **quatro botões em três telas** que disparam
+publicação, e repetir a regra em cada um garante esquecer um. Que é
+literalmente o que havia acontecido: a modal de cadastro **descartava o
+`aviso`** que o servidor já devolvia e dizia "Publicado em @conta" onde houve
+uma saída de duas, enquanto a modal de detalhe o mostrava.
+
+A guarda de `tests/feed-mais-story.test.ts` procura o **efeito**, não o nome
+da variável: nenhuma leitura de `story_media_urls` seguida de `|| midia`. E a
+lista das telas que conferem é **derivada** — todo arquivo de
+`src/components` que chame `agendarPublicacao` ou `publicarAgora` precisa ter
+o `faltaArteDoStory`. Conferida ao contrário, recolocando o `|| midia`: duas
+asserções reprovam.
+
 **E o formato é oferecido só onde as duas saídas existem.** A primeira versão
 desta entrega ofereceu "Feed + Story" para o **Facebook**, onde `publicarItem`
 retornava logo depois do feed: a arte do story era **descartada em silêncio**,
