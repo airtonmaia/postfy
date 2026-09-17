@@ -8,8 +8,7 @@ import {
   Calendar as CalendarIcon, 
   Kanban, 
   Images,
-  CheckCircle2, 
-  Users, 
+  Users,
   Briefcase, 
   Send, 
   BarChart3, 
@@ -51,7 +50,6 @@ const CalendarApp = tela(() => import('./components/calendar/CalendarApp'), 'Cal
 const DashboardView = tela(() => import('./components/dashboard/DashboardView'), 'DashboardView');
 const KanbanBoard = tela(() => import('./components/kanban/KanbanBoard'), 'KanbanBoard');
 const BibliotecaView = tela(() => import('./components/library/BibliotecaView'), 'BibliotecaView');
-const ApprovalsView = tela(() => import('./components/approvals/ApprovalsView'), 'ApprovalsView');
 const ClientsView = tela(() => import('./components/clients/ClientsView'), 'ClientsView');
 const CommercialView = tela(() => import('./components/commercial/CommercialView'), 'CommercialView');
 const PublicationsView = tela(() => import('./components/publications/PublicationsView'), 'PublicationsView');
@@ -168,9 +166,10 @@ const MainLayout: React.FC = () => {
     return <LoginView />;
   }
 
-  // Unread notifications & pending approvals count
   const unreadNotifs = notifications.filter(n => !n.read).length;
-  const pendingApprovalsCount = jobs.filter(j => j.status === 'for_approval').length;
+  // `pendingApprovalsCount` saiu junto com o menu Aprovações: ele só
+  // alimentava o badge daquele item. Contador sem leitor é a armadilha do
+  // `trial_ends_at` — parece uma regra e não é.
   const inAdjustmentCount = jobs.filter(j => j.status === 'in_adjustment').length;
 
   const abaPermitida = podeAcessarAba(currentUser?.role, activeTab as TabType);
@@ -180,13 +179,6 @@ const MainLayout: React.FC = () => {
     { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
     { id: 'producao', label: 'WorkFlow', icon: Kanban },
     { id: 'biblioteca', label: 'Biblioteca', icon: Images },
-    { 
-      id: 'aprovacoes', 
-      label: 'Aprovações', 
-      icon: CheckCircle2, 
-      badge: pendingApprovalsCount,
-      badgeColor: 'bg-amber-500 text-white' 
-    },
     { id: 'clientes', label: 'Clientes (360°)', icon: Users },
     { id: 'comercial', label: 'Comercial & Vendas', icon: Briefcase },
     { id: 'publicacoes', label: 'Fila de Publicações', icon: Send },
@@ -539,7 +531,9 @@ const MainLayout: React.FC = () => {
             {/* Quick Status Pill */}
             {inAdjustmentCount > 0 && (
               <Button variant="destructive"
-                onClick={() => setActiveTab('aprovacoes')}
+                /* O quadro: "Em Ajuste" é coluna dele, e era para a tela de
+                   Aprovações que este atalho ia antes de ela sair. */
+                onClick={() => setActiveTab('producao')}
                 className="hidden sm:flex bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20"
               >
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
@@ -687,7 +681,6 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'calendario' && <CalendarApp />}
           {abaPermitida && activeTab === 'producao' && <KanbanBoard />}
           {abaPermitida && activeTab === 'biblioteca' && <BibliotecaView />}
-          {abaPermitida && activeTab === 'aprovacoes' && <ApprovalsView />}
           {abaPermitida && activeTab === 'clientes' && <ClientsView />}
           {abaPermitida && activeTab === 'comercial' && <CommercialView />}
           {abaPermitida && activeTab === 'publicacoes' && <PublicationsView />}

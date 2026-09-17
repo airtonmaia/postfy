@@ -114,7 +114,6 @@ describe('toda tela montada no <main> rola sozinha', () => {
     CalendarApp: 'calendar/CalendarApp',
     KanbanBoard: 'kanban/KanbanBoard',
     BibliotecaView: 'library/BibliotecaView',
-    ApprovalsView: 'approvals/ApprovalsView',
     ClientsView: 'clients/ClientsView',
     CommercialView: 'commercial/CommercialView',
     PublicationsView: 'publications/PublicationsView',

@@ -31,7 +31,6 @@ export const CAMINHOS: Record<TabType, string> = {
   calendario: '/calendario',
   producao: '/kanban',
   biblioteca: '/biblioteca',
-  aprovacoes: '/aprovacoes',
   clientes: '/clientes',
   comercial: '/comercial',
   publicacoes: '/publicacoes',

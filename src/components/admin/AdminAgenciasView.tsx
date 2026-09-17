@@ -5,9 +5,18 @@ import { DIAS_NA_LIXEIRA, diasAteOExpurgo } from '../../lib/lixeira';
 import { carregarContagensPorAgencia, type ContagensDaAgencia } from '../../lib/numerosDoSaas';
 import { safeDateFormat } from '../../lib/utils';
 import { Button } from '../ui/button';
+import { useConfirmacao } from '../ui/alert-dialog';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 export const AdminAgenciasView: React.FC = () => {
+  /**
+   * Todos os hooks no topo, antes de qualquer `return` — armadilha 8.1.
+   *
+   * `dialogo` só aparece se quem chamou o puser na árvore, e esquecer isso não
+   * quebra `tsc`, vitest nem build: o clique simplesmente não faz nada. Ele
+   * está no fim do JSX desta tela.
+   */
+  const { pedir, dialogo } = useConfirmacao();
   const {
     workspaces,
     currentWorkspace,
@@ -236,15 +245,27 @@ export const AdminAgenciasView: React.FC = () => {
                 </Button>
 
                 <Button variant="secondary" size="icon-sm"
-                  onClick={() => {
-                    // O texto nomeia o prazo e o que vai junto. O botão
-                    // antigo dizia só "excluir" — e não excluía nada.
-                    const aviso =
-                      `Mover "${ws.name}" para a lixeira?\n\n` +
-                      `Ela sai do ar agora e é apagada de vez em ${DIAS_NA_LIXEIRA} dias, ` +
-                      'com clientes, conteúdos e arquivos. Até lá dá para restaurar.';
-                    if (confirm(aviso)) void moverAgenciaParaLixeira(ws.id);
-                  }}
+                  onClick={() =>
+                    /**
+                     * Era um `confirm()` nativo, e a guarda de `dialogos` não
+                     * o pegava: ela exigia o `window.` literal. Numa ação que
+                     * tira uma agência do ar, a caixa do navegador tem três
+                     * problemas — não tem a marca do produto, alguns
+                     * navegadores de celular **não a mostram** (o clique não
+                     * faz nada, sem erro), e ela não cabe a consequência.
+                     *
+                     * O texto nomeia o prazo e o que vai junto. O botão
+                     * antigo dizia só "excluir" — e não excluía nada.
+                     */
+                    pedir({
+                      titulo: `Mover "${ws.name}" para a lixeira?`,
+                      descricao:
+                        `Ela sai do ar agora e é apagada de vez em ${DIAS_NA_LIXEIRA} dias, ` +
+                        'com clientes, conteúdos e arquivos. Até lá dá para restaurar.',
+                      rotuloConfirmar: 'Mover para a lixeira',
+                      aoConfirmar: () => void moverAgenciaParaLixeira(ws.id),
+                    })
+                  }
                   title={`Mover para a lixeira (${DIAS_NA_LIXEIRA} dias para restaurar)`}
                   className="hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-600 hover:text-red-600 dark:hover:text-red-400"
                 >
@@ -448,6 +469,10 @@ export const AdminAgenciasView: React.FC = () => {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Sem isto na árvore, o botão da lixeira não faz nada — sem erro, sem
+          pergunta, sem pista. É a falha silenciosa do `useConfirmacao`. */}
+      {dialogo}
     </div>
   );
 };
