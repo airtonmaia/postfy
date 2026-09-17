@@ -1710,6 +1710,82 @@ Protegido por `tests/campo-editavel.test.ts`, que confere o caminho da gravaçã
 (`updateJob(id, { campo })`) e não o rótulo: rótulo muda com a redação, o
 caminho só muda se a edição sair.
 
+#### O `<main>` corta; quem rola é cada tela
+
+`<main>` no `App.tsx` é `flex-1 min-h-0 overflow-hidden`: ele **dá a altura e
+corta**. Isso é de propósito — é o que deixa a barra lateral e o cabeçalho
+fixos enquanto o conteúdo rola — e tem uma consequência que não é óbvia:
+**cada tela precisa trazer o próprio `overflow-y-auto`.**
+
+A `BibliotecaView` era a única sem ele, e o efeito é o pior possível: o acervo
+passava da dobra e **não havia como chegar nele.** Sem barra de rolagem, sem
+erro, sem pista de que havia mais coisa embaixo — e medido no Chromium com a
+classe antiga, `overflow-y: visible` e `scrollTop` preso em 0.
+
+Só aparece quando o conteúdo passa da altura da janela. No monitor de quem
+escreveu, com poucos arquivos, a tela parecia certa.
+
+`CalendarApp` e `KanbanBoard` são exceção nomeada e não é preguiça: os dois
+são grades que **não rolam por inteiro** — o calendário fixa o cabeçalho dos
+dias, o quadro rola as colunas na horizontal —, então declaram `overflow` na
+raiz e cuidam da rolagem por dentro. Um `overflow-y-auto` ali criaria duas
+barras aninhadas.
+
+#### O celular não é o desktop estreito
+
+O produto é usado no telefone, e **nada local acusa quando ele quebra lá**:
+`tsc` compila, o vitest não monta componente e o `vite build` não mede caixa.
+É a armadilha 0 outra vez, e foi assim que a modal de conteúdo chegou a
+produção ilegível em 390px — nome do cliente em três linhas, título em "D..",
+e a barra de abas com **146px para 868px de conteúdo**.
+
+Quatro decisões saíram disso, e as quatro valem para modal nova:
+
+- **Modal densa usa a tela inteira no celular** (`p-0 sm:p-4`,
+  `rounded-none sm:rounded-2xl`, `max-h-full sm:max-h-[90vh]`). Os 32px de
+  respiro em volta saem justo de onde a largura é escassa. O canto acompanha:
+  `rounded-2xl` é o canto de uma superfície **sobre** outra, e em tela cheia
+  não há o "sobre" — sobrariam quatro cantos do fundo nas quinas do aparelho.
+  É a única exceção ao vocabulário de canto, e vale só abaixo do `sm`.
+- **`min-w-0` é o que faz uma faixa rolar**, e a falta dele não parece um bug.
+  O `min-width: auto` padrão de um filho de flex impede que ele encolha abaixo
+  do conteúdo: em vez de virar faixa rolável, a lista de abas empurrava o
+  vizinho e sumia por baixo dele. Com `min-w-0`, 320px e rolando.
+- **Rótulo que some no celular deixa `aria-label` no lugar.** O
+  "Compartilhamento" levava 180px dos 390 e era o que espremia as abas. Não
+  virou `size="icon"` de propósito — aquele tamanho é quadrado fixo e o texto
+  escaparia da área clicável. Trocar um problema de layout por um de acesso
+  não é corrigir.
+- **Linha de botões empilha, na ordem da decisão.** Com
+  `flex-wrap justify-end`, os cinco botões do cadastro caíam em três linhas
+  desencontradas, todas à direita, e nenhuma dizia qual era a principal.
+  Empilhados (`flex-col sm:flex-row` + `[&>*]:w-full sm:[&>*]:w-auto`), a
+  ordem do DOM vira a ordem de leitura.
+
+E **a prévia começa recolhida no celular**. Lado a lado ela não custa nada;
+empilhada embaixo de um formulário de doze campos, ela é uma tela e meia de
+quadros "a arte aparece aqui" entre a pessoa e o botão de salvar. Quem abre a
+modal no telefone veio preencher, não conferir. No `lg` o estado é ignorado —
+um botão para mostrar o que já está à vista seria ruído.
+
+**Isto está longe de terminado.** São **25 modais** escritas à mão
+(`fixed inset-0`, sem `Dialog`) e **33 `<select>` nativos**; duas modais
+receberam o tratamento acima, e a cobertura de breakpoint no resto é fina —
+`SettingsView`, `WeekView` e `AcceptInviteView` não têm nenhum. Adotar o
+`Dialog` do shadcn **não resolve isso sozinho**: o padrão dele é uma caixa
+centrada `max-w-lg`, que no telefone continua sendo uma caixa centrada.
+Responsividade é layout, não biblioteca.
+
+Protegido por `tests/celular.test.ts`, que deriva a lista de telas do próprio
+`App.tsx` — lista literal teria de ser editada junto com o código. Duas
+versões dessa guarda estavam erradas antes de entrar: a primeira procurava
+`overflow-*` no **arquivo inteiro** e passou quando tirei o da raiz do
+calendário (ele tem containers internos que rolavam, e qualquer um satisfazia
+a busca); a segunda extraía a raiz parando no primeiro `>`, que caía dentro de
+`onValueChange={(v) =>` e devolvia meia tag sem classe nenhuma, reprovando
+tela correta. Guarda que aceita o vizinho no lugar do alvo não guarda, e
+guarda que reprova código certo ensina a ignorá-la.
+
 #### `alert()` e `window.confirm()` não voltam
 
 Três razões, e nenhuma é gosto:

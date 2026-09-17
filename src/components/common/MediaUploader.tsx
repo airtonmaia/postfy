@@ -174,7 +174,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      {/*
+        **Empilha no celular.** O rótulo e o botão dividiam a linha, e o botão
+        "Adicionar mídia" é largo: sobravam ~90px para o texto, que quebrava
+        em quatro linhas ao lado de um botão de uma. Em coluna, cada um tem a
+        largura inteira.
+      */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
           <label className="block text-sm font-bold text-slate-900 dark:text-white">
             {label}

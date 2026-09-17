@@ -328,16 +328,35 @@ export const JobDetailModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    /*
+      **No celular a modal ocupa a tela inteira, e isso é decisão.**
+
+      Centrada com `p-4` em volta, ela perdia 32px de largura dos 390 que o
+      aparelho tem — e esta modal é um editor denso, com selo, seletor de
+      status, abas e duas colunas. O que sobrava espremia tudo: o nome do
+      cliente quebrava em três linhas e o título virava "D..".
+
+      O canto sai junto: `rounded-2xl` é o canto de uma superfície **sobre**
+      outra, e em tela cheia não há o "sobre" — o arredondado deixaria quatro
+      cantos do fundo aparecendo. É a única exceção ao vocabulário de canto, e
+      ela vale só abaixo do `sm`.
+    */
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 w-full max-w-4xl h-full sm:h-auto max-h-full sm:max-h-[90vh] flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950/70">
-          <div className="flex items-center gap-3 min-w-0">
+        {/*
+          Header — **empilha no celular.**
+
+          Era `flex items-center justify-between gap-4`: a identidade e os
+          controles disputavam os 390px, e quem perdia era a identidade. O
+          seletor de status sozinho levava 290px.
+        */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-50 dark:bg-slate-950/70">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <Avatar
               nome={client?.name || 'Cliente'}
               url={client?.avatar}
@@ -409,11 +428,12 @@ export const JobDetailModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Status Select */}
+            {/* Status Select — no celular ele toma a largura da linha; no
+                desktop volta a caber pelo próprio conteúdo. */}
             <select
               value={selectedJob.status}
               onChange={(e) => moveJobStatus(selectedJob.id, e.target.value as JobStatus)}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-purple-500 cursor-pointer"
+              className="flex-1 sm:flex-none min-w-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-purple-500 cursor-pointer"
             >
               <option value="ideas">Ideias</option>
               <option value="in_production">Em Produção</option>
@@ -433,9 +453,20 @@ export const JobDetailModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Tabs & Quick Actions bar */}
-        <div className="flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <TabsList aparencia="painel" className="border-b-0 px-0 rounded-none bg-transparent dark:bg-transparent">
+        {/*
+          Navigation Tabs & Quick Actions bar
+
+          **`min-w-0` na lista de abas é o que faz ela rolar.** Sem ele, o
+          `justify-between` espremia a lista até 146px de 868px de conteúdo — e
+          como ela é filha de um flex, o `min-width:auto` padrão impedia que
+          ela encolhesse de forma controlada: as abas sumiam por baixo do botão
+          ao lado em vez de virar uma faixa rolável. Medido em 390px.
+        */}
+        <div className="flex items-center gap-2 px-3 sm:px-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <TabsList
+            aparencia="painel"
+            className="flex-1 min-w-0 border-b-0 px-0 rounded-none bg-transparent dark:bg-transparent"
+          >
             <TabsTrigger value="content">
               <FileText className="w-3.5 h-3.5" />
               Conteúdo &amp; Visualização
@@ -458,17 +489,27 @@ export const JobDetailModal: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               onClick={() => setIsWhatsAppOpen(true)}
+              aria-label="Compartilhamento"
               className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border-emerald-200 dark:border-emerald-800"
               title="Disparo direto com mensagem formatada para o WhatsApp do cliente"
             >
               <Share2 className="w-3.5 h-3.5" />
-              {/* "Compartilhamento" e não "WhatsApp": o botão abre a tela de
-                  compartilhar, e o WhatsApp é um dos destinos dela, não o
-                  nome dela. */}
-              <span>Compartilhamento</span>
+              {/*
+                "Compartilhamento" e não "WhatsApp": o botão abre a tela de
+                compartilhar, e o WhatsApp é um dos destinos dela, não o nome
+                dela.
+
+                **O rótulo some no celular, o ícone fica.** Ele levava 180px
+                dos 390 e era o que espremia as cinco abas ao lado. Não vira
+                `size="icon"` de propósito: aquele tamanho é um quadrado fixo
+                e o texto escaparia para fora da área clicável — aqui o botão
+                só encolhe até o ícone, e o `aria-label` mantém o nome para
+                quem lê por leitor de tela.
+              */}
+              <span className="hidden sm:inline">Compartilhamento</span>
             </Button>
 
             {/*
@@ -484,7 +525,9 @@ export const JobDetailModal: React.FC = () => {
         </div>
 
         {/* Tab Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/50">
+        {/* `p-6` custava 48px dos 390 do aparelho, e o que sobrava era o que
+            espremia os cards de dentro. */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-950/50">
           <TabsContent value="content">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column: Visual Media Preview */}
