@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.56.0',
+    data: '2026-09-17',
+    resumo:
+      'A correção do conteúdo que não salvava: quem escolhia "Feed + Story" perdia a peça, em silêncio.',
+    corrigido: [
+      'Conteúdo com o formato "Feed + Story" não era salvo. A tela mostrava o card, o F5 o apagava, e não havia erro em lugar nenhum — o que aparecia era "não está cadastrando". O formato foi oferecido na 2.53.0 e o banco nunca aprendeu esse valor: ele recusava a linha, e como a gravação acontece em segundo plano, a recusa não chegava à tela. Corrigido no banco, e conferido com os sete formatos um por um.',
+      'O histórico de atividade piorava o engano: ele registrava "Criou o conteúdo" mesmo quando a peça não era gravada, porque são duas escritas diferentes e só uma falhava. Com o formato aceito, as duas passam juntas.',
+    ],
+    melhorias: [
+      'Uma verificação nova compara o que a tela oferece com o que o banco aceita, em formato, status, tipo e prioridade. Era a única classe de falha que passava por todos os testes: nenhum deles conhece as regras do banco. Formato novo agora não sobe sem o banco saber dele.',
+    ],
+  },
+  {
     versao: '2.55.0',
     data: '2026-09-17',
     resumo:
