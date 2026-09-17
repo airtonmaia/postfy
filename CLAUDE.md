@@ -1991,6 +1991,60 @@ com cara de certo.
 Protegido por `tests/anotacoes-do-cliente.test.ts`, que confere os dois
 recortes do banco na **última** definição de cada função.
 
+#### Lista fechada na tela e `check` no banco são a mesma decisão em dois lugares
+
+A 2.53.0 acrescentou o formato **"Feed + Story"** a `FORMATOS_POR_CANAL`, com a
+coluna `story_media_urls`, o publicador do story e a prévia. O que ela não
+acrescentou foi o valor no `check` de `jobs.format`, que desde a primeira
+migração lista seis formatos e nenhum deles é `feed_story`.
+
+O resultado, medido em produção:
+
+```
+23514  new row for relation "jobs" violates check constraint "jobs_format_check"
+```
+
+**E ninguém vê esse erro.** A persistência é derivada de diff e roda na
+`filaDeGravacao`, em segundo plano: a tela já pintou o card, o insert é
+recusado, e não há aviso em lugar nenhum. Quem escolhe "Feed + Story" e salva
+vê o conteúdo aparecer, some no F5, e conclui que o sistema *"não está
+cadastrando"* — que foi exatamente o relato que chegou, de duas pessoas.
+
+Os números de uma tarde: **dez** `Criou o conteúdo` em `activity_logs`, **uma**
+linha em `jobs`. E o log é o que torna a falha mais enganosa, não menos: ele é
+outra coleção da **mesma** fila, então ele passa — o histórico de atividade
+afirma que o conteúdo foi criado enquanto a tabela de conteúdo está vazia.
+
+Quatro dias assim, com `tsc`, vitest e `vite build` os três verdes. É a
+armadilha 0 na camada que faltava: **nenhuma ferramenta local conhece o `check`
+do Postgres.**
+
+A regra que fica é mais larga que o formato: *toda lista fechada que a tela
+oferece tem um `check` do outro lado, e divergir não quebra nada até alguém
+escolher o valor novo* — longe de quem o escreveu, e com a perda em silêncio.
+
+`tests/formato-no-banco.test.ts` **deriva** as duas listas do código —
+`FORMATOS_POR_CANAL` e a união `JobFormat` de um lado, o `check` da última
+migração que o define do outro — e exige que a segunda aceite a primeira. Vale
+também para `status`, `tipo` e `priority`, que nunca divergiram e é para
+continuarem assim.
+
+**Três versões dessa guarda estavam erradas antes de entrar**, todas medindo o
+vizinho em vez do alvo, e vale registrar porque o erro se repete:
+
+1. Procurava `constraint jobs_status_check check` e não achava nada — aquele
+   `check` é **inline** no `create table`, e o nome quem dá é o Postgres.
+2. Passou a procurar `check (<coluna> in (` em qualquer lugar — e `status`
+   existe com `check` em **oito** tabelas deste schema.
+3. Recortou pela tabela com `create table[^;]*?\bjobs\s*\(` — e
+   **`public.jobs(id)` é o que uma chave estrangeira escreve**. O recorte caía
+   dentro da `publish_queue`, que referencia `jobs(id)`, e devolvia o `check` de
+   `status` *dela*.
+
+A versão que ficou não tem curinga entre `create table` e o nome da tabela. E a
+guarda foi conferida ao contrário, tirando a migração do lugar: sem ela, as duas
+asserções do `feed_story` reprovam.
+
 #### O quadro arrasta, e o mesmo gesto abre e move
 
 O comentário de `moveJobStatus` dizia, havia meses, que arrastar o card para
@@ -2340,7 +2394,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 45 migrações
+supabase/migrations/       schema é a fonte de verdade; 46 migrações
 ```
 
 ---
