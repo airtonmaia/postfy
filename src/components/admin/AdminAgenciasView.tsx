@@ -5,6 +5,7 @@ import { DIAS_NA_LIXEIRA, diasAteOExpurgo } from '../../lib/lixeira';
 import { carregarContagensPorAgencia, type ContagensDaAgencia } from '../../lib/numerosDoSaas';
 import { safeDateFormat } from '../../lib/utils';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 export const AdminAgenciasView: React.FC = () => {
   const {
@@ -330,116 +331,123 @@ export const AdminAgenciasView: React.FC = () => {
       )}
 
       {/* Edit Agency Modal */}
-      {editingWs && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg p-6 shadow-2xl animate-fade-in">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-              Editar Dados da Agência: {editingWs.name}
-            </h2>
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome da Agência</label>
-                <input 
-                  type="text" 
-                  value={name} 
-                  onChange={e => setName(e.target.value)} 
-                  required
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+      <Dialog open={!!editingWs} onOpenChange={(aberto) => !aberto && setEditingWs(null)}>
+        {/* O conteúdo fica atrás de `editingWs &&` mesmo com o `open`
+            já checando o mesmo: JSX avalia os filhos na **criação** do
+            elemento, não na renderização. Sem a guarda, `editingWs.algo`
+            roda com a modal fechada e derruba a tela — e o `tsc` não
+            acusa, porque `strictNullChecks` está desligado aqui. */}
+        {editingWs && (
+          <DialogContent tamanho="formulario" className="p-6">
+              <DialogTitle asChild>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+                  Editar Dados da Agência: {editingWs.name}
+                </h2>
+              </DialogTitle>
+              <form onSubmit={handleSaveEdit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Slug (URL)</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome da Agência</label>
                   <input 
                     type="text" 
-                    value={slug} 
-                    onChange={e => setSlug(e.target.value)} 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
                     required
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cor Primária (Hex)</label>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="color" 
-                      value={primaryColor} 
-                      onChange={e => setPrimaryColor(e.target.value)} 
-                      className="w-10 h-9 rounded-lg border-0 cursor-pointer" 
-                    />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Slug (URL)</label>
                     <input 
                       type="text" 
-                      value={primaryColor} 
-                      onChange={e => setPrimaryColor(e.target.value)} 
+                      value={slug} 
+                      onChange={e => setSlug(e.target.value)} 
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cor Primária (Hex)</label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color" 
+                        value={primaryColor} 
+                        onChange={e => setPrimaryColor(e.target.value)} 
+                        className="w-10 h-9 rounded-lg border-0 cursor-pointer" 
+                      />
+                      <input 
+                        type="text" 
+                        value={primaryColor} 
+                        onChange={e => setPrimaryColor(e.target.value)} 
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL da Logo</label>
+                  <input 
+                    type="text" 
+                    value={logo} 
+                    onChange={e => setLogo(e.target.value)} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Timezone</label>
+                    <input 
+                      type="text" 
+                      value={timezone} 
+                      onChange={e => setTimezone(e.target.value)} 
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Domínio Personalizado</label>
+                    <input 
+                      type="text" 
+                      value={customDomain} 
+                      onChange={e => setCustomDomain(e.target.value)} 
+                      placeholder="app.suaagencia.com.br"
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
                     />
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL da Logo</label>
-                <input 
-                  type="text" 
-                  value={logo} 
-                  onChange={e => setLogo(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Timezone</label>
+                <div className="flex items-center gap-2 pt-2">
                   <input 
-                    type="text" 
-                    value={timezone} 
-                    onChange={e => setTimezone(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                    type="checkbox" 
+                    id="editIsTrial" 
+                    checked={isTrial} 
+                    onChange={e => setIsTrial(e.target.checked)} 
+                    className="w-4 h-4 rounded-md text-purple-600 focus:ring-purple-500"
                   />
+                  <label htmlFor="editIsTrial" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Modo Teste Grátis (Trial 7 dias)
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Domínio Personalizado</label>
-                  <input 
-                    type="text" 
-                    value={customDomain} 
-                    onChange={e => setCustomDomain(e.target.value)} 
-                    placeholder="app.suaagencia.com.br"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                  />
+
+                <div className="flex justify-end gap-3 pt-3">
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => setEditingWs(null)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                  >
+                    Salvar Alterações
+                  </Button>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="editIsTrial" 
-                  checked={isTrial} 
-                  onChange={e => setIsTrial(e.target.checked)} 
-                  className="w-4 h-4 rounded-md text-purple-600 focus:ring-purple-500"
-                />
-                <label htmlFor="editIsTrial" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                  Modo Teste Grátis (Trial 7 dias)
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3">
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => setEditingWs(null)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                >
-                  Salvar Alterações
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              </form>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 };

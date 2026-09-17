@@ -747,152 +747,162 @@ export const CommercialView: React.FC = () => {
       </Dialog>
 
       {/* Modal: Full Contract Viewer with Dynamic Variables & Sign */}
-      {viewingContract && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-purple-600" />
-            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                  {viewingContract.title}
-                </h4>
-              </div>
-              <Button variant="ghost" size="icon-sm" onClick={() => setViewingContract(null)}>
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-serif bg-slate-50/50 dark:bg-slate-950/50">
-              <div className="text-center pb-4 border-b border-slate-200 dark:border-slate-800">
-                <h3 className="font-bold text-sm uppercase tracking-wider text-slate-900 dark:text-white font-sans">
-                  INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS DE MARKETING DIGITAL
-                </h3>
-                <span className="text-[11px] text-slate-400 font-mono">REGISTRO DIGITAL #{viewingContract.id}</span>
+      <Dialog open={!!viewingContract} onOpenChange={(aberto) => !aberto && setViewingContract(null)}>
+        {/* O conteúdo fica atrás de `viewingContract &&` mesmo com o `open`
+            já checando o mesmo: JSX avalia os filhos na **criação** do
+            elemento, não na renderização. Sem a guarda, `viewingContract.algo`
+            roda com a modal fechada e derruba a tela — e o `tsc` não
+            acusa, porque `strictNullChecks` está desligado aqui. */}
+        {viewingContract && (
+          <DialogContent tamanho="largo">
+              <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-purple-600" />
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    {viewingContract.title}
+                  </h4>
+                </div>
+                <Button variant="ghost" size="icon-sm" onClick={() => setViewingContract(null)}>
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
 
-              <p>
-                <strong>CONTRATADA:</strong> AGÊNCIA POSTFY DIGITAL LTDA, devidamente inscrita no CNPJ sob o nº 12.345.678/0001-90, com sede operacional em São Paulo/SP.
-              </p>
-
-              <p>
-                <strong>CONTRATANTE:</strong> {viewingContract.clientName.toUpperCase()}, pessoa jurídica de direito privado, doravante denominada simplesmente CONTRATANTE.
-              </p>
-
-              <div className="space-y-2 pt-2">
-                <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 1ª - DO OBJETO</h5>
-                <p>
-                  O presente contrato tem como objeto a prestação de serviços continuados de consultoria, planejamento editorial, criação gráfica, redação publicitária (copywriting), agendamento e análise de performance em mídias digitais para os canais oficiais da CONTRATANTE.
-                </p>
-
-                <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 2ª - DO VALOR E FORMA DE PAGAMENTO</h5>
-                <p>
-                  Pela prestação dos serviços contratados, a CONTRATANTE pagará à CONTRATADA o valor mensal fixo e irreajustável pelo período de 12 meses de <strong>R$ {viewingContract.monthlyValue.toLocaleString('pt-BR')}</strong> (mensal recorrente), com vencimento todo dia 10 de cada mês subsequente via boleto bancário ou Pix com emissão de NFS-e.
-                </p>
-
-                <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 3ª - DA VIGÊNCIA</h5>
-                <p>
-                  O presente contrato entra em vigor na data de {viewingContract.startDate} e terá vigência de 12 (doze) meses, findando-se em {viewingContract.endDate}, renovando-se automaticamente caso não haja notificação prévia de 30 dias.
-                </p>
-              </div>
-
-              {/* Digital Signature Stamp */}
-              <div className="mt-6 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-purple-600 block">Status da Assinatura Digital</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                    {viewingContract.status === 'signed' 
-                      ? `Assinado digitalmente por ${signatoryName}` 
-                      : 'Aguardando assinatura das partes'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Hash ICP: sha256_e8c89bf1a04910b2e887cc...
-                  </span>
+              <div className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-serif bg-slate-50/50 dark:bg-slate-950/50">
+                <div className="text-center pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                    INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS DE MARKETING DIGITAL
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-mono">REGISTRO DIGITAL #{viewingContract.id}</span>
                 </div>
 
-                {viewingContract.status !== 'signed' ? (
+                <p>
+                  <strong>CONTRATADA:</strong> AGÊNCIA POSTFY DIGITAL LTDA, devidamente inscrita no CNPJ sob o nº 12.345.678/0001-90, com sede operacional em São Paulo/SP.
+                </p>
+
+                <p>
+                  <strong>CONTRATANTE:</strong> {viewingContract.clientName.toUpperCase()}, pessoa jurídica de direito privado, doravante denominada simplesmente CONTRATANTE.
+                </p>
+
+                <div className="space-y-2 pt-2">
+                  <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 1ª - DO OBJETO</h5>
+                  <p>
+                    O presente contrato tem como objeto a prestação de serviços continuados de consultoria, planejamento editorial, criação gráfica, redação publicitária (copywriting), agendamento e análise de performance em mídias digitais para os canais oficiais da CONTRATANTE.
+                  </p>
+
+                  <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 2ª - DO VALOR E FORMA DE PAGAMENTO</h5>
+                  <p>
+                    Pela prestação dos serviços contratados, a CONTRATANTE pagará à CONTRATADA o valor mensal fixo e irreajustável pelo período de 12 meses de <strong>R$ {viewingContract.monthlyValue.toLocaleString('pt-BR')}</strong> (mensal recorrente), com vencimento todo dia 10 de cada mês subsequente via boleto bancário ou Pix com emissão de NFS-e.
+                  </p>
+
+                  <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 3ª - DA VIGÊNCIA</h5>
+                  <p>
+                    O presente contrato entra em vigor na data de {viewingContract.startDate} e terá vigência de 12 (doze) meses, findando-se em {viewingContract.endDate}, renovando-se automaticamente caso não haja notificação prévia de 30 dias.
+                  </p>
+                </div>
+
+                {/* Digital Signature Stamp */}
+                <div className="mt-6 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-purple-600 block">Status da Assinatura Digital</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      {viewingContract.status === 'signed' 
+                        ? `Assinado digitalmente por ${signatoryName}` 
+                        : 'Aguardando assinatura das partes'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Hash ICP: sha256_e8c89bf1a04910b2e887cc...
+                    </span>
+                  </div>
+
+                  {viewingContract.status !== 'signed' ? (
+                    <Button variant="success"
+                      onClick={() => {
+                        signContract(viewingContract.id, signatoryName);
+                        setViewingContract(prev => prev ? { ...prev, status: 'signed' } : null);
+                      }}
+
+                    >
+                      Assinar com Certificado Digital
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Válido e Autenticado
+                    </div>
+                  )}
+                </div>
+              </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Modal: Proposal Viewer */}
+      <Dialog open={!!viewingProposal} onOpenChange={(aberto) => !aberto && setViewingProposal(null)}>
+        {/* O conteúdo fica atrás de `viewingProposal &&` mesmo com o `open`
+            já checando o mesmo: JSX avalia os filhos na **criação** do
+            elemento, não na renderização. Sem a guarda, `viewingProposal.algo`
+            roda com a modal fechada e derruba a tela — e o `tsc` não
+            acusa, porque `strictNullChecks` está desligado aqui. */}
+        {viewingProposal && (
+          <DialogContent tamanho="formulario" className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-purple-600">Proposta de Prestação de Serviços</span>
+                  <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingProposal.title}</h4>
+                </div>
+                <Button variant="ghost" size="icon-sm" onClick={() => setViewingProposal(null)}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Cliente / Interessado:</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{viewingProposal.clientName}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Validade da Proposta:</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{viewingProposal.validUntil}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Valor Recorrente Mensal:</span>
+                  <span className="font-mono font-extrabold text-purple-600 text-sm">
+                    R$ {viewingProposal.totalMonthlyValue.toLocaleString('pt-BR')} /mês
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Itens e Entregas Inclusas:</span>
+                {viewingProposal.items.map(i => (
+                  <div key={i.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                    <strong className="text-slate-900 dark:text-white block">{i.service}</strong>
+                    <p className="text-slate-500 mt-0.5">{i.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost"
+                  onClick={() => setViewingProposal(null)}
+                >
+                  Fechar
+                </Button>
+                {viewingProposal.status !== 'accepted' && (
                   <Button variant="success"
                     onClick={() => {
-                      signContract(viewingContract.id, signatoryName);
-                      setViewingContract(prev => prev ? { ...prev, status: 'signed' } : null);
+                      acceptProposal(viewingProposal.id);
+                      setViewingProposal(null);
                     }}
 
                   >
-                    Assinar com Certificado Digital
+                    Confirmar Aceite do Cliente
                   </Button>
-                ) : (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Válido e Autenticado
-                  </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Proposal Viewer */}
-      {viewingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold uppercase text-purple-600">Proposta de Prestação de Serviços</span>
-                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingProposal.title}</h4>
-              </div>
-              <Button variant="ghost" size="icon-sm" onClick={() => setViewingProposal(null)}>
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Cliente / Interessado:</span>
-                <strong className="text-slate-800 dark:text-slate-200">{viewingProposal.clientName}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Validade da Proposta:</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">{viewingProposal.validUntil}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Valor Recorrente Mensal:</span>
-                <span className="font-mono font-extrabold text-purple-600 text-sm">
-                  R$ {viewingProposal.totalMonthlyValue.toLocaleString('pt-BR')} /mês
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Itens e Entregas Inclusas:</span>
-              {viewingProposal.items.map(i => (
-                <div key={i.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
-                  <strong className="text-slate-900 dark:text-white block">{i.service}</strong>
-                  <p className="text-slate-500 mt-0.5">{i.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost"
-                onClick={() => setViewingProposal(null)}
-              >
-                Fechar
-              </Button>
-              {viewingProposal.status !== 'accepted' && (
-                <Button variant="success"
-                  onClick={() => {
-                    acceptProposal(viewingProposal.id);
-                    setViewingProposal(null);
-                  }}
-
-                >
-                  Confirmar Aceite do Cliente
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 };

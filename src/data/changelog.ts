@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.50.0',
+    data: '2026-09-17',
+    resumo: 'Mais seis janelas no padrão novo, e a correção de um erro que derrubaria duas telas.',
+    novidades: [
+      'Editar agência e criar plano no Admin, criar squad e convidar usuário nas Configurações, e as duas de visualizar proposta e contrato no Comercial: todas fecham com Esc, prendem o foco e travam a rolagem do fundo.',
+      'No celular as seis usam a tela inteira.',
+    ],
+    corrigido: [
+      'Uma correção que peguei antes de subir: na conversão, três janelas passariam a ler o registro escolhido mesmo estando fechadas — e fechada é o estado normal delas. As telas Comercial e Admin Agências quebrariam ao abrir.',
+    ],
+  },
+  {
     versao: '2.49.0',
     data: '2026-09-17',
     resumo: 'As janelas do Comercial — lead, proposta e contrato — entraram no mesmo padrão das outras.',
