@@ -1768,13 +1768,28 @@ quadros "a arte aparece aqui" entre a pessoa e o botão de salvar. Quem abre a
 modal no telefone veio preencher, não conferir. No `lg` o estado é ignorado —
 um botão para mostrar o que já está à vista seria ruído.
 
-**Isto está longe de terminado.** São **25 modais** escritas à mão
-(`fixed inset-0`, sem `Dialog`) e **33 `<select>` nativos**; duas modais
-receberam o tratamento acima, e a cobertura de breakpoint no resto é fina —
-`SettingsView`, `WeekView` e `AcceptInviteView` não têm nenhum. Adotar o
-`Dialog` do shadcn **não resolve isso sozinho**: o padrão dele é uma caixa
-centrada `max-w-lg`, que no telefone continua sendo uma caixa centrada.
-Responsividade é layout, não biblioteca.
+**A migração está em andamento, e a contagem certa importa.** A varredura por
+`fixed inset-0` devolve 25 arquivos, e três deles **não são modais** — migrar
+esses seria o erro dos nove cards que viraram `Button`:
+
+- `WorkspaceSwitcher` — o casamento está num **comentário** descrevendo o
+  código antigo; ele já usa `DropdownMenu`.
+- `MediaUploader` e `KanbanBoard` — `fixed inset-0 z-40` com `onClick` é
+  **captador de clique** atrás de um menu suspenso. São `DropdownMenu`.
+- `AcessoBloqueado` — fundo opaco em tela cheia é **bloqueio**, não modal.
+  Virar `Dialog` seria errado: o `Esc` dispensaria um bloqueio de teste
+  vencido, que existe justamente para não ser dispensado.
+
+Modais de verdade são **23, em 14 arquivos** — alguns têm várias
+(`ClientPortalView` e `CommercialView`, cinco cada). Dez migradas até aqui;
+faltam treze.
+
+E vale repetir o que ficou claro medindo: adotar o `Dialog` **não conserta o
+celular sozinho**. O padrão dele é uma caixa centrada `max-w-lg`, que no
+telefone continua sendo uma caixa centrada — a tela cheia foi decisão nossa,
+escrita no primitivo. Responsividade é layout, não biblioteca. O que o
+`Dialog` conserta é outra coisa, e é medível: `Esc`, trava de foco e bloqueio
+da rolagem do fundo.
 
 Protegido por `tests/celular.test.ts`, que deriva a lista de telas do próprio
 `App.tsx` — lista literal teria de ser editada junto com o código. Duas

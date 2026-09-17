@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.48.0',
+    data: '2026-09-17',
+    resumo: 'Mais cinco janelas passaram a fechar com Esc e travar a rolagem do fundo.',
+    novidades: [
+      'Novidades, Grade do Instagram, a leitura de anotação do cliente, os atalhos de conteúdo e o recorte de imagem agora fecham com Esc, prendem o foco e travam a rolagem da página de trás.',
+      'Quando uma janela abre em cima de outra — os atalhos por cima do cadastro, o recorte por cima do envio —, o Esc fecha só a de cima e o teclado fica presa nela.',
+    ],
+    melhorias: [
+      'Toda janela migrada tem nome próprio para leitores de tela, mesmo quando o título é desenhado junto de um ícone ou de um seletor.',
+      'No celular essas cinco passaram a usar a tela inteira, como as de conteúdo já faziam.',
+    ],
+  },
+  {
     versao: '2.47.0',
     data: '2026-09-17',
     resumo: 'As janelas do sistema passaram a fechar com Esc, travar a rolagem do fundo e prender o foco.',

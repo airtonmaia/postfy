@@ -3,6 +3,7 @@ import { Sparkles, X, ChevronDown, Plus, ArrowUp, Wrench } from 'lucide-react';
 
 import { CHANGELOG, type EntradaDoChangelog } from '../../data/changelog';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
 
 /**
  * Novidades: linha do tempo das versões.
@@ -142,29 +143,28 @@ interface ChangelogModalProps {
 }
 
 export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
-      >
+    <Dialog open={isOpen} onOpenChange={(aberto) => !aberto && onClose()}>
+      {/* `semFechar`: esta modal já tem "Fechar" no rodapé, e dois fechares
+          na mesma janela fazem a pessoa procurar qual é o certo. */}
+      <DialogContent tamanho="largo" semFechar className="p-0 gap-0">
         <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
-                Novidades do Orquesia
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {/* O título que já estava em tela vira o `DialogTitle`: é ele
+                  que nomeia o diálogo para quem usa leitor de tela, e o
+                  `asChild` mantém o `<h3>` e o estilo de sempre. */}
+              <DialogTitle asChild>
+                <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                  Novidades do Orquesia
+                </h3>
+              </DialogTitle>
+              <DialogDescription className="mt-0.5">
                 Tudo o que mudou, da entrega mais recente para a mais antiga.
-              </p>
+              </DialogDescription>
             </div>
           </div>
 
@@ -198,7 +198,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
             Fechar
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

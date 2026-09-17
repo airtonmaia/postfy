@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { ComTooltip } from '../ui/tooltip';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { formatDateTime } from '../../lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /**
  * Anotações da agência sobre o cliente, dentro da aba Arquivos.
@@ -211,20 +212,19 @@ export const AnotacoesDoCliente: React.FC<Props> = ({ client }) => {
         )}
       </div>
 
-      {lendo && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setLendo(null)}
-        >
-          <div
-            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* `open={!!lendo}` no lugar de `{lendo && (...)}`: assim o Radix
+          monta e desmonta o diálogo, com a animação de saída e o foco
+          devolvido ao card que abriu. */}
+      <Dialog open={!!lendo} onOpenChange={(aberto) => !aberto && setLendo(null)}>
+        {lendo && (
+          <DialogContent tamanho="formulario" className="p-0 gap-0">
             <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-800">
               <div className="min-w-0">
-                <h5 className="text-sm font-bold text-slate-900 dark:text-white break-words">
-                  {lendo.title}
-                </h5>
+                <DialogTitle asChild>
+                  <h5 className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                    {lendo.title}
+                  </h5>
+                </DialogTitle>
                 <span className="text-[11px] text-slate-400">
                   {formatDateTime(lendo.updatedAt)}
                 </span>
@@ -259,9 +259,9 @@ export const AnotacoesDoCliente: React.FC<Props> = ({ client }) => {
                 Editar
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
 
       {/*
         Sem esta linha o `pedir` não abre nada: o hook devolve o diálogo e quem
