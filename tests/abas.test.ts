@@ -199,9 +199,11 @@ describe('o rascunho nunca é publicado', () => {
   });
 
   it('a tela diz que o rascunho não é publicado', () => {
-    const modal = fontes.find((f) => f.caminho.endsWith('CreateJobModal.tsx'))!;
-    // Campo que parece que publica e não publica engana mais que campo
-    // ausente — a mesma lição de `trial_ends_at`.
+    // O campo do rascunho mora no formulário compartilhado — o mesmo que o
+    // cadastro e o editor montam. Campo que parece que publica e não publica
+    // engana mais que campo ausente: a mesma lição de `trial_ends_at`.
+    const modal = fontes.find((f) => f.caminho.endsWith('FormularioDoConteudo.tsx'))!;
+    expect(modal, 'o formulário do conteúdo sumiu').toBeTruthy();
     expect(modal.texto, 'o aviso de que o rascunho não vai ao ar saiu da tela').toMatch(
       /não (?:vai publicado|entra na publicação)/
     );

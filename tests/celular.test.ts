@@ -340,15 +340,39 @@ describe('as modais usam a tela inteira no celular', () => {
     ).toMatch(/min-w-0/);
   });
 
-  it('o botão ao lado das abas guarda o nome quando esconde o rótulo', () => {
+  it('botão que esconde o rótulo no celular guarda o nome', () => {
     /**
-     * O rótulo some no celular para devolver 180px às abas. Sem o
+     * O rótulo some no celular para devolver largura ao vizinho. Sem o
      * `aria-label`, quem usa leitor de tela passa a ouvir um botão sem nome —
      * trocar um problema de layout por um de acesso não é corrigir.
+     *
+     * **A primeira versão desta guarda media um botão só**, fatiando o
+     * arquivo a partir de `setIsWhatsAppOpen(true)`. No dia em que aquele
+     * botão virou aba, a guarda parou de medir qualquer coisa: `indexOf`
+     * devolveu -1, a fatia virou o arquivo inteiro e a asserção passou a
+     * afirmar sobre o texto errado. Guarda ancorada numa string do código
+     * morre com a primeira refatoração — esta varre `src` e procura o
+     * **padrão**, que é o que a decisão realmente é.
      */
-    const modal = ler('src', 'components', 'modals', 'JobDetailModal.tsx');
-    const bloco = modal.slice(modal.indexOf('setIsWhatsAppOpen(true)'));
-    const botao = bloco.slice(0, bloco.indexOf('</Button>'));
-    expect(botao, 'o rótulo some no celular sem aria-label no lugar').toMatch(/aria-label=/);
+    const arquivos = listarTsx(join(RAIZ, 'src'));
+    const semNome: string[] = [];
+
+    for (const caminho of arquivos) {
+      const fonte = semComentarios(readFileSync(caminho, 'utf-8'));
+
+      for (const m of fonte.matchAll(/<Button\b[\s\S]{0,900}?<\/Button>/g)) {
+        const botao = m[0];
+        // Só interessa o botão cujo texto some abaixo do `sm`: é ele que
+        // fica sem nome nenhum no telefone.
+        if (!/hidden sm:inline/.test(botao)) continue;
+        if (/aria-label=/.test(botao)) continue;
+        semNome.push(`${caminho.replace(`${RAIZ}/`, '')}: ${botao.slice(0, 80)}`);
+      }
+    }
+
+    expect(
+      semNome,
+      'o rótulo some no celular e o botão fica sem nome para o leitor de tela'
+    ).toEqual([]);
   });
 });

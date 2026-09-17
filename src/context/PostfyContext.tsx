@@ -77,6 +77,7 @@ import {
   carregarPortal,
   aprovarPeloPortal,
   pedirAjustePeloPortal,
+  comentarNoPortal,
   salvarDadosPeloPortal,
   enviarMaterialPeloPortal,
   tokenGuardado,
@@ -1679,7 +1680,34 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addJobComment = (jobId: string, text: string, isClient: boolean = false) => {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
-    
+
+    /**
+     * **No portal não há sessão, logo não há persistência por diff.**
+     *
+     * `useColecaoSincronizada` sai cedo quando `isAuthenticated` é falso: sem
+     * este desvio a mensagem do cliente apareceria na tela, o banco nunca
+     * seria chamado e o F5 apagaria tudo — foi assim que o envio de material
+     * ficou decorativo por meses (armadilha 10).
+     *
+     * O comentário que vale é o que a RPC devolve, e não o que montamos aqui:
+     * é ela que decide `isClient` e o nome de quem escreveu. Por isso a tela
+     * recarrega o portal depois — o otimista abaixo é só para a linha aparecer
+     * na hora.
+     */
+    if (noPortal && portalToken) {
+      void (async () => {
+        try {
+          await comentarNoPortal(portalToken, jobId, text);
+        } catch (erro) {
+          setErroDoPortal(
+            erro instanceof Error ? erro.message : 'Não foi possível enviar a mensagem.'
+          );
+        }
+        const dados = await carregarPortal(portalToken).catch(() => null);
+        if (dados) setAllJobs(dados.jobs);
+      })();
+    }
+
     const newComment = {
       id: novoId(),
       authorName: isClient ? 'Cliente' : currentUser.name,

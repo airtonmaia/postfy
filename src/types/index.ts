@@ -327,6 +327,14 @@ export interface Job {
   
   // Dates
   createdAt: string;
+  /**
+   * Quando a peça mudou pela última vez.
+   *
+   * Carimbada pelo gatilho `jobs_carimbar_atualizacao`, no banco. É o campo
+   * que responde "o cliente viu esta versão ou a de antes?" — e por isso ele
+   * não podia ser `created_at` com outro rótulo.
+   */
+  updatedAt?: string;
   deadlineProduction: string;
   deadlineApproval: string;
   scheduledDate: string; // ISO string with time

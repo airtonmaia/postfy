@@ -155,12 +155,21 @@ describe('a fila de publicação tem produtor', () => {
   });
 
   it('o seletor de canais avisa quem não publica sozinho', () => {
-    const modal = semComentarios(
-      readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')
+    /**
+     * O aviso vive **onde a escolha é feita**, e a escolha passou a ser feita
+     * num lugar só: o formulário compartilhado pelo cadastro e pelo editor.
+     * A guarda apontava para `CreateJobModal.tsx` e seguiu o arquivo, não a
+     * decisão — quando o seletor mudou de casa ela passou a medir uma tela
+     * que já não tem seletor nenhum.
+     */
+    const formulario = semComentarios(
+      readFileSync(
+        join(RAIZ, 'src', 'components', 'jobs', 'FormularioDoConteudo.tsx'),
+        'utf-8'
+      )
     );
-    // O aviso vive onde a escolha é feita. Descobrir na data agendada é tarde.
-    expect(modal).toContain('publicaSozinho');
-    expect(modal).toContain('REDES_QUE_PUBLICAM');
+    expect(formulario).toContain('publicaSozinho');
+    expect(formulario).toContain('REDES_QUE_PUBLICAM');
   });
 });
 

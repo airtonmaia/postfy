@@ -1,29 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
-  X, ThumbsUp, Link as LinkIcon, Send, CheckCircle2, AlertTriangle,
+  ThumbsUp, Send, CheckCircle2, AlertTriangle,
   Lightbulb, CalendarClock, ChevronDown, ChevronUp,
-  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
 } from 'lucide-react';
-import { Job, JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
-import { MediaUploader } from '../common/MediaUploader';
+import { Job, JobStatus } from '../../types';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { PreviaDaRede } from '../common/PreviaDaRede';
 import {
-  camposVisiveis,
-  limiteMaisApertado,
-  type CampoDoCanal,
-} from '../../lib/camposDoCanal';
-import { CampoDinamico } from '../common/CampoDinamico';
-// A tabela de formatos saiu daqui: a modal de detalhe passou a editar o
-// formato da peça já criada, e duas cópias divergiriam na primeira pressa.
-import { formatosComuns } from '../../lib/formatos';
-import {
-  deParedeParaUtc,
-  deUtcParaParede,
-  fusoDoDispositivoDivergente,
-  cidadeDoFuso,
-} from '../../lib/fusoHorario';
+  FormularioDoConteudo,
+  type DadosDoConteudo,
+} from '../jobs/FormularioDoConteudo';
+import { camposVisiveis } from '../../lib/camposDoCanal';
+import { deParedeParaUtc, deUtcParaParede } from '../../lib/fusoHorario';
 import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import {
   publicaSozinho,
@@ -31,50 +20,40 @@ import {
   agendarPublicacao,
   quandoDeveSair,
   listarContas,
-  COMO_PUBLICA,
-  REDES_QUE_PUBLICAM,
 } from '../../lib/redes';
-import { BarraDeTexto } from '../common/BarraDeTexto';
-import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
-import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
-/**
- * Os canais, na ordem em que aparecem.
- *
- * `cor` é a cor de marca de cada rede: é ela que faz o ícone ser reconhecido
- * de relance, sem precisar ler nada. Quando o canal está escolhido, o botão
- * inverte — fundo da marca, ícone branco.
- */
-const CANAIS: {
-  valor: JobPlatform;
-  rotulo: string;
-  icone: React.FC<{ className?: string }>;
-  cor: string;
-  fundo: string;
-}[] = [
-  { valor: 'instagram', rotulo: 'Instagram', icone: Instagram, cor: 'text-[#E4405F]', fundo: 'bg-[#E4405F]' },
-  { valor: 'facebook', rotulo: 'Facebook', icone: Facebook, cor: 'text-[#1877F2]', fundo: 'bg-[#1877F2]' },
-  { valor: 'linkedin', rotulo: 'LinkedIn', icone: Linkedin, cor: 'text-[#0A66C2]', fundo: 'bg-[#0A66C2]' },
-  { valor: 'tiktok', rotulo: 'TikTok', icone: Music2, cor: 'text-[#010101] dark:text-white', fundo: 'bg-[#010101]' },
-  { valor: 'youtube', rotulo: 'YouTube', icone: Youtube, cor: 'text-[#FF0000]', fundo: 'bg-[#FF0000]' },
-  { valor: 'twitter', rotulo: 'X / Twitter', icone: Twitter, cor: 'text-[#0F1419] dark:text-white', fundo: 'bg-[#0F1419]' },
-];
-
-/**
- * As outras origens da arte, no menu do botão "Adicionar mídia".
- *
- * Fora do componente porque agora são **dois** uploaders (feed e story), e
- * duas cópias da mesma lista divergem na primeira vez que alguém acrescentar
- * uma integração num só.
- */
-const ORIGENS_DE_MIDIA = [
-  { rotulo: 'Canva', disponivel: false },
-  { rotulo: 'Google Drive', disponivel: false },
-  { rotulo: 'Dropbox', disponivel: false },
-];
+/** Um conteúdo em branco, como ele nasce. */
+const EM_BRANCO: DadosDoConteudo = {
+  clientId: '',
+  title: '',
+  // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
+  // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
+  // que não existe. Quem precisar dela edita no detalhe do conteúdo.
+  canais: ['instagram'],
+  format: 'feed',
+  priority: 'medium',
+  caption: '',
+  draft: '',
+  // CTA e hashtags saíram do cadastro: enchiam o modal de campos que quase
+  // ninguém preenchia na criação, e seguem editáveis no detalhe.
+  //
+  // O primeiro comentário voltou, agora como campo do Instagram — é onde as
+  // hashtags costumam ir, para não poluir a legenda.
+  firstComment: '',
+  configuracoes: {},
+  // Começa vazio: um conteúdo novo não tem mídia. A foto de banco que ficava
+  // aqui virava a arte de todo post criado, e quem não reparasse publicava
+  // com ela.
+  mediaUrls: [],
+  storyMediaUrls: [],
+  scheduledDate: '',
+  // Derivado da data de publicação na hora de salvar: no cadastro ele não é
+  // pedido, e por isso o formulário o esconde aqui.
+  deadlineApproval: '',
+};
 
 export const CreateJobModal: React.FC = () => {
   const {
@@ -85,7 +64,7 @@ export const CreateJobModal: React.FC = () => {
     clients,
     createJob,
     setSelectedJob,
-    generateAiCopy
+    generateAiCopy,
   } = usePostfy();
 
   // O tipo escolhido no menu Adicionar molda o formulário. Quem decide não é
@@ -93,47 +72,12 @@ export const CreateJobModal: React.FC = () => {
   // `if (tipo === 'copy')` espalhado pela tela.
   const tipo = definicaoDoTipo(createJobTipo);
 
-  const [clientId, setClientId] = useState(clients[0]?.id || '');
   const { avisar, dialogo } = useAviso();
-  const [title, setTitle] = useState('');
-  // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
-  // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
-  // que não existe. Quem precisar dela edita no detalhe do conteúdo.
-  /**
-   * Os canais escolhidos. O primeiro é o principal, e é ele que vai para
-   * `platform` — a coluna que Kanban, portal e fila de publicação leem.
-   */
-  const [canais, setCanais] = useState<JobPlatform[]>(['instagram']);
-  const platform = canais[0] || 'instagram';
-  const [format, setFormat] = useState<JobFormat>('feed');
-  const [priority, setPriority] = useState<JobPriority>('medium');
-  const [status, setStatus] = useState<JobStatus>('ideas');
-  const [caption, setCaption] = useState('');
-  const [draft, setDraft] = useState('');
-  const [abaDoTexto, setAbaDoTexto] = useState<'legenda' | 'rascunho'>('legenda');
-  // CTA e hashtags saíram do cadastro: enchiam o modal de campos que quase
-  // ninguém preenchia na criação, e seguem editáveis no detalhe.
-  //
-  // O padrão de hashtags era '#Novidade #Marketing', e ele ia junto mesmo sem
-  // ninguém digitar nada: conteúdo nascia marcado com tag inventada.
-  //
-  // O primeiro comentário voltou, agora como campo do Instagram — é onde as
-  // hashtags costumam ir, para não poluir a legenda.
-  const [firstComment, setFirstComment] = useState('');
-  const [configuracoes, setConfiguracoes] = useState<Record<string, unknown>>({});
-  // Começa vazio: um conteúdo novo não tem mídia. A foto de banco que ficava
-  // aqui virava a arte de todo post criado, e quem não reparasse publicava com
-  // ela.
-  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
-  /**
-   * A arte do story, quando o formato é "Feed + Story".
-   *
-   * Lista própria, e não o segundo item de `mediaUrls`: ali o segundo item já
-   * é a página 2 do carrossel, e misturar os dois faria um carrossel de duas
-   * páginas virar feed+story sozinho.
-   */
-  const [storyMediaUrls, setStoryMediaUrls] = useState<string[]>([]);
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [dados, setDados] = useState<DadosDoConteudo>(EM_BRANCO);
+  const mudar = (parcial: Partial<DadosDoConteudo>) =>
+    setDados((atual) => ({ ...atual, ...parcial }));
+
+  const [status] = useState<JobStatus>('ideas');
   const [erro, setErro] = useState('');
 
   // Mora aqui em cima, junto dos outros hooks, e não perto das funções que os
@@ -145,16 +89,25 @@ export const CreateJobModal: React.FC = () => {
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const ocupado = acao !== 'nenhuma';
 
-  // O campo de copy e roteiro é desenhado aqui, e não pelo catálogo da rede,
-  // então a barra precisa da referência dele para escrever no cursor.
-  const areaDoTexto = useRef<HTMLTextAreaElement>(null);
+  /**
+   * A prévia começa fechada **no celular**, e é `false` aqui de propósito.
+   *
+   * Lado a lado ela não custa nada; empilhada embaixo de um formulário de
+   * doze campos, ela é uma tela e meia de espaço vazio — três quadros "a arte
+   * aparece aqui" que a pessoa rola antes de chegar ao fim. Quem abre a modal
+   * no telefone veio preencher, não conferir.
+   *
+   * No desktop o `lg:block` ignora este estado: a coluna está sempre lá, e
+   * ninguém precisa clicar para ter o que já tinha.
+   */
+  const [previaAberta, setPreviaAberta] = useState(false);
 
   // Keep clientId valid if clients list changes
   useEffect(() => {
-    if (clients.length > 0 && (!clientId || !clients.some(c => c.id === clientId))) {
-      setClientId(clients[0].id);
+    if (clients.length > 0 && (!dados.clientId || !clients.some((c) => c.id === dados.clientId))) {
+      setDados((atual) => ({ ...atual, clientId: clients[0].id }));
     }
-  }, [clients, clientId, isCreateJobModalOpen]);
+  }, [clients, dados.clientId, isCreateJobModalOpen]);
 
   // O modal não desmonta ao fechar (só retorna null), então o estado de um
   // job sobrevivia para o próximo — a mídia enviada era o caso mais visível,
@@ -163,20 +116,11 @@ export const CreateJobModal: React.FC = () => {
   // abri de novo" também.
   useEffect(() => {
     if (isCreateJobModalOpen) {
-      setTitle('');
-      setCanais(['instagram']);
-      setFormat('feed');
-      setPriority('medium');
-      setStatus('ideas');
-      setCaption('');
-      setDraft('');
-      setAbaDoTexto('legenda');
-      setFirstComment('');
-      setConfiguracoes({});
-      setMediaUrls([]);
-      setStoryMediaUrls([]);
+      setDados({ ...EM_BRANCO, clientId: clients[0]?.id || '' });
       setErro('');
+      setResultado(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreateJobModalOpen]);
 
   // O campo mostra hora de parede **no fuso da agência**, não no do
@@ -189,74 +133,23 @@ export const CreateJobModal: React.FC = () => {
       : null;
 
     if (preSelecionada && !isNaN(preSelecionada.getTime())) {
-      setScheduledDate(deUtcParaParede(preSelecionada));
+      setDados((atual) => ({ ...atual, scheduledDate: deUtcParaParede(preSelecionada) }));
       return;
     }
 
     // Padrão: daqui a três dias, às 10:00 da agência. O dia é calculado no
     // fuso dela também, senão perto da meia-noite cai no dia errado.
     const daquiATresDias = new Date(Date.now() + 3 * 86400000);
-    setScheduledDate(`${deUtcParaParede(daquiATresDias).slice(0, 10)}T10:00`);
+    setDados((atual) => ({
+      ...atual,
+      scheduledDate: `${deUtcParaParede(daquiATresDias).slice(0, 10)}T10:00`,
+    }));
   }, [createJobPreselectedDate, isCreateJobModalOpen]);
 
-  /**
-   * Trocar de canal pode invalidar o formato escolhido — Story não existe no
-   * YouTube. Sem isto o `select` ficava em branco e o job era salvo com um
-   * formato que aquela rede não aceita, sem ninguém ver.
-   */
-  useEffect(() => {
-    const disponiveis = formatosComuns(canais);
-    if (disponiveis.length && !disponiveis.some((f) => f.valor === format)) {
-      setFormat(disponiveis[0].valor);
-    }
-  }, [canais, format]);
-
-  /**
-   * A prévia começa fechada **no celular**, e é `false` aqui de propósito.
-   *
-   * Lado a lado ela não custa nada; empilhada embaixo de um formulário de
-   * doze campos, ela é uma tela e meia de espaço vazio — três quadros "a arte
-   * aparece aqui" que a pessoa rola antes de chegar ao fim. Quem abre a modal
-   * no telefone veio preencher, não conferir.
-   *
-   * No desktop o `lg:block` ignora este estado: a coluna está sempre lá, e
-   * ninguém precisa clicar para ter o que já tinha.
-   *
-   * O hook fica **antes** do `return null` — depois dele a modal rodaria duas
-   * listas de hooks diferentes e o React derrubaria a árvore com o erro #310
-   * (armadilha 8.1).
-   */
-  const [previaAberta, setPreviaAberta] = useState(false);
-
+  const platform = dados.canais[0] || 'instagram';
 
   // A prévia mostra o perfil de quem vai publicar: é o cliente selecionado.
-  const clienteSelecionado = clients.find((c) => c.id === clientId) || clients[0];
-
-  const formatosDoCanal = formatosComuns(canais);
-
-  /** Clicar num canal liga ou desliga. Nunca deixa a seleção vazia. */
-  const alternarCanal = (canal: JobPlatform) => {
-    setCanais((atuais) => {
-      if (atuais.includes(canal)) {
-        const resto = atuais.filter((c) => c !== canal);
-        return resto.length ? resto : atuais;
-      }
-      return [...atuais, canal];
-    });
-  };
-  const campos = camposVisiveis(platform, format);
-
-  // Os acessórios saem da lista e viram ícones na linha do rótulo da legenda.
-  const camposEmLinha = campos.filter((c) => !c.atalho);
-  const camposEmAtalho = campos.filter((c) => c.atalho);
-
-  /**
-   * O limite vem da rede mais apertada entre as escolhidas, não da principal.
-   * Com Instagram e X marcados juntos, quem corta é o X.
-   */
-  const limite = limiteMaisApertado(canais);
-  const nomeDoCanal = (canal: JobPlatform) =>
-    CANAIS.find((c) => c.valor === canal)?.rotulo || canal;
+  const clienteSelecionado = clients.find((c) => c.id === dados.clientId) || clients[0];
 
   /**
    * A IA só é oferecida quando há título.
@@ -265,38 +158,17 @@ export const CreateJobModal: React.FC = () => {
    * é pior que botão ausente: custa o clique e a descoberta. O briefing do
    * cliente entra por dentro, em `generateAiCopy`.
    */
-  const gerarTextoComIA = title.trim()
+  const gerarTextoComIA = dados.title.trim()
     ? async () => {
         const r = await generateAiCopy({
-          theme: title.trim(),
-          format,
+          theme: dados.title.trim(),
+          format: dados.format,
           platform,
-          clientId,
+          clientId: dados.clientId,
         });
         return r?.caption || '';
       }
     : undefined;
-
-  /**
-   * Legenda e primeiro comentário têm coluna própria e continuam nela; o
-   * resto vive no `jsonb`. Ler e escrever pelo catálogo evita a tela precisar
-   * saber onde cada campo mora.
-   */
-  const valorDoCampo = (campo: CampoDoCanal): unknown => {
-    if (campo.destino === 'config') return configuracoes[campo.chave];
-    if (campo.chave === 'caption') return caption;
-    if (campo.chave === 'firstComment') return firstComment;
-    return '';
-  };
-
-  const definirCampo = (campo: CampoDoCanal, valor: unknown) => {
-    if (campo.destino === 'config') {
-      setConfiguracoes((atual) => ({ ...atual, [campo.chave]: valor }));
-      return;
-    }
-    if (campo.chave === 'caption') setCaption(String(valor ?? ''));
-    if (campo.chave === 'firstComment') setFirstComment(String(valor ?? ''));
-  };
 
   /**
    * `statusFinal` existe por causa do botão "Enviar para aprovação": ele é o
@@ -313,18 +185,17 @@ export const CreateJobModal: React.FC = () => {
   ): Job | undefined => {
     e.preventDefault();
     setErro('');
-    if (!title.trim()) {
+    if (!dados.title.trim()) {
       setErro('Informe o título do conteúdo.');
       return;
     }
 
     try {
-
       // O texto do campo é hora de parede no fuso da agência; `datetime-local`
       // sozinho o interpretaria no fuso do navegador.
       let targetDate = new Date();
-      if (scheduledDate) {
-        const convertida = deParedeParaUtc(scheduledDate);
+      if (dados.scheduledDate) {
+        const convertida = deParedeParaUtc(dados.scheduledDate);
         if (!isNaN(convertida.getTime())) {
           targetDate = convertida;
         }
@@ -339,13 +210,13 @@ export const CreateJobModal: React.FC = () => {
       // Em copy e roteiro é mais que legítimo, é o certo — o campo nem aparece,
       // e o que tivesse sobrado de uma abertura anterior não pode ir junto.
       const finalMedia = tipo.pedeArte
-        ? mediaUrls.filter(u => u.trim().length > 0)
+        ? dados.mediaUrls.filter((u) => u.trim().length > 0)
         : [];
 
       // Sem cliente cadastrado não há job possível: 'c-1' era um id inventado
       // que o Postgres recusa, e o conteúdo sumia sem aviso.
-      const selectedClientId = clientId && clients.some(c => c.id === clientId)
-        ? clientId
+      const selectedClientId = dados.clientId && clients.some((c) => c.id === dados.clientId)
+        ? dados.clientId
         : clients[0]?.id;
 
       if (!selectedClientId) {
@@ -353,34 +224,36 @@ export const CreateJobModal: React.FC = () => {
         return;
       }
 
+      const campos = camposVisiveis(platform, dados.format);
+
       const newJob = createJob({
         clientId: selectedClientId,
-        title: title.trim(),
+        title: dados.title.trim(),
         tipo: createJobTipo,
         campaign: 'Geral',
         // `platform` é o primeiro da lista: as telas que leem uma rede só
         // continuam funcionando, e `canais` guarda o conjunto completo.
         platform,
-        canais,
-        format,
-        priority,
+        canais: dados.canais,
+        format: dados.format,
+        priority: dados.priority,
         status: statusFinal,
-        caption: caption.trim(),
+        caption: dados.caption.trim(),
         // Só o texto de trabalho: quem é publicado é `caption`.
-        draft: draft.trim() || undefined,
+        draft: dados.draft.trim() || undefined,
         // Só quando o formato pede: guardar a arte do story num post de feed
         // deixaria uma mídia órfã que nenhuma tela mostra.
-        storyMediaUrls: format === 'feed_story' ? storyMediaUrls : [],
+        storyMediaUrls: dados.format === 'feed_story' ? dados.storyMediaUrls : [],
         cta: '',
         hashtags: [],
-        firstComment: firstComment.trim(),
+        firstComment: dados.firstComment.trim(),
         // Só o que a rede escolhida pede: trocar de canal no meio do cadastro
         // deixaria para trás a configuração da rede anterior, e ela iria junto
         // para o banco sem aparecer em tela nenhuma.
         configuracoes: Object.fromEntries(
           campos
             .filter((c) => c.destino === 'config')
-            .map((c) => [c.chave, configuracoes[c.chave]])
+            .map((c) => [c.chave, dados.configuracoes[c.chave]])
             .filter(([, v]) => v !== undefined && v !== '' && v !== false)
         ),
         mediaUrls: finalMedia,
@@ -513,304 +386,19 @@ export const CreateJobModal: React.FC = () => {
         <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
         {/* Form */}
         <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Client */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Cliente *</label>
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Canais: a logo diz para onde vai sem precisar abrir uma lista. */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Selecione canais
-              </label>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {CANAIS.map((canal) => {
-                  const Icone = canal.icone;
-                  const ativo = canais.includes(canal.valor);
-                  return (
-                    <button
-                      key={canal.valor}
-                      type="button"
-                      onClick={() => alternarCanal(canal.valor)}
-                      title={`${canal.rotulo} — ${COMO_PUBLICA[canal.valor]}`}
-                      aria-label={`${canal.rotulo}. ${COMO_PUBLICA[canal.valor]}`}
-                      aria-pressed={ativo}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center border transition cursor-pointer ${
-                        ativo
-                          ? `${canal.fundo} border-transparent text-white shadow-xs`
-                          : `bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 ${canal.cor} opacity-60 hover:opacity-100`
-                      }`}
-                    >
-                      <Icone className="w-4 h-4" />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/*
-                Quem marca LinkedIn precisa saber, aqui, que ninguém vai
-                publicar por ele. Descobrir isso na data agendada é tarde: o
-                cliente aprovou e a peça não foi ao ar.
-              */}
-              {canais.some((c) => !publicaSozinho(c)) && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 leading-relaxed">
-                  {canais.filter((c) => !publicaSozinho(c)).join(', ')}:{' '}
-                  <strong>você publica</strong> na data. O disparo automático hoje é só{' '}
-                  {REDES_QUE_PUBLICAM.join(', ')}.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Título do Conteúdo *</label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: 5 Dicas para Escolher o Melhor Café Especial"
-              className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-semibold"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Formato: só o que existe na rede escolhida. */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Formato</label>
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value as JobFormat)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                {formatosDoCanal.map((f) => (
-                  <option key={f.valor} value={f.valor}>
-                    {f.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Prioridade</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as JobPriority)}
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="low">Baixa</option>
-                <option value="medium">Média</option>
-                <option value="high">Alta</option>
-                <option value="urgent">Urgente</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
-              upload neles seria pedir aprovação de algo que não existe. */}
-          {tipo.pedeArte && (
-            <div className="pt-1 space-y-5">
-              <MediaUploader
-                mediaUrls={mediaUrls}
-                onChange={setMediaUrls}
-                maxFiles={10}
-                label={format === 'feed_story' ? 'Mídia do Feed' : 'Mídia e criativos'}
-                helperText={
-                  format === 'feed_story'
-                    ? 'A arte que vai no feed, em 4:5. Para carrossel, você pode reordenar as páginas.'
-                    : undefined
-                }
-                /* Buscar a arte de onde ela já está é o próximo passo; hoje
-                   não existe. Entram no menu desligadas, dizendo "em breve". */
-                origens={ORIGENS_DE_MIDIA}
-              />
-
-              {/*
-                **Dois campos, porque são duas artes.**
-                
-                O feed é 4:5 e o story é 9:16: a mesma imagem nos dois sai
-                cortada num deles. Um campo só obrigaria a agência a escolher
-                qual dos dois sai errado — e o story é justamente o formato em
-                que a peça precisa ser vertical.
-
-                Um arquivo só em cada: story é uma tela, não uma sequência.
-                Quem quer mais de um story publica dois conteúdos, que é o que
-                a Meta também faz.
-              */}
-              {format === 'feed_story' && (
-                <MediaUploader
-                  mediaUrls={storyMediaUrls}
-                  onChange={setStoryMediaUrls}
-                  maxFiles={1}
-                  label="Mídia do Story"
-                  helperText="A arte vertical, em 9:16. Sai no story na mesma data do feed."
-                  origens={ORIGENS_DE_MIDIA}
-                />
-              )}
-            </div>
-          )}
-
           {/*
-            Os campos vêm do catálogo da rede escolhida. Em copy e roteiro a
-            entrega é o próprio texto, então ali vale o campo do tipo e não o
-            da rede — um roteiro não tem localização nem capa de Reel.
+            **O formulário é o mesmo da edição.** Ele mora em
+            `components/jobs/FormularioDoConteudo`, e as duas telas o montam
+            com o mesmo estado — era este arquivo que tinha campos que a modal
+            de detalhe não tinha, e quem criava aqui não conseguia corrigir lá.
           */}
-          {/*
-            O texto do conteúdo tem dois lados, e **só um deles é publicado.**
-
-            "Legenda" é o que vai para a rede: conta contra o limite de
-            caracteres, aparece na prévia e é o que a Meta recebe. "Rascunho" é
-            o texto de trabalho — versão descartada da legenda, gancho, o que o
-            cliente falou na reunião.
-
-            Eles dividem o lugar porque são o mesmo assunto, e por isso a aba é
-            `segmentado` e não sublinhado: o sublinhado, sob um formulário,
-            leria como se a tela inteira tivesse trocado.
-
-            **Os dois campos existem sempre**, e quem escolhe a aba não muda o
-            que é salvo: o rascunho não some por estar escondido, e a legenda
-            não vira rascunho por estar na outra aba. Guardar os dois no mesmo
-            campo significaria publicar o rascunho junto na primeira vez que
-            alguém esquecesse de apagar — e o que sai no perfil do cliente não
-            volta.
-          */}
-          <Tabs
-            value={abaDoTexto}
-            onValueChange={(v) => setAbaDoTexto(v as 'legenda' | 'rascunho')}
-          >
-            <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
-              <TabsList aparencia="segmentado">
-                <TabsTrigger value="legenda">
-                  {tipo.pedeArte ? 'Legenda' : tipo.rotuloDoTexto}
-                </TabsTrigger>
-                <TabsTrigger value="rascunho">
-                  Rascunho
-                  {/* O selo só aparece quando há texto do outro lado: sem ele,
-                      um rascunho escrito some de vista ao trocar de aba e
-                      ninguém lembra que ele existe. */}
-                  {draft.trim() !== '' && <TabsBadge>1</TabsBadge>}
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Os acessórios pertencem ao texto que vai publicado, então
-                  ficam na linha das abas e só valem para a legenda. */}
-              {tipo.pedeArte && (
-                <AtalhosDoConteudo
-                  campos={camposEmAtalho}
-                  valorDoCampo={valorDoCampo}
-                  definirCampo={definirCampo}
-                  legenda={caption}
-                  canalPrincipal={platform}
-                />
-              )}
-            </div>
-
-            <TabsContent value="legenda">
-              {tipo.pedeArte ? (
-                <div className="space-y-4">
-                  {camposEmLinha.map((campo) => (
-                    <CampoDinamico
-                      key={campo.chave}
-                      campo={campo}
-                      valor={valorDoCampo(campo)}
-                      onChange={(v) => definirCampo(campo, v)}
-                      limite={limite?.limite}
-                      donoDoLimite={limite ? nomeDoCanal(limite.canal) : undefined}
-                      aoGerarComIA={gerarTextoComIA}
-                      /* O campo do texto principal perde o rótulo: quem o
-                         nomeia agora é a aba, logo acima. */
-                      semRotulo={campo.barra}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div>
-                  <BarraDeTexto
-                    valor={caption}
-                    onChange={(v) => setCaption(String(v))}
-                    areaRef={areaDoTexto}
-                    /* O roteiro conta caracteres mas não tem teto: ele não é o
-                       texto que vai publicado. */
-                    limite={tipo.respeitaLimiteDaRede ? limite?.limite : undefined}
-                    donoDoLimite={
-                      tipo.respeitaLimiteDaRede && limite
-                        ? nomeDoCanal(limite.canal)
-                        : undefined
-                    }
-                    aoGerarComIA={gerarTextoComIA}
-                  />
-                  <textarea
-                    ref={areaDoTexto}
-                    rows={12}
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder={tipo.exemploDoTexto}
-                    className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-t-none rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed"
-                  />
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="rascunho">
-              {/*
-                Sem barra de formatação e sem contador de caracteres, de
-                propósito: negrito e limite da rede pertencem ao texto que vai
-                publicado. Um contador aqui diria que este texto disputa o
-                mesmo teto, que é justamente o que ele não faz.
-              */}
-              <textarea
-                rows={tipo.pedeArte ? 10 : 12}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Rascunho da legenda, ideias de gancho, o que o cliente pediu na reunião. Este texto não vai publicado."
-                className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 leading-relaxed text-slate-900 dark:text-white"
-              />
-              <p className="mt-1 text-[11px] text-slate-400">
-                Fica só aqui dentro: não entra na publicação nem aparece na prévia.
-              </p>
-            </TabsContent>
-          </Tabs>
-
-          {/* A data desceu para cá, logo abaixo da legenda.
-              Ela vinha no meio do formulário, ao lado de um "Status Inicial"
-              que decidia a coluna do quadro — dois campos que pediam decisão
-              antes de o conteúdo existir. O status saiu de vez: agora quem o
-              define é o botão que a pessoa aperta no fim, que é onde a decisão
-              realmente acontece. */}
-          <div className="max-w-xs">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Data e Hora de Publicação
-            </label>
-            <input
-              type="datetime-local"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-            />
-            {/* O aviso só aparece quando os dois fusos divergem. Repetir
-                "horário de Cuiabá" para quem está em Cuiabá seria ruído, e
-                ruído treina a pessoa a ignorar avisos — mas quem agenda de
-                outro estado precisa saber que o horário não é o do relógio
-                dele. */}
-            {fusoDoDispositivoDivergente() && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
-                Horário de <strong>{cidadeDoFuso()}</strong>, o fuso da agência — não o
-                do seu aparelho.
-              </p>
-            )}
-          </div>
+          <FormularioDoConteudo
+            valor={dados}
+            aoMudar={mudar}
+            tipo={tipo}
+            clients={clients}
+            aoGerarComIA={gerarTextoComIA}
+          />
 
           {erro && (
             <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
@@ -864,7 +452,7 @@ export const CreateJobModal: React.FC = () => {
                 aviso: é a única ação daqui que não tem volta. Encostada no
                 botão que a pessoa aperta por reflexo, ela seria apertada por
                 reflexo também. */}
-            {canais.includes('instagram') && (
+            {dados.canais.includes('instagram') && (
               <Button
                 type="button"
                 onClick={(e) => void publicarImediatamente(e)}
@@ -940,13 +528,13 @@ export const CreateJobModal: React.FC = () => {
             dados={{
               nomeDoPerfil: clienteSelecionado?.name || '',
               avatar: clienteSelecionado?.avatar,
-              canais,
-              artes: tipo.pedeArte ? mediaUrls : [],
-              artesDoStory: format === 'feed_story' ? storyMediaUrls : [],
-              legenda: caption,
-              localizacao: String(configuracoes.localizacao || '') || undefined,
-              dataPrevista: scheduledDate
-                ? safeDateFormat(deParedeParaUtc(scheduledDate), {
+              canais: dados.canais,
+              artes: tipo.pedeArte ? dados.mediaUrls : [],
+              artesDoStory: dados.format === 'feed_story' ? dados.storyMediaUrls : [],
+              legenda: dados.caption,
+              localizacao: String(dados.configuracoes.localizacao || '') || undefined,
+              dataPrevista: dados.scheduledDate
+                ? safeDateFormat(deParedeParaUtc(dados.scheduledDate), {
                     day: '2-digit',
                     month: 'long',
                   })

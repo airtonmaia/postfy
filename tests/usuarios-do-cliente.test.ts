@@ -144,7 +144,17 @@ describe('as RPCs que o portal chama existem no banco', () => {
     // Quem chega ao portal é anônimo para o Supabase: a credencial é o token
     // da sessão, e é ele que a função recorta. Sem o grant para `anon`, toda
     // chamada volta 42501 depois de a pessoa já ter digitado o código.
-    const sql = semComentarios(migracaoDosUsuarios);
+    /**
+     * **Todas as migrações, não só a que criou os usuários do cliente.**
+     *
+     * A guarda lia um arquivo só, e por isso ela reprovou a primeira RPC nova
+     * do portal — `portal_comentar`, que nasceu numa migração posterior com o
+     * `grant` certo escrito ao lado. Guarda ancorada num arquivo mede o
+     * arquivo, não a decisão: o que precisa valer é que **toda** função que o
+     * portal chama seja alcançável por quem não tem sessão, venha ela de
+     * onde vier.
+     */
+    const sql = semComentarios(sqlDeTodasAsMigracoes());
     const fonte = readFileSync(join(RAIZ, 'src', 'lib', 'portal.ts'), 'utf-8');
     const chamadas = new Set(
       [...fonte.matchAll(/supabase\.rpc\(\s*'(portal_[a-z_]+)'/g)].map((m) => m[1])

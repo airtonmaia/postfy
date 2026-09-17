@@ -168,6 +168,31 @@ export const pedirAjustePeloPortal = async (
 };
 
 /**
+ * O cliente responde na aprovação.
+ *
+ * A thread é a mesma que a agência lê em Revisões — `jobs.comments`, uma
+ * lista só. Duas listas separadas fariam cada lado ver metade da conversa,
+ * que é o pior desfecho possível numa tela cujo propósito é alinhar os dois.
+ *
+ * **`isClient` é decidido no banco, nunca mandado daqui.** Como parâmetro,
+ * quem chamasse a função escolheria aparecer como a agência dentro da própria
+ * thread do cliente.
+ */
+export const comentarNoPortal = async (
+  token: string,
+  jobId: string,
+  texto: string
+): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('portal_comentar', {
+    p_token: token,
+    p_job_id: jobId,
+    p_texto: texto,
+  });
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+};
+
+/**
  * Escrita do editor pelo portal: arquivos, senhas e briefing.
  *
  * Um `update` direto em `clients` seria recusado pela RLS — quem está no

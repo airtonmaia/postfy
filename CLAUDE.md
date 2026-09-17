@@ -333,7 +333,9 @@ diverge. Escrevendo `<Modal isOpen={aberto}/>`, que é o padrão aqui, diverge
 sempre. Foi assim nos dois casos que existiram: o botão de teste da
 publicação em `CreateJobModal`, e o `useState(defaultMessage)` do
 `WhatsAppShareModal` — este último quebrava "compartilhar no WhatsApp" desde
-que foi escrito, e ninguém tinha percebido.
+que foi escrito, e ninguém tinha percebido. (Aquele arquivo não existe mais:
+virou a aba Compartilhamento, e deixar de ser modal com `isOpen` tirou a
+armadilha da raiz, em vez de contorná-la.)
 
 A ordem certa é sempre a mesma: **todos os hooks no topo, antes de qualquer
 `return`**. Quando o valor inicial depende de algo que só existe depois da
@@ -1653,62 +1655,171 @@ rodapé, que é conteúdo em bloco — o papel "card clicável" da seção acima
 
 Protegido por `tests/casca.test.ts`.
 
-#### Editar onde se lê, e nada é salvo sem confirmar
+#### Um formulário só, para cadastrar e para editar
 
-A tela de detalhe do conteúdo **mostrava tudo e não editava nada**. Corrigir
-uma vírgula na legenda exigia abrir outra tela; trocar o formato de uma peça,
-idem. `CampoEditavel` é o valor que vira campo ao ser clicado, e `SeloEditavel`
-é o selo que troca de valor pelo `DropdownMenu`.
+A tela de detalhe **tinha menos campos que a de cadastro**, e a diferença não
+dava erro em lugar nenhum: cliente e canais não dava para trocar, a arte do
+story não tinha campo, os campos da rede (localização, primeiro comentário,
+capa do Reel) não existiam, o contador de caracteres não contava e a prévia
+não abria. Quem criava no computador e corrigia no celular encontrava metade
+do que tinha usado meia hora antes — e simplesmente não conseguia corrigir o
+que preencheu.
 
-Os dois existem **fora** da modal porque a mesma interação aparece em onze
-campos dela — título, legenda, rascunho, CTA, hashtags, primeiro comentário,
-duas datas, formato, prioridade, mídia. Onze cópias divergem na primeira
-pressa: foi assim que nasceram as doze alturas de botão e as sete barras de
-abas.
+A resposta não foi acrescentar os campos que faltavam: foi **tirar o
+formulário das duas telas**. `src/components/jobs/FormularioDoConteudo.tsx` é
+um componente controlado, e o cadastro e o editor o montam com o mesmo estado.
+Duas cópias divergem na primeira pressa — é a história das doze alturas de
+botão, das sete barras de abas e da tabela de formatos, que já teve de sair da
+`CreateJobModal` por este motivo.
 
-Quatro regras, e nenhuma é gosto:
+**O formulário não conhece o banco.** Ele recebe `valor` e devolve `aoMudar`,
+e quem grava é a tela: o cadastro monta um job novo no botão, o editor guarda
+o rascunho e grava no "Salvar alterações". Um `updateJob` lá dentro gravaria a
+legenda a cada tecla.
 
-- **Nada é salvo no `blur`.** Sair do campo mantém o texto em edição; quem
-  grava é o ✓ ou o `Enter` (`Ctrl+Enter` no texto longo, onde `Enter` é quebra
-  de linha). Salvar no `blur` publica o rascunho de quem só clicou fora para
-  reler a peça — e o que sai no perfil do cliente não volta. Fora de foco o
-  `Esc` não chega ao campo, por isso o X fica sempre visível ao lado do ✓.
-- **O estado local é reposto quando o valor muda por fora.** `useState(valor)`
-  é lido só na primeira renderização: sem o efeito, o campo guardaria o texto
-  de quando montou depois de a peça ser salva noutro lugar. É a armadilha 8.1
-  outra vez.
-- **Campo vazio continua em tela.** CTA, hashtags e primeiro comentário eram
-  `{campo && (...)}` — vazios, sumiam, e **o que some não pode ser
-  preenchido**. Mesma classe da frase "nenhuma imagem cadastrada nesta versão":
-  informar a falta e mandar procurar outra tela para resolvê-la.
-- **A rede fica de leitura.** Trocá-la muda o que a peça *pode ser* — formato,
-  limite de texto, campos do canal — e pode deixar uma arte 9:16 num feed 4:5.
-  É decisão do cadastro, não um clique no cabeçalho.
+Cinco regras, e nenhuma é gosto:
 
-Duas coisas que o Chromium mostrou e nenhuma ferramenta local acusa:
+- **Nada é gravado enquanto a pessoa digita.** Nem a cada tecla, nem no
+  `blur`. As duas formas gravam o que ela ainda estava escrevendo quando
+  clicou fora para reler a peça — e o que sai no perfil do cliente não volta.
+  A barra de salvar **aparece quando há mudança**, fixa no rodapé da coluna e
+  fora da área que rola: um botão que exige rolar até o fim de um formulário
+  de doze campos é um botão que a pessoa não encontra.
+- **Fechar com alteração pendente pergunta.** `Esc` e clique fora são caminhos
+  de um toque. Fechar calado é a perda silenciosa que a tela não tem como
+  desfazer, e nada local acusa.
+- **Toda ação de workflow salva antes de agir.** "Enviar para aprovação",
+  "Agendar" e "Publicar agora" gravam primeiro, como os botões do cadastro já
+  faziam. Publicar o que está no banco enquanto a tela mostra outra coisa é o
+  pior desfecho possível: a legenda que vai ao ar não é a que a pessoa acabou
+  de ler.
+- **O rascunho do formulário é reposto ao abrir outro conteúdo.** A modal fica
+  montada, então `useState(doJob(job))` mostraria os campos do conteúdo
+  anterior. O efeito depende de `job.id`, não do objeto — ele é recriado a cada
+  render do contexto, e apagaria o que a pessoa estivesse digitando.
+- **O texto que a IA devolve cai no rascunho, não no banco.** É uma sugestão;
+  gravá-la direto publicaria um texto que ninguém leu.
 
-- **O menu de formato dizia "Reel" enquanto o cadastro, do lado, oferecia
-  "Reels".** O selo carrega o nome do domínio; a lista por rede carrega o nome
-  da rede — "Short" no YouTube. `FormatBadge` ganhou `rotulo` para receber o
-  segundo sem mexer na cor nem no ícone.
-- **As duas datas lado a lado cortavam o próprio dia** ("20/09..."): sobravam
-  ~195px por cartão dentro da coluna, o rótulo quebrava em três linhas e a
-  informação era a parte escondida. Empilhadas, cabem inteiras.
+**A rede deixou de ser de leitura**, e isso é uma decisão revista. A regra
+antiga — "trocá-la muda o que a peça pode ser, é decisão do cadastro" —
+resolvia o risco tirando a capacidade, e o custo aparecia em quem escolhia o
+canal errado e tinha de apagar a peça e refazer. Agora o seletor de canais é o
+mesmo do cadastro, e as duas defesas que o risco pedia existem: trocar de
+canal **revalida o formato** (Story não existe no YouTube, e sem isso o campo
+ficava em branco e a peça ia salva com um formato que a rede recusa), e a
+**prévia** mostra o enquadramento na hora — que é onde a arte 9:16 num feed
+4:5 aparece.
 
-**O `aviso` de "o feed saiu e o story não" já vinha do servidor e ninguém
-lia.** `api/publicar.ts` devolvia o campo — a rota fecha o item como publicado,
-com o motivo em `last_error`, porque marcar `falhou` republicaria o feed —, e a
-tela dizia "Publicado em @conta" para uma peça que foi ao ar pela metade. É a
-armadilha 9 no lugar mais caro: quem lê o resultado decide se avisa o cliente.
+**"Agendar publicação" passou a existir aqui.** `agendarPublicacao` só era
+chamada pelo cadastro: uma peça reagendada depois de criada mudava de data na
+tela e **nunca voltava para a `publish_queue`** — o card ficava em "Agendado",
+a data passava e nada publicava. É a mesma armadilha da fila sem produtor, um
+passo adiante no fluxo.
 
-A resposta da publicação aparece **em linha, não em diálogo**, como já fazia a
-modal de cadastro: `useAviso` é para falha que interrompe, e o erro em texto
-continua legível enquanto a pessoa relê a peça — num diálogo ele some ao ser
-dispensado, que é quando ela precisa dele.
+Protegido por `tests/editor-de-conteudo.test.ts`, que **deriva a lista de
+campos da interface `DadosDoConteudo`** e exige que as duas telas gravem cada
+um. Lista literal teria de ser editada junto com o código, e editar a guarda
+junto com o código é como ela deixa de guardar.
 
-Protegido por `tests/campo-editavel.test.ts`, que confere o caminho da gravação
-(`updateJob(id, { campo })`) e não o rótulo: rótulo muda com a redação, o
-caminho só muda se a edição sair.
+**Cinco guardas quebraram nesta entrega, e as cinco pelo mesmo motivo.** Elas
+apontavam para `CreateJobModal.tsx`, e o que protegiam era a decisão, não o
+arquivo: no dia em que o formulário mudou de casa, três passaram a medir uma
+tela que já não tem formulário e duas mediram texto nenhum. A pior era a do
+`aria-label`, que fatiava o arquivo a partir de `setIsWhatsAppOpen(true)` —
+com a string ausente, `indexOf` devolveu -1, a fatia virou o arquivo inteiro e
+a asserção passou a afirmar sobre o lugar errado **sem falhar**. Guarda
+ancorada numa string do código morre na primeira refatoração; ela agora varre
+`src` e procura o padrão.
+
+#### As três abas são Conteúdo, Revisões e Compartilhamento
+
+Eram cinco — Conteúdo, Versões, Checklist, Comentários, Timesheet — e o pedido
+de ajuste do cliente não estava em nenhuma: aparecia como um aviso vermelho no
+meio do formulário e **sumia da vista assim que a peça saía de
+`in_adjustment`**. Quem abrisse o conteúdo depois não tinha onde ler por que a
+v2 existe.
+
+- **Revisões** junta o ciclo inteiro, na ordem em que ele acontece: o pedido
+  do cliente, a conversa sobre ele e as versões entregues. "Comentários" e
+  "Versões" separadas contavam metade da história cada uma.
+- **Compartilhamento** era uma modal chamada "WhatsApp". Duas trocas, e as
+  duas pelo mesmo motivo: o WhatsApp é um dos destinos e não o nome da coisa —
+  o link do portal é o mesmo por e-mail ou colado na conversa —, e modal sobre
+  modal obrigava a fechar para reler a legenda antes de mandar. Virar filho da
+  tela também matou de vez a armadilha 8.1 que aquele arquivo carregava.
+- **Checklist e horas** viraram seções recolhíveis dentro de Conteúdo. São o
+  processo interno, não a peça, e disputavam a barra com as três que importam.
+  A contagem fica no próprio gatilho: seção recolhida sem número é seção
+  esquecida.
+
+**A coluna da direita é a do cadastro, com o que só existe depois de salvar**:
+prévia, ações de workflow, responsável, versão, criado em, última atualização
+e excluir. O **seletor de status fica no cabeçalho, não nela** — abaixo do
+`lg` a coluna vira rodapé, e mudar o status passaria a exigir rolar a modal
+inteira até o fim. É o controle mais usado da tela.
+
+**No celular quem rola é um só, e a primeira versão errou isso.** Com as duas
+rolagens mantidas, o `shrink-0` da coluna direita (que ali serve para fixar
+400px de largura) passou a valer em **altura**: a prévia segurava os 1208px
+dela dentro de 844 de tela, o `overflow-hidden` cortava o resto, e **o
+formulário não aparecia** — a modal abria na prévia, sem barra de rolagem e
+sem pista de que havia um formulário acima. Medido no Chromium em 390px. Por
+isso `shrink-0` e as rolagens internas são todos `lg:`.
+
+#### `jobs.updated_at` é carimbada pelo banco
+
+A tela mostra "última atualização", e a coluna não existia. Mostrar
+`created_at` com esse rótulo seria a armadilha 9 num lugar barato de errar e
+caro de descobrir — a agência olha esse campo para saber se a peça mudou
+depois de o cliente ter visto.
+
+Quem carimba é um **gatilho**, não o app: a persistência derivada de diff
+manda `update` de muitos lugares (`setAllX`, as RPCs do portal, o cron de
+publicação com a chave de serviço), e pôr `updated_at` em cada um garantiria
+esquecer algum. Esquecer aqui não quebra nada visível — mostra uma data velha
+com cara de certa.
+
+O `update ... where updated_at is null` da migração também não é detalhe: sem
+ele o `default now()` carimbaria o acervo inteiro com a data do deploy, e no
+primeiro dia a tela diria que todos os conteúdos mudaram no mesmo minuto.
+
+#### O cliente conversa na aprovação, e a thread é uma só
+
+O cliente tinha **duas saídas e nenhuma conversa**: aprovar, ou pedir ajuste —
+e pedir ajuste joga a peça inteira para trás, criando uma versão nova. "A foto
+está ótima, só troque o horário no texto" não cabia em nenhuma das duas, e
+virava mensagem no WhatsApp da agência, fora do sistema, longe do conteúdo de
+que falava.
+
+`jobs.comments` é uma lista só, e cada item traz `isClient`: é a mesma thread
+que a agência lê em Revisões. Duas listas fariam cada lado ver metade da
+conversa — o pior desfecho possível numa tela cujo propósito é alinhar os
+dois.
+
+Três coisas que não são detalhe:
+
+- **Quem grava é a RPC `portal_comentar`**, pelo desvio `noPortal`. No portal
+  não há sessão, então `useColecaoSincronizada` sai cedo e uma escrita normal
+  morreria no estado da aba (armadilha 10) — e um chat mudo é pior que chat
+  nenhum, porque o cliente escreve e fica esperando resposta de uma mensagem
+  que nunca chegou.
+- **`isClient` é decidido no banco, nunca recebido.** Como parâmetro, quem
+  chamasse a função escolheria aparecer como a agência dentro da própria
+  thread do cliente.
+- **A tela diz o que a mensagem não faz.** Sem a frase, o cliente escreveria
+  "troque a foto" no chat e esperaria uma versão nova: a agência lê, mas a
+  peça continua aguardando a decisão dele, e os dois ficam esperando o outro.
+
+**E `portal_dados` vazava o interno do job** — encontrado ao escrever isto. É
+a armadilha 10 outra vez, agora em `jobs`: a regra estava escrita para
+`clients` e ninguém aplicou o mesmo raciocínio ao `to_jsonb(j)` do lado. Iam
+para o navegador do cliente, sem ninguém ter decidido, o `draft` (que este
+arquivo descreve como *"o que o cliente falou na reunião"*), os minutos gastos
+na peça, quem da equipe a fez, o checklist de produção e a estratégia de
+campanha, público e funil. A subtração vale para **todos os papéis**: o editor
+é o cliente.
+
+Protegido por `tests/revisoes-do-cliente.test.ts`.
 
 #### O `<main>` corta; quem rola é cada tela
 
@@ -1780,11 +1891,15 @@ esses seria o erro dos nove cards que viraram `Button`:
   Virar `Dialog` seria errado: o `Esc` dispensaria um bloqueio de teste
   vencido, que existe justamente para não ser dispensado.
 
-Modais de verdade são **25**, e todas estão migradas. O número mudou três
+Modais de verdade eram **25**, e todas foram migradas. O número mudou três
 vezes no caminho — 18, depois 23, depois 25 — porque `grep` conta *locais* e
 só a triagem arquivo a arquivo conta modais: `ClientPortalView` parecia ter
 cinco e tem duas (as outras três são a casca do portal em tela cheia),
 enquanto `CommercialView` tinha cinco de verdade.
+
+Hoje são **24**: o `WhatsAppShareModal` deixou de ser modal e virou a aba
+Compartilhamento da tela de conteúdo. A melhor migração é a que remove a
+modal.
 
 **Três armadilhas da conversão, e as duas primeiras passam no `tsc`:**
 
@@ -1886,8 +2001,12 @@ src/components/reports/DesempenhoReal.tsx  o que o conteúdo deu, com o recorte 
 src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/formatos.ts        que formato existe em cada rede, e o nome que ela dá
-src/components/common/CampoEditavel.tsx  o valor que vira campo ao ser clicado
-src/components/common/SeloEditavel.tsx   o selo que troca de valor, no DropdownMenu
+src/components/jobs/FormularioDoConteudo.tsx  o formulário do conteúdo, um só para cadastrar e editar
+src/components/jobs/PainelDeRevisoes.tsx      pedido do cliente, conversa e versões
+src/components/jobs/PainelDeCompartilhamento.tsx  link do portal e mensagem pronta
+src/components/jobs/PainelDeTimesheet.tsx    horas na peça; só o que é medido
+src/components/portal/ConversaComAAgencia.tsx  o chat do cliente, na tela de aprovação
+src/components/ui/accordion.tsx  primitivo shadcn, com o canto traduzido
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin
 src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo cumpre
