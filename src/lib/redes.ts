@@ -319,6 +319,17 @@ const esperarOConteudoExistir = async (jobId: string, limiteMs = 10_000): Promis
 export interface ResultadoDaPublicacao {
   externalId: string;
   conta: string;
+  /** O id do story, quando o formato é `feed_story`. */
+  storyExternalId?: string;
+  /**
+   * O feed saiu e o story não.
+   *
+   * `api/publicar.ts` já devolvia este campo e **ninguém lia**: a rota fecha o
+   * item como publicado com o motivo em `last_error`, porque marcar `falhou`
+   * republicaria o feed na passada seguinte. Sem ele na tela, "Publicado em
+   * @conta" afirmava duas saídas onde houve uma.
+   */
+  aviso?: string;
 }
 
 /**
@@ -358,5 +369,10 @@ export const publicarAgora = async (jobId: string): Promise<ResultadoDaPublicaca
     );
   }
 
-  return { externalId: payload.externalId, conta: payload.conta };
+  return {
+    externalId: payload.externalId,
+    conta: payload.conta,
+    storyExternalId: payload.storyExternalId,
+    aviso: payload.aviso,
+  };
 };

@@ -76,12 +76,24 @@ const FORMATOS: Record<JobFormat, { rotulo: string; tom: TomDoBadge; icone: Reac
   article: { rotulo: 'Artigo', tom: 'neutro', icone: <FileText /> },
 };
 
-export const FormatBadge: React.FC<{ format: JobFormat }> = ({ format }) => {
+/**
+ * `rotulo` troca só o texto, nunca a cor nem o ícone.
+ *
+ * A mesma coisa tem nome diferente em cada rede: vídeo curto é "Reels" no
+ * Instagram e "Short" no YouTube, e é isso que `lib/formatos.ts` guarda. Sem
+ * esta porta, o menu que troca o formato na modal de detalhe mostrava "Reel"
+ * enquanto a tela de cadastro, do lado, oferecia "Reels" — a mesma escolha com
+ * dois nomes, e nenhuma das duas telas errada sozinha.
+ */
+export const FormatBadge: React.FC<{ format: JobFormat; rotulo?: string }> = ({
+  format,
+  rotulo,
+}) => {
   const c = FORMATOS[format] || FORMATOS.feed;
   return (
     <Badge tom={c.tom}>
       {c.icone}
-      {c.rotulo}
+      {rotulo ?? c.rotulo}
     </Badge>
   );
 };
@@ -142,6 +154,14 @@ const PRIORIDADES: Record<JobPriority, { rotulo: string; tom: TomDoBadge }> = {
   high: { rotulo: 'Alta', tom: 'ambar' },
   urgent: { rotulo: 'Urgente', tom: 'rubi' },
 };
+
+/**
+ * O nome da prioridade, para quem precisa do texto sem a caixa — o menu que
+ * troca a prioridade na modal de detalhe. Sai daqui porque é aqui que ele já
+ * existia; uma segunda tradução viraria "Média" num lado e "Media" no outro.
+ */
+export const rotuloDaPrioridade = (priority: JobPriority): string =>
+  (PRIORIDADES[priority] || PRIORIDADES.medium).rotulo;
 
 export const PriorityBadge: React.FC<{ priority: JobPriority }> = ({ priority }) => {
   const c = PRIORIDADES[priority] || PRIORIDADES.medium;

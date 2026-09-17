@@ -18,6 +18,15 @@ const ler = (...p: string[]) => semComentarios(readFileSync(join(RAIZ, ...p), 'u
 const publicar = ler('api', 'publicar.ts');
 const instagram = ler('api', '_lib', 'instagram.ts');
 const modal = ler('src', 'components', 'modals', 'CreateJobModal.tsx');
+/**
+ * A tabela de formatos por rede saiu da modal de cadastro para cá.
+ *
+ * A modal de detalhe passou a editar o formato da peça já criada, e duas
+ * cópias da tabela divergiriam na primeira pressa — a rede que ganhasse "Feed
+ * + Story" num lado só voltaria a oferecer o que o publicador não entrega.
+ * Esta guarda seguiu a tabela: é ela que decide, não o arquivo onde ela mora.
+ */
+const formatos = ler('src', 'lib', 'formatos.ts');
 const portal = ler('src', 'components', 'portal', 'ClientPortalView.tsx');
 const previa = ler('src', 'components', 'common', 'PreviaDaRede.tsx');
 
@@ -113,7 +122,7 @@ describe('o feed publicado nunca é republicado', () => {
 
 describe('as duas artes existem em todo lugar que decide', () => {
   it('o editor mostra dois campos de upload', () => {
-    expect(modal, 'o formato Feed + Story saiu do seletor').toMatch(
+    expect(formatos, 'o formato Feed + Story saiu do seletor').toMatch(
       /valor: 'feed_story', rotulo: 'Feed \+ Story'/
     );
     expect(modal, 'o segundo upload, do story, sumiu').toMatch(/label="Mídia do Story"/);
@@ -170,8 +179,10 @@ describe('o formato só é oferecido onde as duas saídas existem', () => {
    * combinação que não vai ao ar, e o erro só apareceria na hora de publicar".
    */
   const redesQueOferecem = (): string[] => {
-    const inicio = modal.indexOf('const FORMATOS_POR_CANAL');
-    const bloco = modal.slice(inicio, modal.indexOf('\n};', inicio));
+    const inicio = formatos.indexOf('FORMATOS_POR_CANAL');
+    expect(inicio, 'a tabela de formatos por rede sumiu de src/lib/formatos.ts').toBeGreaterThan(-1);
+
+    const bloco = formatos.slice(inicio, formatos.indexOf('\n};', inicio));
     const achadas: string[] = [];
 
     // `instagram: [ … ],` — a rede e a lista dela.
