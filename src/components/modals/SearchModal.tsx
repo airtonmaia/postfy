@@ -4,6 +4,7 @@ import { Search, X, Calendar, User, Briefcase, FileText, ArrowRight } from 'luci
 import { PlatformBadge, StatusBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 export const SearchModal: React.FC = () => {
   const { 
@@ -27,15 +28,14 @@ export const SearchModal: React.FC = () => {
         e.preventDefault();
         setIsSearchModalOpen(!isSearchModalOpen);
       }
-      if (e.key === 'Escape' && isSearchModalOpen) {
-        setIsSearchModalOpen(false);
-      }
+      // O `Escape` saiu daqui: quem fecha agora é o `Dialog`, que também
+      // devolve o foco ao gatilho. Dois donos para a mesma tecla é o começo
+      // de eles discordarem.
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSearchModalOpen, setIsSearchModalOpen]);
 
-  if (!isSearchModalOpen) return null;
 
   const q = query.toLowerCase().trim();
 
@@ -59,11 +59,23 @@ export const SearchModal: React.FC = () => {
   const hasResults = matchingJobs.length > 0 || matchingClients.length > 0 || matchingLeads.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div 
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+    <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
+      {/*
+        **Paleta de comando não fica no meio da tela.** Ela nasce perto de
+        onde o olho já está — o topo — e o `DialogContent` centra na vertical
+        por padrão, então as três classes abaixo desfazem isso a partir do
+        `sm`. No celular ela continua em tela cheia, que é o certo para uma
+        busca com teclado aberto por cima.
+
+        `semFechar` porque o rodapé já ensina o `ESC`, e um X ao lado dele
+        seria a mesma saída dita duas vezes.
+      */}
+      <DialogContent
+        tamanho="formulario"
+        semFechar
+        className="p-0 gap-0 sm:max-w-xl sm:top-20 sm:-translate-y-0"
       >
+        <DialogTitle className="sr-only">Buscar no Orquesia</DialogTitle>
         {/* Search Input */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
           <Search className="w-5 h-5 text-slate-400 shrink-0" />
@@ -188,7 +200,7 @@ export const SearchModal: React.FC = () => {
           <span>Pressione <strong>ESC</strong> para fechar</span>
           <span>Dica: Use <strong>Cmd + K</strong> em qualquer tela</span>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

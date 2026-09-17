@@ -54,6 +54,7 @@ import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /**
  * As duas artes de "Feed + Story", lado a lado.
@@ -1708,136 +1709,141 @@ export const ClientPortalView: React.FC = () => {
 
       {/* Preview do job clicado no calendário: aprova/pede ajuste se ainda
           estiver aguardando aprovação, senão só mostra o conteúdo e o status. */}
-      {calendarPreviewJob && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col">
-            <div
-              className={`relative ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 max-h-72`}
-            >
-              {calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
-                <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
-                  <Layers className="w-8 h-8" />
-                  <span>Preview do Criativo</span>
-                </div>
-              )}
-              <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                <PlatformBadge platform={calendarPreviewJob.platform} />
-                <FormatBadge format={calendarPreviewJob.format} />
-              </div>
-              <Button size="icon-sm"
-                onClick={() => setCalendarPreviewJob(null)}
-                className="absolute top-3 right-3 bg-slate-900/70 text-white hover:bg-slate-900"
+      {/* `z-[60]`: abre por cima da casca do portal, que é `z-50`. */}
+      <Dialog open={!!calendarPreviewJob} onOpenChange={(aberto) => !aberto && setCalendarPreviewJob(null)}>
+        {calendarPreviewJob && (
+          <DialogContent tamanho="formulario" className="z-[60] p-0 gap-0">
+            {/* A prévia abre mostrando a arte, sem faixa de título. O nome
+                existe para quem usa leitor de tela. */}
+            <DialogTitle className="sr-only">{calendarPreviewJob.title}</DialogTitle>
+              <div
+                className={`relative ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 max-h-72`}
               >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="p-5 space-y-3 overflow-y-auto">
-              <div className="flex items-start justify-between gap-3">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
-                  {calendarPreviewJob.title}
-                </h4>
-                <StatusBadge status={calendarPreviewJob.status} />
-              </div>
-
-              {calendarPreviewJob.caption && (
-                <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800/70 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
-                  {calendarPreviewJob.caption}
+                {calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
+                  <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
+                    <Layers className="w-8 h-8" />
+                    <span>Preview do Criativo</span>
+                  </div>
+                )}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                  <PlatformBadge platform={calendarPreviewJob.platform} />
+                  <FormatBadge format={calendarPreviewJob.format} />
                 </div>
-              )}
-
-              {calendarPreviewJob.cta && (
-                <p className="text-xs text-purple-700 dark:text-purple-400 font-semibold bg-purple-50/70 dark:bg-purple-950/40 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/40">
-                  👉 {calendarPreviewJob.cta}
-                </p>
-              )}
-
-              <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
-                <span>Previsão de postagem:</span>
-                <strong className="text-slate-700 dark:text-slate-300 font-mono">
-                  {safeDateTimeFormat(calendarPreviewJob.scheduledDate)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
-              {calendarPreviewJob.status === 'for_approval' ? (
-                <>
-                  <Button variant="destructive"
-                    onClick={() => {
-                      const job = calendarPreviewJob;
-                      setCalendarPreviewJob(null);
-                      setSelectedForReview(job);
-                      setIsRejecting(true);
-                    }}
-                    className="flex-1 bg-rose-50 text-rose-700 border border-rose-200"
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                    Pedir Ajuste
-                  </Button>
-                  <Button variant="success"
-                    onClick={() => {
-                      handleApprove(calendarPreviewJob.id);
-                      setCalendarPreviewJob(null);
-                    }}
-                    className="flex-1"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Aprovar Agora
-                  </Button>
-                </>
-              ) : (
-                <Button variant="ghost"
+                <Button size="icon-sm"
                   onClick={() => setCalendarPreviewJob(null)}
+                  className="absolute top-3 right-3 bg-slate-900/70 text-white hover:bg-slate-900"
                 >
-                  Fechar
+                  <X className="w-4 h-4" />
                 </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+
+              <div className="p-5 space-y-3 overflow-y-auto">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                    {calendarPreviewJob.title}
+                  </h4>
+                  <StatusBadge status={calendarPreviewJob.status} />
+                </div>
+
+                {calendarPreviewJob.caption && (
+                  <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800/70 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
+                    {calendarPreviewJob.caption}
+                  </div>
+                )}
+
+                {calendarPreviewJob.cta && (
+                  <p className="text-xs text-purple-700 dark:text-purple-400 font-semibold bg-purple-50/70 dark:bg-purple-950/40 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/40">
+                    👉 {calendarPreviewJob.cta}
+                  </p>
+                )}
+
+                <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+                  <span>Previsão de postagem:</span>
+                  <strong className="text-slate-700 dark:text-slate-300 font-mono">
+                    {safeDateTimeFormat(calendarPreviewJob.scheduledDate)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
+                {calendarPreviewJob.status === 'for_approval' ? (
+                  <>
+                    <Button variant="destructive"
+                      onClick={() => {
+                        const job = calendarPreviewJob;
+                        setCalendarPreviewJob(null);
+                        setSelectedForReview(job);
+                        setIsRejecting(true);
+                      }}
+                      className="flex-1 bg-rose-50 text-rose-700 border border-rose-200"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      Pedir Ajuste
+                    </Button>
+                    <Button variant="success"
+                      onClick={() => {
+                        handleApprove(calendarPreviewJob.id);
+                        setCalendarPreviewJob(null);
+                      }}
+                      className="flex-1"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Aprovar Agora
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="ghost"
+                    onClick={() => setCalendarPreviewJob(null)}
+                  >
+                    Fechar
+                  </Button>
+                )}
+              </div>
+          </DialogContent>
+        )}
+      </Dialog>
 
       {/* Reject/Adjustment Dialog */}
-      {isRejecting && selectedForReview && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
-              <AlertCircle className="w-5 h-5" />
-              Solicitar Ajuste no Conteúdo
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Descreva com detalhes o que precisa ser alterado para que nossa equipe produza a nova versão imediatamente.
-            </p>
-            <textarea
-              rows={4}
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="Ex: Gostaria de trocar a foto do slide 2 e alterar a chamada final para..."
-              className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-rose-500"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost"
-                onClick={() => {
-                  setIsRejecting(false);
-                  setSelectedForReview(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button variant="destructive"
-                disabled={!feedbackText.trim()}
-                onClick={handleReject}
-                className="bg-rose-600 text-white"
-              >
-                Enviar Solicitação
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* `z-[60]`: abre por cima da casca do portal, que é `z-50`. */}
+      <Dialog open={isRejecting && !!selectedForReview} onOpenChange={(aberto) => !aberto && setIsRejecting(false)}>
+        {isRejecting && selectedForReview && (
+          <DialogContent tamanho="recado" className="z-[60] p-0 gap-0">
+              <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+                <AlertCircle className="w-5 h-5" />
+                Solicitar Ajuste no Conteúdo
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Descreva com detalhes o que precisa ser alterado para que nossa equipe produza a nova versão imediatamente.
+              </p>
+              <textarea
+                rows={4}
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Ex: Gostaria de trocar a foto do slide 2 e alterar a chamada final para..."
+                className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-rose-500"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost"
+                  onClick={() => {
+                    setIsRejecting(false);
+                    setSelectedForReview(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button variant="destructive"
+                  disabled={!feedbackText.trim()}
+                  onClick={handleReject}
+                  className="bg-rose-600 text-white"
+                >
+                  Enviar Solicitação
+                </Button>
+              </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
 
       {dialogo}

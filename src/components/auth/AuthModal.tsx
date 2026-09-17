@@ -9,6 +9,7 @@ import { RecorteQuadrado } from '../ui/recorte-quadrado';
 import { arquivosApi } from '../../lib/api';
 import { salvarPerfil, alterarSenha, pedirTrocaDeEmail } from '../../lib/perfil';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -88,7 +89,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setErro(null);
   }, [isOpen, currentUser?.name, currentUser?.avatar]);
 
-  if (!isOpen) return null;
 
   const avisar = (texto: string) => {
     setErro(null);
@@ -140,14 +140,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     nome.trim() !== (currentUser?.name || '') || avatar.trim() !== (currentUser?.avatar || '');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
-      >
+    <Dialog open={isOpen} onOpenChange={(aberto) => !aberto && onClose()}>
+      {/* `semFechar`: o X desta já mora no cabeçalho, ao lado do título. */}
+      <DialogContent tamanho="recado" semFechar className="p-0 gap-0">
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Sua conta</h3>
+            <DialogTitle asChild>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Sua conta</h3>
+            </DialogTitle>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Sessão autenticada no servidor
             </p>
@@ -431,7 +431,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           </Secao>
         </div>
-      </div>
+      </DialogContent>
 
       {/*
         Sem esta linha o `setFotoARecortar` guarda a foto e **nada acontece**:
@@ -448,6 +448,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           }}
         />
       )}
-    </div>
+    </Dialog>
   );
 };
