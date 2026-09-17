@@ -540,16 +540,77 @@ Clientes, leads, propostas e contratos continuam vindo inteiros, de
 propósito: são limitados pelo tamanho do negócio, não pelo tempo. Paginá-los
 quebraria o seletor de cliente e o funil sem ganho nenhum.
 
-### O que sai da janela é buscado sob demanda — com a bandeira ligada
+### O que sai da janela é buscado sob demanda — e vem **marcado**
 
 Calendário navegando para trás e relatório de período longo chamam
 `garantirJobsDoPeriodo`, que busca o que falta e junta ao estado.
 
-**A bandeira `aplicandoCargaDoBanco` é obrigatória ali.** Sem ela o
-`useColecaoSincronizada` vê linhas novas no estado e as trata como inserção —
-tentaria gravar de volta tudo que acabou de ler, e a chave primária recusaria
-uma a uma, em silêncio, dentro da fila de gravação. É a mesma razão de a
-carga inicial levantá-la.
+Essas linhas precisam ser invisíveis para o diff: sem isso o
+`useColecaoSincronizada` as vê como inserção e tenta **gravar de volta tudo
+que acabou de ler** — a chave primária recusaria uma a uma, em silêncio,
+dentro da fila. É a mesma razão de a carga inicial marcar as dela.
+
+#### A bandeira booleana era o bug, não a solução
+
+O que existia aqui era um `aplicandoCargaDoBanco.current = true`: uma bandeira
+global que dizia "pule este commit inteiro", baixada por um efeito **sem lista
+de dependências** — ou seja, no próximo render que acontecesse.
+
+```ts
+aplicandoCargaDoBanco.current = true;          // ❌ antes do updater
+setAllJobs((atuais) => {
+  const novos = encontrados.filter((j) => !conhecidos.has(j.id));
+  return novos.length > 0 ? [...atuais, ...novos] : atuais;   // ← mesma referência
+});
+```
+
+**Quando não há linha nova, o updater devolve `atuais` — a mesma referência —
+e o React desiste do render.** Sem render, o efeito que baixa a bandeira não
+roda. Ela fica erguida, esperando um commit que não vem.
+
+E aí a próxima edição de verdade é **descartada**, porque o efeito pula a
+gravação *e ainda avança `anterior.current`*:
+
+```ts
+const antes = anterior.current;
+anterior.current = linhas;          // ← avança sempre
+if (aplicandoCargaDoBanco.current) return;   // ← e só então desiste
+```
+
+Avançado o ponteiro, aquela mudança nunca mais entra num diff. Não há erro,
+não há repetição, não há sintoma: **a tela mostra o valor novo e o banco fica
+com o velho**, até o F5. Foi assim que uma data editada de 12 para 14 voltou a
+12, e que uma ideia recém-criada não chegou ao banco — dois relatos, uma causa.
+
+**A correção é recortar por linha, não por commit.** `idsVindosDoBanco` guarda
+os ids que acabaram de ser lidos, e o efeito remove **só esses** das inserções:
+
+```ts
+const d = diferenciar(antes, linhas);
+const doBanco = idsVindosDoBanco.current[nome];
+if (doBanco?.size) {
+  d.inseridos = d.inseridos.filter((l) => !doBanco.has(l.id));
+  doBanco.clear();
+}
+```
+
+Só `inseridos` precisa do filtro, e isso é o que torna a correção correta:
+linha vinda do banco é **nova** para o diff, enquanto a edição do usuário
+sobre uma linha que já existia cai em `atualizados` e passa. Uma carga e uma
+edição no mesmo commit deixam de se atrapalhar — o caso que a bandeira também
+errava, e que ninguém tinha notado.
+
+A marca é feita **dentro do updater**, depois da saída que devolve `atuais`:
+fora dele ela valeria mesmo quando o estado não muda, e ficaria pendurada
+exatamente como a bandeira ficava.
+
+**As quatro guardas que existiam aqui passavam.** Elas exigiam que a bandeira
+fosse levantada antes do `setAll`, baixada depois das coleções e testada no
+efeito — descreviam o mecanismo com precisão, e o mecanismo perdia dado. Agora
+elas exercitam a decisão com o `diferenciar` de verdade: carga não vira
+insert, edição vira update, e as duas juntas num lote continuam valendo as
+duas. Guarda que descreve o mecanismo aprova qualquer mecanismo com aquela
+forma.
 
 ### Cache: quase nenhum, e não no navegador
 

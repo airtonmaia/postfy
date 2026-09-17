@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.54.0',
+    data: '2026-09-17',
+    resumo:
+      'A correção de uma perda silenciosa: edição que sumia no F5. E o cadastro de arquivo passou a começar pelo tipo.',
+    corrigido: [
+      'Uma alteração podia aparecer salva na tela e não chegar ao banco — no F5 ela voltava ao valor antigo. Era o caso da data de publicação editada e da ideia recém-criada, e a causa era a mesma: depois que o calendário buscava um mês sem conteúdo novo, o sistema ficava achando que ainda estava carregando, e descartava a alteração seguinte sem avisar. Agora o que vem do banco é marcado linha a linha, e a sua edição nunca entra nessa conta.',
+    ],
+    novidades: [
+      'O cadastro de arquivo começa pelo tipo: Arquivo, Link ou Texto. O campo de baixo é o daquilo — área de envio, campo de endereço ou campo de texto.',
+      'Criar bloco de notas virou o tipo "Texto" desse mesmo formulário, em vez de um botão separado.',
+    ],
+    melhorias: [
+      'Salvar sem preencher o que o tipo exige agora diz o que falta, na própria tela, em vez da caixa do navegador.',
+      'Nada de endereço ou tamanho inventado: antes, salvar sem escolher arquivo gravava um link para a página do Google Drive e "2,0 MB" de um arquivo que não existia.',
+    ],
+  },
+  {
     versao: '2.53.0',
     data: '2026-09-17',
     resumo:

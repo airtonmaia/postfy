@@ -7,7 +7,7 @@ import {
 } from '../ui/dialog';
 
 /**
- * O bloco de notas — criar, ler e editar.
+ * O bloco de notas — ler e editar.
  *
  * Ele guarda o que a agência escreve **sobre** o cliente: o que ele falou na
  * reunião, o combinado que não virou contrato, o detalhe que a próxima pessoa
@@ -20,16 +20,16 @@ import {
  * antes, e a de leitura existia só para mostrar o texto inteiro — quem abria
  * para reler e via um erro de digitação tinha de fechar e reabrir no outro
  * modo.
+ *
+ * **Criar não passa por aqui**: quem cria é o formulário da lista, com o tipo
+ * "Texto". Dois caminhos para a mesma linha divergem na primeira pressa.
  */
 export const EditorDeNota: React.FC<{
-  /** A nota aberta, ou `'nova'` para criar. `null` fecha. */
-  nota: ClientFile | 'nova' | null;
+  /** A nota aberta. `null` fecha. Criar é com o formulário da lista. */
+  nota: ClientFile | null;
   aoFechar: () => void;
   aoSalvar: (dados: { name: string; content: string }) => void;
 }> = ({ nota, aoFechar, aoSalvar }) => {
-  const criando = nota === 'nova';
-  const existente = criando ? null : nota;
-
   const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
   const [editando, setEditando] = useState(false);
@@ -43,12 +43,13 @@ export const EditorDeNota: React.FC<{
    */
   useEffect(() => {
     if (!nota) return;
-    setTitulo(existente?.name || '');
-    setTexto(existente?.content || '');
-    // Nota nova já abre escrevendo; nota existente abre lendo.
-    setEditando(criando);
+    setTitulo(nota.name || '');
+    setTexto(nota.content || '');
+    // Abre lendo: quem clica no card quer ler. O botão "Editar" é o passo a
+    // mais de quem quer mexer, e ele é barato.
+    setEditando(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [criando, existente?.id]);
+  }, [nota?.id]);
 
   const salvar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +73,7 @@ export const EditorDeNota: React.FC<{
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <StickyNote className="w-4 h-4 text-amber-500" />
-              {criando ? 'Novo bloco de notas' : titulo || 'Bloco de notas'}
+              {titulo || 'Bloco de notas'}
             </DialogTitle>
           </DialogHeader>
 

@@ -1082,23 +1082,38 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const hidratado = useRef(false);
 
   /**
-   * Marca o render que carrega dados do banco, para o diff ignorá-lo.
+   * **Quais linhas vieram do banco, por coleção — e não "estou carregando".**
    *
-   * `hidratado` sozinho não resolve: ele é ligado dentro de carregarTudo, mas
-   * `setState` é assíncrono e os efeitos das coleções só rodam no render
-   * seguinte — quando a bandeira já está ligada. Aí o estado anterior está
-   * vazio, o novo tem as linhas do banco, e o carregamento inteiro vira
-   * inserção.
+   * O que havia aqui era uma bandeira booleana global: ela dizia
+   * "pule este commit inteiro", e é baixada por um efeito sem lista de
+   * dependências, ou seja, **no próximo render que acontecer**. Isso falha de
+   * dois jeitos, os dois silenciosos:
    *
-   * Era isso que duplicava as linhas a cada recarga. Mandar o id no insert
-   * (v1.2) trocou a duplicação silenciosa por violação de chave única — o
-   * erro ficou visível, e a causa continuou aqui.
+   * 1. **Ela fica presa em `true`.** `garantirJobsDoPeriodo` levantava a
+   *    bandeira e só então chamava `setAllJobs`, cujo updater devolve
+   *    `atuais` quando não há linha nova. Devolver a mesma referência faz o
+   *    React **desistir do render** — e sem render o efeito que baixa a
+   *    bandeira não roda. A bandeira segue erguida até alguém mexer em
+   *    alguma coisa, e a primeira edição depois disso é **descartada**: o
+   *    efeito pula a gravação *e ainda avança `anterior.current`*, então ela
+   *    nunca é tentada de novo. Era isto que fazia a data editada voltar ao
+   *    valor antigo no F5, e a ideia recém-criada não existir no banco.
+   * 2. **Ela derruba a edição junto com a carga.** Se a busca de um período
+   *    cair no mesmo commit de uma edição do usuário, as duas somem.
    *
-   * Esta bandeira é limpa por um efeito declarado depois de todas as
-   * coleções: efeitos do mesmo commit rodam na ordem de declaração, então
-   * quando ele executa todas já pularam o próprio carregamento.
+   * O conjunto abaixo é preciso onde a bandeira era grossa: ele guarda **os
+   * ids que acabaram de vir do banco**, e o efeito remove só esses das
+   * inserções. Linha que o usuário editou aparece em `atualizados`, nunca em
+   * `inseridos`, então ela passa — venha no commit que vier.
    */
-  const aplicandoCargaDoBanco = useRef(false);
+  const idsVindosDoBanco = useRef<Record<string, Set<string>>>({});
+
+  const marcarComoVindoDoBanco = (nome: string, ids: string[]) => {
+    if (!ids.length) return;
+    const atual = idsVindosDoBanco.current[nome] ?? new Set<string>();
+    for (const id of ids) atual.add(id);
+    idsVindosDoBanco.current[nome] = atual;
+  };
 
   /**
    * Períodos já buscados, para não repetir a consulta.
@@ -1112,11 +1127,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   /**
    * Traz os jobs de um período que a carga inicial não cobriu.
    *
-   * A bandeira `aplicandoCargaDoBanco` é obrigatória aqui. Sem ela, o
+   * **Marcar as linhas é obrigatório aqui.** Sem a marca, o
    * `useColecaoSincronizada` vê linhas novas no estado e as trata como
    * inserção — tentaria gravar de volta no banco tudo que acabou de ler, e a
-   * chave primária recusaria uma a uma. É a mesma razão de a carga inicial
-   * levantar a bandeira.
+   * chave primária recusaria uma a uma, em silêncio, dentro da fila. É a mesma
+   * razão de a carga inicial marcar as dela.
+   *
+   * A marca vai **dentro do updater**, e não antes dele: fora, ela valeria
+   * mesmo quando não há linha nova — e aí o `setAllJobs` devolve a mesma
+   * referência, o React desiste do render, e a marca ficaria pendurada
+   * esperando um commit que não vem.
    */
   const garantirJobsDoPeriodo = async (inicio: Date, fim: Date) => {
     const chave = `${inicio.toISOString().slice(0, 7)}..${fim.toISOString().slice(0, 7)}`;
@@ -1135,11 +1155,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const encontrados = await buscarJobsDoPeriodo(inicio.toISOString(), fim.toISOString());
       if (encontrados.length === 0) return;
 
-      aplicandoCargaDoBanco.current = true;
       setAllJobs((atuais) => {
         const conhecidos = new Set(atuais.map((j) => j.id));
         const novos = encontrados.filter((j) => !conhecidos.has(j.id));
-        return novos.length > 0 ? [...atuais, ...novos] : atuais;
+        if (!novos.length) return atuais;
+        marcarComoVindoDoBanco('jobs', novos.map((j) => j.id));
+        return [...atuais, ...novos];
       });
     } catch (erro) {
       // Some da lista de carregados para a próxima navegação tentar de novo:
@@ -1189,11 +1210,31 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (!hidratado.current || !isAuthenticated) return;
 
-      // Estas linhas acabaram de vir do banco: gravá-las de volta seria
-      // reinserir o que já existe.
-      if (aplicandoCargaDoBanco.current) return;
-
       const d = diferenciar(antes, linhas);
+
+      /*
+        **Estas linhas acabaram de vir do banco: gravá-las de volta seria
+        reinserir o que já existe.**
+
+        O recorte é por id, e não "pule o commit inteiro". A versão anterior
+        era um booleano global baixado pelo próximo render — quando o render
+        não vinha (o `setAll` devolvendo a mesma referência faz o React
+        desistir dele), a bandeira ficava erguida e a **primeira edição de
+        verdade depois disso era descartada**, com `anterior.current` já
+        avançado: nunca mais tentada. Era isso que fazia a data editada voltar
+        ao valor antigo no F5 e a ideia nova não chegar ao banco.
+
+        Só `inseridos` é filtrado, e é o suficiente: linha que veio do banco é
+        nova para o diff, enquanto edição do usuário sobre uma linha que já
+        existia cai em `atualizados`. Uma carga e uma edição no mesmo commit
+        deixam de se atrapalhar.
+      */
+      const doBanco = idsVindosDoBanco.current[nome as string];
+      if (doBanco?.size) {
+        d.inseridos = d.inseridos.filter((linha) => !doBanco.has(linha.id));
+        doBanco.clear();
+      }
+
       if (!temMudanca(d)) return;
 
       // Entra na fila em vez de sair gravando.
@@ -1241,20 +1282,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useColecaoSincronizada('clientMaterials', allClientMaterials);
   useColecaoSincronizada('timesheetLogs', allTimesheetLogs);
 
-  /**
-   * Baixa a bandeira de carga.
-   *
-   * Precisa ficar **depois** de todas as coleções: efeitos do mesmo commit
-   * rodam na ordem em que são declarados, então quando este executa todas já
-   * tiveram a chance de pular o próprio carregamento. Mover para cima faz o
-   * carregamento voltar a ser gravado como inserção.
-   *
-   * Sem lista de dependências de propósito: roda em todo render, e é o que
-   * garante que a próxima edição de verdade seja sincronizada.
-   */
-  useEffect(() => {
-    aplicandoCargaDoBanco.current = false;
-  });
+  /*
+    **O efeito que baixava a bandeira saiu junto com ela.**
+
+    Ele rodava em todo render, sem lista de dependências, e a correção
+    dependia disso: bastava o render não acontecer para a bandeira ficar
+    presa. O recorte por id não depende de momento nenhum — a marca é
+    consumida pelo próprio diff da coleção marcada.
+  */
 
   /** Carrega tudo do banco assim que existe sessão. */
   const carregarDoBanco = async () => {
@@ -1274,7 +1309,26 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workspaceId: m.workspaceId,
       }))
     );
-    aplicandoCargaDoBanco.current = true;
+    /*
+      A carga inteira entra marcada: cada linha é nova para o diff, e sem a
+      marca o efeito tentaria gravar de volta tudo que acabou de ler — a
+      chave primária recusaria uma a uma, em silêncio, dentro da fila.
+    */
+    const carga = {
+      clients: dados.clients,
+      jobs: dados.jobs,
+      leads: dados.leads,
+      proposals: dados.proposals,
+      contracts: dados.contracts,
+      automations: dados.automations,
+      notifications: dados.notifications,
+      activityLogs: dados.activityLogs,
+      clientMaterials: dados.clientMaterials,
+      timesheetLogs: dados.timesheetLogs,
+    };
+    for (const [nome, linhas] of Object.entries(carga)) {
+      marcarComoVindoDoBanco(nome, (linhas as { id: string }[]).map((l) => l.id));
+    }
 
     setAllClients(dados.clients);
     setAllJobs(dados.jobs);

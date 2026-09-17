@@ -94,14 +94,17 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
   const [showAddFile, setShowAddFile] = useState(false);
   /** O arquivo aberto para correção. `null` = a modal fica fechada. */
   const [arquivoEmEdicao, setArquivoEmEdicao] = useState<ClientFile | null>(null);
-  /** A nota aberta, ou `'nova'`. `null` = fechada. */
-  const [notaAberta, setNotaAberta] = useState<ClientFile | 'nova' | null>(null);
+  /** A nota aberta para ler ou editar. `null` = fechada. */
+  const [notaAberta, setNotaAberta] = useState<ClientFile | null>(null);
   const [tipoVisivel, setTipoVisivel] = useState<TipoDeArquivo>('todos');
   const [fileName, setFileName] = useState('');
   const [fileCat, setFileCat] = useState<ClientFile['category']>('identidade_visual');
   const [fileUrl, setFileUrl] = useState('');
-  const [fileSize, setFileSize] = useState('1.5 MB');
+  const [fileSize, setFileSize] = useState('');
   const [fileKind, setFileKind] = useState<ClientFile['kind']>('arquivo');
+  /** O texto, quando o tipo é "Texto". */
+  const [fileContent, setFileContent] = useState('');
+  const [erroDoArquivo, setErroDoArquivo] = useState('');
   const [baixando, setBaixando] = useState<string | null>(null);
   const { avisar, dialogo: dialogoDeAviso } = useAviso();
 
@@ -235,23 +238,69 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
     setShowAddPassword(false);
   };
 
-  const handleCreateFile = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fileName.trim()) return;
-    addClientFile(client.id, {
-      name: fileName,
-      category: fileCat,
-      url: fileUrl || 'https://drive.google.com',
-      size: fileSize || '2.0 MB',
-      // Gravado agora para que a linha nova não dependa da adivinhação que
-      // `tipoDoArquivo()` faz pelas antigas.
-      kind: fileKind,
-    });
+  const fecharFormDeArquivo = () => {
+    setShowAddFile(false);
     setFileName('');
     setFileUrl('');
+    setFileSize('');
+    setFileContent('');
+    setFileCat('identidade_visual');
     setFileKind('arquivo');
-    setShowAddFile(false);
+    setErroDoArquivo('');
   };
+
+  /**
+   * O tipo decide o que é obrigatório, o que é gravado e o que fica vazio.
+   *
+   * **Duas invenções saíram daqui.** A versão anterior gravava
+   * `url: fileUrl || 'https://drive.google.com'` e `size: fileSize || '2.0 MB'`:
+   * quem salvasse sem escolher arquivo nenhum ficava com uma linha apontando
+   * para a página do Drive, com "2,0 MB" de um arquivo que não existe. Número
+   * e endereço inventados numa lista de arquivos é a armadilha 9 no lugar em
+   * que a pessoa clica esperando abrir o que ela guardou.
+   *
+   * Agora cada tipo exige o que ele precisa e **deixa vazio o que não tem** —
+   * o bloco de notas não tem tamanho, e o campo em branco diz isso melhor que
+   * qualquer valor.
+   */
+  const handleCreateFile = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroDoArquivo('');
+
+    if (!fileName.trim()) {
+      setErroDoArquivo('Informe o título.');
+      return;
+    }
+
+    if (fileKind === 'arquivo' && !fileUrl) {
+      setErroDoArquivo('Escolha o arquivo a enviar, ou troque o tipo para Link.');
+      return;
+    }
+
+    if (fileKind === 'link' && !fileUrl.trim()) {
+      setErroDoArquivo('Cole o endereço da pasta ou do documento.');
+      return;
+    }
+
+    addClientFile(client.id, {
+      name: fileName.trim(),
+      // A categoria é do conteúdo, e o texto não tem uma.
+      category: fileKind === 'nota' ? 'notas' : fileCat,
+      url: fileKind === 'nota' ? '' : fileUrl.trim(),
+      // Só o arquivo enviado tem tamanho medido. Link e texto ficam vazios.
+      size: fileKind === 'arquivo' ? fileSize : '',
+      content: fileKind === 'nota' ? fileContent : undefined,
+      // Gravado agora, escolhido por quem cadastra: a linha nova não depende
+      // da adivinhação que `tipoDoArquivo()` faz pelas antigas.
+      kind: fileKind,
+    });
+
+    fecharFormDeArquivo();
+  };
+
+  /** A mesma classe dos campos do formulário, num lugar só. */
+  const classeDoCampo =
+    'w-full p-2.5 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500';
 
   const arquivosDoCliente = client.files || [];
   const contarPorTipo = (tipo: 'arquivo' | 'link' | 'nota') =>
@@ -262,24 +311,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       : arquivosDoCliente.filter((f) => tipoDoArquivo(f) === tipoVisivel);
 
   /**
-   * Criar e editar o bloco de notas passam pela mesma linha de `files`.
-   *
-   * O bloco nasce sem categoria de conteúdo (`notas`), sem URL e sem tamanho:
-   * ele não é um arquivo, e inventar "2,0 MB" para ele faria a lista afirmar
-   * um número que não mediu nada.
+   * Editar o bloco de notas. **Criar não passa por aqui**: quem cria é o
+   * formulário de cima, com o tipo "Texto" — ter os dois caminhos faria a
+   * mesma linha nascer de dois lugares diferentes.
    */
   const salvarNota = (dados: { name: string; content: string }) => {
-    if (notaAberta === 'nova') {
-      addClientFile(client.id, {
-        name: dados.name,
-        content: dados.content,
-        category: 'notas',
-        url: '',
-        size: '',
-        kind: 'nota',
-      });
-      return;
-    }
     if (notaAberta) updateClientFile(client.id, notaAberta.id, dados);
   };
 
@@ -560,16 +596,14 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">Arquivos do Cliente</h4>
                 <p className="text-xs text-slate-500">Anexos, links de pasta na nuvem e blocos de notas da equipe.</p>
               </div>
-              <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
-                <Button variant="outline" onClick={() => setNotaAberta('nova')}>
-                  <StickyNote className="w-4 h-4" />
-                  Novo bloco de notas
-                </Button>
-                <Button onClick={() => setShowAddFile(true)}>
-                  <Plus className="w-4 h-4" />
-                  Adicionar arquivo / link
-                </Button>
-              </div>
+              {/* **Um botão só.** O "Novo bloco de notas" separado que existia
+                  aqui era um segundo caminho para o mesmo formulário — e dois
+                  caminhos para a mesma coisa divergem na primeira pressa. Quem
+                  escolhe o que cadastrar é o tipo, dentro do formulário. */}
+              <Button onClick={() => setShowAddFile(true)} className="w-full sm:w-auto">
+                <Plus className="w-4 h-4" />
+                Adicionar
+              </Button>
             </div>
 
             {/*
@@ -602,28 +636,99 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               </TabsList>
             </Tabs>
 
-            {/* Add File Modal/Form */}
+            {/*
+              **O tipo é a primeira escolha, e ele governa o formulário.**
+
+              Antes o primeiro seletor era "Categoria" (identidade visual,
+              fotos, contratos…) e o **tipo era adivinhado** pelo que a pessoa
+              fizesse depois: enviar um arquivo virava `arquivo`, colar um
+              endereço virava `link`. Funcionava e escondia a decisão — quem
+              queria só colar um link do Drive encarava uma área de arrastar
+              arquivo, e não havia caminho nenhum para escrever um texto.
+
+              Agora a pessoa diz o que vai cadastrar, e o campo de baixo é o
+              daquilo: área de envio, campo de endereço ou campo de texto. Um
+              formulário que mostra três campos e usa um é o mesmo que pedir
+              que ela adivinhe qual vale.
+            */}
             {showAddFile && (
-              <form onSubmit={handleCreateFile} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-md space-y-4 animate-in fade-in">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-purple-600">Novo Arquivo ou Link do Google Drive</h5>
+              <form
+                /*
+                  `noValidate` **não** tira o `required` dos campos: ele fica
+                  no DOM, que é o que leitor de tela anuncia. O que sai é a
+                  bolha do navegador — ela tem a fonte e o cinza do sistema
+                  operacional num produto whitelabel, e, pior, **barrava o
+                  envio antes do `handleCreateFile` rodar**: a mensagem escrita
+                  aqui, que diz o que fazer ("cole o endereço da pasta"), nunca
+                  aparecia.
+                */
+                noValidate onSubmit={handleCreateFile} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-md space-y-4 animate-in fade-in">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-purple-600">
+                  {fileKind === 'nota'
+                    ? 'Novo bloco de notas'
+                    : fileKind === 'link'
+                    ? 'Novo link'
+                    : 'Novo arquivo'}
+                </h5>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Título do Arquivo *</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Identidade Visual 2026 / Fotos do Ensaio" 
-                      value={fileName} 
-                      onChange={e => setFileName(e.target.value)} 
-                      className="w-full p-2.5 text-xs border rounded-xl bg-slate-50 dark:bg-slate-950 dark:border-slate-800" 
-                      required 
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Título *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        fileKind === 'nota'
+                          ? 'Ex: Dados comerciais'
+                          : 'Ex: Identidade Visual 2026 / Fotos do Ensaio'
+                      }
+                      value={fileName}
+                      onChange={e => setFileName(e.target.value)}
+                      className={classeDoCampo}
+                      required
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Categoria</label>
-                    <select 
-                      value={fileCat} 
-                      onChange={e => setFileCat(e.target.value as any)} 
-                      className="w-full p-2.5 text-xs border rounded-xl bg-slate-50 dark:bg-slate-950 dark:border-slate-800"
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Tipo de arquivo
+                    </label>
+                    <select
+                      value={fileKind}
+                      onChange={e => {
+                        /*
+                          Trocar de tipo **limpa o conteúdo do tipo anterior**.
+                          Sem isto, quem enviasse um arquivo e trocasse para
+                          "link" gravaria a linha com a URL do R2 marcada como
+                          link — e a lista ofereceria "abrir em outra aba" para
+                          um anexo, com o botão de baixar sumido.
+                        */
+                        setFileKind(e.target.value as ClientFile['kind']);
+                        setFileUrl('');
+                        setFileSize('');
+                        setFileContent('');
+                      }}
+                      className={`${classeDoCampo} cursor-pointer`}
+                    >
+                      <option value="arquivo">Arquivo</option>
+                      <option value="link">Link</option>
+                      <option value="nota">Texto</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* A categoria é do **conteúdo**, e o texto não tem: um bloco
+                    de notas não é identidade visual nem contrato. */}
+                {fileKind !== 'nota' && (
+                  <div className="sm:max-w-xs">
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Categoria
+                    </label>
+                    <select
+                      value={fileCat}
+                      onChange={e => setFileCat(e.target.value as ClientFile['category'])}
+                      className={`${classeDoCampo} cursor-pointer`}
                     >
                       <option value="identidade_visual">Identidade Visual</option>
                       <option value="fotos">Fotos / Ensaio</option>
@@ -633,38 +738,80 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                       <option value="briefing">Briefing</option>
                     </select>
                   </div>
-                </div>
+                )}
 
-                <div>
+                {fileKind === 'arquivo' && (
                   <FileUpload
-                    label="Selecionar Arquivo ou Inserir Link"
+                    label="Selecionar arquivo"
                     value={fileUrl}
                     fileName={fileName}
+                    /* `allowUrlFallback={false}`: colar endereço agora é o tipo
+                       "Link", e deixar os dois caminhos abertos aqui traria de
+                       volta a adivinhação que o seletor veio resolver. */
+                    allowUrlFallback={false}
                     onFileSelect={(file) => {
                       setFileUrl(file.url);
                       if (!fileName) setFileName(file.name);
-                      if (file.size) setFileSize(file.size);
-                      // `type === 'link'` é o que o FileUpload marca no modo
-                      // "inserir link", onde não há bytes para medir.
-                      setFileKind(file.type === 'link' ? 'link' : 'arquivo');
+                      setFileSize(file.size || '');
                     }}
                     onFileRemove={() => setFileUrl('')}
                   />
-                </div>
+                )}
 
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="ghost" 
-                    type="button" 
-                    onClick={() => setShowAddFile(false)} 
+                {fileKind === 'link' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Link *
+                    </label>
+                    <input
+                      type="url"
+                      value={fileUrl}
+                      onChange={e => setFileUrl(e.target.value)}
+                      placeholder="https://drive.google.com/drive/folders/..."
+                      className={`${classeDoCampo} font-mono`}
+                      required
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      A pasta continua onde está — o Orquesia guarda o endereço,
+                      não uma cópia.
+                    </p>
+                  </div>
+                )}
+
+                {fileKind === 'nota' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Texto
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={fileContent}
+                      onChange={e => setFileContent(e.target.value)}
+                      placeholder="O que a próxima pessoa precisa saber sobre este cliente."
+                      className={`${classeDoCampo} leading-relaxed`}
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Só a equipe da agência vê. Não aparece no Portal do Cliente.
+                    </p>
+                  </div>
+                )}
+
+                {erroDoArquivo && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
+                    {erroDoArquivo}
+                  </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-2 [&>*]:w-full sm:[&>*]:w-auto">
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={fecharFormDeArquivo}
                     className="dark:hover:text-white"
                   >
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
-                  >
-                    Salvar Arquivo
-                  </Button>
+                  <Button type="submit">Salvar</Button>
                 </div>
               </form>
             )}
