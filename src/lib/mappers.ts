@@ -189,6 +189,11 @@ export const jobDaLinha = (l: Linha): Job => ({
   currentVersion: l.current_version ?? 1,
   versions: l.versions ?? [],
   createdAt: l.created_at,
+  // Carimbada pelo gatilho `jobs_carimbar_atualizacao`, nunca pelo app: são
+  // muitos caminhos de escrita (diff, RPC do portal, cron), e um deles
+  // esqueceria. Linha anterior à coluna cai na data de criação, que é a
+  // verdade que existe sobre ela.
+  updatedAt: l.updated_at ?? l.created_at,
   deadlineProduction: l.deadline_production ?? '',
   deadlineApproval: l.deadline_approval ?? '',
   scheduledDate: l.scheduled_date ?? '',

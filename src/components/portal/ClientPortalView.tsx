@@ -49,6 +49,7 @@ import {
   type UsuarioListadoNoPortal,
 } from '../../lib/portal';
 import { ClientPortalLogin } from './ClientPortalLogin';
+import { ConversaComAAgencia } from './ConversaComAAgencia';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
@@ -816,6 +817,15 @@ export const ClientPortalView: React.FC = () => {
                         </strong>
                       </div>
                     </div>
+
+                    {/*
+                      **O terceiro caminho.** Aprovar joga a peça para a
+                      frente e pedir ajuste joga para trás, criando uma versão
+                      nova — "a foto está ótima, só troque o horário no texto"
+                      não cabia em nenhum dos dois, e virava mensagem no
+                      WhatsApp da agência, longe do conteúdo de que falava.
+                    */}
+                    <ConversaComAAgencia job={job} />
 
                     {/* Actions Toolbar */}
                     <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between gap-3">

@@ -17,7 +17,23 @@ const ler = (...p: string[]) => semComentarios(readFileSync(join(RAIZ, ...p), 'u
 
 const publicar = ler('api', 'publicar.ts');
 const instagram = ler('api', '_lib', 'instagram.ts');
-const modal = ler('src', 'components', 'modals', 'CreateJobModal.tsx');
+/**
+ * O formulário do conteúdo, que agora é **um só**: cadastrar e editar montam
+ * o mesmo componente.
+ *
+ * A guarda apontava para `CreateJobModal.tsx`, e passou a apontar para
+ * errado no dia em que o formulário saiu de lá. Ela seguiu o *arquivo*, e o
+ * que ela existe para proteger é a *decisão* — dois campos de upload, a arte
+ * do story fora de `media_urls`. É a mesma lição da guarda do despacho por
+ * rede, que precisou sair da sintaxe do ternário.
+ */
+const modal = ler('src', 'components', 'jobs', 'FormularioDoConteudo.tsx');
+
+/** Onde a decisão de gravar vira linha do banco: as duas telas que salvam. */
+const telasQueSalvam = [
+  ler('src', 'components', 'modals', 'CreateJobModal.tsx'),
+  ler('src', 'components', 'modals', 'JobDetailModal.tsx'),
+];
 /**
  * A tabela de formatos por rede saiu da modal de cadastro para cá.
  *
@@ -137,9 +153,17 @@ describe('as duas artes existem em todo lugar que decide', () => {
      * Guardar o story ali faria um carrossel de duas páginas virar feed+story
      * sozinho, e vice-versa.
      */
-    expect(modal, 'a arte do story voltou a ser gravada em mediaUrls').toMatch(
-      /storyMediaUrls: format === 'feed_story' \? storyMediaUrls : \[\]/
-    );
+    /**
+     * **As duas telas gravam**, e as duas precisam da condição. O editor
+     * passou a salvar a peça inteira: sem a mesma linha ali, reabrir um
+     * carrossel e clicar em "Salvar" carimbaria a arte do story num post de
+     * feed — e nenhuma tela mostraria essa mídia órfã.
+     */
+    for (const fonte of telasQueSalvam) {
+      expect(fonte, 'a arte do story voltou a ser gravada em mediaUrls').toMatch(
+        /storyMediaUrls: (?:dados\.)?format === 'feed_story' \? (?:dados\.)?storyMediaUrls : \[\]/
+      );
+    }
   });
 
   it('o cliente vê as duas no portal', () => {

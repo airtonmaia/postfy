@@ -31,6 +31,31 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.52.0',
+    data: '2026-09-17',
+    resumo:
+      'A tela de edição do conteúdo passou a ter tudo o que a de cadastro tem — e o cliente ganhou um chat na aprovação.',
+    novidades: [
+      'Editar um conteúdo agora abre o mesmo formulário do cadastro: cliente, canais, formato, prioridade, arte do feed, arte do story, os campos da rede (localização, primeiro comentário, capa do Reel) e o contador de caracteres. Antes metade disso só existia na criação.',
+      'A prévia da publicação, que só existia ao cadastrar, agora fica ao lado enquanto você edita — com a arte, a legenda e o perfil do cliente.',
+      'As abas viraram três, na ordem do trabalho: Conteúdo, Revisões e Compartilhamento.',
+      'Revisões reúne o pedido de ajuste do cliente, a conversa com ele e o histórico de versões, que antes eram duas abas separadas e um aviso que sumia.',
+      'No portal, o cliente pode conversar sobre o conteúdo na própria tela de aprovação — um terceiro caminho entre aprovar e pedir ajuste, para o "gostei, só troque o horário no texto" que antes ia parar no WhatsApp.',
+      '"Agendar publicação" agora existe também na edição: antes, remarcar a data de uma peça já criada não a devolvia para a fila, e ela não saía.',
+      'Compartilhamento deixou de ser uma janela sobre a outra e virou aba, com o link do portal separado da mensagem de WhatsApp.',
+    ],
+    melhorias: [
+      'Nada é gravado enquanto você digita: a barra "Salvar alterações" aparece quando há mudança, e fechar com algo pendente pergunta antes.',
+      'Checklist e horas viraram seções recolhíveis dentro de Conteúdo, com a contagem à vista.',
+      'O conteúdo agora registra quando foi alterado pela última vez.',
+    ],
+    corrigido: [
+      'O portal do cliente recebia, junto com cada conteúdo, dados internos da agência que nunca deveriam sair daqui: o rascunho da legenda, os minutos gastos na peça, quem da equipe a produziu, o checklist de produção e a estratégia de campanha, público e funil. Eles não apareciam em tela, mas estavam no navegador do cliente.',
+      'No celular a modal de conteúdo abria na prévia, com o formulário empurrado para fora da tela e sem barra de rolagem para chegar nele.',
+      'A tela de horas afirmava um custo de "R$ 85,00/hora" e uma "Excelente Margem" que nenhum dado sustenta. Saíram: o tempo, que é medido, ficou.',
+    ],
+  },
+  {
     versao: '2.51.0',
     data: '2026-09-17',
     resumo: 'Todas as janelas do sistema fecham com Esc, prendem o foco e travam a rolagem do fundo.',
