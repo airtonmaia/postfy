@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   X, ThumbsUp, Link as LinkIcon, Send, CheckCircle2, AlertTriangle,
-  Lightbulb, CalendarClock,
+  Lightbulb, CalendarClock, ChevronDown, ChevronUp,
   Instagram, Facebook, Linkedin, Youtube, Twitter, Music2,
 } from 'lucide-react';
 import { Job, JobPlatform, JobFormat, JobPriority, JobStatus } from '../../types';
@@ -209,6 +209,23 @@ export const CreateJobModal: React.FC = () => {
       setFormat(disponiveis[0].valor);
     }
   }, [canais, format]);
+
+  /**
+   * A prévia começa fechada **no celular**, e é `false` aqui de propósito.
+   *
+   * Lado a lado ela não custa nada; empilhada embaixo de um formulário de
+   * doze campos, ela é uma tela e meia de espaço vazio — três quadros "a arte
+   * aparece aqui" que a pessoa rola antes de chegar ao fim. Quem abre a modal
+   * no telefone veio preencher, não conferir.
+   *
+   * No desktop o `lg:block` ignora este estado: a coluna está sempre lá, e
+   * ninguém precisa clicar para ter o que já tinha.
+   *
+   * O hook fica **antes** do `return null` — depois dele a modal rodaria duas
+   * listas de hooks diferentes e o React derrubaria a árvore com o erro #310
+   * (armadilha 8.1).
+   */
+  const [previaAberta, setPreviaAberta] = useState(false);
 
   if (!isCreateJobModalOpen) return null;
 
@@ -476,10 +493,12 @@ export const CreateJobModal: React.FC = () => {
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    /* Tela cheia no celular, pela mesma razão da modal de detalhe: os 32px de
+       respiro em volta saíam da largura de um formulário que já não cabia. */
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden"
+        className="relative bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 w-full max-w-6xl h-full sm:h-auto max-h-full sm:max-h-[92vh] flex flex-col overflow-hidden"
       >
         {/* Sem faixa de cabeçalho: ela repetia o que o próprio formulário já
             diz e comia altura útil num modal que já rola. Sobra o fechar. */}
@@ -494,7 +513,7 @@ export const CreateJobModal: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
         {/* Form */}
-        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-6 space-y-4">
+        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Client */}
             <div>
@@ -819,12 +838,25 @@ export const CreateJobModal: React.FC = () => {
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
+          {/*
+            Buttons
+
+            **No celular cada ação ocupa a linha inteira, na ordem da
+            decisão.** Com `flex-wrap justify-end` e o `mr-auto` do Cancelar,
+            os cinco botões caíam em três linhas desencontradas — uma com dois,
+            uma com dois e uma com um, todas alinhadas à direita e nenhuma
+            dizendo qual era a ação principal. Empilhados, a ordem do DOM vira
+            a ordem de leitura, e ela já está certa: cancelar, publicar agora,
+            ideia, agendar, enviar para aprovação.
+
+            `[&>*]:w-full` alcança os botões sem repetir a classe em cada um —
+            e sai sozinho no `sm`, onde a linha volta a ser linha.
+          */}
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-3 [&>*]:w-full sm:[&>*]:w-auto">
             <Button variant="ghost"
               type="button"
               onClick={closeCreateJobModal}
-              className="mr-auto"
+              className="sm:mr-auto"
             >
               Cancelar
             </Button>
@@ -886,7 +918,24 @@ export const CreateJobModal: React.FC = () => {
         {/* Prévia: como fica na rede escolhida, com o dado deste formulário. */}
         {/* Centralizada na vertical, e com folga no topo: encostada em cima
             ela passava por baixo do botão de fechar. */}
-        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 pt-12 flex items-center">
+        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:pt-12 flex flex-col lg:flex-row lg:items-center gap-3">
+          {/*
+            O botão que abre a prévia **só existe abaixo do `lg`**, que é onde
+            ela deixa de ser coluna e vira rodapé. Acima disso ela está sempre
+            aberta e um botão para "mostrar" o que já está à vista seria ruído.
+          */}
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => setPreviaAberta((v) => !v)}
+            className="lg:hidden w-full"
+            aria-expanded={previaAberta}
+          >
+            {previaAberta ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {previaAberta ? 'Ocultar prévia' : 'Ver prévia da publicação'}
+          </Button>
+
+          <div className={`${previaAberta ? 'flex' : 'hidden'} lg:flex w-full items-center`}>
           <PreviaDaRede
             className="w-full"
             dados={{
@@ -905,6 +954,7 @@ export const CreateJobModal: React.FC = () => {
                 : undefined,
             }}
           />
+          </div>
         </aside>
         </div>
       </div>

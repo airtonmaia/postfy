@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.46.0',
+    data: '2026-09-17',
+    resumo: 'As telas de conteúdo passaram a funcionar no celular — e a Biblioteca voltou a rolar.',
+    corrigido: [
+      'A Biblioteca não rolava. Quem tinha acervo maior que a tela simplesmente não chegava ao resto dos arquivos — sem barra de rolagem, sem erro e sem pista de que havia mais coisa embaixo.',
+      'A tela de detalhe do conteúdo era ilegível no celular: o nome do cliente quebrava em três linhas, o título virava "D..." e a barra de abas ficava com um quinto do espaço que precisava, escondida atrás do botão vizinho.',
+      'Na tela de novo conteúdo, o rótulo "Mídia e criativos" quebrava em cinco linhas ao lado do botão, e os cinco botões do rodapé caíam em três linhas desencontradas sem deixar claro qual era a ação principal.',
+    ],
+    melhorias: [
+      'No celular as duas telas de conteúdo usam a tela inteira, em vez de uma caixa centrada que perdia largura onde ela já é escassa.',
+      'A prévia da publicação começa recolhida no celular, atrás de um botão: empilhada embaixo do formulário, ela era uma tela e meia de quadros vazios entre a pessoa e o botão de salvar. No computador nada muda — ela continua sempre à vista, ao lado.',
+      'No rodapé do novo conteúdo cada ação ocupa a linha inteira no celular, na ordem da decisão, com "Enviar para aprovação" em destaque no fim.',
+    ],
+  },
+  {
     versao: '2.45.0',
     data: '2026-09-17',
     resumo: 'A tela de detalhe do conteúdo virou editor: dá para alterar ali tudo o que o cadastro insere.',

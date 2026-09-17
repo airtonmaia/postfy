@@ -165,7 +165,18 @@ export const BibliotecaView: React.FC = () => {
   }, [clients, porPasta]);
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    /**
+     * **A raiz precisa rolar sozinha.**
+     *
+     * O `<main>` do `App.tsx` é `flex-1 min-h-0 overflow-hidden`: ele dá a
+     * altura e **corta** o que passa dela. Quem rola é cada tela, e esta era a
+     * única sem `overflow-y-auto` — o acervo passava da dobra e simplesmente
+     * não havia como chegar nele, sem barra, sem erro, sem pista.
+     *
+     * Só aparece quando o conteúdo passa da altura da janela, então no
+     * desktop de quem escreveu, com poucos arquivos, ela parecia certa.
+     */
+    <div className="flex-1 min-w-0 overflow-y-auto p-6 md:p-8 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
