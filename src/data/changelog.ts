@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.59.1',
+    data: '2026-09-18',
+    resumo:
+      'Uma varredura atrás de erros e pontas soltas. Achou uma contradição na tela de Publicações.',
+    corrigido: [
+      'A tela de Publicações dizia que só o Instagram publica sozinho, enquanto a etiqueta logo ao lado — que lê a lista de verdade — já mostrava Instagram e Facebook. A frase era de quando só havia uma rede; agora ela não nomeia rede nenhuma, então entrar uma rede nova não exige lembrar de reescrever texto.',
+    ],
+  },
+  {
     versao: '2.59.0',
     data: '2026-09-17',
     resumo:
