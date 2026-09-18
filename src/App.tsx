@@ -648,14 +648,41 @@ const MainLayout: React.FC = () => {
           </div>
         )}
 
-        {/* Falha ao gravar no banco. Não existe mais aviso de cache: nada de
-            dado de agência passa pelo navegador. */}
+        {/*
+          Falha ao gravar no banco. Não existe mais aviso de cache: nada de
+          dado de agência passa pelo navegador.
+
+          **A faixa diz a consequência antes do motivo**, e isso é a metade
+          visível da correção do erro que se apagava sozinho. Ela mostrava só
+          `syncError`, que para uma recusa do Postgres é a mensagem crua — em
+          inglês e nomeando uma constraint:
+
+              new row for relation "jobs" violates check constraint
+              "jobs_format_check"
+
+          Quem lê isso não conclui "meu conteúdo não foi salvo"; conclui que
+          teve um soluço técnico. E a tela continua mostrando a peça, porque a
+          gravação é derivada de diff e a pintura vem antes da resposta do
+          banco — então a frase que importa é a que diz para recarregar e
+          conferir. O detalhe técnico fica, menor, porque é ele que torna o
+          relato acionável.
+
+          Âmbar e não vermelho de propósito: o trabalho não foi perdido da
+          tela, e nada precisa ser feito com pressa — o que não pode é passar
+          batido.
+        */}
         {syncState === 'error' && (
           <div className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed flex-1">
-              {syncError}
-            </p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-amber-900 dark:text-amber-200 leading-snug">
+                Uma alteração não chegou ao banco. O que está na tela pode não
+                estar salvo — recarregue para ver o que foi gravado de verdade.
+              </p>
+              <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed mt-0.5 break-words">
+                {syncError}
+              </p>
+            </div>
           </div>
         )}
 

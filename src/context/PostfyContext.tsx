@@ -53,6 +53,7 @@ import {
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
+import { criarPainelDeErros, type Repintura } from '../lib/errosDeGravacao';
 import {
   carregarAparencia,
   esquecerAparencia,
@@ -1179,14 +1180,33 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    */
   const filaDeGravacao = useRef<Promise<void>>(Promise.resolve());
 
-  const relatarErro = (erro: unknown, acao: string) => {
+  /**
+   * Os erros de gravação em aberto, **por origem**.
+   *
+   * O porquê inteiro está em `src/lib/errosDeGravacao.ts`, junto da lógica —
+   * em resumo: as dez coleções dividem uma fila e dividiam um `syncState`, e
+   * o `'saved'` de `activityLogs` apagava o `'error'` de `jobs` milissegundos
+   * depois. O registro de "Criou o conteúdo" apagava o aviso de que o
+   * conteúdo não foi criado.
+   */
+  const painelDeErros = useRef(criarPainelDeErros());
+
+  const aplicarRepintura = (r: Repintura) => {
+    if (!r) return;
+    setSyncState(r.estado);
+    setSyncError(r.mensagem);
+  };
+
+  const relatarErro = (erro: unknown, acao: string, origem: string = acao) => {
     const mensagem =
       erro instanceof DbError || erro instanceof ApiError
         ? erro.message
         : `Não foi possível ${acao}.`;
-    setSyncState('error');
-    setSyncError(mensagem);
+    aplicarRepintura(painelDeErros.current.falhou(origem, mensagem));
   };
+
+  const gravacaoDeuCerto = (origem: string) =>
+    aplicarRepintura(painelDeErros.current.deuCerto(origem));
 
   /**
    * Persiste uma coleção comparando o estado anterior com o novo.
@@ -1259,12 +1279,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             ...d.atualizados.map((linha) => repositorio.atualizar(linha.id, linha)),
             ...d.removidos.map((id) => repositorio.remover(id)),
           ]);
-          setSyncState('saved');
-          setSyncError(null);
+          // A origem é a coleção, e não um rótulo genérico: é o que impede o
+          // sucesso de `activityLogs` de apagar a falha de `jobs`.
+          gravacaoDeuCerto(nome as string);
         } catch (erro) {
           // A fila nunca rejeita: uma falha numa coleção não pode impedir a
           // gravação das seguintes.
-          relatarErro(erro, 'salvar as alterações');
+          relatarErro(erro, 'salvar as alterações', nome as string);
         }
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
