@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.60.0',
+    data: '2026-09-18',
+    resumo:
+      'O aviso de "não salvou" era apagado pelo próprio sistema, segundos depois de aparecer. Era por isso que as falhas passavam despercebidas.',
+    corrigido: [
+      'Quando uma alteração não chegava ao banco, o aviso aparecia — e sumia quase imediatamente. Salvar um conteúdo grava duas coisas: o conteúdo e o registro no histórico de atividade. Se o conteúdo falhava e o registro passava, o sucesso do registro apagava o aviso da falha. Na prática, a linha "Criou o conteúdo" apagava o alerta de que o conteúdo não tinha sido criado. Agora cada tipo de dado tem o seu próprio aviso, e ele só some quando aquilo que falhou voltar a gravar.',
+      'O aviso dizia só a mensagem técnica do banco, em inglês. Agora ele começa pela consequência — que a alteração não foi salva e vale recarregar para ver o que está gravado de verdade — e mantém o detalhe técnico embaixo, para quando você precisar relatar.',
+    ],
+  },
+  {
     versao: '2.59.1',
     data: '2026-09-18',
     resumo:

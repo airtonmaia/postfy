@@ -51,6 +51,51 @@ navegador afirma.
 **As consultas não filtram por `workspace_id` de propósito.** Quem recorta é a
 RLS. Filtrar no cliente daria a impressão de que a segurança mora lá.
 
+### O aviso de falha era apagado pelo commit que o causava
+
+Esta é a razão de **todo** bug de gravação silenciosa deste arquivo ter
+passado despercebido, e ela vale mais que qualquer um deles isolado.
+
+A fila de gravação sempre capturou o erro e acendeu uma faixa no topo da tela.
+O que faltava é que as dez coleções dividem a fila e dividiam **um**
+`syncState`. `createJob` mexe em duas delas no mesmo render:
+
+```
+setAllJobs(...)    → insert em `jobs`           falha  → faixa acende
+logActivity(...)   → insert em `activity_logs`  passa  → faixa APAGA
+```
+
+A fila é sequencial e `activityLogs` vem depois de `jobs`, então o `'saved'`
+do log chegava milissegundos depois do `'error'` do conteúdo. **O registro de
+"Criou o conteúdo" era exatamente o que apagava o aviso de que o conteúdo não
+foi criado.**
+
+Os números de produção fecham com isso: numa tarde, **dez** linhas
+`Criou o conteúdo` em `activity_logs` e **uma** em `jobs`, sem ninguém ver
+erro nenhum. O `feed_story` que o banco recusava, a bandeira que descartava a
+edição seguinte e o canal que não entrava na fila — os três só ficaram caros
+porque o aviso não sobrevivia ao próprio commit.
+
+`src/lib/errosDeGravacao.ts` guarda um erro **por origem**, e a saída
+antecipada de `deuCerto` é a correção inteira: quem não tinha erro não tem o
+que limpar, e com outra origem em aberto não pode silenciar o aviso dela.
+
+**A lógica mora fora do componente porque assim ela é exercitada, não
+descrita.** `tests/erros-de-gravacao.test.ts` reproduz o caso do `createJob`
+com o painel de verdade — e foi conferido ao contrário, com o `erros.clear()`
+de volta: três asserções reprovam. As quatro guardas da bandeira booleana
+passavam enquanto o produto perdia dado, porque descreviam o mecanismo;
+guarda que descreve o mecanismo aprova qualquer mecanismo com aquela forma.
+
+**E a faixa diz a consequência antes do motivo.** Ela mostrava só
+`syncError`, que numa recusa do Postgres é a mensagem crua — em inglês,
+nomeando uma constraint (`violates check constraint "jobs_format_check"`).
+Quem lê isso não conclui "meu conteúdo não foi salvo"; conclui que teve um
+soluço técnico, e a tela continua mostrando a peça, porque a pintura vem
+antes da resposta do banco. Agora ela abre dizendo que a alteração não chegou
+ao banco e que vale recarregar para ver o que está gravado — com o detalhe
+técnico embaixo, menor, que é o que torna o relato acionável.
+
 ### Persistência derivada de diff
 
 `src/context/PostfyContext.tsx` tem dezenas de mutações no formato
@@ -2505,6 +2550,7 @@ src/lib/supabase.ts        cliente único; a chave publicável é pública por d
 src/lib/db.ts              repositórios por entidade, operações por linha
 src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
+src/lib/errosDeGravacao.ts quem falhou ao gravar; o sucesso de um não apaga o erro do outro
 src/lib/permissions.ts     papéis dentro da agência
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/components/ui/alert-dialog.tsx  confirmação e aviso; useConfirmacao/useAviso
