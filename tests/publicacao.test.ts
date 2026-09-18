@@ -465,3 +465,39 @@ describe('o que a tela diz depois de agendar', () => {
     expect(r.texto.length).toBeGreaterThan(10);
   });
 });
+
+describe('nenhuma tela nomeia as redes automáticas à mão', () => {
+  /**
+   * **Uma frase da tela de Publicações dizia "O Instagram publica sozinho na
+   * data", e a etiqueta logo ao lado dizia "instagram, facebook".**
+   *
+   * A frase foi escrita quando `REDES_QUE_PUBLICAM` tinha uma rede só. O
+   * Facebook entrou na 2.53.0, a etiqueta — que deriva da constante — se
+   * atualizou sozinha, e o parágrafo não: a mesma tela passou a se
+   * contradizer, e nada acusou.
+   *
+   * É a armadilha 9 na direção inofensiva — em vez de prometer o que não
+   * existe, ela escondia o que existe —, e custa igual de descobrir.
+   *
+   * A guarda procura o **efeito**: uma afirmação sobre quem publica sozinho
+   * com o nome da rede escrito na frase. `COMO_PUBLICA` e `REDES_DA_META`
+   * ficam de fora de propósito: ali o nome da rede **é** a chave, e é a fonte
+   * de onde as telas derivam o texto.
+   */
+  it('a afirmação sai da constante, não de um nome digitado', () => {
+    const telas = ['publications/PublicationsView', 'jobs/FormularioDoConteudo'];
+
+    for (const rel of telas) {
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', `${rel}.tsx`), 'utf-8')
+      );
+      for (const rede of ['Instagram', 'Facebook', 'LinkedIn', 'TikTok', 'YouTube']) {
+        expect(
+          fonte,
+          `${rel} afirma que ${rede} publica sozinho com o nome escrito na frase — ` +
+            'rede nova passa a contradizer a etiqueta derivada de REDES_QUE_PUBLICAM'
+        ).not.toMatch(new RegExp(`${rede} publica sozinh`));
+      }
+    }
+  });
+});

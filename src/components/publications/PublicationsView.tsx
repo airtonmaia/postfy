@@ -138,10 +138,24 @@ export const PublicationsView: React.FC = () => {
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Agendamento</span>
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">Fila de Publicações</h3>
+          {/*
+            **A frase nomeava só o Instagram, e a etiqueta ao lado já dizia
+            outra coisa.**
+
+            Ela foi escrita quando `REDES_QUE_PUBLICAM` tinha uma rede. O
+            Facebook entrou na 2.53.0, a etiqueta — que **deriva** da constante
+            — passou a dizer "instagram, facebook", e o parágrafo continuou
+            afirmando que só o Instagram publica: a mesma tela se
+            contradizendo. Rede nova aqui não pode exigir lembrar de editar um
+            texto, então quem lista as redes é a constante, não a frase.
+
+            É a armadilha 9 na direção inofensiva: em vez de prometer o que não
+            existe, ela escondia o que existe. Custa igual de descobrir.
+          */}
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Planejamento do que vai ao ar e quando. O Instagram publica sozinho na
-            data quando a conta do cliente está conectada; as outras redes você
-            publica.
+            Planejamento do que vai ao ar e quando. As redes com disparo automático
+            publicam sozinhas na data, desde que a conta do cliente esteja
+            conectada; nas outras, a postagem é sua.
           </p>
         </div>
 
