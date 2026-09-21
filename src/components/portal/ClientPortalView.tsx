@@ -55,7 +55,15 @@ import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+} from '../ui/dialog';
 
 /** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
 const QUADROS_DO_CRIATIVO = [
@@ -1928,38 +1936,54 @@ export const ClientPortalView: React.FC = () => {
       {/* `z-[60]`: abre por cima da casca do portal, que é `z-50`. */}
       <Dialog open={isRejecting && !!selectedForReview} onOpenChange={(aberto) => !aberto && setIsRejecting(false)}>
         {isRejecting && selectedForReview && (
-          <DialogContent tamanho="recado" className="z-[60] p-0 gap-0">
-              <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
-                <AlertCircle className="w-5 h-5" />
-                Solicitar Ajuste no Conteúdo
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+          <DialogContent tamanho="formulario" className="z-[60]">
+            <DialogHeader className="pr-12">
+              <DialogTitle className="flex items-center gap-2.5 text-rose-600 dark:text-rose-400 text-base font-semibold">
+                <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <span>Solicitar Ajuste no Conteúdo</span>
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Descreva com detalhes o que precisa ser alterado para que nossa equipe produza a nova versão imediatamente.
-              </p>
-              <textarea
-                rows={4}
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                placeholder="Ex: Gostaria de trocar a foto do slide 2 e alterar a chamada final para..."
-                className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 focus:ring-2 focus:ring-rose-500"
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost"
-                  onClick={() => {
-                    setIsRejecting(false);
-                    setSelectedForReview(null);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button variant="destructive"
-                  disabled={!feedbackText.trim()}
-                  onClick={handleReject}
-                  className="bg-rose-600 text-white"
-                >
-                  Enviar Solicitação
-                </Button>
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogBody className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  O que precisa ser ajustado?
+                </label>
+                <textarea
+                  rows={5}
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Ex: Gostaria de trocar a foto do slide 2 e alterar a chamada final para..."
+                  className="w-full text-sm p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all resize-y min-h-[110px]"
+                  autoFocus
+                />
               </div>
+            </DialogBody>
+
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsRejecting(false);
+                  setSelectedForReview(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!feedbackText.trim()}
+                onClick={handleReject}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
+              >
+                Enviar Solicitação
+              </Button>
+            </DialogFooter>
           </DialogContent>
         )}
       </Dialog>
