@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { safeTimeFormat } from '../../lib/utils';
 import { 
@@ -19,6 +19,27 @@ import {
 import { PlatformBadge, StatusBadge, FormatBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { derivarInsights, type ParteDoTexto } from '../../lib/insights';
+
+/**
+ * O texto do insight, com o nome do cliente em negrito.
+ *
+ * Ele chega partido em pedaços em vez de montado como string porque o nome
+ * **vem do dado** — e o negrito precisa cair exatamente nele. Interpolar o
+ * nome numa frase e destacar por posição voltaria a acertar por coincidência
+ * no dia em que a frase mudasse.
+ */
+const TextoDoInsight: React.FC<{ partes: ParteDoTexto[] }> = ({ partes }) => (
+  <>
+    {partes.map((parte, i) =>
+      parte.forte ? (
+        <strong key={i}>{parte.texto}</strong>
+      ) : (
+        <React.Fragment key={i}>{parte.texto}</React.Fragment>
+      )
+    )}
+  </>
+);
 
 export const DashboardView: React.FC = () => {
   const { 
@@ -32,14 +53,6 @@ export const DashboardView: React.FC = () => {
     clientFilter,
     currentWorkspace
   } = usePostfy();
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(e => console.warn('Autoplay prevented:', e));
-    }
-  }, []);
 
   const primary = currentWorkspace?.primaryColor || '#9333ea';
   const secondary = currentWorkspace?.secondaryColor || '#ea580c';
@@ -68,6 +81,14 @@ export const DashboardView: React.FC = () => {
 
   const clientMap = new Map(clients.map(c => [c.id, c]));
 
+  /*
+    Segue o filtro de cliente do cabeçalho, como o resto da tela: com um
+    cliente escolhido, o gargalo apontado tem que ser o dele. Sem isso o card
+    responderia sobre a agência inteira enquanto todos os números ao lado
+    falam de um cliente só.
+  */
+  const insights = derivarInsights(displayedJobs, clients);
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 space-y-6">
       {/* Top Welcome & Agency Health Banner */}
@@ -82,30 +103,52 @@ export const DashboardView: React.FC = () => {
         >
           <div className="absolute -right-10 -bottom-10 w-48 h-48 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor: `${secondary}4D` }} />
 
-          {/* Absolute Background Video on the Right */}
+          {/*
+            A arte da direita.
+
+            Ela é **PNG com fundo transparente**, e isso decide duas coisas que
+            antes eram o contrário. O que estava aqui era um .mp4 de fundo preto
+            hospedado fora do repositório, e o `mixBlendMode: 'screen'` existia
+            só para recortar esse preto — screen descarta o que é escuro. Numa
+            arte já recortada, ele faz o oposto: clareia o que sobrou contra o
+            gradiente do card e a personagem sai lavada, quase branca.
+
+            E o enquadramento é `object-contain`, não `cover`. O vídeo era
+            textura, então cortar não custava nada; esta arte é uma personagem
+            de 600x530 numa faixa larga e baixa — com `cover` o que aparece é
+            uma tira horizontal do capacete, com o rosto fora da tela.
+          */}
           <div className="absolute inset-y-0 right-0 w-full md:w-[60%] pointer-events-none z-0">
-            {/* Fade gradient from left to right to blend with the card background */}
-            {/* Added multiple stops to create a smoother transition and eliminate the hard line */}
-            <div 
-              className="absolute inset-0 z-10 hidden md:block"
-              style={{ background: `linear-gradient(to right, ${primary} 0%, ${primary}99 30%, transparent 100%)` }}
-            ></div>
-            {/* Fade gradient from bottom for mobile */}
-            <div 
+            {/*
+              **Não há véu de gradiente por cima, e a falta dele é a correção.**
+
+              Havia dois, e eles existiam para esconder a borda reta do vídeo.
+              O de cima começava em `primary` sólido na borda esquerda deste
+              container — que é 40% da largura do card — enquanto o fundo do
+              card, um gradiente na diagonal, àquela altura já tinha caminhado
+              para o `secondary`. Duas cores diferentes encostando numa linha
+              reta: o véu que existia para apagar uma emenda passou a ser a
+              emenda, uma divisão vertical de ponta a ponta do card.
+
+              A arte é PNG recortado, então não há borda para esconder. Quem
+              separa o texto da imagem é a largura da coluna da esquerda.
+
+              **O véu de baixo fica, e não é inconsistência.** Ele é `md:hidden`
+              e desce na vertical, então não encosta em cor nenhuma numa linha
+              reta — não é ele que produzia a emenda. E o trabalho dele é outro:
+              abaixo do `md` a coluna de texto ocupa a largura inteira e a arte
+              passa a ficar **atrás** dela, não ao lado. Sem esse véu, o número
+              e os três indicadores disputariam o fundo com a personagem.
+            */}
+            <div
               className="absolute inset-0 z-10 md:hidden"
               style={{ background: `linear-gradient(to top, ${secondary} 0%, ${secondary}99 40%, transparent 100%)` }}
-            ></div>
-            <video 
-              ref={videoRef}
-              src="https://go7.dev.br/banner-video-dark.mp4" 
-              loop 
-              muted 
-              playsInline
-              style={{
-                filter: 'contrast(1.1) saturate(1.1)',
-                mixBlendMode: 'screen'
-              }}
-              className="w-full h-full object-cover opacity-90 object-[center_top] md:object-right"
+            />
+            <img
+              src="/img-10.png"
+              alt=""
+              aria-hidden="true"
+              className="w-full h-full object-contain opacity-90 object-[center_top] md:object-right"
             />
           </div>
 
@@ -181,27 +224,59 @@ export const DashboardView: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-purple-600" />
-                Postfy Insights
+                Insights da operação
               </span>
+              {/*
+                O selo dizia "IA Operacional", e não havia IA nenhuma aqui —
+                nem há agora. O que existe é contagem sobre os conteúdos desta
+                agência, refeita a cada abertura da tela. Um selo de IA em
+                cima de um `filter` é a mesma promessa vazia do texto que
+                estava embaixo dele.
+              */}
               <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
-                IA Operacional
+                Calculado agora
               </span>
             </div>
 
             <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
-              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1">
-                <p className="font-bold text-slate-800 dark:text-slate-200">Gargalo identificado em aprovações:</p>
-                <p className="text-slate-500 dark:text-slate-400">
-                  O cliente <strong>EcoModa Brasil</strong> acumula 6 solicitações de ajuste nesta quinzena. Recomenda-se aprovação de pauta antes da produção.
-                </p>
-              </div>
-
-              <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-emerald-900 space-y-1">
-                <p className="font-bold text-emerald-950">Ponto positivo na semana:</p>
-                <p className="text-emerald-800">
-                  <strong>Café Aroma Gourmet</strong> aprovou 100% dos carrosséis em menos de 24 horas.
-                </p>
-              </div>
+              {insights.length === 0 ? (
+                /*
+                  Card vazio é honesto; card preenchido com frase genérica é o
+                  texto fixo de volta com outra roupa. Então ele diz o que
+                  falta, com o nome do que falta — a mesma convenção da aba
+                  Integrações e do Financeiro do SaaS.
+                */
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1">
+                  <p className="font-bold text-slate-800 dark:text-slate-200">Ainda não há o que medir:</p>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Os insights saem dos prazos e das versões dos conteúdos. Assim que houver conteúdo cadastrado com prazo de produção e de aprovação, eles aparecem aqui.
+                  </p>
+                </div>
+              ) : (
+                insights.map((insight) =>
+                  insight.tom === 'bom' ? (
+                    <div
+                      key={insight.id}
+                      className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 space-y-1"
+                    >
+                      <p className="font-bold text-emerald-950 dark:text-emerald-200">{insight.titulo}:</p>
+                      <p className="text-emerald-800 dark:text-emerald-300">
+                        <TextoDoInsight partes={insight.partes} />
+                      </p>
+                    </div>
+                  ) : (
+                    <div
+                      key={insight.id}
+                      className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-1"
+                    >
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{insight.titulo}:</p>
+                      <p className="text-slate-500 dark:text-slate-400">
+                        <TextoDoInsight partes={insight.partes} />
+                      </p>
+                    </div>
+                  )
+                )
+              )}
             </div>
           </div>
 

@@ -278,6 +278,84 @@ export const AdminDesignView: React.FC = () => {
       </Secao>
 
       <Secao
+        titulo="App instalável"
+        descricao="O que aparece quando alguém instala o produto no celular ou no computador: o ícone na tela de início, o nome embaixo dele e a tela que o sistema pinta enquanto o app abre. O nome completo, a descrição e a cor do tema saem da marca acima — por isso não têm campo aqui."
+      >
+        <div className="grid md:grid-cols-3 gap-5">
+          {/*
+            O ícone é campo próprio, e não o logo: o logo costuma ser
+            horizontal e com texto, e vira uma miniatura esmagada numa tela de
+            início — que é justamente onde a marca precisa ser reconhecida de
+            relance.
+          */}
+          <CampoDeImagem
+            rotulo="Ícone do app"
+            ajuda="PNG quadrado, 512×512 ou maior. Sem ele, vale o ícone do Orquesia."
+            formato="marca"
+            valor={texto('pwaIconeUrl')}
+            aoMudar={(v) => mudar('pwaIconeUrl', v || null)}
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+              Nome curto
+            </label>
+            <input
+              type="text"
+              value={texto('pwaNomeCurto')}
+              onChange={(e) => mudar('pwaNomeCurto', e.target.value || null)}
+              placeholder={form.nome || APARENCIA_PADRAO.nome}
+              maxLength={12}
+              className={CAMPO}
+            />
+            {/*
+              O limite não é estético: o sistema operacional corta o rótulo
+              embaixo do ícone em torno de 12 caracteres, e "Minha Agência
+              Digital" chega ao celular como "Minha Agên…".
+            */}
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Fica embaixo do ícone na tela de início. Até 12 caracteres — o celular corta o
+              que passar disso. Vazio, usa o nome do produto.
+            </p>
+          </div>
+
+          <CampoDeCor
+            rotulo="Fundo da abertura"
+            ajuda="A tela que o Android pinta enquanto o app abre. Acompanha o fundo da interface, não a cor da marca — com a primária, a abertura pisca colorida e cai num app claro."
+            valor={form.pwaCorFundo || '#f8fafc'}
+            aoMudar={(v) => mudar('pwaCorFundo', v)}
+          />
+        </div>
+
+        {/*
+          A prévia mostra o que o sistema operacional vai desenhar, e é o
+          único jeito de conferir antes de instalar — depois de instalado, o
+          ícone só troca reinstalando.
+        */}
+        <div className="flex items-center gap-4 pt-1">
+          <div
+            className="w-16 h-16 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0"
+            style={{ backgroundColor: form.pwaCorFundo || '#f8fafc' }}
+          >
+            {form.pwaIconeUrl ? (
+              <img src={form.pwaIconeUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <MarcaOrquesia tamanho={64} />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+              {(form.pwaNomeCurto || form.nome || APARENCIA_PADRAO.nome).slice(0, 12)}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              É assim que o ícone e o nome aparecem na tela de início. Quem já instalou só vê a
+              troca ao reinstalar.
+            </p>
+          </div>
+        </div>
+      </Secao>
+
+      <Secao
         titulo="Paleta"
         descricao="Vale nas telas em que não há agência: a de entrada, a porta do portal e esta área de administração. Dentro de uma agência quem pinta é o whitelabel dela — é para isso que ele existe, e sobrepor aqui apagaria a marca do cliente."
       >

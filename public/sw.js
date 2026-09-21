@@ -60,10 +60,14 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(titulo, {
       body: dados.body || '',
-      icon: '/icon-192.png',
+      // O ícone vem no corpo, escolhido pelo dono do produto em
+      // Admin → Design. O arquivo do repositório é a reserva — e ele precisa
+      // existir, porque notificação sem ícone ganha um quadrado cinza do
+      // sistema operacional.
+      icon: dados.icon || '/icon-192.png',
       // O badge é o ícone monocromático da barra de status do Android. Sem
       // ele o sistema desenha um quadrado cinza no lugar.
-      badge: '/icon-192.png',
+      badge: dados.icon || '/icon-192.png',
       // Junta os avisos da mesma agência numa pilha só em vez de empilhar
       // dez cartões separados na tela de bloqueio.
       tag: 'orquesia',

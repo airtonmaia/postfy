@@ -37,13 +37,37 @@ describe('telas não inventam dado', () => {
     // linha de tabela, viram fato.
     const culpados = telas
       .filter(({ texto }) =>
-        /(Vanguarda Social|Pixel M[íi]dia|Creative Hub)/.test(
+        /(Vanguarda Social|Pixel M[íi]dia|Creative Hub|EcoModa Brasil|Caf[ée] Aroma Gourmet)/.test(
           texto.replace(/placeholder="[^"]*"/g, '')
         )
       )
       .map(({ arquivo }) => arquivo);
 
     expect(culpados).toEqual([]);
+  });
+
+  it('nenhum cliente fictício aparece como gargalo ou mérito', () => {
+    /*
+      Os dois últimos nomes da lista acima vieram do card de insights do
+      Dashboard, que afirmava que "EcoModa Brasil" acumulava 6 solicitações
+      de ajuste na quinzena e que "Café Aroma Gourmet" aprovava 100% dos
+      carrosséis em menos de 24 horas. Nenhum dos dois existe em base
+      nenhuma, e nenhum dos números saía de lugar algum.
+
+      **Acrescentar os nomes à lista acima não é a guarda**, é o registro. A
+      lista literal só pega o que alguém lembrou de escrever — é a falha das
+      três versões da guarda de formato e da guarda de `--radius`. Quem fecha
+      a forma é `tests/insights.test.ts`, exigindo que todo negrito do
+      Dashboard venha de dado. Esta asserção existe para o card não voltar a
+      montar a frase aqui dentro.
+    */
+    const dashboard = semComentarios(
+      readFileSync('src/components/dashboard/DashboardView.tsx', 'utf-8')
+    );
+
+    expect(dashboard).toMatch(/derivarInsights\(/);
+    expect(dashboard).not.toMatch(/acumula \d+ solicita/i);
+    expect(dashboard).not.toMatch(/\d+% dos carross/i);
   });
 
   it('nenhuma tela afirma variação percentual fixa', () => {

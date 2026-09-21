@@ -31,6 +31,28 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.67.0',
+    data: '2026-09-21',
+    resumo:
+      'O app instalável passou a ser seu: ícone, nome curto e cor de abertura saem de Admin → Design.',
+    novidades: [
+      'Admin → Design ganhou a seção "App instalável". O ícone que vai para a tela de início, o nome curto embaixo dele e a cor que o sistema pinta enquanto o app abre agora são campos, com prévia do resultado.',
+      'O ícone configurado vale também nas notificações: toda notificação que chega ao aparelho carrega a marca, e antes ela era sempre a do Orquesia.',
+      'No iPhone o ícone da tela de início acompanha o que você configurar — e ali não é só aparência, porque no iOS o aviso só existe com o app instalado.',
+    ],
+    melhorias: [
+      'O manifest do app deixou de ser um arquivo fixo no repositório e passou a ser montado do que está configurado. Trocar o ícone não exige mais deploy.',
+      'O nome completo, a descrição e a cor do tema do app saem da marca que você já preencheu acima — não há campo repetido para a mesma informação.',
+      'O nome curto tem limite de 12 caracteres, porque é onde o celular corta o rótulo embaixo do ícone. Sem o limite, "Minha Agência Digital" chegaria como "Minha Agên…".',
+      'A arte do banner de Saúde Operacional virou imagem. Era um vídeo carregado de um servidor externo a cada abertura do Dashboard — a tela dependia de um endereço fora daqui para desenhar o topo dela.',
+    ],
+    corrigido: [
+      'O card de insights do Dashboard passou a sair dos seus dados. Ele trazia dois clientes que não existem — "EcoModa Brasil" com 6 solicitações de ajuste e "Café Aroma Gourmet" com 100% de aprovação —, e os números não vinham de lugar nenhum. Agora ele conta o que está em ajuste, o que passou do prazo de aprovação, o que atrasou na produção e quem aprova mais na primeira versão; sem conteúdo suficiente, ele diz que ainda não há o que medir em vez de preencher o espaço.',
+      'O selo "IA Operacional" desse card saiu: não havia IA nenhuma ali, e não há — o que existe é contagem sobre os seus conteúdos, refeita a cada abertura da tela.',
+      'Sumiu a divisão vertical que cortava o banner de Saúde Operacional ao meio. Era um véu de gradiente que existia para esconder a borda reta do vídeo antigo e acabou virando a própria emenda.',
+    ],
+  },
+  {
     versao: '2.66.0',
     data: '2026-09-21',
     resumo:
