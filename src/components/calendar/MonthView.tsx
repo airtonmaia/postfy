@@ -5,6 +5,8 @@ import { usePostfy } from '../../context/PostfyContext';
 import { safeTimeFormat } from '../../lib/utils';
 import { Job, Client } from '../../types';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
+import { PreviaNoHover } from '../common/PreviaNoHover';
+import { proporcaoDoCriativo } from '../../lib/formatos';
 import { Button } from '../ui/button';
 
 interface MonthViewProps {
@@ -33,6 +35,20 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
   const prevMonthDaysCount = new Date(year, month, 0).getDate();
 
   const totalCells = Math.ceil((firstDayIndex + daysInMonth) / 7) * 7;
+  /**
+   * Quantas semanas este mês ocupa — 5 ou 6, nunca um número fixo.
+   *
+   * A grade declarava `grid-rows-5 md:grid-rows-6`, e num mês de cinco
+   * semanas (setembro de 2026, por exemplo) a sexta linha existia **vazia**:
+   * uma faixa morta no rodapé do calendário, com a cor de célula e tudo, que
+   * lê como um dia que não carregou. O `min-h-[600px]` errava do outro lado —
+   * numa tela alta as linhas paravam de crescer e sobrava fundo cinza.
+   *
+   * Com `repeat(semanas, minmax(110px, 1fr))` a grade preenche a altura que
+   * tem e continua rolando quando a janela é baixa demais para o piso das
+   * linhas.
+   */
+  const semanas = totalCells / 7;
 
   // Filter jobs
   const filteredJobs = jobs.filter(job => {
@@ -111,7 +127,10 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 md:grid-rows-6 gap-[1px] bg-slate-200 dark:bg-slate-800 min-h-[600px] overflow-y-auto">
+      <div
+        style={{ gridTemplateRows: `repeat(${semanas}, minmax(110px, 1fr))` }}
+        className="flex-1 grid grid-cols-7 gap-[1px] bg-slate-200 dark:bg-slate-800 overflow-y-auto"
+      >
         {gridCells.map((cell, index) => {
           const dateISO = cell.date.toISOString();
           const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
@@ -125,7 +144,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                   openCreateJobModal(dateISO);
                 }
               }}
-              className={`group relative flex flex-col p-1.5 transition min-h-[110px] md:min-h-[125px] overflow-hidden ${
+              className={`group relative flex flex-col p-1.5 transition overflow-hidden ${
                 cell.isCurrentMonth ? 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-950/70' : 'bg-slate-50 dark:bg-slate-950/60 text-slate-400'
               }`}
             >
@@ -163,8 +182,20 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                   const scheduledTime = safeTimeFormat(job.scheduledDate);
 
                   return (
-                    <div
+                    /**
+                     * A arte grande no hover é a mesma peça do portal do
+                     * cliente — e é o mesmo componente, não uma segunda
+                     * cópia. A agência confere o enquadramento aqui e manda o
+                     * link do portal para o cliente: duas prévias que
+                     * divergissem mostrariam cortes diferentes da mesma arte,
+                     * que é exatamente o que ela existe para responder.
+                     */
+                    <PreviaNoHover
                       key={job.id}
+                      url={job.mediaUrls?.[0]}
+                      proporcao={proporcaoDoCriativo(job.platform, job.format)}
+                    >
+                    <div
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedJob(job);
@@ -204,6 +235,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                         <StatusBadge status={job.status} />
                       </div>
                     </div>
+                    </PreviaNoHover>
                   );
                 })}
 

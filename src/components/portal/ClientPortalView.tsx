@@ -37,9 +37,11 @@ import {
   X
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge, TipoBadge } from '../common/Badges';
+import { PreviaNoHover } from '../common/PreviaNoHover';
+import { proporcaoDoCriativo } from '../../lib/formatos';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import {
-  Job, Client, JobPlatform, JobFormat, ClientFile, ClientBriefing, ClientUserRole,
+  Job, Client, ClientFile, ClientBriefing, ClientUserRole,
 } from '../../types';
 import {
   tokenGuardado,
@@ -183,21 +185,6 @@ const CriativoDeFeedEStory: React.FC<{
   );
 };
 
-/**
- * Proporção do preview de mídia, pela rede/formato reais do job — não um
- * quadrado ou 16:9 genérico. Vertical (Reels/Stories) vem antes da rede,
- * porque manda mais na proporção do que a plataforma em si.
- */
-const proporcaoDoCriativo = (platform: JobPlatform, format: JobFormat): string => {
-  if (format === 'story' || format === 'reel') return 'aspect-[9/16]';
-  if (format === 'video') return 'aspect-video';
-  if (platform === 'tiktok') return 'aspect-[9/16]';
-  if (platform === 'youtube') return 'aspect-video';
-  // Feed/carrossel: 4:5 é o formato de maior área útil no Instagram e
-  // Facebook, e serve como referência razoável para LinkedIn/X também.
-  return 'aspect-[4/5]';
-};
-
 interface ClientPortalMonthGridProps {
   month: Date;
   jobs: Job[];
@@ -243,8 +230,6 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
   }
 
   return (
-    // Sem `overflow-hidden`: ele cortaria a prévia grande do hover na borda
-    // do calendário, que é justamente onde ela precisa aparecer por inteiro.
     <div className="border border-slate-200 dark:border-slate-800 rounded-2xl">
       <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 py-2 rounded-t-2xl">
         {diasDaSemana.map((dia) => (
@@ -274,13 +259,22 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
             <div className="flex-1 space-y-1">
               {celula.jobs.slice(0, 3).map((job) => {
                 const capa = job.mediaUrls?.[0];
-                // Nas duas últimas colunas a prévia abre para a esquerda, ou
-                // sairia da tela.
-                const abreParaEsquerda = idx % 7 >= 5;
 
                 return (
-                  <button
+                  /**
+                   * A prévia grande do hover é a mesma do calendário da
+                   * agência, e por isso é um componente só: divergir aqui
+                   * mostraria cortes diferentes da mesma arte nas duas telas.
+                   * O lado para onde ela abre saiu da coluna e passou a sair
+                   * do espaço que sobra na janela, que é o que a regra por
+                   * coluna aproximava.
+                   */
+                  <PreviaNoHover
                     key={job.id}
+                    url={capa}
+                    proporcao={proporcaoDoCriativo(job.platform, job.format)}
+                  >
+                  <button
                     onClick={() => onSelectJob(job)}
                     className="group/job relative w-full text-left bg-slate-50 dark:bg-slate-950 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-300 rounded-lg p-1 transition cursor-pointer"
                   >
@@ -314,24 +308,8 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                       </div>
                     </div>
 
-                    {/*
-                      Prévia grande no hover, na proporção real da rede.
-                      `pointer-events-none` porque ela cobre as células
-                      vizinhas: sem isso, passar o mouse por cima da prévia
-                      bloquearia o clique no dia de baixo.
-                    */}
-                    {capa && (
-                      <div
-                        className={`pointer-events-none absolute top-0 z-30 hidden group-hover/job:block ${
-                          abreParaEsquerda ? 'right-full mr-2' : 'left-full ml-2'
-                        }`}
-                      >
-                        <div className={`w-44 ${proporcaoDoCriativo(job.platform, job.format)} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl bg-slate-900`}>
-                          <img src={capa} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                    )}
                   </button>
+                  </PreviaNoHover>
                 );
               })}
               {celula.jobs.length > 3 && (
