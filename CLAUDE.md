@@ -1381,6 +1381,69 @@ vezes: ela ignora a RLS inteira.
 
 Metadados são editáveis pelo próprio usuário e não servem para autorização.
 
+### A senha do portal é bcrypt, e o código por e-mail é a porta de saída
+
+O cliente entrava **só** pelo código de seis dígitos. Ele autentica bem e tem
+um custo que o produto sentiu: depende de a mensagem sair da fila, chegar, não
+cair em spam e a pessoa achar. Do outro lado está alguém que quer aprovar um
+post, e cada minuto de espera é uma aprovação que não acontece hoje.
+
+Agora a agência define (ou gera) uma senha na ficha do cliente, e o portal
+abre com e-mail e senha. Cinco decisões:
+
+- **É bcrypt, não o sha256 do código.** `portal_codigos` guarda o código com
+  `digest(..., 'sha256')` e está certo para o que ele é: seis dígitos, dez
+  minutos e cinco tentativas. Senha é longa, dura meses e é reaproveitada em
+  outros lugares — um sha256 sem sal cai numa tabela arco-íris pronta, e o
+  estrago sairia deste produto para a vida da pessoa. `crypt` com
+  `gen_salt('bf')` tem sal por linha.
+- **O código não foi removido, e isso é a regra "sempre há porta de saída".**
+  É por ele que entra quem nunca recebeu senha, quem esqueceu a que recebeu e
+  quem o banco bloqueou por tentativas. Sem ele, o acesso do cliente
+  dependeria de a agência lembrar de gerar a senha — e não há a quem recorrer
+  no domingo à noite, que é quando a aprovação acontece. É também o que torna
+  o bloqueio por tentativas seguro: sem outra porta, bastaria errar a senha de
+  alguém de propósito para deixá-lo sem acesso na véspera.
+- **`portal_entrar_com_senha` tem EXECUTE só para `service_role`**, como
+  `portal_conferir_codigo`. Sem o limite de taxa da rota na frente, ela é um
+  oráculo de senha chamável do navegador de qualquer um. O banco ainda conta
+  as tentativas por linha (`tentativas_de_senha`, `bloqueado_ate`), porque o
+  limite da rota é por container da Vercel e força bruta não respeita
+  fronteira de container.
+- **`definir_senha_do_portal` é `security definer`, então a RLS não vale
+  dentro dela** — a conferência de papel é a função inteira. Sem ela, o dono
+  de outra agência define a senha do cliente alheio e entra no portal dele. E
+  o papel é conferido na agência **do usuário alvo**, lida da linha, nunca na
+  que o navegador mandar. É o mesmo cuidado de `portal_dados` e
+  `equipe_da_agencia`.
+- **Trocar ou tirar a senha derruba as sessões daquela pessoa.** Senha é
+  trocada justamente quando se desconfia de que outra pessoa a tem; deixar as
+  sessões de pé faria a troca ser decorativa.
+
+Duas coisas do lado da tela:
+
+- **A consulta de `client_users` nomeia as colunas.** Era `select('*')`, e no
+  dia em que a senha entrou na tabela o `*` passou a trazer o bcrypt de cada
+  pessoa para o navegador de quem abre a ficha do cliente. Não é escalada de
+  privilégio — quem abre essa tela pode definir a senha —, mas hash no bundle
+  é material para ataque offline, e o `*` não avisa quando a tabela ganha uma
+  coluna nova. A tela lê `senha_definida_em`, que é só uma data.
+- **O alfabeto da senha gerada tem 32 símbolos, e isso não é estético.** Sem
+  `I`, `O`, `0` e `1` porque ela é lida em voz alta e digitada por quem não a
+  escolheu; e com um tamanho que é **potência de dois** porque o símbolo sai
+  de `byte % alfabeto.length` — com 33, os primeiros símbolos passariam a sair
+  mais vezes que os últimos, e gerador enviesado é um defeito que nenhuma
+  conferência visual pega: a senha continua com cara de aleatória.
+
+`tests/senha-do-portal.test.ts` exercita o gerador de verdade (ele é puro) e
+lê a migração para o resto. **A primeira versão das guardas da migração
+recortava com `slice(0, 1400)` e passou com o bug dentro:** tirando a
+conferência de papel de `definir_senha_do_portal`, a janela alcançava a função
+seguinte, que ainda tinha a dela, e a asserção casava com o **vizinho**.
+Conferido ao contrário, era exatamente isso que acontecia. É a mesma falha das
+três versões da guarda de formato; o recorte agora para no terminador da
+função.
+
 ---
 
 ## Como verificar cada camada
@@ -2552,6 +2615,7 @@ src/lib/mappers.ts         snake_case ↔ camelCase; data vazia vira null
 src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/errosDeGravacao.ts quem falhou ao gravar; o sucesso de um não apaga o erro do outro
 src/lib/permissions.ts     papéis dentro da agência
+src/lib/senhas.ts          a senha que a agência gera para o cliente entrar no portal
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/components/ui/alert-dialog.tsx  confirmação e aviso; useConfirmacao/useAviso
 src/components/ui/sidebar.tsx   item de menu das duas cascas, sem o provider
@@ -2595,7 +2659,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 46 migrações
+supabase/migrations/       schema é a fonte de verdade; 47 migrações
 ```
 
 ---

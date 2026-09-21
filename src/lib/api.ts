@@ -251,4 +251,15 @@ export const portalApi = {
 
   conferirCodigo: (email: string, codigo: string) =>
     chamarAnonimo<{ token: string }>('/api/portal-login', { acao: 'conferir', email, codigo }),
+
+  /**
+   * Entrar com a senha que a agência definiu.
+   *
+   * Passa pela rota, e não direto pelo `supabase.rpc`, pelo mesmo motivo do
+   * código: `portal_entrar_com_senha` tem EXECUTE só para `service_role`,
+   * porque sem o limite de taxa da rota na frente ela seria um oráculo de
+   * senha chamável do navegador de qualquer um.
+   */
+  entrarComSenha: (email: string, senha: string) =>
+    chamarAnonimo<{ token: string }>('/api/portal-login', { acao: 'senha', email, senha }),
 };

@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, ShieldCheck, Eye, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  Plus, Trash2, ShieldCheck, Eye, Mail, AlertCircle, CheckCircle2, KeyRound, Copy, Check,
+} from 'lucide-react';
 import type { Client, ClientUser, ClientUserRole } from '../../types';
 import {
   listarUsuariosDoCliente,
   criarUsuarioDoCliente,
   atualizarUsuarioDoCliente,
   removerUsuarioDoCliente,
+  definirSenhaDoPortal,
+  removerSenhaDoPortal,
 } from '../../lib/db';
 import { usePostfy } from '../../context/PostfyContext';
 import { pode } from '../../lib/permissions';
-import { safeDateFormat } from '../../lib/utils';
+import { safeDateFormat, copyToClipboard } from '../../lib/utils';
+import { gerarSenhaDoPortal, senhaCurta, TAMANHO_MINIMO_DA_SENHA } from '../../lib/senhas';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /**
  * Quem do lado do cliente entra no Portal, e até onde vai.
@@ -27,6 +33,67 @@ const DESCRICAO: Record<ClientUserRole, string> = {
   aprovador: 'Vê o conteúdo e aprova ou pede ajuste. Nada além disso.',
   editor:
     'Tudo do aprovador, mais arquivos, senhas, notas fiscais, briefing e criar novos usuários.',
+};
+
+/**
+ * O campo onde a senha nasce: gerar, ler e copiar num lugar só.
+ *
+ * Ele serve o cadastro de um usuário novo e a troca de senha de quem já
+ * existe. Duas cópias divergiriam na primeira pressa — é a história das doze
+ * alturas de botão —, e aqui a divergência sai cara: o botão de gerar que
+ * ficasse de fora de um dos lados devolveria a agência a escrever
+ * "cliente123" à mão, que é exatamente a senha que esta tela existe para não
+ * produzir.
+ *
+ * **O valor fica visível, e isso é decisão.** Quem está digitando aqui não é
+ * o dono da senha: é quem vai mandá-la ao cliente. Escondê-la atrás de
+ * bolinhas impediria conferir o que foi copiado — e a senha gerada já não
+ * tem `I`, `O`, `0` nem `1` justamente porque ela é lida e repassada por
+ * outra pessoa.
+ */
+const CampoDeSenha: React.FC<{
+  valor: string;
+  aoMudar: (v: string) => void;
+  autoFocus?: boolean;
+}> = ({ valor, aoMudar, autoFocus }) => {
+  const [copiado, setCopiado] = useState(false);
+
+  const copiar = async () => {
+    if (!valor) return;
+    if (await copyToClipboard(valor)) {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        autoFocus={autoFocus}
+        // Nada de preencher com a senha guardada: não existe senha guardada
+        // para preencher. O que está no banco é bcrypt, e não volta.
+        autoComplete="off"
+        value={valor}
+        onChange={(e) => aoMudar(e.target.value)}
+        placeholder={`Mínimo de ${TAMANHO_MINIMO_DA_SENHA} caracteres`}
+        className="flex-1 min-w-0 p-2 text-xs font-mono border rounded-lg bg-slate-50 dark:bg-slate-950 dark:border-slate-800 tracking-wider"
+      />
+      <Button variant="secondary" type="button" onClick={() => aoMudar(gerarSenhaDoPortal())}>
+        Gerar
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        type="button"
+        onClick={() => void copiar()}
+        disabled={!valor}
+        aria-label="Copiar a senha"
+      >
+        {/* Confirmação de que deu certo não usa diálogo: um ícone que muda
+            por dois segundos basta, e não precisa ser fechado. */}
+        {copiado ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+      </Button>
+    </div>
+  );
 };
 
 interface ClientUsersTabProps {
@@ -47,7 +114,12 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
   const [novoEmail, setNovoEmail] = useState('');
   const [novoNome, setNovoNome] = useState('');
   const [novoPapel, setNovoPapel] = useState<ClientUserRole>('aprovador');
+  const [novaSenha, setNovaSenha] = useState('');
   const [salvando, setSalvando] = useState(false);
+
+  /** Quem está com a janela de senha aberta, e o valor sendo definido. */
+  const [trocandoSenha, setTrocandoSenha] = useState<ClientUser | null>(null);
+  const [senhaDaTroca, setSenhaDaTroca] = useState('');
 
   const recarregar = async () => {
     setCarregando(true);
@@ -79,6 +151,15 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
       return;
     }
 
+    const senha = novaSenha.trim();
+    // O banco cobra o mesmo mínimo. Conferir aqui existe para a pessoa não
+    // descobrir o limite por um erro do Postgres depois de já ter criado o
+    // usuário — que é o passo que **não** desfaz.
+    if (senha && senhaCurta(senha)) {
+      setErro(`A senha precisa de pelo menos ${TAMANHO_MINIMO_DA_SENHA} caracteres.`);
+      return;
+    }
+
     setSalvando(true);
     try {
       const criado = await criarUsuarioDoCliente({
@@ -88,19 +169,94 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
         name: novoNome.trim() || undefined,
         role: novoPapel,
       });
+
+      /**
+       * **São duas escritas, e a segunda pode falhar sozinha.**
+       *
+       * O usuário é criado por `insert` (a RLS recorta) e a senha por RPC (o
+       * hash é feito no banco). Sem este `catch` próprio, uma falha na senha
+       * cairia no `catch` de fora dizendo "não foi possível criar o usuário"
+       * — e o usuário **está** criado, então a agência tentaria de novo e
+       * levaria um erro de e-mail repetido. A mensagem nomeia o que ficou
+       * pendente e o que já existe.
+       */
+      let avisoDaSenha = '';
+      if (senha) {
+        try {
+          await definirSenhaDoPortal(criado.id, senha);
+          criado.senhaDefinidaEm = new Date().toISOString();
+        } catch (e) {
+          avisoDaSenha =
+            ' O acesso foi criado, mas a senha não foi salva — use "Definir senha" na lista.';
+          setErro(e instanceof Error ? e.message : 'Não foi possível definir a senha.');
+        }
+      }
+
       setUsuarios((antes) => [...antes, criado]);
       setNovoEmail('');
       setNovoNome('');
       setNovoPapel('aprovador');
+      setNovaSenha('');
       setMostrarForm(false);
-      setErro(null);
-      confirmar(`${email} já pode entrar no portal com o código enviado por e-mail.`);
+      if (!avisoDaSenha) setErro(null);
+
+      confirmar(
+        senha && !avisoDaSenha
+          ? `${email} já pode entrar no portal com essa senha. Ela não aparece de novo — copie antes de fechar.`
+          : `${email} já pode entrar no portal com o código enviado por e-mail.${avisoDaSenha}`
+      );
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível criar o usuário.');
     } finally {
       setSalvando(false);
     }
   };
+
+  const salvarSenha = async () => {
+    if (!trocandoSenha) return;
+    const senha = senhaDaTroca.trim();
+    if (senhaCurta(senha)) {
+      setErro(`A senha precisa de pelo menos ${TAMANHO_MINIMO_DA_SENHA} caracteres.`);
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await definirSenhaDoPortal(trocandoSenha.id, senha);
+      const agora = new Date().toISOString();
+      setUsuarios((atual) =>
+        atual.map((u) => (u.id === trocandoSenha.id ? { ...u, senhaDefinidaEm: agora } : u))
+      );
+      setErro(null);
+      const quem = trocandoSenha.email;
+      setTrocandoSenha(null);
+      setSenhaDaTroca('');
+      confirmar(`Senha definida para ${quem}. Ela não aparece de novo — copie antes de fechar.`);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível definir a senha.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const tirarSenha = (usuario: ClientUser) =>
+    pedir({
+      titulo: 'Tirar a senha deste acesso?',
+      descricao: `${usuario.email} volta a entrar apenas pelo código de seis dígitos enviado por e-mail, e as sessões abertas dessa pessoa caem na hora — inclusive nas abas que já estiverem abertas.`,
+      rotuloConfirmar: 'Tirar a senha',
+      aoConfirmar: async () => {
+        try {
+          await removerSenhaDoPortal(usuario.id);
+          setUsuarios((atual) =>
+            atual.map((u) => (u.id === usuario.id ? { ...u, senhaDefinidaEm: undefined } : u))
+          );
+          setErro(null);
+          confirmar(`${usuario.email} voltou a entrar por código.`);
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : 'Não foi possível tirar a senha.');
+        }
+      },
+    });
 
   const trocarPapel = async (usuario: ClientUser, papel: ClientUserRole) => {
     if (usuario.role === papel) return;
@@ -251,11 +407,27 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
             ))}
           </div>
 
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1">
+              Senha de acesso (opcional)
+            </label>
+            <CampoDeSenha valor={novaSenha} aoMudar={setNovaSenha} />
+            <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+              Com senha, a pessoa entra na hora. Sem senha, ela pede um código de seis dígitos
+              na porta do portal e espera o e-mail chegar.{' '}
+              <strong className="text-slate-600 dark:text-slate-300">
+                A senha aparece só agora
+              </strong>{' '}
+              — o banco guarda uma versão irreversível dela. Se perder, gere outra.
+            </p>
+          </div>
+
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost"
               type="button"
               onClick={() => {
                 setMostrarForm(false);
+                setNovaSenha('');
                 setErro(null);
               }}
               className="dark:hover:text-white"
@@ -319,6 +491,11 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
                     {usuario.ultimoAcesso
                       ? `último acesso em ${safeDateFormat(usuario.ultimoAcesso)}`
                       : 'nunca entrou'}
+                    {/* Como a pessoa entra é o que a agência precisa saber
+                        quando o cliente liga dizendo que não consegue: sem
+                        isto, a resposta exige abrir o banco. */}
+                    {' • '}
+                    {usuario.senhaDefinidaEm ? 'entra com senha' : 'entra por código'}
                   </span>
                 </div>
               </div>
@@ -341,6 +518,23 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
 
                 {podeGerenciar && (
                   <>
+                    <Button variant="ghost" size="icon-sm"
+                      onClick={() => {
+                        setTrocandoSenha(usuario);
+                        setSenhaDaTroca('');
+                        setErro(null);
+                      }}
+                      className={`border ${
+                        usuario.senhaDefinidaEm
+                          ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-purple-600'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                      }`}
+                      title={usuario.senhaDefinidaEm ? 'Trocar a senha' : 'Definir uma senha'}
+                      aria-label={usuario.senhaDefinidaEm ? 'Trocar a senha' : 'Definir uma senha'}
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </Button>
+
                     <button
                       onClick={() => void alternarAtivo(usuario)}
                       className={`px-3 py-2 text-[11px] font-bold rounded-xl border transition cursor-pointer ${
@@ -369,11 +563,82 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
 
       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
         <strong className="text-slate-700 dark:text-slate-300">Como o acesso funciona:</strong>{' '}
-        não há senha. Quem está nesta lista pede um código de seis dígitos na porta do portal,
-        recebe por e-mail e entra. O que o aprovador não pode ver — senhas, notas fiscais e
-        briefing — não é escondido na tela: o banco não devolve esses campos para ele.
+        quem tem senha entra com e-mail e senha, na hora. Quem não tem pede um código de seis
+        dígitos na porta do portal, recebe por e-mail e entra — e esse caminho continua valendo
+        para todo mundo, inclusive para quem esqueceu a senha. O que o aprovador não pode ver —
+        senhas, notas fiscais e briefing — não é escondido na tela: o banco não devolve esses
+        campos para ele.
       </div>
     </div>
+
+      {/*
+        A troca de senha de quem já existe. É a mesma peça do cadastro, e não
+        um segundo campo escrito aqui: quem gera a senha na criação e quem a
+        troca depois precisam do mesmo botão de gerar e do mesmo de copiar.
+      */}
+      <Dialog
+        open={!!trocandoSenha}
+        onOpenChange={(aberto) => {
+          if (!aberto) {
+            setTrocandoSenha(null);
+            setSenhaDaTroca('');
+          }
+        }}
+      >
+        {trocandoSenha && (
+          <DialogContent tamanho="formulario" className="p-6 gap-4">
+            <DialogTitle asChild>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-purple-600" />
+                {trocandoSenha.senhaDefinidaEm ? 'Trocar a senha' : 'Definir uma senha'}
+              </h3>
+            </DialogTitle>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Para <strong className="text-slate-700 dark:text-slate-300">{trocandoSenha.email}</strong>.
+              {trocandoSenha.senhaDefinidaEm
+                ? ' A senha atual deixa de valer na hora, e as sessões abertas dessa pessoa caem junto — inclusive nas abas que já estiverem abertas.'
+                : ' Ela passa a entrar com e-mail e senha, sem esperar o código chegar.'}
+            </p>
+
+            <CampoDeSenha valor={senhaDaTroca} aoMudar={setSenhaDaTroca} autoFocus />
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              <strong className="text-slate-600 dark:text-slate-300">
+                Copie antes de salvar.
+              </strong>{' '}
+              O banco guarda uma versão irreversível — nem esta tela consegue mostrá-la de novo.
+            </p>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 pt-1 [&>*]:w-full sm:[&>*]:w-auto">
+              {trocandoSenha.senhaDefinidaEm ? (
+                <Button variant="destructive"
+                  type="button"
+                  onClick={() => {
+                    const alvo = trocandoSenha;
+                    setTrocandoSenha(null);
+                    void tirarSenha(alvo);
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                >
+                  Tirar a senha
+                </Button>
+              ) : (
+                <span />
+              )}
+
+              <span className="flex flex-col sm:flex-row gap-2 [&>*]:w-full sm:[&>*]:w-auto">
+                <Button variant="ghost" type="button" onClick={() => setTrocandoSenha(null)}>
+                  Cancelar
+                </Button>
+                <Button type="button" disabled={salvando} onClick={() => void salvarSenha()}>
+                  {salvando ? 'Salvando…' : 'Salvar senha'}
+                </Button>
+              </span>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
 
       {dialogo}
     </>

@@ -143,6 +143,9 @@ export const clientUserDaLinha = (l: Linha): ClientUser => ({
   ativo: l.ativo ?? true,
   createdAt: l.created_at,
   ultimoAcesso: ounull(l.ultimo_acesso),
+  // A data, nunca o hash: é ela que diz à tela se esta pessoa entra por senha
+  // ou só pelo código. `senha_hash` não é selecionado em consulta nenhuma.
+  senhaDefinidaEm: ounull(l.senha_definida_em),
 });
 
 export const clientUserParaLinha = (u: Partial<ClientUser>): Linha =>

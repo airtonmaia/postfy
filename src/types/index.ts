@@ -259,8 +259,16 @@ export interface ClientUser {
   role: ClientUserRole;
   ativo: boolean;
   createdAt: string;
-  /** Última vez que a pessoa conferiu o código e entrou. */
+  /** Última vez que a pessoa entrou — por senha ou pelo código. */
   ultimoAcesso?: string;
+  /**
+   * Quando a agência definiu a senha desta pessoa.
+   *
+   * É o que distingue "entra com e-mail e senha" de "entra pelo código que
+   * chega por e-mail". O hash não vem para cá: a tela nunca precisou dele, e
+   * uma tela que o carrega é material para ataque offline sem nenhum ganho.
+   */
+  senhaDefinidaEm?: string;
 }
 
 export interface JobVersion {
