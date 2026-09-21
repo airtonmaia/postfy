@@ -83,21 +83,21 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  *
  * Três coisas que não são detalhe:
  *
- * - **A altura do bloco não muda ao trocar de aba, e é a de antes.** As duas
- *   proporções são diferentes (1,25× a largura no feed, 1,78× no story): um
- *   quadro que acompanhasse a aba faria o card crescer e encolher, e a grade
- *   inteira refluir a cada clique — na linha, todos os cards seguem o mais
- *   alto. O `aspect-[9/8]` é a altura que o par lado a lado já ocupava —
- *   medido no Chromium num card de 430px: **380,4px antes, 382,2px depois, e
- *   os mesmos 382,2px nas duas abas.** A troca de layout não mexe em nenhuma
- *   outra medida da tela. Dentro dele a arte é alta e a largura é derivada da
- *   proporção, que é o que mantém o corte honesto — quem decide o
- *   enquadramento é a rede, e a arte só cresceu: o feed saiu de 214px de
- *   largura para 267px, e o story ficou nos ~190px que já tinha.
+ * - **A arte ocupa a largura inteira do card, na proporção dela.** A primeira
+ *   versão com abas fixou a altura do bloco (`aspect-[9/8]`, a mesma que o par
+ *   lado a lado ocupava) e centralizou a arte dentro, para a grade não refluir
+ *   ao trocar de aba. Em tela isso virou uma faixa preta dos dois lados de
+ *   cada card, e o custo real ficou do lado errado: quem abre esta tela vem
+ *   **julgar a arte**, e ela estava menor e emoldurada para poupar um
+ *   reajuste de altura que acontece só quando alguém clica na aba. Agora o
+ *   quadro é o da aba — 4:5 no feed, 9:16 no story —, a imagem preenche o
+ *   card e a linha se reajusta quando a aba muda. O corte continua honesto:
+ *   `object-cover` na proporção que a rede vai usar.
  * - **O seletor fica embaixo da arte, nunca por cima dela.** A manchete da
  *   peça mora no rodapé do criativo (é onde ela está em toda arte que passou
  *   por aqui), e um controle flutuando ali cobriria justamente o texto que o
- *   cliente precisa ler para aprovar.
+ *   cliente precisa ler para aprovar. Ele desceu para a faixa branca do card,
+ *   que é o que permite a arte ir de borda a borda.
  * - **A aba sem arte avisa antes de ser aberta.** Sem o sinal, o cliente
  *   aprovaria vendo só o feed sem nunca saber que o story ficou vazio — que
  *   é o desfecho que a versão lado a lado existia para impedir, e o único
@@ -106,36 +106,58 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
 const CriativoDeFeedEStory: React.FC<{
   feed?: string;
   story?: string;
-  /** Limite de altura do bloco, quando quem chama tem um (a prévia do calendário). */
-  className?: string;
-}> = ({ feed, story, className = '' }) => {
+  /**
+   * `preencher` — a arte ocupa a largura toda e o card cresce com ela. É o
+   * card da aba Aprovações, onde a arte é o assunto da tela.
+   *
+   * `caber` — a arte se ajusta a uma altura máxima. É a prévia do calendário,
+   * que abre **dentro de uma modal**: ali o story a 9:16 na largura do
+   * diálogo passaria de 800px de altura e empurraria a legenda e os botões
+   * para fora da tela. Preencher e caber não são a mesma decisão porque o
+   * espaço disponível não é o mesmo.
+   */
+  encaixe?: 'preencher' | 'caber';
+}> = ({ feed, story, encaixe = 'preencher' }) => {
   const [quadro, setQuadro] = useState<QuadroDoCriativo>('feed');
   const arteDoQuadro: Record<QuadroDoCriativo, string | undefined> = { feed, story };
   const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
   const url = arteDoQuadro[emTela.chave];
 
-  return (
-    <div className={`w-full aspect-[9/8] bg-slate-900 flex flex-col ${className}`}>
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-        <div className={`h-full ${emTela.proporcao} overflow-hidden`}>
-          {url ? (
-            <img
-              src={url}
-              alt={`Arte do ${emTela.rotulo}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
-              <Layers className="w-6 h-6" />
-              {/* Diz qual das duas falta, com nome: "Preview do Criativo"
-                  não distinguiria a que está pendente. */}
-              <span>Sem arte de {emTela.rotulo}</span>
-            </div>
-          )}
+  /**
+   * Dois irmãos, não um bloco: a arte vai de borda a borda e o seletor fica
+   * na faixa branca do card, embaixo dela. Envolvê-los num container só
+   * obrigaria a escolher entre emoldurar a arte e cobrir a manchete dela.
+   */
+  const arte = (
+    <div
+      className={
+        encaixe === 'preencher'
+          ? `w-full ${emTela.proporcao} overflow-hidden bg-slate-900`
+          : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
+      }
+    >
+      {url ? (
+        <img src={url} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
+          <Layers className="w-6 h-6" />
+          {/* Diz qual das duas falta, com nome: "Preview do Criativo"
+              não distinguiria a que está pendente. */}
+          <span>Sem arte de {emTela.rotulo}</span>
         </div>
-      </div>
+      )}
+    </div>
+  );
 
-      <div className="flex justify-center pb-2 shrink-0">
+  return (
+    <>
+      {encaixe === 'preencher' ? (
+        arte
+      ) : (
+        <div className="h-72 flex items-center justify-center bg-slate-900">{arte}</div>
+      )}
+
+      <div className="flex justify-center py-2 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
         <Tabs value={quadro} onValueChange={(v) => setQuadro(v as QuadroDoCriativo)}>
           <TabsList aparencia="segmentado">
             {QUADROS_DO_CRIATIVO.map(({ chave, rotulo }) => (
@@ -149,7 +171,7 @@ const CriativoDeFeedEStory: React.FC<{
           </TabsList>
         </Tabs>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -789,7 +811,13 @@ export const ClientPortalView: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              /*
+                Quatro colunas a partir do `xl`, três no `lg`. Abaixo de
+                1280px o card de quatro colunas fica com ~230px, e a legenda —
+                que é o outro lado da decisão de aprovar — passa a caber em
+                três palavras por linha.
+              */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {pendingApprovals.map(job => (
                   <div 
                     key={job.id} 
@@ -802,12 +830,15 @@ export const ClientPortalView: React.FC = () => {
                       aprovar. Neles a faixa é só a identificação do que é.
                     */}
                     <div
-                      className={`relative flex items-center justify-center overflow-hidden ${
+                      className={`relative overflow-hidden ${
                         definicaoDoTipo(job.tipo).pedeArte
                           ? job.format === 'feed_story'
-                            ? 'bg-slate-900'
-                            : `${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900`
-                          : 'py-4 bg-slate-100 dark:bg-slate-800'
+                            ? // Empilha a arte e o seletor dela. As duas
+                              // etiquetas continuam `absolute` em relação a
+                              // este bloco, e caem sobre o topo da arte.
+                              'flex flex-col bg-slate-900'
+                            : `flex items-center justify-center ${proporcaoDoCriativo(job.platform, job.format)} bg-slate-900`
+                          : 'flex items-center justify-center py-4 bg-slate-100 dark:bg-slate-800'
                       }`}
                     >
                       {definicaoDoTipo(job.tipo).pedeArte && job.format === 'feed_story' && (
@@ -1795,17 +1826,17 @@ export const ClientPortalView: React.FC = () => {
                 aprovação daqui é o menos usado.
               */}
               <div
-                className={`relative bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 ${
+                className={`relative bg-slate-900 overflow-hidden shrink-0 ${
                   calendarPreviewJob.format === 'feed_story'
-                    ? ''
-                    : `${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} max-h-72`
+                    ? 'flex flex-col'
+                    : `flex items-center justify-center ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} max-h-72`
                 }`}
               >
                 {calendarPreviewJob.format === 'feed_story' ? (
                   <CriativoDeFeedEStory
                     feed={calendarPreviewJob.mediaUrls?.[0]}
                     story={calendarPreviewJob.storyMediaUrls?.[0]}
-                    className="max-h-72"
+                    encaixe="caber"
                   />
                 ) : calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
                   <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
