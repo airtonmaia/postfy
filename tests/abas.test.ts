@@ -151,8 +151,21 @@ describe('expressão solta não vira texto na tela', () => {
        * começa com `)`. Guarda que reprova código correto é pior que guarda
        * nenhuma: ensina a ignorá-la, e na próxima vez que ela acusar — com
        * razão — alguém some com o teste em vez do bug.
+       *
+       * O `(?<!=)` é o **segundo** conserto do mesmo tipo, e a causa é a
+       * mesma: `=>` termina em `>`, então toda arrow function cujo corpo
+       * começa na linha seguinte era lida como fechamento de tag. Este
+       * trecho, que é correto, reprovava:
+       *
+       *     {partes.map((parte, i) =>
+       *       parte.forte ? (
+       *         <strong key={i}>{parte.texto}</strong>
+       *
+       * A exceção não abre buraco nenhum: no bug de verdade o caractere
+       * antes do `>` é o fim de um atributo ou de um nome de tag
+       * (`<TabsContent value="x">`), nunca um `=`.
        */
-      for (const m of texto.matchAll(/>\s*\n\s*([A-Za-z_$][^<>{}\n]*)\n\s*</g)) {
+      for (const m of texto.matchAll(/(?<!=)>\s*\n\s*([A-Za-z_$][^<>{}\n]*)\n\s*</g)) {
         const conteudo = m[1].trim();
         if (!suspeito.test(conteudo)) continue;
         achados.push(

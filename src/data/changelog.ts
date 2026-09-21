@@ -44,6 +44,12 @@ export const CHANGELOG: EntradaDoChangelog[] = [
       'O manifest do app deixou de ser um arquivo fixo no repositório e passou a ser montado do que está configurado. Trocar o ícone não exige mais deploy.',
       'O nome completo, a descrição e a cor do tema do app saem da marca que você já preencheu acima — não há campo repetido para a mesma informação.',
       'O nome curto tem limite de 12 caracteres, porque é onde o celular corta o rótulo embaixo do ícone. Sem o limite, "Minha Agência Digital" chegaria como "Minha Agên…".',
+      'A arte do banner de Saúde Operacional virou imagem. Era um vídeo carregado de um servidor externo a cada abertura do Dashboard — a tela dependia de um endereço fora daqui para desenhar o topo dela.',
+    ],
+    corrigido: [
+      'O card de insights do Dashboard passou a sair dos seus dados. Ele trazia dois clientes que não existem — "EcoModa Brasil" com 6 solicitações de ajuste e "Café Aroma Gourmet" com 100% de aprovação —, e os números não vinham de lugar nenhum. Agora ele conta o que está em ajuste, o que passou do prazo de aprovação, o que atrasou na produção e quem aprova mais na primeira versão; sem conteúdo suficiente, ele diz que ainda não há o que medir em vez de preencher o espaço.',
+      'O selo "IA Operacional" desse card saiu: não havia IA nenhuma ali, e não há — o que existe é contagem sobre os seus conteúdos, refeita a cada abertura da tela.',
+      'Sumiu a divisão vertical que cortava o banner de Saúde Operacional ao meio. Era um véu de gradiente que existia para esconder a borda reta do vídeo antigo e acabou virando a própria emenda.',
     ],
   },
   {
