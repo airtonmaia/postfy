@@ -111,7 +111,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 md:grid-rows-6 gap-[1px] bg-slate-200 min-h-[600px] overflow-y-auto">
+      <div className="flex-1 grid grid-cols-7 grid-rows-5 md:grid-rows-6 gap-[1px] bg-slate-200 dark:bg-slate-800 min-h-[600px] overflow-y-auto">
         {gridCells.map((cell, index) => {
           const dateISO = cell.date.toISOString();
           const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));

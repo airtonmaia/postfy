@@ -152,44 +152,57 @@
   }
 
   .dark {
-    --background: #020617;          /* slate-950 */
-    --foreground: #ffffff;
-    --card: #0f172a;                /* slate-900 */
-    --card-foreground: #ffffff;
-    --popover: #0f172a;
-    --popover-foreground: #ffffff;
+    --background: #09090b;          /* zinc-950 — preto profundo e neutro do shadcn */
+    --foreground: #fafafa;          /* zinc-50 */
+    --card: #121215;                /* superfícies de cards elevadas */
+    --card-foreground: #fafafa;
+    --popover: #121215;
+    --popover-foreground: #fafafa;
 
-    /* A marca **não** muda de tom entre claro e escuro, e isso é decisão.
-       O shadcn clareia o primário no escuro porque o primário dele é um
-       neutro; aqui ele é a cor da agência, e os 99 `bg-purple-600` escritos à
-       mão continuam no tom cheio nos dois modos. Clarear só este lado faria o
-       botão do shadcn e o botão ao lado dele ficarem de cores diferentes na
-       mesma tela — o oposto do que a migração existe para resolver. */
+    /* A marca não muda de tom entre claro e escuro */
     --primary: #9333ea;
     --primary-foreground: #ffffff;
 
-    --secondary: #1e293b;           /* slate-800 */
-    --secondary-foreground: #ffffff;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;    /* slate-400 */
-    --accent: #1e293b;
-    --accent-foreground: #ffffff;
+    --secondary: #18181b;           /* zinc-900 */
+    --secondary-foreground: #fafafa;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;    /* zinc-400 */
+    --accent: #1f1f23;              /* zinc-850 */
+    --accent-foreground: #fafafa;
 
     --destructive: #e11d48;
     --destructive-foreground: #ffffff;
 
-    --border: #1e293b;              /* slate-800 */
-    --input: #334155;               /* slate-700 */
+    --border: #27272a;              /* zinc-800 — bordas sutis e limpas */
+    --input: #27272a;               /* zinc-800 */
     --ring: #9333ea;
 
-    --sidebar: #0f172a;
-    --sidebar-foreground: #cbd5e1;  /* slate-300 */
+    --sidebar: #09090b;             /* barra lateral integrada no preto */
+    --sidebar-foreground: #a1a1aa;  /* zinc-400 */
     --sidebar-primary: #9333ea;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #1e293b;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #1e293b;
+    --sidebar-accent: #18181b;      /* zinc-900 */
+    --sidebar-accent-foreground: #fafafa;
+    --sidebar-border: #27272a;      /* zinc-800 */
     --sidebar-ring: #9333ea;
+
+    /*
+      Paleta escura neutra (Zinc/True Black) do shadcn para substituir o tom azulado do slate no darkmode.
+      Como o Tailwind v4 compila as classes dark:bg-slate-* e dark:border-slate-*
+      usando var(--color-slate-*), redefinir estes tons no seletor .dark
+      converte automaticamente toda a interface para o tom preto neutro elegante
+      do shadcn, eliminando o aspecto azulado lavado.
+    */
+    --color-slate-950: #09090b;
+    --color-slate-900: #121215;
+    --color-slate-850: #18181b;
+    --color-slate-800: #1c1c20;
+    --color-slate-700: #27272a;
+    --color-slate-600: #52525b;
+    --color-slate-500: #71717a;
+    --color-slate-400: #a1a1aa;
+    --color-slate-300: #d4d4d8;
+    --color-slate-200: #e4e4e7;
   }
   
   body {
@@ -213,5 +226,12 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272a;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
 }
 
