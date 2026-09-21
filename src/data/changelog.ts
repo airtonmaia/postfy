@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.63.0',
+    data: '2026-09-21',
+    resumo:
+      'O cliente entra no portal com e-mail e senha. O código por e-mail continua existindo, agora como a porta de saída.',
+    novidades: [
+      'Ao cadastrar um usuário do portal, dá para gerar uma senha com um clique — e definir ou trocar a senha de quem já existe, pelo botão da chave na lista. A senha gerada não tem I, O, 0 nem 1: ela é lida em voz alta e digitada por quem não a escolheu, e é o par que se confunde que vira chamado de "não entra".',
+      'A porta do portal passou a ter e-mail e senha. Quem tem senha entra na hora, sem esperar e-mail nenhum.',
+      'A lista de usuários mostra como cada pessoa entra — com senha ou por código —, que é o que você precisa saber quando o cliente liga dizendo que não consegue.',
+    ],
+    melhorias: [
+      'O código de seis dígitos continua valendo para todo mundo, num link na própria tela de entrada: é por ele que entra quem nunca recebeu senha e quem esqueceu a que recebeu.',
+      'A senha aparece uma vez só, na hora em que é gerada. O banco guarda uma versão irreversível dela (bcrypt) — nem a agência nem o Orquesia conseguem lê-la de volta. Se perder, gere outra.',
+      'Trocar ou tirar a senha derruba as sessões abertas daquela pessoa, inclusive as abas que já estiverem abertas. Senha é trocada justamente quando se desconfia de que outra pessoa a tem.',
+    ],
+    corrigido: [
+      'A tela de privacidade do portal dizia que "o login via WhatsApp garante a validação direta do contato responsável". O login por WhatsApp não existe desde que o telefone saiu de cena, duas trocas de método atrás.',
+    ],
+  },
+  {
     versao: '2.62.0',
     data: '2026-09-21',
     resumo:

@@ -9,20 +9,29 @@ import {
 } from './_lib/auth.js';
 
 /**
- * Entrada do Portal do Cliente: e-mail + código de 6 dígitos.
+ * Entrada do Portal do Cliente: e-mail e senha, ou o código de 6 dígitos.
  *
  * O telefone identificava, não autenticava — quem soubesse o número entrava.
- * Agora o acesso exige provar que a caixa de e-mail é sua.
+ * Agora o acesso exige a senha que a agência definiu ou provar que a caixa de
+ * e-mail é sua.
+ *
+ * **O código continua existindo, e é a porta de saída.** Quem nunca recebeu
+ * senha, quem esqueceu a que recebeu e quem está bloqueado por tentativas
+ * entram por ele. Tirá-lo deixaria o acesso do cliente dependendo de a
+ * agência lembrar de gerar a senha — e sem ninguém a quem recorrer no
+ * domingo à noite, que é quando a aprovação costuma acontecer.
  *
  * A rota é anônima por natureza (quem chama ainda não tem sessão), então ela
- * é o único lugar onde as duas funções sensíveis do banco podem ser
+ * é o único lugar onde as três funções sensíveis do banco podem ser
  * chamadas: `portal_emitir_codigo` devolve o código em claro, e
- * `portal_conferir_codigo` sem limite de taxa na frente seria força bruta em
- * seis dígitos. Ambas têm EXECUTE só para `service_role`.
+ * `portal_conferir_codigo` e `portal_entrar_com_senha` sem limite de taxa na
+ * frente são oráculos de força bruta. As três têm EXECUTE só para
+ * `service_role`.
  *
  * **A resposta de `enviar` é sempre a mesma**, exista o e-mail ou não: a
  * diferença transformaria a rota num verificador de "este e-mail é cliente de
- * alguma agência aqui?".
+ * alguma agência aqui?". Pela mesma razão, o erro de `senha` não distingue
+ * e-mail desconhecido de senha errada.
  */
 
 const REMETENTE = process.env.RESEND_FROM || 'Orquesia <avisos@orquesia.com.br>';
@@ -99,7 +108,7 @@ async function handler(request: Request): Promise<Response> {
     return json({ error: 'Corpo inválido.' }, 400);
   }
 
-  const { acao, email, codigo } = corpo || {};
+  const { acao, email, codigo, senha } = corpo || {};
   const alvo = normalizarEmail(email);
 
   if (!alvo || !alvo.includes('@') || alvo.length > 320) {
@@ -163,6 +172,39 @@ async function handler(request: Request): Promise<Response> {
     if (erroEnvio) return falharComSeguranca('portal/email', erroEnvio, 502);
 
     return json({ enviado: true });
+  }
+
+  if (acao === 'senha') {
+    if (!textoValido(senha, 200)) {
+      return json({ error: 'Informe a senha.' }, 400);
+    }
+
+    /**
+     * O mesmo aperto do `conferir`, e por um motivo a mais: o banco também
+     * conta as tentativas erradas e bloqueia a pessoa por 15 minutos depois
+     * de dez. Este limite é por container da Vercel; aquele é global e
+     * sobrevive à requisição cair noutra instância.
+     */
+    if (excedeuLimite(`portal-senha:${alvo}`, 10, 15 * 60 * 1000)) {
+      return json({ error: 'Muitas tentativas. Aguarde alguns minutos.' }, 429);
+    }
+
+    const { data, error } = await supabase.rpc('portal_entrar_com_senha', {
+      p_email: alvo,
+      p_senha: String(senha),
+    });
+
+    if (error) return credencialOuFalha('portal/senha', error);
+
+    /**
+     * Uma frase só para os três casos — e-mail que não existe, senha errada
+     * e acesso bloqueado por tentativas. Distinguir o primeiro contaria quem
+     * é cliente de quem; distinguir o terceiro diria ao atacante que ele
+     * acertou o alvo e só precisa esperar.
+     */
+    if (!data) return json({ error: 'E-mail ou senha incorretos.' }, 401);
+
+    return json({ token: data });
   }
 
   if (acao === 'conferir') {

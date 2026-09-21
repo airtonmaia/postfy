@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { portalApi } from '../../lib/api';
-import { ShieldCheck, X, FileText } from 'lucide-react';
+import { ShieldCheck, X, FileText, Eye, EyeOff } from 'lucide-react';
 import { Workspace } from '../../types';
 import { usePostfy } from '../../context/PostfyContext';
 import { Button } from '../ui/button';
@@ -8,22 +8,32 @@ import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface ClientPortalLoginProps {
   workspace: Workspace;
-  /** Recebe o token do portal, já provado pelo código enviado por e-mail. */
+  /** Recebe o token do portal, já provado pela senha ou pelo código. */
   onLoginSuccess: (token: string) => void;
   prefilledEmail?: string;
 }
 
 /**
- * Entrada em dois passos: e-mail e código de 6 dígitos.
+ * Entrada do portal: e-mail e senha, com o código por e-mail atrás.
  *
  * O telefone identificava e não autenticava — quem soubesse o número entrava
  * na conta alheia, e número de WhatsApp de empresa costuma estar no rodapé do
- * próprio site do cliente. O código prova que a caixa de e-mail é de quem diz
- * ser.
+ * próprio site do cliente. O código de seis dígitos resolveu isso e trouxe
+ * outro custo: **ele depende de o e-mail sair da fila, chegar, não cair em
+ * spam e a pessoa achar.** Quem está deste lado quer aprovar um post, e cada
+ * minuto de espera é uma aprovação que não acontece hoje.
+ *
+ * Então a senha vem primeiro, e o código fica **atrás de um link**, não
+ * apagado: é por ele que entra quem nunca recebeu senha, quem esqueceu a que
+ * recebeu e quem o banco bloqueou por tentativas. Tirá-lo deixaria o acesso
+ * do cliente dependendo de a agência lembrar de gerar a senha — sem ninguém a
+ * quem recorrer no domingo à noite, que é quando a aprovação acontece.
  *
  * A tela nunca conta se o e-mail existe na base: o passo do código aparece do
- * mesmo jeito nos dois casos. Contar a diferença transformaria o portal num
- * verificador de "fulano é cliente de alguma agência daqui?".
+ * mesmo jeito nos dois casos, e o erro da senha é o mesmo para e-mail
+ * desconhecido, senha errada e acesso bloqueado. Contar a diferença
+ * transformaria o portal num verificador de "fulano é cliente de alguma
+ * agência daqui?".
  */
 /**
  * Arte do painel direito, quando Admin → Design não definiu nenhuma.
@@ -44,21 +54,47 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
   // do produto: a arte de fundo e a frase, iguais para todas as agências.
   const { aparencia } = usePostfy();
 
-  const [passo, setPasso] = useState<'email' | 'codigo'>('email');
+  const [passo, setPasso] = useState<'senha' | 'codigo'>('senha');
   const [email, setEmail] = useState(prefilledEmail);
+  const [senha, setSenha] = useState('');
+  const [senhaAberta, setSenhaAberta] = useState(false);
   const [codigo, setCodigo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
-  const pedirCodigo = async (e?: React.FormEvent) => {
+  const entrarComSenha = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg(null);
 
     const alvo = email.trim().toLowerCase();
     if (!alvo || !alvo.includes('@')) {
       setErrorMsg('Informe o e-mail cadastrado na agência.');
+      return;
+    }
+    if (!senha) {
+      setErrorMsg('Informe a senha que a agência enviou.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { token } = await portalApi.entrarComSenha(alvo, senha);
+      onLoginSuccess(token);
+    } catch (erro) {
+      setErrorMsg(erro instanceof Error ? erro.message : 'E-mail ou senha incorretos.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const pedirCodigo = async () => {
+    setErrorMsg(null);
+
+    const alvo = email.trim().toLowerCase();
+    if (!alvo || !alvo.includes('@')) {
+      setErrorMsg('Informe o e-mail para receber o código.');
       return;
     }
 
@@ -135,8 +171,8 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
               </div>
             )}
 
-            {passo === 'email' ? (
-              <form onSubmit={pedirCodigo} className="space-y-4">
+            {passo === 'senha' ? (
+              <form onSubmit={entrarComSenha} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                     E-mail
@@ -145,6 +181,12 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                     type="email"
                     required
                     autoFocus
+                    // O gerenciador de senhas do navegador só reconhece o par
+                    // com estes dois nomes. Sem eles, quem já entrou uma vez
+                    // digita tudo de novo — e a senha é gerada, não escolhida:
+                    // ninguém a decora.
+                    autoComplete="email"
+                    name="email"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -153,18 +195,58 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                     placeholder="voce@suaempresa.com.br"
                     className="w-full h-10 px-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-hidden transition"
                   />
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    Enviamos um código de 6 dígitos para confirmar que é você.
-                  </p>
                 </div>
 
-                <div className="pt-2">
-                  <Button
-                    type="submit"
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Senha
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={senhaAberta ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      name="current-password"
+                      value={senha}
+                      onChange={(e) => {
+                        setSenha(e.target.value);
+                        setErrorMsg(null);
+                      }}
+                      placeholder="A senha que a agência enviou"
+                      className="w-full h-10 pl-3 pr-10 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-hidden transition"
+                    />
+                    {/* A senha é gerada pela agência e digitada por quem não a
+                        escolheu: sem poder conferir o que digitou, o erro de
+                        digitação vira "o portal não aceita minha senha". */}
+                    <Button variant="ghost" size="icon-sm"
+                      type="button"
+                      onClick={() => setSenhaAberta((v) => !v)}
+                      aria-label={senhaAberta ? 'Ocultar a senha' : 'Mostrar a senha'}
+                      className="absolute right-1 top-1/2 -translate-y-1/2"
+                    >
+                      {senhaAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <Button type="submit" disabled={isSubmitting} className="w-full h-10">
+                    {isSubmitting ? 'Entrando...' : 'Entrar'}
+                  </Button>
+
+                  {/*
+                    O código continua sendo a porta de saída, e por isso ele
+                    está aqui e não numa tela escondida: é por ele que entra
+                    quem nunca recebeu senha, quem esqueceu a que recebeu e
+                    quem o banco bloqueou por tentativas.
+                  */}
+                  <Button variant="ghost"
+                    type="button"
                     disabled={isSubmitting}
-                    className="w-full h-10 bg-slate-200 dark:bg-slate-800 hover:text-white active:bg-purple-700 text-slate-700 dark:text-slate-300"
+                    onClick={() => void pedirCodigo()}
+                    className="w-full h-9"
                   >
-                    {isSubmitting ? 'Enviando...' : 'Receber código'}
+                    Não tenho senha — receber código por e-mail
                   </Button>
                 </div>
               </form>
@@ -208,13 +290,13 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
                   <Button variant="ghost"
                     type="button"
                     onClick={() => {
-                      setPasso('email');
+                      setPasso('senha');
                       setCodigo('');
                       setErrorMsg(null);
                     }}
                     className="w-full h-9"
                   >
-                    Usar outro e-mail
+                    Voltar e entrar com a senha
                   </Button>
                 </div>
               </form>
@@ -310,8 +392,19 @@ export const ClientPortalLogin: React.FC<ClientPortalLoginProps> = ({
               <p>
                 1. <strong>Isolamento de Dados</strong>: Suas postagens, briefings e senhas são criptografados e acessíveis exclusivamente por você e pelos membros autorizados da agência.
               </p>
+              {/*
+                Esta frase dizia "o login via WhatsApp garante a validação
+                direta do contato responsável" — e o login por WhatsApp não
+                existe desde que o telefone saiu de cena, duas trocas de
+                método atrás. Texto de segurança que descreve um mecanismo
+                que não existe é pior que texto nenhum: ele é lido como
+                promessa por quem está decidindo se confia no portal.
+              */}
               <p>
-                2. <strong>Autenticação Segura</strong>: O login via WhatsApp garante a validação direta do contato responsável sem risco de vazamento de credenciais.
+                2. <strong>Autenticação</strong>: o acesso é por e-mail e senha, ou por um
+                código de seis dígitos enviado para o seu e-mail. A senha é guardada em
+                formato irreversível (bcrypt) — nem a agência nem o Orquesia conseguem lê-la
+                de volta.
               </p>
             </div>
             <div className="flex justify-end pt-2">

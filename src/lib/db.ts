@@ -275,14 +275,49 @@ export const restaurarAgencia = async (workspaceId: string): Promise<boolean> =>
  * Quem recorta continua sendo a RLS: `select` para membro da agência,
  * escrita só para owner/admin/manager.
  */
+/**
+ * As colunas são nomeadas, e `senha_hash` **não** está entre elas.
+ *
+ * Era `select('*')`, e no dia em que a senha do portal entrou na tabela o
+ * `*` passou a trazer o bcrypt de cada pessoa para o navegador de quem abre
+ * a ficha do cliente. Não seria escalada de privilégio — quem abre essa tela
+ * pode definir a senha —, mas hash no bundle é material para ataque offline,
+ * e o `*` não avisa quando a tabela ganha uma coluna nova. A lista fecha
+ * essa porta uma vez; `senha_definida_em` é o que a tela precisa saber, e é
+ * só uma data.
+ */
+const COLUNAS_DO_USUARIO_DO_CLIENTE =
+  'id, workspace_id, client_id, email, name, role, ativo, created_at, ultimo_acesso, senha_definida_em';
+
 export const listarUsuariosDoCliente = async (clientId: string): Promise<ClientUser[]> => {
   const { data, error } = await supabase
     .from('client_users')
-    .select('*')
+    .select(COLUNAS_DO_USUARIO_DO_CLIENTE)
     .eq('client_id', clientId)
     .order('created_at', { ascending: true });
   if (error) throw traduzirErro(error);
   return (data || []).map(clientUserDaLinha);
+};
+
+/**
+ * Define (ou troca) a senha de quem entra no portal.
+ *
+ * O hash é feito **no banco**, por `private.hash_de_senha`. Calcular bcrypt
+ * no navegador exigiria a biblioteca no bundle e, pior, faria a gravação
+ * aceitar qualquer string no lugar do hash. Por isso é RPC e não `update`.
+ */
+export const definirSenhaDoPortal = async (id: string, senha: string): Promise<void> => {
+  const { error } = await supabase.rpc('definir_senha_do_portal', {
+    p_id: id,
+    p_senha: senha,
+  });
+  if (error) throw traduzirErro(error);
+};
+
+/** Tira a senha: a pessoa volta a entrar pelo código enviado por e-mail. */
+export const removerSenhaDoPortal = async (id: string): Promise<void> => {
+  const { error } = await supabase.rpc('remover_senha_do_portal', { p_id: id });
+  if (error) throw traduzirErro(error);
 };
 
 export const criarUsuarioDoCliente = async (
