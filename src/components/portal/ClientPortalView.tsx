@@ -793,17 +793,20 @@ export const ClientPortalView: React.FC = () => {
           do banco — esconder aba com o dado já no navegador seria a tela
           mentindo sobre o que entregou.
         */}
-        <TabsList aparencia="painel" className="rounded-t-2xl shadow-xs">
-          {abasVisiveis.map((aba) => {
-            const Icone = aba.icone;
-            return (
-              <TabsTrigger key={aba.id} value={aba.id}>
-                <Icone className="w-4 h-4" />
-                {aba.rotulo}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        {/* Portal Tabs Bar - Estilo Nativo shadcn */}
+        <div className="flex items-center overflow-x-auto no-scrollbar">
+          <TabsList className="h-10 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs gap-1">
+            {abasVisiveis.map((aba) => {
+              const Icone = aba.icone;
+              return (
+                <TabsTrigger key={aba.id} value={aba.id} className="h-8 px-3 rounded-lg text-xs font-semibold gap-2">
+                  <Icone className="w-4 h-4" />
+                  {aba.rotulo}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
 
         {/* Tab 1: Approvals */}
         <TabsContent value="approvals">
