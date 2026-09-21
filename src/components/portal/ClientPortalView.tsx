@@ -57,42 +57,101 @@ import { useConfirmacao } from '../ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
+/** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
+const QUADROS_DO_CRIATIVO = [
+  { chave: 'feed', rotulo: 'Feed', proporcao: 'aspect-[4/5]' },
+  { chave: 'story', rotulo: 'Story', proporcao: 'aspect-[9/16]' },
+] as const;
+
+type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
+
 /**
- * As duas artes de "Feed + Story", lado a lado.
+ * As duas artes de "Feed + Story", uma aba para cada.
  *
  * O cliente aprova **o que vai ao ar**, e em feed+story vai ao ar duas coisas:
  * a arte 4:5 do feed e a 9:16 do story. Mostrar só a primeira faria ele
  * aprovar metade da peça sem saber — e a metade que ele não viu é a que sai
  * vertical, que é onde o corte errado aparece.
  *
- * Elas dividem a largura em vez de virarem abas: a aprovação é uma decisão
- * só, e esconder uma das duas atrás de um clique é a mesma omissão com um
- * passo a mais.
+ * **Elas eram lado a lado, e a decisão foi revista.** Metade da largura do
+ * card para cada uma dá duas miniaturas de ~200px numa tela onde o que se
+ * julga é a arte; o seletor é o mesmo da Prévia da agência (Feed/Story), e a
+ * aba não esconde a segunda arte — ela a **nomeia**, no mesmo lugar onde a
+ * agência está acostumada a alternar. A omissão que a versão lado a lado
+ * evitava continua evitada: as duas abas estão sempre à vista, e a que está
+ * sem arte diz isso antes de ser aberta.
+ *
+ * Três coisas que não são detalhe:
+ *
+ * - **A altura do bloco não muda ao trocar de aba, e é a de antes.** As duas
+ *   proporções são diferentes (1,25× a largura no feed, 1,78× no story): um
+ *   quadro que acompanhasse a aba faria o card crescer e encolher, e a grade
+ *   inteira refluir a cada clique — na linha, todos os cards seguem o mais
+ *   alto. O `aspect-[9/8]` é a altura que o par lado a lado já ocupava —
+ *   medido no Chromium num card de 430px: **380,4px antes, 382,2px depois, e
+ *   os mesmos 382,2px nas duas abas.** A troca de layout não mexe em nenhuma
+ *   outra medida da tela. Dentro dele a arte é alta e a largura é derivada da
+ *   proporção, que é o que mantém o corte honesto — quem decide o
+ *   enquadramento é a rede, e a arte só cresceu: o feed saiu de 214px de
+ *   largura para 267px, e o story ficou nos ~190px que já tinha.
+ * - **O seletor fica embaixo da arte, nunca por cima dela.** A manchete da
+ *   peça mora no rodapé do criativo (é onde ela está em toda arte que passou
+ *   por aqui), e um controle flutuando ali cobriria justamente o texto que o
+ *   cliente precisa ler para aprovar.
+ * - **A aba sem arte avisa antes de ser aberta.** Sem o sinal, o cliente
+ *   aprovaria vendo só o feed sem nunca saber que o story ficou vazio — que
+ *   é o desfecho que a versão lado a lado existia para impedir, e o único
+ *   que a aba poderia reintroduzir.
  */
-const CriativoDeFeedEStory: React.FC<{ feed?: string; story?: string }> = ({ feed, story }) => (
-  <div className="flex gap-0.5 bg-slate-900">
-    {([
-      { url: feed, rotulo: 'Feed', proporcao: 'aspect-[4/5]' },
-      { url: story, rotulo: 'Story', proporcao: 'aspect-[9/16]' },
-    ] as const).map(({ url, rotulo, proporcao }) => (
-      <div key={rotulo} className={`relative flex-1 ${proporcao} overflow-hidden bg-slate-900`}>
-        {url ? (
-          <img src={url} alt={`Arte do ${rotulo}`} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px]">
-            <Layers className="w-6 h-6" />
-            {/* Diz qual das duas falta, com nome: "Preview do Criativo" nas
-                duas metades não distinguiria a que está pendente. */}
-            <span>Sem arte de {rotulo}</span>
-          </div>
-        )}
-        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/70 text-white backdrop-blur-xs">
-          {rotulo}
-        </span>
+const CriativoDeFeedEStory: React.FC<{
+  feed?: string;
+  story?: string;
+  /** Limite de altura do bloco, quando quem chama tem um (a prévia do calendário). */
+  className?: string;
+}> = ({ feed, story, className = '' }) => {
+  const [quadro, setQuadro] = useState<QuadroDoCriativo>('feed');
+  const arteDoQuadro: Record<QuadroDoCriativo, string | undefined> = { feed, story };
+  const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
+  const url = arteDoQuadro[emTela.chave];
+
+  return (
+    <div className={`w-full aspect-[9/8] bg-slate-900 flex flex-col ${className}`}>
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+        <div className={`h-full ${emTela.proporcao} overflow-hidden`}>
+          {url ? (
+            <img
+              src={url}
+              alt={`Arte do ${emTela.rotulo}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
+              <Layers className="w-6 h-6" />
+              {/* Diz qual das duas falta, com nome: "Preview do Criativo"
+                  não distinguiria a que está pendente. */}
+              <span>Sem arte de {emTela.rotulo}</span>
+            </div>
+          )}
+        </div>
       </div>
-    ))}
-  </div>
-);
+
+      <div className="flex justify-center pb-2 shrink-0">
+        <Tabs value={quadro} onValueChange={(v) => setQuadro(v as QuadroDoCriativo)}>
+          <TabsList aparencia="segmentado">
+            {QUADROS_DO_CRIATIVO.map(({ chave, rotulo }) => (
+              <TabsTrigger key={chave} value={chave}>
+                {rotulo}
+                {!arteDoQuadro[chave] && (
+                  <AlertCircle className="w-3 h-3 text-amber-500" aria-label="sem arte" />
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Proporção do preview de mídia, pela rede/formato reais do job — não um
@@ -1726,10 +1785,29 @@ export const ClientPortalView: React.FC = () => {
             {/* A prévia abre mostrando a arte, sem faixa de título. O nome
                 existe para quem usa leitor de tela. */}
             <DialogTitle className="sr-only">{calendarPreviewJob.title}</DialogTitle>
+              {/*
+                **A prévia do calendário também aprova**, e por isso ela
+                precisa das duas artes tanto quanto o card. Ela mostrava
+                `mediaUrls[0]` em qualquer formato: num feed+story, a arte
+                vertical nunca chegava à tela do cliente — que decide sobre
+                uma peça vendo metade dela. É a mesma omissão do card, um
+                clique adiante, e passou despercebida porque o caminho de
+                aprovação daqui é o menos usado.
+              */}
               <div
-                className={`relative ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 max-h-72`}
+                className={`relative bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 ${
+                  calendarPreviewJob.format === 'feed_story'
+                    ? ''
+                    : `${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} max-h-72`
+                }`}
               >
-                {calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
+                {calendarPreviewJob.format === 'feed_story' ? (
+                  <CriativoDeFeedEStory
+                    feed={calendarPreviewJob.mediaUrls?.[0]}
+                    story={calendarPreviewJob.storyMediaUrls?.[0]}
+                    className="max-h-72"
+                  />
+                ) : calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
                   <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">

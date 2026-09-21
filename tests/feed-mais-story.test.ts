@@ -166,13 +166,57 @@ describe('as duas artes existem em todo lugar que decide', () => {
     }
   });
 
-  it('o cliente vê as duas no portal', () => {
-    // Aprovar só o feed é aprovar metade da peça sem saber — e a metade não
-    // vista é a vertical, que é onde o corte errado aparece.
-    expect(portal, 'o portal voltou a mostrar só a arte do feed').toMatch(
-      /<CriativoDeFeedEStory/
-    );
+  it('o cliente vê as duas no portal, nos dois caminhos que aprovam', () => {
+    /**
+     * Aprovar só o feed é aprovar metade da peça sem saber — e a metade não
+     * vista é a vertical, que é onde o corte errado aparece.
+     *
+     * **São dois lugares, e a guarda só conhecia um.** O card da aba
+     * Aprovações e a prévia do job clicado no calendário aprovam a mesma
+     * peça; a segunda mostrava `mediaUrls[0]` em qualquer formato, e a arte
+     * do story não chegava à tela. Exigir o componente uma vez deixava o
+     * outro caminho de fora, que é como a omissão sobreviveu.
+     */
+    const usos = portal.match(/<CriativoDeFeedEStory/g) ?? [];
+    expect(usos.length, 'um dos caminhos de aprovação voltou a mostrar só a arte do feed')
+      .toBeGreaterThanOrEqual(2);
     expect(portal).toMatch(/story=\{job\.storyMediaUrls\?\.\[0\]\}/);
+    expect(portal).toMatch(/story=\{calendarPreviewJob\.storyMediaUrls\?\.\[0\]\}/);
+  });
+
+  it('a arte do story no portal nunca cai na do feed', () => {
+    /**
+     * É a guarda do `|| midia` do publicador, do lado da tela: com as duas
+     * artes em **abas**, repetir a do feed na aba Story é a mesma troca
+     * silenciosa — e aqui ela é pior, porque o cliente **aprova** o que vê.
+     *
+     * **A primeira versão desta guarda procurava `story || feed` e não
+     * pegava o caso real**, que é `arteDoQuadro[emTela.chave] || feed` —
+     * conferido ao contrário, com o fallback recolocado. Ela media o nome da
+     * variável em vez do efeito, que é exatamente a falha das três versões
+     * da guarda de formato e da do `--radius`. O que não pode existir é a
+     * arte do feed **como alternativa**, venha de onde vier o lado esquerdo.
+     */
+    const corpo = portal.slice(portal.indexOf('const CriativoDeFeedEStory'));
+    expect(corpo.slice(0, 2000), 'a aba Story voltou a desenhar a arte do feed').not.toMatch(
+      /(?:\|\||\?\?)\s*feed\b/
+    );
+  });
+
+  it('as duas abas ficam à vista, e a que está sem arte avisa', () => {
+    /**
+     * A versão lado a lado existia para o cliente não aprovar sem saber que
+     * o story ficou vazio. Trocá-la por abas só é seguro enquanto as duas
+     * estão sempre listadas e a vazia se anuncia **antes** de ser aberta:
+     * sem isso, ele aprova no quadro do feed e nunca descobre a falta.
+     */
+    const corpo = portal.slice(portal.indexOf('const QUADROS_DO_CRIATIVO'));
+    expect(corpo, 'as abas deixaram de ser derivadas dos dois quadros').toMatch(
+      /QUADROS_DO_CRIATIVO\.map\(/
+    );
+    expect(corpo.slice(0, 3000), 'a aba sem arte deixou de avisar').toMatch(
+      /!arteDoQuadro\[chave\] &&/
+    );
   });
 
   it('a prévia da agência mostra a arte do story no quadro de story', () => {
