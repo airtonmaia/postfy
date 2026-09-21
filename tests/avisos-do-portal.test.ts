@@ -101,6 +101,80 @@ describe('o valor novo entra nas duas listas fechadas', () => {
     }
   });
 
+  it('todo tipo que as migrações inserem cabe no check do banco', () => {
+    /**
+     * **Esta guarda existe por um bug que estava em produção desde sempre.**
+     *
+     * `portal_comentar` insere a notificação da agência com
+     * `type = 'comment'`, e esse valor nunca esteve no check. O insert falha
+     * com 23514, a função não trata exceção, e o `update` que grava o
+     * comentário vem **antes** dele: a transação inteira é desfeita e a
+     * mensagem do cliente some. Zero notificações `comment` em 28, medido.
+     *
+     * A guarda irmã abaixo deriva da união do TypeScript e **passava** — o
+     * literal estava em plpgsql, não em TS. Lista fechada na tela e check no
+     * banco são a mesma decisão, e "na tela" inclui o que o próprio Postgres
+     * escreve.
+     */
+    const aceitos = valoresAceitos(ultimoCheck('notifications', 'type'));
+    const escritos = new Set<string>();
+
+    /**
+     * O recorte é por `indexOf`, não por regex: o `values (...)` tem
+     * parênteses aninhados (`jsonb_build_object(...)`), e a primeira versão
+     * desta guarda casou **zero** blocos. Ela teria passado calada se não
+     * houvesse a asserção de sanidade logo abaixo — que é a razão de ela
+     * existir.
+     */
+    for (const arquivo of readdirSync(MIGRACOES).filter((f) => f.endsWith('.sql'))) {
+      const sql = semComentariosSql(readFileSync(join(MIGRACOES, arquivo), 'utf-8'));
+      const partes = sql.split('insert into public.notifications').slice(1);
+
+      for (const parte of partes) {
+        /**
+         * O tipo sai da **posição** da coluna, não de uma lista de valores
+         * conhecidos — e isso é o que torna a guarda capaz de pegar o bug.
+         * Filtrar por uma lista escrita aqui deixaria passar exatamente o
+         * caso que interessa: o valor novo que ninguém pôs no check e que
+         * também não está na lista da guarda.
+         */
+        const colunas = parte.slice(parte.indexOf('(') + 1, parte.indexOf(')'));
+        const indiceDoTipo = colunas.split(',').map((c) => c.trim()).indexOf('type');
+        if (indiceDoTipo === -1) continue;
+
+        const depoisDoValues = parte.slice(parte.indexOf('values', parte.indexOf(')')));
+        const abre = depoisDoValues.indexOf('(');
+        const campos: string[] = [];
+        let profundidade = 0;
+        let atual = '';
+        for (const ch of depoisDoValues.slice(abre + 1)) {
+          if (ch === '(') profundidade++;
+          if (ch === ')' && profundidade-- === 0) break;
+          if (ch === ',' && profundidade === 0) {
+            campos.push(atual.trim());
+            atual = '';
+            continue;
+          }
+          atual += ch;
+        }
+        campos.push(atual.trim());
+
+        const valor = campos[indiceDoTipo]?.match(/^'([a-z_]+)'$/)?.[1];
+        if (valor) escritos.add(valor);
+      }
+    }
+
+    expect(escritos.size, 'nenhuma migração insere notificação — a guarda não achou nada').toBeGreaterThan(2);
+
+    for (const tipo of escritos) {
+      expect(
+        aceitos.has(tipo),
+        `uma função do banco insere notificação do tipo "${tipo}" e o check a recusa — ` +
+          'a exceção derruba a transação inteira da função, junto com o que ela já tinha gravado'
+      ).toBe(true);
+    }
+  });
+
   it('todo tipo de notificação da tela cabe no check do banco', () => {
     /**
      * Derivado da união do TypeScript, nunca de uma lista literal: lista

@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.65.1',
+    data: '2026-09-21',
+    resumo:
+      'O chat do cliente no portal nunca gravou nada. A mensagem era descartada em silêncio, com a tela dizendo que foi enviada.',
+    corrigido: [
+      'Quando o cliente escrevia na aba de aprovação do portal, a mensagem era gravada e em seguida descartada: a notificação que avisa a agência usava um tipo que o banco recusa, e a recusa desfazia a gravação inteira junto. A tela dizia "enviada" porque ela pinta antes de o banco responder — o cliente ficava esperando resposta de uma mensagem que nunca chegou, e a agência nunca soube que ele falou. Medido na base: zero mensagens em 28 notificações.',
+    ],
+  },
+  {
     versao: '2.65.0',
     data: '2026-09-21',
     resumo:
