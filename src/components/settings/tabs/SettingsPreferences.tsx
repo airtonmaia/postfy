@@ -39,6 +39,20 @@ export const SettingsPreferences: React.FC = () => {
   const [notificacao, setNotificacao] = useState<'cada' | 'lote'>(
     currentWorkspace.notificacaoAprovacao === 'lote' ? 'lote' : 'cada'
   );
+  /**
+   * As duas chaves dos avisos do portal.
+   *
+   * `!== false` e não `=== true`: a agência carregada antes da migração vem
+   * sem a coluna, e o padrão do banco é ligado — ler a ausência como
+   * desligado mostraria a chave errada e salvaria esse erro no primeiro
+   * clique em qualquer outro campo desta tela.
+   */
+  const [avisarAcesso, setAvisarAcesso] = useState(
+    currentWorkspace.avisarAcessoDoPortal !== false
+  );
+  const [avisarAcoes, setAvisarAcoes] = useState(
+    currentWorkspace.avisarAcoesDoCliente !== false
+  );
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -54,7 +68,12 @@ export const SettingsPreferences: React.FC = () => {
     try {
       // O banco primeiro, a faixa verde depois — e só se ele confirmar. Era
       // exatamente a ordem invertida que fazia a tela mentir.
-      const mudancas = { timezone, notificacaoAprovacao: notificacao };
+      const mudancas = {
+        timezone,
+        notificacaoAprovacao: notificacao,
+        avisarAcessoDoPortal: avisarAcesso,
+        avisarAcoesDoCliente: avisarAcoes,
+      };
       await atualizarWorkspace(currentWorkspace.id, mudancas);
       updateWorkspace(currentWorkspace.id, mudancas);
       setSalvo(true);
@@ -69,7 +88,9 @@ export const SettingsPreferences: React.FC = () => {
   const fusoMudou = timezone !== (currentWorkspace.timezone || 'America/Sao_Paulo');
   const mudou =
     fusoMudou ||
-    notificacao !== (currentWorkspace.notificacaoAprovacao === 'lote' ? 'lote' : 'cada');
+    notificacao !== (currentWorkspace.notificacaoAprovacao === 'lote' ? 'lote' : 'cada') ||
+    avisarAcesso !== (currentWorkspace.avisarAcessoDoPortal !== false) ||
+    avisarAcoes !== (currentWorkspace.avisarAcoesDoCliente !== false);
 
   return (
     <form onSubmit={(e) => void salvar(e)} className="space-y-6">
@@ -228,6 +249,68 @@ export const SettingsPreferences: React.FC = () => {
               </label>
             );
           })}
+        </div>
+      </div>
+
+      {/* Avisos que o portal do cliente gera para a agência */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+        <div>
+          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <Bell className="w-4 h-4 text-purple-600" />
+            Avisos do Portal do Cliente
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed max-w-2xl">
+            O que chega até você quando o cliente entra no portal. O e-mail vai para o
+            proprietário e para os administradores da agência.
+          </p>
+        </div>
+
+        <div className="space-y-2.5 pt-2">
+          {([
+            {
+              chave: 'acesso',
+              valor: avisarAcesso,
+              trocar: setAvisarAcesso,
+              titulo: 'Avisar quando o cliente abrir o portal',
+              detalhe:
+                'Notificação no sino e e-mail a cada visita. Sem agrupamento: um cliente que abre três vezes no dia gera três avisos, para cada administrador.',
+            },
+            {
+              chave: 'acoes',
+              valor: avisarAcoes,
+              trocar: setAvisarAcoes,
+              titulo: 'Enviar e-mail quando o cliente aprovar ou pedir ajuste',
+              detalhe:
+                'A notificação no sino continua vindo de qualquer jeito — é a decisão do cliente sobre a peça. Esta chave é só o e-mail.',
+            },
+          ]).map((opcao) => (
+            <label
+              key={opcao.chave}
+              className={`flex items-start gap-3 p-3.5 rounded-xl border transition ${
+                !podeSalvar ? 'opacity-60' : 'cursor-pointer'
+              } ${
+                opcao.valor
+                  ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40'
+                  : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={opcao.valor}
+                disabled={!podeSalvar}
+                onChange={(e) => opcao.trocar(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-purple-600 focus:ring-purple-500 shrink-0"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                  {opcao.titulo}
+                </span>
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                  {opcao.detalhe}
+                </span>
+              </span>
+            </label>
+          ))}
         </div>
       </div>
 

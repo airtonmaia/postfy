@@ -599,7 +599,13 @@ const MainLayout: React.FC = () => {
                 >
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">Notificações da Agência</span>
-                    <span className="text-[10px] text-slate-400 font-medium">Tempo Real</span>
+                    {/*
+                      Era "Tempo Real", e não era: não havia assinatura nem
+                      sondagem, e o que o cliente fazia no portal só aparecia
+                      no F5. Agora há sondagem de um minuto — e o rótulo diz o
+                      intervalo, em vez de prometer o instante.
+                    */}
+                    <span className="text-[10px] text-slate-400 font-medium">Atualiza a cada minuto</span>
                   </div>
 
                   <div className="max-h-72 overflow-y-auto space-y-2 text-xs">

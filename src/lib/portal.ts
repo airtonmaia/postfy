@@ -137,6 +137,30 @@ export const carregarPortal = async (token: string): Promise<DadosDoPortal | nul
  * `update` direto na tabela `jobs` seria recusado pela RLS, e a tela mostraria
  * a aprovação que o banco nunca gravou.
  */
+/**
+ * Avisa a agência de que este cliente abriu o portal.
+ *
+ * **Uma chamada por abertura da tela**, nunca por render nem por troca de
+ * aba lá dentro: cada uma vira uma notificação no painel e um e-mail por
+ * admin da agência.
+ *
+ * Não dá para pendurar isso em `portal_dados`, que é a consulta que toda
+ * abertura já faz: ela é `stable` e função `stable` não escreve. E não dá
+ * para pendurar no login, que seria o lugar óbvio: a sessão do portal dura
+ * 30 dias, então a agência saberia de uma visita por mês.
+ *
+ * Falhar aqui não é erro para quem está no portal — ele veio aprovar
+ * conteúdo, não avisar ninguém. Por isso devolve `false` em vez de lançar.
+ */
+export const registrarAcessoNoPortal = async (token: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('portal_registrar_acesso', { p_token: token });
+  if (error) {
+    console.warn('[portal] não foi possível registrar o acesso:', error.message);
+    return false;
+  }
+  return data === true;
+};
+
 export const aprovarPeloPortal = async (
   token: string,
   jobId: string,

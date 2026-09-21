@@ -51,6 +51,11 @@ export const workspaceDaLinha = (l: Linha): Workspace => ({
   whiteLabel: Boolean(l.white_label),
   timezone: l.timezone ?? 'America/Sao_Paulo',
   notificacaoAprovacao: l.notificacao_aprovacao === 'lote' ? 'lote' : 'cada',
+  // Ligadas quando a coluna ainda não respondeu (agência carregada por uma
+  // consulta antiga, ou linha anterior à migração): o padrão do banco é
+  // `true`, e divergir aqui faria a tela mostrar desligado o que está ligado.
+  avisarAcessoDoPortal: l.avisar_acesso_do_portal !== false,
+  avisarAcoesDoCliente: l.avisar_acoes_do_cliente !== false,
   isTrial: ounull(l.is_trial),
   trialEndsAt: ounull(l.trial_ends_at),
   deletedAt: ounull(l.deleted_at),
@@ -69,6 +74,8 @@ export const workspaceParaLinha = (w: Partial<Workspace>): Linha =>
     white_label: w.whiteLabel,
     timezone: w.timezone,
     notificacao_aprovacao: w.notificacaoAprovacao,
+    avisar_acesso_do_portal: w.avisarAcessoDoPortal,
+    avisar_acoes_do_cliente: w.avisarAcoesDoCliente,
     is_trial: w.isTrial,
     trial_ends_at: w.trialEndsAt,
   });

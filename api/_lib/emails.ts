@@ -18,11 +18,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const REMETENTE = process.env.RESEND_FROM || 'Orquesia <avisos@orquesia.com.br>';
 
-export const EVENTOS_DE_EMAIL = new Set([
-  'conteudo_aguardando_aprovacao',
-  'conteudo_aprovado',
-  'pedido_de_ajuste',
-]);
+/*
+  Havia aqui um `EVENTOS_DE_EMAIL` com os três eventos originais. Ele saiu
+  em vez de ganhar os dois que faltavam, e o motivo é o que este projeto já
+  registra sobre o `trial_ends_at`: **ninguém o lia**. Nenhuma linha de
+  `api/`, `src/` ou `tests/` o consultava, e por isso ele passou o lote e o
+  aviso de acesso de fora sem nada acusar — uma lista desatualizada com cara
+  de fonte da verdade é pior que lista nenhuma, porque a próxima pessoa a
+  acrescenta e acha que decidiu alguma coisa.
+
+  Quem decide se o evento existe são as duas listas que o banco cobra: o
+  `check` de `email_queue.evento` e a linha em `email_templates`.
+*/
 
 const escapar = (t: string): string =>
   t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -76,9 +83,13 @@ export const linkDoEmail = (destinatario: string, jobId: string): string => {
   // token no e-mail dispensaria o código de verificação, e a entrada por
   // código existe justamente para o acesso não depender de quem tem o link.
   // A caixa de e-mail continua sendo a prova.
-  return destinatario === 'cliente'
-    ? `${base}/portal-do-cliente`
-    : `${base}/?job=${jobId}`;
+  if (destinatario === 'cliente') return `${base}/portal-do-cliente`;
+
+  // Sem peça — é o caso do aviso de que o cliente abriu o portal. Sem este
+  // desvio o link sai `/?job=`, que abre o produto e tenta encontrar um
+  // conteúdo de id vazio: um botão "Visualizar" que leva a um erro é pior
+  // que um que leva à porta de casa.
+  return jobId ? `${base}/?job=${jobId}` : base;
 };
 
 export interface ResultadoDoEnvio {

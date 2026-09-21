@@ -72,6 +72,20 @@ export interface Workspace {
    *           pelo botão "Aprovação em massa" no quadro.
    */
   notificacaoAprovacao?: 'cada' | 'lote';
+  /**
+   * Se a agência quer saber que alguém do cliente abriu o portal.
+   *
+   * Vale para o painel **e** para o e-mail: quem desliga isto desligou porque
+   * não quer ver, e deixar o sino enchendo faria a chave parecer quebrada.
+   */
+  avisarAcessoDoPortal?: boolean;
+  /**
+   * Se a agência quer o e-mail quando o cliente aprova ou pede ajuste.
+   *
+   * Só o e-mail. A notificação no painel continua vindo sempre: aquilo é
+   * decisão do cliente sobre uma peça, e perdê-la é perder trabalho.
+   */
+  avisarAcoesDoCliente?: boolean;
   isTrial?: boolean;
   trialEndsAt?: string;
   /**
@@ -479,7 +493,16 @@ export interface Notification {
   workspaceId: string;
   title: string;
   message: string;
-  type: 'approval' | 'adjustment' | 'publication' | 'system' | 'lead';
+  /**
+   * `portal` é o cliente do outro lado — abriu o portal. Os demais são o que
+   * a agência faz.
+   *
+   * Esta lista e o `check` de `notifications.type` são a mesma decisão em
+   * dois lugares: acrescentar aqui sem acrescentar lá faz o insert ser
+   * recusado pelo Postgres, e a persistência derivada de diff engole a
+   * recusa em segundo plano.
+   */
+  type: 'approval' | 'adjustment' | 'publication' | 'system' | 'lead' | 'portal';
   read: boolean;
   createdAt: string;
   linkContext?: {

@@ -35,6 +35,7 @@ import {
   listarWorkspaces,
   atualizarWorkspace,
   buscarJobsDoPeriodo,
+  buscarNotificacoesRecentes,
   DIAS_DE_HISTORICO,
   moverAgenciaParaLixeira as moverParaLixeira,
   restaurarAgencia as restaurarDaLixeira,
@@ -87,7 +88,18 @@ import {
   type DadosDoPortal,
   type UsuarioDoPortal,
   carregarMarcaDaAgencia,
+  registrarAcessoNoPortal,
 } from '../lib/portal';
+
+/**
+ * De minuto em minuto, e sempre que a aba volta ao primeiro plano.
+ *
+ * Um minuto porque o que chega por aqui é decisão do cliente sobre uma peça
+ * — aprovou, pediu ajuste, entrou no portal. Mais lento que isso e a agência
+ * descobre pelo WhatsApp antes de descobrir pelo produto, que é o problema
+ * que o sino existe para resolver.
+ */
+const INTERVALO_DAS_NOTIFICACOES = 60 * 1000;
 
 interface PostfyContextType {
   // General
@@ -1058,6 +1070,19 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setAllClients([dados.cliente]);
         setAllJobs(dados.jobs);
         setAllClientMaterials(dados.materiais);
+
+        /**
+         * A agência fica sabendo que o cliente entrou.
+         *
+         * Aqui, e não na `ClientPortalView`: este efeito roda uma vez por
+         * abertura do portal com token válido, que é exatamente a definição
+         * de "visita". Na tela, qualquer remontagem viraria um aviso novo.
+         *
+         * `void` porque nada nesta tela depende da resposta — o cliente veio
+         * aprovar conteúdo, não avisar ninguém, e uma falha aqui não pode
+         * atrasar a pintura do portal.
+         */
+        void registrarAcessoNoPortal(portalToken);
       } catch (erro) {
         if (!cancelado) {
           setErroDoPortal(
@@ -1170,6 +1195,66 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('[jobs] não foi possível buscar o período', erro);
     }
   };
+
+  /**
+   * O sino sonda o banco, porque metade do que ele mostra não nasce aqui.
+   *
+   * O popover anunciava **"Tempo Real"** e não havia assinatura nem
+   * sondagem: as notificações vinham na carga inicial e só. Tudo o que o
+   * cliente faz do outro lado — aprovar, pedir ajuste, comentar, mandar
+   * material, abrir o portal — é gravado por RPC `security definer`, no
+   * servidor, e portanto **nunca chegava a uma aba já aberta**. Quem
+   * deixasse o Orquesia aberto a manhã inteira não via nada até o F5, com a
+   * tela afirmando o contrário. É a armadilha 9 no próprio painel de avisos.
+   *
+   * Sondagem, e não Realtime do Supabase, por uma razão só: o Realtime
+   * depende de a tabela estar na publicação do projeto, que é um botão fora
+   * deste repositório. Uma dependência que ninguém vê quebrar é como o
+   * agendador do GitHub Actions morreu por 52 horas sem sintoma. Uma
+   * consulta de 20 linhas por minuto é barata e falha à vista.
+   *
+   * O padrão é o do `AvisoDeAtualizacao`: intervalo **e** volta do foco. Só
+   * o intervalo não basta — o navegador estrangula timer de aba em segundo
+   * plano, e a volta do foco é justamente quando a pessoa vai olhar o sino.
+   */
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelado = false;
+
+    const sondar = async () => {
+      if (cancelado || document.visibilityState !== 'visible') return;
+      try {
+        const recentes = await buscarNotificacoesRecentes();
+        if (cancelado || recentes.length === 0) return;
+
+        setAllNotifications((atuais) => {
+          const conhecidas = new Set(atuais.map((n) => n.id));
+          const novas = recentes.filter((n) => !conhecidas.has(n.id));
+          if (!novas.length) return atuais;
+          // Mesma marca da carga por período: sem ela o diff vê linha nova e
+          // tenta **gravar de volta** o que acabou de ler, e a chave
+          // primária recusa uma a uma, em silêncio, dentro da fila.
+          //
+          // Só as que faltam entram. Reaproveitar as que já estão no estado
+          // desfaria o "lida" de quem acabou de clicar no sino.
+          marcarComoVindoDoBanco('notifications', novas.map((n) => n.id));
+          return [...novas, ...atuais];
+        });
+      } catch (erro) {
+        console.warn('[notificacoes] sondagem falhou', erro);
+      }
+    };
+
+    const relogio = setInterval(sondar, INTERVALO_DAS_NOTIFICACOES);
+    document.addEventListener('visibilitychange', sondar);
+
+    return () => {
+      cancelado = true;
+      clearInterval(relogio);
+      document.removeEventListener('visibilitychange', sondar);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   /**
    * Fila única de gravação, compartilhada por todas as coleções.
