@@ -2690,6 +2690,112 @@ da variável. Nunca finja sucesso: `Configurações → Integrações` consulta
 
 ---
 
+## Web Push: o aviso alcança quem está com o Orquesia fechado
+
+O sino resolve quem está olhando a tela. Este resolve o caso que custa: o
+cliente aprova às 22h de domingo, e a agência descobre na segunda de manhã.
+
+O plano que originou a entrega era escrito para Next.js, e **três dos seis
+passos não se aplicam aqui**. Vale registrar quais, porque o próximo plano
+copiado da internet vai errar os mesmos:
+
+| o plano dizia | aqui |
+|---|---|
+| `app/manifest.ts` (`MetadataRoute`) | `public/manifest.webmanifest` estático |
+| `process.env.NEXT_PUBLIC_*` | `import.meta.env.VITE_*` |
+| `fetch('/api/push/subscribe')` | **não existe** — o navegador grava direto |
+
+**A rota de inscrição é a que mais importa não copiar.** `api/` está em 12 de
+12 funções do plano Hobby, e a 13ª não dá erro de código: `tsc`, vitest e
+`vite build` ficam verdes e o **deploy inteiro falha** (armadilha 6). E ela
+não é necessária — a RLS de `push_subscriptions` é por dono
+(`auth.uid() = user_id`), então o navegador grava a própria linha e nenhuma
+outra. A rota era exigência do framework, não do Web Push.
+
+Cinco decisões que não são detalhe:
+
+- **Quem recebe sai de `workspace_members`, nunca da inscrição.** O plano
+  guardava `workspace_id` na linha do dispositivo, e com a RLS por dono isso
+  é um buraco: qualquer pessoa gravaria uma linha apontando para a agência de
+  outro e passaria a receber os avisos dela. A inscrição guarda só o dono do
+  aparelho.
+- **`setVapidDetails` roda dentro da função, nunca no topo do módulo.** Ele
+  lança quando a chave é inválida ou o e-mail não tem esquema — e no topo
+  esse `throw` acontece no *import*, matando `api/publicar.ts` inteiro antes
+  da primeira linha. A publicação pararia por causa de uma variável de push
+  mal preenchida. Armadilha 0 na camada do módulo.
+- **`empurrarNotificacoes` vem antes do `return` antecipado da fila.** A rota
+  retorna cedo quando não há nada agendado, que é o estado normal dela na
+  imensa maioria das passadas. Depois dele, o push sairia só nos cinco
+  minutos em que por acaso houvesse um post para publicar: funciona no teste,
+  com um item na fila, e não funciona no uso.
+- **404 e 410 apagam a inscrição.** O navegador a descarta quando a pessoa
+  limpa os dados do site, reinstala o app ou revoga a permissão, e dali em
+  diante todo envio falha para sempre. Sem apagar, a tabela vira um cemitério
+  relido a cada cinco minutos, e a taxa de falha sobe até esconder as falhas
+  reais.
+- **O acervo nasce marcado como já empurrado.** Sem o `update` da migração, a
+  primeira passada despejaria toda notificação existente no celular de todo
+  mundo. É o oposto do backfill de `post_metrics`, e de propósito: lá o
+  histórico é o valor, aqui é ruído — e ruído na estreia é o que faz a pessoa
+  desligar a permissão e não voltar.
+
+**Não há fila separada, e isso é decisão.** A fila de e-mail existe porque um
+e-mail tem destinatário congelado, três tentativas e um erro que vale ler
+depois. Push é o oposto: efêmero — um aviso cinco minutos atrasado ainda
+serve, um do dia seguinte não serve para nada — e com destinatário derivado na
+hora. Então a marca mora na própria `notifications`, e `push_enviado_em`
+**avança mesmo quando o envio falha**, pela razão de sempre: a fila é ordenada
+por ela, e a linha que não avança segura todas as de trás.
+
+### O PWA: três coisas que o navegador exige em silêncio
+
+Nenhuma das três quebra build, e nenhuma aparece no console:
+
+- **Service worker com handler de `fetch`.** Sem ele o Chrome nunca oferece a
+  instalação, com o manifest e os ícones perfeitos. O nosso não chama
+  `respondWith` — existe só para satisfazer o critério.
+- **Registro no carregamento**, em `main.tsx`. Registrar só ao ligar a
+  notificação faria o convite aparecer apenas para quem passasse por
+  Preferências, e quem quer o ícone na tela de início não passa por lá.
+- **`apple-touch-icon`.** O iOS ignora os ícones do manifest. E ali não é
+  aparência: no iPhone o Web Push **só existe** com o app adicionado à tela de
+  início (iOS 16.4+), então esse ícone faz parte do caminho da notificação.
+  A tela diz isso em texto — sem a frase, o botão não faz nada no iPhone e
+  quem clica conclui que o produto está quebrado.
+
+**O service worker não cacheia nada.** Um SW que guarda o app em cache muda o
+jogo do deploy: a pessoa passa a rodar a versão guardada, e o
+`AvisoDeAtualizacao` — que compara a build do servidor com a da aba —
+compararia contra o que o próprio SW serve. O sintoma seria botão que sumiu e
+tela que mudou de lugar, com cara de bug.
+
+**Os `rewrites` do `vercel.json` não interceptam `/sw.js`**, e isso foi
+medido, não deduzido: `/portal-hero.jpg` responde `image/jpeg` em produção, o
+que prova que o sistema de arquivos vence o coringa `/((?!api/).*)`. Se
+vencesse o contrário, o service worker chegaria como HTML e o push morreria em
+silêncio.
+
+**O manifest é por origem, não por agência.** O app instalado se chama
+Orquesia para todo mundo, e é por isso que o portal do cliente — que é
+whitelabel — ficou de fora: o ícone na tela de início dele teria a marca
+errada. A saída honesta para o portal é domínio próprio, e é uma entrega
+inteira.
+
+**A dependência tem um custo de CI que não é óbvio.** O workflow instala com
+`bun install --frozen-lockfile`: acrescentar `web-push` ao `package.json` sem
+atualizar o `bun.lock` reprova o CI — e a máquina de quem escreveu isto não
+tinha bun, que é exatamente como esse descompasso nasce. `package-lock.json`
+também foi atualizado, porque os dois lockfiles convivem no repositório.
+
+Protegido por `tests/push.test.ts`, que confere a ordem no cron (conferida ao
+contrário: movendo a chamada para depois do `return`, reprova), o VAPID fora
+do topo do módulo, a remoção em 404/410, o backfill da migração, a ausência de
+`workspace_id` na inscrição, os ícones existirem como arquivo, o handler de
+`fetch` e o limite de 12 funções em `api/`.
+
+---
+
 ## Mapa
 
 ```
@@ -2712,6 +2818,7 @@ src/components/reports/DesempenhoReal.tsx  o que o conteúdo deu, com o recorte 
 src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
 src/lib/formatos.ts        que formato existe em cada rede, o nome que ela dá e a proporção da arte
+src/lib/push.ts            inscrição do aparelho no Web Push; sem rota, direto no Supabase
 src/components/common/PreviaNoHover.tsx  a arte grande no hover, a mesma no calendário e no portal
 src/components/jobs/FormularioDoConteudo.tsx  o formulário do conteúdo, um só para cadastrar e editar
 src/components/jobs/PainelDeRevisoes.tsx      pedido do cliente, conversa e versões
@@ -2741,10 +2848,11 @@ api/_lib/stripe.ts         cliente do Stripe e a tradução do status dele para 
 api/assinatura.ts          checkout, portal de cobrança e webhook, numa função só
 api/_lib/ssrf.ts           bloqueio de rede interna no webhook
 api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
+api/_lib/push.ts           empurra a notificação para os aparelhos, na passada do cron
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 48 migrações
+supabase/migrations/       schema é a fonte de verdade; 50 migrações
 ```
 
 ---
