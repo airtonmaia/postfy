@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.67.0',
+    data: '2026-09-21',
+    resumo:
+      'O app instalável passou a ser seu: ícone, nome curto e cor de abertura saem de Admin → Design.',
+    novidades: [
+      'Admin → Design ganhou a seção "App instalável". O ícone que vai para a tela de início, o nome curto embaixo dele e a cor que o sistema pinta enquanto o app abre agora são campos, com prévia do resultado.',
+      'O ícone configurado vale também nas notificações: toda notificação que chega ao aparelho carrega a marca, e antes ela era sempre a do Orquesia.',
+      'No iPhone o ícone da tela de início acompanha o que você configurar — e ali não é só aparência, porque no iOS o aviso só existe com o app instalado.',
+    ],
+    melhorias: [
+      'O manifest do app deixou de ser um arquivo fixo no repositório e passou a ser montado do que está configurado. Trocar o ícone não exige mais deploy.',
+      'O nome completo, a descrição e a cor do tema do app saem da marca que você já preencheu acima — não há campo repetido para a mesma informação.',
+      'O nome curto tem limite de 12 caracteres, porque é onde o celular corta o rótulo embaixo do ícone. Sem o limite, "Minha Agência Digital" chegaria como "Minha Agên…".',
+    ],
+  },
+  {
     versao: '2.66.0',
     data: '2026-09-21',
     resumo:

@@ -2782,6 +2782,48 @@ whitelabel — ficou de fora: o ícone na tela de início dele teria a marca
 errada. A saída honesta para o portal é domínio próprio, e é uma entrega
 inteira.
 
+#### O manifest é do dono do produto, e por isso não é arquivo
+
+O PWA nasceu estático: `public/manifest.webmanifest` com o nome escrito à mão
+e os ícones dentro do repositório. Trocar qualquer um exigia commit e deploy —
+enquanto `Admin → Design` prometia, em texto, que ali se define "a cara do
+Orquesia".
+
+Agora `api/seo.ts` monta o manifest do que está em `saas_settings`, e o
+arquivo estático **foi apagado**. Os dois não podem conviver: na Vercel o
+sistema de arquivos é consultado **antes** dos `rewrites`, então o arquivo
+venceria o desvio e o que o dono configurasse nunca apareceria — com a tela
+dizendo que salvou, e sem erro em lugar nenhum. (Medido em produção:
+`/portal-hero.jpg`, que existe em `public/`, responde `image/jpeg`; um caminho
+que não existe cai no coringa e volta `text/html`.)
+
+Sem rota nova, pelo motivo de sempre: são 12 de 12 funções. O manifest entra
+como mais um caminho de `api/seo.ts`, que já serve `/robots.txt` pela mesma
+razão.
+
+**Três colunas, e só três.** O nome, a descrição e a cor do tema são
+derivados de `nome`, `seo_descricao` e `cor_primaria` — campo repetido para a
+mesma informação é como duas verdades nascem. O que não dá para derivar:
+
+- **o ícone**, porque `logo_url` costuma ser horizontal e com texto, e viraria
+  uma miniatura esmagada exatamente onde a marca precisa ser reconhecida de
+  relance;
+- **o nome curto**, porque o sistema operacional corta em ~12 caracteres
+  embaixo do ícone;
+- **a cor de fundo**, que é a tela pintada enquanto o app abre e acompanha o
+  fundo da interface, não a marca — com a primária, a abertura pisca colorida
+  e cai num app claro.
+
+`aparencia_do_saas` é **lista fechada**, ao contrário de `portal_dados`: coluna
+nova não nasce visível. É a escolha certa para uma função anônima, e o preço é
+que esquecer de acrescentá-la ali faz o campo salvar no banco e **nunca
+aparecer na tela**, sem erro nenhum.
+
+O ícone configurado também viaja no corpo do push (`api/_lib/push.ts` o lê uma
+vez por passada), senão a notificação — que é onde a marca mais aparece —
+continuaria chegando com a do Orquesia.
+
+
 **A dependência tem um custo de CI que não é óbvio.** O workflow instala com
 `bun install --frozen-lockfile`: acrescentar `web-push` ao `package.json` sem
 atualizar o `bun.lock` reprova o CI — e a máquina de quem escreveu isto não

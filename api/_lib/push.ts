@@ -76,6 +76,22 @@ export const empurrarNotificacoes = async (
   const vazio: ResumoDoPush = { avisos: 0, enviados: 0, removidos: 0 };
   if (!configurar()) return vazio;
 
+  /**
+   * O ícone do aviso sai da marca do produto, não de um caminho fixo.
+   *
+   * Sem isto, o dono do SaaS troca o ícone do app em Admin → Design e as
+   * notificações continuam chegando com a marca do Orquesia — no lugar em
+   * que a marca mais aparece, porque toda notificação a carrega.
+   *
+   * Uma leitura por passada, não uma por aviso: é a mesma linha para todos.
+   */
+  const { data: marca } = await supabase
+    .from('saas_settings')
+    .select('pwa_icone_url')
+    .limit(1)
+    .maybeSingle();
+  const icone = (marca?.pwa_icone_url || '').trim() || '/icon-192.png';
+
   const desde = new Date(Date.now() - JANELA_MS).toISOString();
 
   const { data: avisos, error } = await supabase
@@ -127,6 +143,7 @@ export const empurrarNotificacoes = async (
         const entregou = await enviarPara(inscricao, {
           title: aviso.title,
           body: aviso.message || '',
+          icon: icone,
         });
 
         if (entregou === 'ok') {
@@ -173,7 +190,7 @@ type Desfecho = 'ok' | 'morta' | 'erro';
 
 const enviarPara = async (
   inscricao: { endpoint: string; p256dh: string; auth_key: string },
-  corpo: { title: string; body: string }
+  corpo: { title: string; body: string; icon: string }
 ): Promise<Desfecho> => {
   try {
     await webpush.sendNotification(

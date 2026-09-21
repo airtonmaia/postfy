@@ -156,24 +156,103 @@ describe('quem recebe sai de workspace_members, não da inscrição', () => {
 });
 
 describe('o app é instalável', () => {
-  const manifest = JSON.parse(ler('public', 'manifest.webmanifest'));
+  const seo = semComentarios(ler('api', 'seo.ts'));
   const html = ler('index.html');
 
-  it('o manifest tem os dois tamanhos que o navegador exige', () => {
-    const tamanhos = manifest.icons.map((i: { sizes: string }) => i.sizes);
-    for (const exigido of ['192x192', '512x512']) {
-      expect(tamanhos, `o manifest ficou sem o ícone ${exigido}`).toContain(exigido);
-    }
-    expect(manifest.display, 'sem display standalone o app abre como aba comum').toBe('standalone');
+  it('não existe manifest estático em public/', () => {
+    /**
+     * **Esta é a guarda central desta entrega.** O manifest passou a ser
+     * montado por `api/seo.ts`, do que o dono do produto configurou em
+     * Admin → Design.
+     *
+     * Na Vercel o sistema de arquivos é consultado **antes** dos `rewrites`.
+     * Um `public/manifest.webmanifest` de volta venceria o desvio, e o app
+     * instalado continuaria com o nome e o ícone do repositório — com a tela
+     * de Design dizendo que salvou, e sem erro em lugar nenhum.
+     *
+     * Medido em produção: `/portal-hero.jpg` (que existe em `public/`)
+     * responde `image/jpeg`; um caminho que não existe cai no coringa e volta
+     * `text/html`.
+     */
+    expect(
+      existsSync(join(RAIZ, 'public', 'manifest.webmanifest')),
+      'o manifest estático voltou: ele vence o rewrite e anula a personalização'
+    ).toBe(false);
   });
 
-  it('todo ícone declarado existe como arquivo', () => {
-    // Ícone que falta não quebra build nenhum: o navegador simplesmente não
-    // oferece a instalação, e ninguém descobre por quê.
-    for (const icone of manifest.icons) {
-      const caminho = join(RAIZ, 'public', icone.src.replace(/^\//, ''));
-      expect(existsSync(caminho), `${icone.src} está no manifest e não existe em public/`).toBe(true);
-      expect(statSync(caminho).size, `${icone.src} está vazio`).toBeGreaterThan(500);
+  it('o rewrite do manifest existe e vem antes do coringa', () => {
+    /**
+     * A Vercel avalia de cima para baixo e para no primeiro que casa. Abaixo
+     * do coringa `/((?!api/).*)`, o manifest voltaria como `index.html` — e
+     * navegador nenhum instala o app com `text/html` no lugar dele.
+     */
+    const fontes = JSON.parse(ler('vercel.json')).rewrites.map(
+      (r: { source: string }) => r.source
+    );
+    const manifesto = fontes.indexOf('/manifest.webmanifest');
+    const coringa = fontes.findIndex((f: string) => f.includes('(?!api/)'));
+
+    expect(manifesto, 'o rewrite do manifest sumiu do vercel.json').toBeGreaterThan(-1);
+    expect(coringa, 'o coringa sumiu do vercel.json — confira esta guarda').toBeGreaterThan(-1);
+    expect(manifesto, 'o rewrite do manifest caiu abaixo do coringa').toBeLessThan(coringa);
+  });
+
+  it('a rota serve o manifest com os dois tamanhos e o tipo certo', () => {
+    expect(seo, 'a rota deixou de servir o manifest').toContain("'/manifest.webmanifest'");
+    expect(seo, 'o content-type do manifest mudou').toContain('application/manifest+json');
+    for (const exigido of ["'192x192'", "'512x512'"]) {
+      expect(seo, `o manifest ficou sem o ícone ${exigido}`).toContain(exigido);
+    }
+    expect(seo, 'sem display standalone o app abre como aba comum').toContain("'standalone'");
+  });
+
+  it('o ícone de reserva existe como arquivo', () => {
+    /**
+     * Sem ícone configurado valem os arquivos do repositório, e eles precisam
+     * estar lá: manifest sem 192 e 512 faz o navegador não oferecer a
+     * instalação, e o dono concluiria que o campo quebrou o app.
+     */
+    for (const arquivo of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
+      const caminho = join(RAIZ, 'public', arquivo);
+      expect(existsSync(caminho), `${arquivo} é a reserva do manifest e não existe`).toBe(true);
+      expect(statSync(caminho).size, `${arquivo} está vazio`).toBeGreaterThan(500);
+    }
+  });
+
+  it('o que o dono configura chega à tela', () => {
+    /**
+     * `aparencia_do_saas` é **lista fechada**: coluna nova não nasce visível,
+     * ao contrário de `portal_dados`. O preço é este — quem acrescenta coluna
+     * e esquece da função vê o campo salvar no banco e nunca aparecer, sem
+     * erro nenhum.
+     */
+    const migracoes = readdirSync(join(RAIZ, 'supabase', 'migrations'))
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
+
+    let corpo = '';
+    for (const arquivo of migracoes) {
+      const sql = semComentariosSql(readFileSync(join(RAIZ, 'supabase', 'migrations', arquivo), 'utf-8'));
+      const inicio = sql.indexOf('function public.aparencia_do_saas');
+      if (inicio === -1) continue;
+      const fim = sql.indexOf('\n$$;', inicio);
+      corpo = sql.slice(inicio, fim === -1 ? undefined : fim);
+    }
+
+    expect(corpo, 'aparencia_do_saas sumiu das migrações').toContain('jsonb_build_object');
+
+    const mapper = semComentarios(ler('src', 'lib', 'aparencia.ts'));
+    for (const coluna of ['pwa_icone_url', 'pwa_nome_curto', 'pwa_cor_fundo']) {
+      expect(
+        corpo,
+        `"${coluna}" não está na lista fechada: o campo salva e nunca aparece`
+      ).toContain(coluna);
+      // Ida e volta: sem a ida o clique não grava, sem a volta a tela mostra
+      // o padrão e o próximo salvar escreve por cima da escolha.
+      expect(
+        mapper.split(coluna).length - 1,
+        `"${coluna}" precisa aparecer na leitura e na escrita da aparência`
+      ).toBeGreaterThan(1);
     }
   });
 

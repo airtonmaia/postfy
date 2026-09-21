@@ -32,6 +32,68 @@ const APARENCIA_PADRAO = {
   seo_palavras: null as string | null,
   seo_indexar: true,
   seo_url_canonica: null as string | null,
+  cor_primaria: null as string | null,
+  pwa_nome_curto: null as string | null,
+  pwa_icone_url: null as string | null,
+  pwa_cor_fundo: null as string | null,
+};
+
+/**
+ * O manifest do app instalável, montado do que o dono do produto configurou.
+ *
+ * **Ele é servido por esta rota e não existe mais como arquivo em
+ * `public/`.** Os dois não podem conviver: na Vercel o sistema de arquivos é
+ * consultado **antes** dos `rewrites`, então um `manifest.webmanifest`
+ * estático venceria o desvio e o que o dono configurasse nunca apareceria —
+ * sem erro, com a tela de Design dizendo que salvou. (Medido: com o arquivo
+ * presente, `/portal-hero.jpg` volta `image/jpeg`; ausente, o coringa
+ * devolve o `index.html`.)
+ *
+ * Três campos são derivados do que já existe — nome, descrição e cor do tema
+ * saem da marca do produto. Só o que não dá para derivar virou coluna: o
+ * ícone (o logo costuma ser horizontal e viraria uma miniatura esmagada), o
+ * nome curto (o sistema corta em ~12 caracteres embaixo do ícone) e a cor de
+ * fundo (é a tela que o Android pinta enquanto o app abre, e ela acompanha o
+ * fundo da interface, não a marca).
+ */
+const manifesto = (a: typeof APARENCIA_PADRAO, base: string) => {
+  const nome = a.nome || APARENCIA_PADRAO.nome;
+  /**
+   * Sem ícone configurado, valem os arquivos do repositório — que são a
+   * marca do Orquesia. O manifest **nunca** fica sem ícone: sem 192 e 512 o
+   * navegador simplesmente não oferece a instalação, e o dono concluiria que
+   * o campo quebrou o app.
+   */
+  const icone = (a.pwa_icone_url || '').trim();
+  const icones = icone
+    ? [
+        // Um arquivo só, declarado nos dois tamanhos que o navegador exige.
+        // Quem envia a arte manda um PNG quadrado grande; reamostrar no
+        // servidor exigiria uma biblioteca de imagem numa função que tem 45
+        // segundos de orçamento e divide o slot com a publicação.
+        { src: icone, sizes: '192x192', type: 'image/png' },
+        { src: icone, sizes: '512x512', type: 'image/png' },
+        { src: icone, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ]
+    : [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ];
+
+  return {
+    name: nome,
+    short_name: (a.pwa_nome_curto || nome).slice(0, 12),
+    description: a.seo_descricao || `${nome} — gestão de agências de conteúdo`,
+    start_url: '/dashboard',
+    scope: '/',
+    display: 'standalone',
+    background_color: a.pwa_cor_fundo || '#f8fafc',
+    theme_color: a.cor_primaria || '#7c3aed',
+    lang: 'pt-BR',
+    id: `${base}/`,
+    icons: icones,
+  };
 };
 
 /**
@@ -85,6 +147,22 @@ async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const a = await lerAparencia();
   const base = baseDoApp();
+
+  if (url.pathname === '/manifest.webmanifest') {
+    return new Response(JSON.stringify(manifesto(a, base), null, 2), {
+      status: 200,
+      headers: {
+        // O tipo importa: com `application/json` alguns navegadores aceitam,
+        // e com `text/html` — que é o que o coringa devolveria — nenhum
+        // aceita, e a instalação some sem explicação.
+        'content-type': 'application/manifest+json; charset=utf-8',
+        // Cinco minutos, como o resto desta rota: o manifest é lido na
+        // instalação e raramente muda, mas trocar o ícone não pode levar um
+        // dia para valer.
+        'cache-control': 'public, max-age=300',
+      },
+    });
+  }
 
   if (url.pathname === '/robots.txt') {
     return new Response(robots(a.seo_indexar !== false, base), {

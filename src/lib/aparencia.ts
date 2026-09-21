@@ -42,6 +42,19 @@ export interface AparenciaDoSaas {
   emailSuporte: string | null;
   urlTermos: string | null;
   urlPrivacidade: string | null;
+
+  /**
+   * O app instalável. Só o que não dá para derivar da marca: o nome curto
+   * (o sistema corta em ~12 caracteres embaixo do ícone), o ícone (o logo
+   * costuma ser horizontal e viraria miniatura esmagada) e a cor de fundo
+   * (a tela que o Android pinta enquanto o app abre).
+   *
+   * O nome, a descrição e a cor do tema saem de `nome`, `seoDescricao` e
+   * `corPrimaria` — e é por isso que não há campo para eles.
+   */
+  pwaNomeCurto: string | null;
+  pwaIconeUrl: string | null;
+  pwaCorFundo: string | null;
 }
 
 /**
@@ -73,6 +86,9 @@ export const APARENCIA_PADRAO: AparenciaDoSaas = {
   emailSuporte: null,
   urlTermos: null,
   urlPrivacidade: null,
+  pwaNomeCurto: null,
+  pwaIconeUrl: null,
+  pwaCorFundo: null,
 };
 
 const daLinha = (l: any): AparenciaDoSaas => ({
@@ -98,6 +114,9 @@ const daLinha = (l: any): AparenciaDoSaas => ({
   emailSuporte: l.email_suporte || null,
   urlTermos: l.url_termos || null,
   urlPrivacidade: l.url_privacidade || null,
+  pwaNomeCurto: l.pwa_nome_curto || null,
+  pwaIconeUrl: l.pwa_icone_url || null,
+  pwaCorFundo: l.pwa_cor_fundo || null,
 });
 
 /** Texto vazio vira null: a coluna distingue "não preenchido" de "vazio". */
@@ -130,6 +149,9 @@ const paraLinha = (a: Partial<AparenciaDoSaas>): Record<string, unknown> => {
     ['emailSuporte', 'email_suporte'],
     ['urlTermos', 'url_termos'],
     ['urlPrivacidade', 'url_privacidade'],
+    ['pwaNomeCurto', 'pwa_nome_curto'],
+    ['pwaIconeUrl', 'pwa_icone_url'],
+    ['pwaCorFundo', 'pwa_cor_fundo'],
   ];
 
   for (const [campo, coluna] of texto) {

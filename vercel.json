@@ -9,6 +9,10 @@
       "destination": "/api/seo"
     },
     {
+      "source": "/manifest.webmanifest",
+      "destination": "/api/seo"
+    },
+    {
       "source": "/((?!api/).*)",
       "has": [
         {

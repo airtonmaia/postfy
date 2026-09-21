@@ -84,6 +84,17 @@ export const SeoDoSaas: React.FC = () => {
     // efeito em App.tsx): dentro da agência o produto é whitelabel, e a aba
     // do navegador faz parte disso.
     definirLink('icon', aparencia.faviconUrl);
+
+    /**
+     * O ícone que o iPhone usa na tela de início. Ele está escrito no
+     * `index.html` apontando para o arquivo do repositório, e aqui passa a
+     * seguir o que o dono do produto configurou.
+     *
+     * No iOS isso não é só aparência: o Web Push **só existe** com o app
+     * adicionado à tela de início, então este é o ícone que acompanha cada
+     * notificação que a pessoa recebe.
+     */
+    definirLink('apple-touch-icon', aparencia.pwaIconeUrl);
   }, [aparencia]);
 
   return null;
