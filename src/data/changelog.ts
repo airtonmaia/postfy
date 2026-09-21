@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.62.0',
+    data: '2026-09-21',
+    resumo:
+      'A arte de aprovação passou a ocupar o card inteiro, e a lista ganhou uma quarta coluna.',
+    melhorias: [
+      'A arte agora preenche o card de borda a borda, na proporção em que vai sair — 4:5 no feed, 9:16 no story. A versão anterior fixava a altura do bloco para a lista não se reajustar ao trocar de aba, e isso deixava uma faixa preta dos dois lados de cada card. Quem abre essa tela vem julgar a arte: a moldura estava cobrando o preço no lugar errado.',
+      'A lista de aprovações vai a quatro colunas em telas largas (a partir de 1280px). Abaixo disso continua em três, porque com quatro o card fica com ~230px e a legenda passa a caber em três palavras por linha.',
+    ],
+  },
+  {
     versao: '2.61.0',
     data: '2026-09-21',
     resumo:
