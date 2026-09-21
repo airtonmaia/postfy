@@ -502,7 +502,7 @@ export interface Notification {
    * recusado pelo Postgres, e a persistência derivada de diff engole a
    * recusa em segundo plano.
    */
-  type: 'approval' | 'adjustment' | 'publication' | 'system' | 'lead' | 'portal';
+  type: 'approval' | 'adjustment' | 'publication' | 'system' | 'lead' | 'portal' | 'comment';
   read: boolean;
   createdAt: string;
   linkContext?: {
