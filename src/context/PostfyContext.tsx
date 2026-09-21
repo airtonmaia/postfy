@@ -1445,8 +1445,15 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    */
   const portalClientId = useMemo(() => {
     if (portalToken) {
-      const alvo = allClients.find((c) => c.portalToken === portalToken);
-      return alvo ? alvo.id : null;
+      // `portal_dados` remove `portal_token` do JSON do cliente de propósito —
+      // é credencial, e quem já está dentro não precisa vê-la de volta.
+      // Então `c.portalToken` é sempre `undefined` no client carregado pela
+      // RPC, e o `find` antigo nunca achava ninguém. O id correto já está em
+      // `dadosDoPortal`, que foi validado pelo banco quando o token entrou.
+      if (dadosDoPortal?.cliente) return dadosDoPortal.cliente.id;
+      // Ainda carregando — o efeito que chama `carregarPortal` ainda não
+      // respondeu. Devolver `null` mantém a tela de loading visível.
+      return null;
     }
     if (!isAuthenticated || !portalPreviewClientId) return null;
 
@@ -1457,7 +1464,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       (c) => c.slug === portalPreviewClientId || c.id === portalPreviewClientId
     );
     return alvo ? alvo.id : null;
-  }, [portalToken, portalPreviewClientId, allClients, isAuthenticated]);
+  }, [portalToken, portalPreviewClientId, allClients, isAuthenticated, dadosDoPortal]);
 
   // Activity logger helper
   const logActivity = (action: string, target: string, userName: string = currentUser?.name || 'Usuário') => {
