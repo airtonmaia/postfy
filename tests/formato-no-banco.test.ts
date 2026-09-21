@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { semComentarios, semComentariosSql } from './util/semComentarios';
+import { semComentarios } from './util/semComentarios';
+import { ultimoCheck, valoresAceitos } from './util/checkDoBanco';
 
 /**
  * O que a tela oferece, o banco aceita.
@@ -25,83 +26,13 @@ import { semComentarios, semComentariosSql } from './util/semComentarios';
  */
 
 const RAIZ = join(__dirname, '..');
-const MIGRACOES = join(RAIZ, 'supabase', 'migrations');
 
-/**
- * O `check` de uma coluna como o banco o tem hoje: a **última** migração que o
- * define, pelo nome do arquivo.
- *
- * Ler a primeira que aparecer afirmaria sobre uma versão que o banco já não
- * tem — e é justamente o caso do formato, cujo `check` nasceu em
- * `20260908223656_tabelas_de_negocio.sql` e foi refeito depois.
- *
- * **Duas versões desta guarda estavam erradas antes de entrar**, e as duas
- * pelo mesmo motivo — mediam o vizinho em vez do alvo:
- *
- * 1. A primeira procurava `constraint jobs_status_check check` e não achava
- *    nada: aquele `check` é **inline** no `create table`, e o nome quem dá é o
- *    Postgres. Varredura vazia reprovou um schema correto.
- * 2. A segunda passou a procurar `check (<coluna> in (` em qualquer lugar — e
- *    `status` existe com `check` em **oito** tabelas deste schema. Ela
- *    reprovava `JobStatus` por não caber num check que não é dele.
- * 3. A terceira recortou pela tabela, mas com `create table[^;]*?\bjobs\s*\(`
- *    — e **`public.jobs(id)` é o que uma chave estrangeira escreve**. O
- *    recorte casava dentro do corpo da `publish_queue`, que referencia
- *    `jobs(id)`, e voltava o `check` de `status` **dela** ('pendente',
- *    'publicando'…). Reprovava `JobStatus` de novo, agora medindo a fila de
- *    publicação.
- *
- * Por isso o recorte não tem curinga nenhum entre `create table` e o nome da
- * tabela: só `if not exists` e o `public.` opcional. Guarda que aceita o
- * vizinho no lugar do alvo não guarda, e guarda que reprova código certo
- * ensina a ignorá-la.
- */
-const trechosDaTabela = (sql: string, tabela: string): string[] => {
-  const trechos: string[] = [];
-
-  // O corpo do `create table [if not exists] [public.]<tabela> ( ... );`
-  const criacao = sql.match(
-    new RegExp(
-      `create table\\s+(?:if not exists\\s+)?(?:public\\.)?${tabela}\\s*\\(([\\s\\S]*?)\\n\\s*\\);`,
-      'i'
-    )
-  );
-  if (criacao) trechos.push(criacao[1]);
-
-  // Cada `alter table [if exists] [public.]<tabela> ... ;`
-  for (const m of sql.matchAll(
-    new RegExp(
-      `alter table\\s+(?:if exists\\s+)?(?:public\\.)?${tabela}\\b([^;]*);`,
-      'gi'
-    )
-  )) {
-    trechos.push(m[1]);
-  }
-
-  return trechos;
-};
-
-const ultimoCheck = (tabela: string, coluna: string): string => {
-  const arquivos = readdirSync(MIGRACOES)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    .reverse();
-
-  const padrao = new RegExp(`check\\s*\\(\\s*${coluna}\\s+in\\s*\\(([^)]*)\\)`, 'is');
-
-  for (const arquivo of arquivos) {
-    const sql = semComentariosSql(readFileSync(join(MIGRACOES, arquivo), 'utf-8'));
-    for (const trecho of trechosDaTabela(sql, tabela)) {
-      const achado = trecho.match(padrao);
-      if (achado) return achado[1];
-    }
-  }
-  return '';
-};
-
-/** Os valores que o `check` aceita, extraídos das strings dentro dele. */
-const valoresAceitos = (corpo: string): Set<string> =>
-  new Set([...corpo.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+/*
+  O recorte do `check` mora em `tests/util/checkDoBanco.ts`. Ele saiu daqui
+  quando a guarda dos avisos do portal passou a precisar da mesma resposta
+  para `email_queue.evento` e `notifications.type` — e o histórico de três
+  versões erradas do recorte está registrado lá, junto do código que erra.
+*/
 
 describe('jobs.format: a tela e o banco falam a mesma língua', () => {
   const check = ultimoCheck('jobs', 'format');

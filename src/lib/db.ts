@@ -210,6 +210,31 @@ export const buscarJobsDoPeriodo = async (
   return (data || []).map(jobDaLinha);
 };
 
+/**
+ * As notificações mais novas, para a sondagem do sino.
+ *
+ * Traz as N mais recentes e deixa quem chamou descartar as que já tem, em vez
+ * de filtrar por `created_at > última que vi`. Parece desperdício e é a
+ * versão correta: o `created_at` das notificações criadas pela própria
+ * agência sai do relógio **do navegador**, e o das que vêm do portal sai do
+ * relógio do **banco**. Com o navegador adiantado, o corte por data pularia
+ * exatamente o aviso que esta consulta existe para trazer — em silêncio.
+ *
+ * A RLS recorta por agência; quem está em duas recebe as duas, como a carga
+ * inicial já faz.
+ */
+export const buscarNotificacoesRecentes = async (
+  limite = 20
+): Promise<Notification[]> => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) throw traduzirErro(error);
+  return (data || []).map(notificationDaLinha);
+};
+
 /** Agências das quais o usuário é membro. */
 export const listarWorkspaces = async (): Promise<Workspace[]> => {
   const { data, error } = await supabase

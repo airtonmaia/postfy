@@ -562,6 +562,90 @@ sozinha: `portal_dados` é redefinida por `create or replace` em mais de uma
 migração, e ler a primeira que aparecer afirmaria o recorte de uma versão que
 o banco já não tem — a guarda toma a **última** pelo nome do arquivo.
 
+### 10.1 O que o cliente faz no portal não chegava à agência por e-mail
+
+O painel sempre recebeu: `portal_aprovar`, `portal_pedir_ajuste`,
+`portal_comentar` e `portal_enviar_material` gravam em `notifications` desde
+que existem. **O e-mail nunca saiu**, e não foi esquecimento — é a armadilha
+10 num degrau acima.
+
+Quem enfileira e-mail é `dispararAutomacoes`, que roda no navegador **com
+sessão**, e `email_queue` só aceita insert de membro da agência. No portal não
+há sessão. Então a ação do cliente morria no painel, enquanto a tela de
+Automações oferecia o gatilho *"quando o cliente aprova um conteúdo"* — que só
+disparava quando a **agência** mudava o status na própria tela. Rótulo que
+descreve o que não acontece é a família do `trial_ends_at`, agora no motor de
+automações.
+
+Quem enfileira agora é `private.enfileirar_email_do_portal`, chamada pelas
+RPCs. Três decisões:
+
+- **Isso é uma segunda resposta para "este e-mail sai?", e é deliberado.** O
+  lado do navegador pergunta às `automations`; este pergunta ao modelo
+  (`email_templates.ativo`). Se o portal também exigisse regra de automação,
+  **nada sairia por padrão** — não há automação semeada em agência nenhuma —, e
+  a agência concluiria que o aviso não funciona.
+- **A preferência é conferida no enfileirar, nunca em quem dispara.** O evento
+  sai de três funções, e filtrar em cada uma garante esquecer uma. Esquecer
+  aqui é o pior caso: a agência desliga na tela e continua recebendo, e a chave
+  vira enfeite. É a mesma razão de `notificacao_aprovacao` morar em
+  `enfileirarEmail`.
+- **O destinatário é o dono e os admins ativos**, resolvido por
+  `private.destinatarios_da_agencia` — `auth.users` não é legível por sessão
+  nenhuma, e uma coluna `email` em `workspace_members` envelheceria em silêncio
+  no dia em que alguém trocasse o endereço da conta.
+
+**"Abriu o portal" não pode se apoiar no login**: a sessão do portal dura 30
+dias, então a agência saberia de uma visita por mês. E não pode se apoiar em
+`portal_dados`, que é `stable` e não escreve. Por isso existe
+`portal_registrar_acesso`, chamada uma vez por abertura do portal — do
+contexto, não da `ClientPortalView`, onde qualquer remontagem viraria um aviso
+novo.
+
+**Não há janela de silêncio, e isso foi escolhido sabendo do risco.** Cada
+visita rende um aviso × cada admin; o precedente está na seção 9.2, onde dez
+peças viraram dez e-mails e o efeito foi o cliente parar de abrir todos. As
+saídas existem e estão em `Configurações → Preferências`
+(`workspaces.avisar_acesso_do_portal` e `avisar_acoes_do_cliente`, as duas
+ligadas por padrão) e em `Admin → E-mails`, pelo modelo. Se virar ruído, a
+janela entra em `portal_registrar_acesso`, num lugar só.
+
+`ultimo_acesso` passou a ser carimbado a cada visita, e **antes** da chave: ele
+não é aviso, é o fato. Ele só marcava o login, então a ficha dizia "último
+acesso há 29 dias" de quem entrava todo dia — uma data verdadeira medindo a
+coisa errada.
+
+#### O sino não era tempo real, e o popover afirmava que era
+
+`Notificações da Agência` trazia o texto fixo **"Tempo Real"** e não havia
+assinatura nem sondagem: as notificações vinham na carga inicial e só. Como
+tudo o que o cliente faz é gravado por RPC no servidor, **nada disso chegava a
+uma aba já aberta** — quem deixasse o Orquesia aberto a manhã inteira não via
+nada até o F5, com a tela dizendo o contrário. Armadilha 9 dentro do painel de
+avisos.
+
+A sondagem é de um minuto, com o padrão do `AvisoDeAtualizacao`: intervalo
+**e** volta do foco, porque o navegador estrangula timer de aba em segundo
+plano, que é onde essa aba passa o dia.
+
+Não é Realtime do Supabase de propósito: ele depende de a tabela estar na
+publicação do projeto, que é um botão fora deste repositório — dependência que
+ninguém vê quebrar é como o agendador do GitHub Actions morreu por 52 horas
+sem sintoma.
+
+As linhas que a sondagem traz entram pelo `marcarComoVindoDoBanco`, e **só as
+que faltam**: sem a marca o diff tentaria gravá-las de volta, e reaproveitar as
+que já estão no estado desfaria o "lida" de quem acabou de clicar no sino.
+
+Protegido por `tests/avisos-do-portal.test.ts`. A guarda das duas listas
+fechadas existe por um erro cometido escrevendo a própria migração: recriar o
+`check` de `email_queue.evento` é **reescrever a lista inteira**, e a primeira
+versão saiu sem `lote_aguardando_aprovacao`. Esquecer um valor que já existe é
+pior que esquecer o novo — o `add constraint` valida as linhas gravadas, então
+a migração falharia na agência que já usou o lote, ou passaria limpa e
+derrubaria o próximo aviso em massa.
+
+
 ---
 
 ---
@@ -2627,7 +2711,8 @@ src/lib/metricas.ts        alcance e engajamento reais; nulo != zero
 src/components/reports/DesempenhoReal.tsx  o que o conteúdo deu, com o recorte à vista
 src/components/library/BibliotecaView.tsx  a Biblioteca, com pasta e contagem de uso
 src/lib/rotas.ts           URL de cada tela; ida e volta aba <-> caminho
-src/lib/formatos.ts        que formato existe em cada rede, e o nome que ela dá
+src/lib/formatos.ts        que formato existe em cada rede, o nome que ela dá e a proporção da arte
+src/components/common/PreviaNoHover.tsx  a arte grande no hover, a mesma no calendário e no portal
 src/components/jobs/FormularioDoConteudo.tsx  o formulário do conteúdo, um só para cadastrar e editar
 src/components/jobs/PainelDeRevisoes.tsx      pedido do cliente, conversa e versões
 src/components/jobs/PainelDeCompartilhamento.tsx  link do portal e mensagem pronta
@@ -2659,7 +2744,7 @@ api/_lib/emails.ts         monta e envia o e-mail do sistema; esvazia a fila
 api/seo.ts                 meta tags para robô de prévia + /robots.txt
 api/expurgar-lixeira.ts    varre a lixeira (cron) e apaga uma agência (admin)
 
-supabase/migrations/       schema é a fonte de verdade; 47 migrações
+supabase/migrations/       schema é a fonte de verdade; 48 migrações
 ```
 
 ---

@@ -131,3 +131,30 @@ export const faltaArteDoStory = (peca: {
 export const AVISO_SEM_ARTE_DE_STORY =
   'Este conteúdo é "Feed + Story" e não tem arte de story. Suba a arte 9:16 em ' +
   '"Mídia do Story" — sem ela, só o feed vai ao ar.';
+
+/**
+ * A proporção em que a arte é mostrada, pela rede e pelo formato reais — nunca
+ * um quadrado genérico.
+ *
+ * Estava escrita dentro de `ClientPortalView.tsx`, que era o único lugar com
+ * prévia de arte. Deixou de ser: o calendário da agência passou a mostrar a
+ * mesma prévia no hover, e uma segunda cópia divergiria na primeira pressa —
+ * a história das doze alturas de botão e das sete barras de abas.
+ *
+ * Divergir *aqui* tem um custo próprio: a mesma peça apareceria 4:5 de um lado
+ * e 9:16 do outro, e é exatamente o enquadramento que a prévia existe para
+ * mostrar. A agência confere o corte na tela dela e manda para o cliente, que
+ * vê outro.
+ *
+ * Vertical (Story/Reels) vem **antes** da rede: o formato manda mais na
+ * proporção do que a plataforma.
+ */
+export const proporcaoDoCriativo = (platform: JobPlatform, format: JobFormat): string => {
+  if (format === 'story' || format === 'reel') return 'aspect-[9/16]';
+  if (format === 'video') return 'aspect-video';
+  if (platform === 'tiktok') return 'aspect-[9/16]';
+  if (platform === 'youtube') return 'aspect-video';
+  // Feed/carrossel: 4:5 é o formato de maior área útil no Instagram e
+  // Facebook, e serve como referência razoável para LinkedIn/X também.
+  return 'aspect-[4/5]';
+};

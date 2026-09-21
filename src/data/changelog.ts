@@ -31,6 +31,38 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.65.0',
+    data: '2026-09-21',
+    resumo:
+      'A agência fica sabendo o que acontece no portal: quando o cliente entra, quando aprova e quando pede ajuste — no sino e por e-mail.',
+    novidades: [
+      'Quando alguém do cliente abre o portal, chega uma notificação no sino e um e-mail para o proprietário e os administradores da agência. Cada visita gera um aviso, sem agrupamento.',
+      'Em Configurações → Preferências há duas chaves novas: avisar (ou não) quando o cliente abre o portal, e enviar (ou não) o e-mail quando ele aprova ou pede ajuste. As duas nascem ligadas.',
+    ],
+    corrigido: [
+      'O e-mail de "conteúdo aprovado" e o de "pedido de ajustes" nunca saíram quando quem agia era o cliente. Os dois só disparavam quando a própria agência mudava o status na tela — o texto em Automações ("quando o cliente aprova um conteúdo") descrevia algo que não acontecia. No portal não há sessão, e era a sessão que enfileirava o e-mail.',
+      'O sino dizia "Tempo Real" e não atualizava sozinho: tudo o que o cliente fazia no portal só aparecia depois de recarregar a página. Agora ele consulta o banco a cada minuto e assim que a aba volta ao primeiro plano — e o rótulo passou a dizer o intervalo, em vez de prometer o instante.',
+      'Clicar no aviso de "pedido de ajuste" não levava a lugar nenhum: ele apontava para uma tela chamada "conteudos", que não existe. Agora abre o WorkFlow.',
+      '"Último acesso" na ficha do cliente só contava o login, e a sessão do portal dura 30 dias: quem entrava todo dia aparecia como "há 29 dias". Agora a data acompanha cada visita.',
+    ],
+  },
+  {
+    versao: '2.64.0',
+    data: '2026-09-21',
+    resumo:
+      'O calendário ocupa a altura da tela, e a arte aparece grande ao passar o mouse — a mesma prévia que o cliente já via no portal.',
+    novidades: [
+      'Passar o mouse sobre um conteúdo no calendário mostra a arte em tamanho grande, na proporção real da rede (4:5 no feed, 9:16 no story). É a mesma prévia do portal do cliente, e agora é a mesma peça nos dois lugares: conferir o enquadramento aqui e mandar o link para o cliente passou a mostrar o mesmo corte.',
+    ],
+    melhorias: [
+      'A grade do mês passou a preencher a altura disponível, com as linhas dividindo o espaço em partes iguais.',
+    ],
+    corrigido: [
+      'O calendário desenhava seis linhas em todo mês, mesmo nos de cinco semanas: sobrava uma faixa vazia no rodapé, com cor de célula, que lê como um dia que não carregou. Agora o número de linhas sai do mês.',
+      'Numa tela alta, a grade parava de crescer em 600px e sobrava fundo cinza embaixo do último dia.',
+    ],
+  },
+  {
     versao: '2.63.0',
     data: '2026-09-21',
     resumo:
