@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.66.0',
+    data: '2026-09-21',
+    resumo:
+      'O Orquesia virou app instalável, e avisa no celular mesmo fechado.',
+    novidades: [
+      'Dá para instalar o Orquesia no celular e no computador, com ícone próprio — no Android e no Chrome pelo convite do navegador, no iPhone por "Adicionar à Tela de Início" no Safari.',
+      'Notificação no aparelho com o sistema fechado: conteúdo enviado para aprovação, aprovado, ajuste pedido, mensagem do cliente, material recebido, lead convertido e cliente entrando no portal. Ligue em Configurações → Preferências, no botão "Ativar notificações".',
+      'A permissão é por aparelho: ligar no computador não liga no celular, e a tela diz em qual dos dois você está.',
+    ],
+    melhorias: [
+      'No iPhone a tela explica que o push exige o app na tela de início — é regra do iOS, não do Orquesia. Sem a explicação, o botão pareceria quebrado.',
+      'Aparelho que perde a inscrição (dados do site limpos, app reinstalado, permissão revogada) sai sozinho da lista no primeiro envio recusado.',
+      'Avisos com mais de 30 minutos não viram notificação. Se o agendador ficar parado, o que ele tem a fazer ao voltar não é despejar uma hora de avisos no seu celular.',
+    ],
+  },
+  {
     versao: '2.65.1',
     data: '2026-09-21',
     resumo:

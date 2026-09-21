@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../../context/PostfyContext';
-import { Moon, Sun, Globe, Bell, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Moon, Sun, Globe, Bell, BellRing, Check, CheckCircle2, AlertTriangle, Smartphone } from 'lucide-react';
 import { atualizarWorkspace } from '../../../lib/db';
 import { FUSOS, cidadeDoFuso } from '../../../lib/fusoHorario';
 import { pode } from '../../../lib/permissions';
 import { Button } from '../../ui/button';
+import {
+  ativarNotificacoes,
+  desativarNotificacoes,
+  estadoDoPush,
+  type EstadoDoPush,
+} from '../../../lib/push';
 
 /**
  * Preferências da agência.
@@ -53,6 +59,37 @@ export const SettingsPreferences: React.FC = () => {
   const [avisarAcoes, setAvisarAcoes] = useState(
     currentWorkspace.avisarAcoesDoCliente !== false
   );
+  /**
+   * Push é **por aparelho**, não por conta — por isso não entra no formulário
+   * que salva as preferências da agência. A inscrição vive no navegador que
+   * está aberto agora, e ligar no computador não liga no celular.
+   */
+  const [push, setPush] = useState<EstadoDoPush | null>(null);
+  const [mexendoNoPush, setMexendoNoPush] = useState(false);
+  const [erroDoPush, setErroDoPush] = useState<string | null>(null);
+
+  useEffect(() => {
+    void estadoDoPush().then(setPush);
+  }, []);
+
+  const alternarPush = async () => {
+    setErroDoPush(null);
+    setMexendoNoPush(true);
+    try {
+      if (push === 'ligado') {
+        await desativarNotificacoes();
+      } else {
+        const r = await ativarNotificacoes();
+        if (!r.ok) setErroDoPush(r.motivo);
+      }
+      setPush(await estadoDoPush());
+    } catch (e) {
+      setErroDoPush(e instanceof Error ? e.message : 'Não foi possível concluir.');
+    } finally {
+      setMexendoNoPush(false);
+    }
+  };
+
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -250,6 +287,75 @@ export const SettingsPreferences: React.FC = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* Notificação no aparelho, com o Orquesia fechado */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+        <div>
+          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <BellRing className="w-4 h-4 text-purple-600" />
+            Notificações neste aparelho
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed max-w-2xl">
+            Avisa mesmo com o Orquesia fechado. Vale só para este navegador — ligar aqui
+            não liga no celular.
+          </p>
+        </div>
+
+        {/*
+          Cada estado diz o que fazer, e nenhum deles é "não funcionou".
+          Especialmente o do iPhone: sem a frase, o botão simplesmente não faz
+          nada lá, e quem clica conclui que o produto está quebrado.
+        */}
+        {push === 'precisa-instalar' && (
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed flex items-start gap-2">
+            <Smartphone className="w-4 h-4 shrink-0 mt-px text-purple-600" />
+            <span>
+              No iPhone, as notificações só funcionam com o Orquesia na tela de início.
+              Toque em <strong>Compartilhar</strong> no Safari e em{' '}
+              <strong>"Adicionar à Tela de Início"</strong>; depois volte aqui.
+            </span>
+          </div>
+        )}
+
+        {push === 'sem-suporte' && (
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Este navegador não suporta notificações.
+          </p>
+        )}
+
+        {push === 'sem-chave' && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+            Falta a variável <strong>VITE_VAPID_PUBLIC_KEY</strong> no servidor.
+          </p>
+        )}
+
+        {push === 'bloqueado' && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+            As notificações estão bloqueadas para este site. O navegador não deixa o
+            Orquesia perguntar de novo — libere no cadeado da barra de endereço.
+          </p>
+        )}
+
+        {(push === 'ligado' || push === 'desligado') && (
+          <div className="flex items-center justify-between gap-4 pt-1">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              {push === 'ligado' ? 'Ligadas neste aparelho' : 'Desligadas neste aparelho'}
+            </span>
+            <Button
+              type="button"
+              variant={push === 'ligado' ? 'secondary' : 'primary'}
+              disabled={mexendoNoPush}
+              onClick={() => void alternarPush()}
+            >
+              {mexendoNoPush ? 'Aguarde...' : push === 'ligado' ? 'Desligar' : 'Ativar notificações'}
+            </Button>
+          </div>
+        )}
+
+        {erroDoPush && (
+          <p className="text-[11px] text-rose-600 dark:text-rose-400 leading-relaxed">{erroDoPush}</p>
+        )}
       </div>
 
       {/* Avisos que o portal do cliente gera para a agência */}

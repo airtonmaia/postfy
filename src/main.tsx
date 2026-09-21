@@ -9,6 +9,23 @@ import { iniciarAnalytics } from './lib/analytics';
 // Sem VITE_POSTHOG_KEY isto é um no-op: o app funciona igual sem analytics.
 iniciarAnalytics();
 
+/**
+ * Registra o service worker no carregamento.
+ *
+ * Não é só pelo push — `ativarNotificacoes` registra por conta própria
+ * quando a pessoa liga. É pela **instalação**: o navegador só oferece
+ * "instalar o app" quando já existe um SW registrado, e sem isto o convite
+ * só apareceria depois de alguém abrir Preferências e ligar notificação.
+ * Quem quer o ícone na tela de início não passa por lá.
+ *
+ * Falhar aqui não pode atrapalhar nada: sem SW o produto é o site de sempre.
+ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

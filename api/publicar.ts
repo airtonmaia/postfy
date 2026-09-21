@@ -11,6 +11,7 @@ import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
 import { publicarNoFacebook, publicarStoryNoFacebook } from './_lib/facebook.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
+import { empurrarNotificacoes } from './_lib/push.js';
 
 
 /**
@@ -98,6 +99,17 @@ async function handler(request: Request): Promise<Response> {
   // estourar no meio o e-mail já saiu.
   const email = await esvaziarFilaDeEmail(supabase);
 
+  /**
+   * O push vem **antes de ler a fila de publicação**, e o lugar é a entrega.
+   *
+   * Logo abaixo há um `return` antecipado para quando não há nada agendado —
+   * que é o estado normal desta rota na imensa maioria das passadas. Empurrar
+   * depois dele faria a notificação sair só nos cinco minutos em que por
+   * acaso houvesse um post para publicar: funcionaria no teste, com um item
+   * na fila, e não funcionaria no uso. Sem erro em lugar nenhum.
+   */
+  const push = await empurrarNotificacoes(supabase);
+
   const { data: itens, error } = await supabase
     .from('publish_queue')
     .select('id, job_id, connection_id, attempts, workspace_id')
@@ -112,7 +124,7 @@ async function handler(request: Request): Promise<Response> {
   }
 
   if (!itens || itens.length === 0) {
-    return json({ processados: 0, renovadas, email });
+    return json({ processados: 0, renovadas, email, push });
   }
 
   const resultados: { id: string; ok: boolean; detalhe: string }[] = [];
@@ -199,6 +211,7 @@ async function handler(request: Request): Promise<Response> {
     adiados,
     renovadas,
     email,
+    push,
     metricas,
   });
 }
