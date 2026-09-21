@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.61.0',
+    data: '2026-09-21',
+    resumo:
+      'No portal, as duas artes de "Feed + Story" ganharam abas — e a prévia do calendário, que mostrava só a do feed, passou a mostrar as duas.',
+    melhorias: [
+      'O cliente via as duas artes espremidas lado a lado, cada uma em metade da largura do card. Agora elas têm abas Feed e Story, o mesmo seletor que a agência usa na prévia do conteúdo: a arte aparece maior e no enquadramento em que vai sair. A altura do card não muda ao trocar de aba, então a lista não pula.',
+      'A aba que está sem arte avisa antes de ser aberta. Sem isso, dava para aprovar olhando só o feed e nunca descobrir que o story tinha ficado vazio.',
+    ],
+    corrigido: [
+      'A prévia que abre ao clicar num conteúdo do Cronograma mostrava apenas a arte do feed, em qualquer formato — e dela também dá para aprovar. Num "Feed + Story", a arte vertical nunca chegava à tela do cliente, que decidia sobre uma peça vendo metade dela.',
+    ],
+  },
+  {
     versao: '2.60.0',
     data: '2026-09-18',
     resumo:
