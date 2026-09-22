@@ -57,6 +57,118 @@ const ORCAMENTO_MS = 45_000;
 
 const MAX_TENTATIVAS = 3;
 
+/**
+ * O nome da rede como a agência a chama.
+ *
+ * Um mapa em vez de capitalizar a string: `'tiktok'` capitalizado vira
+ * "Tiktok", e a peça sai do produto para a tela de quem paga por ele.
+ */
+const NOME_DA_REDE: Record<string, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  linkedin: 'LinkedIn',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  twitter: 'X',
+};
+
+type DesfechoDaPublicacao =
+  | { tipo: 'publicado' }
+  | { tipo: 'parcial'; motivo: string }
+  | { tipo: 'falhou'; motivo: string };
+
+/**
+ * O aviso de que a peça foi ao ar — ou de que não foi.
+ *
+ * **`type: 'publication'` existia desde a primeira migração e não tinha um
+ * único produtor.** O cron publicava no perfil do cliente, ou falhava, e não
+ * havia nada no sino, nada por e-mail e nada no celular: o único lugar em que
+ * a falha aparecia era a tela de Publicações, que alguém precisava abrir. Um
+ * post marcado para as 9h que falhou de madrugada só era descoberto quando o
+ * cliente perguntava.
+ *
+ * É a família do `trial_ends_at`: um valor declarado que parece uma regra e
+ * não é. Quem lê o schema conclui que o aviso existe.
+ *
+ * Quatro decisões:
+ *
+ * - **A falha só avisa quando esgota as tentativas.** Entre elas o item volta
+ *   para `pendente` e a passada seguinte tenta de novo — avisar ali daria três
+ *   avisos para uma falha que talvez se resolvesse sozinha, e ensinaria a
+ *   ignorar o sino justamente no aviso que importa.
+ * - **O feed que saiu sem o story tem aviso próprio.** É o desfecho que mais
+ *   passa despercebido: a fila diz `publicado`, `last_error` guarda o motivo, e
+ *   nada disso chega a ninguém. "Publicado" e "publicado pela metade" não podem
+ *   ler igual.
+ * - **Ela nunca lança.** Roda dentro do laço que publica; derrubar a passada
+ *   porque um insert de aviso falhou trocaria o compromisso da rota pelo
+ *   acessório dela. Mesma regra de `empurrarNotificacoes`.
+ * - **Só o cron avisa.** O caminho de "Publicar agora" tem alguém olhando a
+ *   tela, que já mostra o desfecho na hora — é a mesma razão de o webhook não
+ *   ter ido para a fila de e-mail: um aviso para o que já está à vista é ruído.
+ *
+ * O push sai na **passada seguinte**, porque `empurrarNotificacoes` roda antes
+ * de a fila ser lida (e isso é deliberado — ver o comentário lá em cima). Cinco
+ * minutos de atraso cabem folgados na janela de 30 do push.
+ */
+const avisarNoPainel = async (
+  supabase: any,
+  item: { job_id: string; workspace_id: string; connection_id: string },
+  desfecho: DesfechoDaPublicacao
+): Promise<void> => {
+  try {
+    const { data: job } = await supabase
+      .from('jobs')
+      .select('title, client_id')
+      .eq('id', item.job_id)
+      .maybeSingle();
+
+    const { data: conexao } = await supabase
+      .from('social_connections')
+      .select('platform')
+      .eq('id', item.connection_id)
+      .maybeSingle();
+
+    // O conteúdo pode ter sido apagado entre a publicação e o aviso, e a
+    // conexão pode ter sido removida. Nenhum dos dois é motivo para o aviso
+    // não sair: o que aconteceu no perfil do cliente aconteceu.
+    const titulo = (job?.title || '').trim() || 'O conteúdo';
+    const rede = NOME_DA_REDE[conexao?.platform] || '';
+    const onde = rede ? ` no ${rede}` : '';
+
+    const aviso =
+      desfecho.tipo === 'publicado'
+        ? { title: 'Publicado ✅', message: `"${titulo}" foi ao ar${onde}.` }
+        : desfecho.tipo === 'parcial'
+          ? {
+              title: 'Publicado pela metade ⚠️',
+              message: `"${titulo}"${onde}: ${desfecho.motivo}`,
+            }
+          : {
+              title: 'Falha ao publicar ⚠️',
+              message: `"${titulo}" não foi ao ar${onde}: ${desfecho.motivo}`,
+            };
+
+    await supabase.from('notifications').insert({
+      workspace_id: item.workspace_id,
+      title: aviso.title,
+      message: aviso.message,
+      type: 'publication',
+      read: false,
+      link_context: {
+        tab: 'publicacoes',
+        jobId: item.job_id,
+        clientId: job?.client_id ?? null,
+      },
+    });
+  } catch (erro) {
+    console.error(
+      '[publicar] aviso no painel',
+      erro instanceof Error ? erro.message : erro
+    );
+  }
+};
+
 async function handler(request: Request): Promise<Response> {
   if (!autorizadoPeloCron(request)) {
     // Sem o segredo do cron, o único outro caminho é uma sessão pedindo a
@@ -171,6 +283,14 @@ async function handler(request: Request): Promise<Response> {
         .update({ status: 'published', published_date: new Date().toISOString() })
         .eq('id', item.job_id);
 
+      await avisarNoPainel(
+        supabase,
+        item,
+        publicado.avisoDoStory
+          ? { tipo: 'parcial', motivo: publicado.avisoDoStory }
+          : { tipo: 'publicado' }
+      );
+
       resultados.push({
         id: item.id,
         ok: true,
@@ -189,6 +309,11 @@ async function handler(request: Request): Promise<Response> {
         .from('publish_queue')
         .update({ status: esgotou ? 'falhou' : 'pendente', last_error: motivo })
         .eq('id', item.id);
+
+      // Só quando acabaram as tentativas. Enquanto o item volta para
+      // `pendente`, a passada seguinte tenta de novo — e uma falha de rede que
+      // se resolve sozinha não merece tirar ninguém do que está fazendo.
+      if (esgotou) await avisarNoPainel(supabase, item, { tipo: 'falhou', motivo });
 
       resultados.push({ id: item.id, ok: false, detalhe: motivo });
     }

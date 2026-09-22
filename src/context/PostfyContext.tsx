@@ -1807,7 +1807,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       type: 'adjustment',
       read: false,
       createdAt: new Date().toISOString(),
-      linkContext: { tab: 'conteudos', jobId: job.id, clientId: job.clientId }
+      // `'conteudos'` não é aba nenhuma — `TabType` tem `producao`, que é o
+      // WorkFlow. Ninguém viu porque `linkContext` nunca era lido; agora que o
+      // sino navega, um destino inválido deixaria a tela em branco.
+      linkContext: { tab: 'producao', jobId: job.id, clientId: job.clientId }
     };
     setAllNotifications(prev => [newNotif, ...prev]);
 

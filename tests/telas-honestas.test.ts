@@ -70,6 +70,63 @@ describe('telas não inventam dado', () => {
     expect(dashboard).not.toMatch(/\d+% dos carross/i);
   });
 
+  it('o sino faz o que o clique promete', () => {
+    /*
+      `link_context` era escrito em cinco pontos do contexto, tipado e mapeado
+      nos dois sentidos — e **nunca lido**. `markNotificationRead` e
+      `markAllNotificationsRead` existiam exportadas no contexto e **sem um
+      único chamador**: clicar num aviso não fazia nada, e o contador do sino
+      só crescia.
+
+      É a família de `agendarPublicacao` sem produtor e da coluna
+      `trial_ends_at`: código que parece uma regra e não é. E fica pior agora
+      que o cron avisa sobre publicação — o aviso que mais precisa levar a
+      algum lugar é justamente "falha ao publicar".
+    */
+    const app = semComentarios(readFileSync('src/App.tsx', 'utf-8'));
+
+    expect(app, 'a guarda está lendo o arquivo errado').toMatch(/unreadNotifs/);
+
+    expect(app, 'o clique no aviso voltou a não levar a lugar nenhum').toMatch(
+      /linkContext\?\.tab/
+    );
+    expect(app, 'o aviso deixou de ser marcado como lido ao clicar').toMatch(
+      /markNotificationRead\(/
+    );
+    expect(app, 'sumiu o "marcar todas como lidas" — o contador só cresceria').toMatch(
+      /markAllNotificationsRead\b/
+    );
+
+    /*
+      O destino é conferido contra `CAMINHOS`, a fonte única de quem existe.
+      `linkContext.tab` é `string` solta no tipo, e havia um `'conteudos'`
+      gravado que não é aba nenhuma — navegar para ele deixaria a tela em
+      branco, que é pior que o clique não fazer nada.
+    */
+    expect(app, 'o destino do aviso deixou de ser conferido contra CAMINHOS').toMatch(
+      /in CAMINHOS/
+    );
+
+    const contexto = semComentarios(
+      readFileSync('src/context/PostfyContext.tsx', 'utf-8')
+    );
+    const abasGravadas = [...contexto.matchAll(/linkContext:\s*\{\s*tab:\s*'([^']+)'/g)].map(
+      (m) => m[1]
+    );
+    const abasQueExistem = new Set(
+      [...semComentarios(readFileSync('src/lib/rotas.ts', 'utf-8')).matchAll(
+        /^\s{2}([a-z_]+):\s*'\//gm
+      )].map((m) => m[1])
+    );
+
+    expect(abasGravadas.length, 'a guarda não achou nenhum linkContext').toBeGreaterThan(0);
+    expect(abasQueExistem.size, 'a guarda não achou as abas em rotas.ts').toBeGreaterThan(0);
+    expect(
+      abasGravadas.filter((a) => !abasQueExistem.has(a)),
+      'uma notificação aponta para aba que não existe — a tela abre em branco'
+    ).toEqual([]);
+  });
+
   it('nenhuma tela afirma variação percentual fixa', () => {
     // "+18.4% este mês" não veio de lugar nenhum.
     const culpados = telas

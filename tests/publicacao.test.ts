@@ -501,3 +501,97 @@ describe('nenhuma tela nomeia as redes automáticas à mão', () => {
     }
   });
 });
+
+describe('a publicação avisa quem precisa saber', () => {
+  /**
+   * **`type: 'publication'` existia desde a primeira migração e não tinha um
+   * único produtor.** O cron publicava no perfil do cliente, ou falhava, e não
+   * havia nada no sino, nada por e-mail e nada no celular — o único lugar em
+   * que a falha aparecia era a tela de Publicações, que alguém precisava
+   * abrir. Um post marcado para as 9h que falhou de madrugada só era
+   * descoberto quando o cliente perguntava.
+   *
+   * É a família do `trial_ends_at`: um valor declarado que parece uma regra e
+   * não é. Quem lê o schema conclui que o aviso existe.
+   */
+  const corpoDoCron = publicarTs.slice(
+    publicarTs.indexOf('for (const item of itens)'),
+    publicarTs.indexOf('const publicarUmAgora')
+  );
+
+  it('a guarda está medindo o laço do cron', () => {
+    // Sem isto, um marcador que mudasse de nome deixaria `slice` devolver
+    // string vazia e **todas** as asserções abaixo passariam sem medir nada —
+    // que é exatamente como a guarda do `aria-label` afirmou sobre o lugar
+    // errado sem falhar.
+    expect(corpoDoCron.length).toBeGreaterThan(200);
+    expect(corpoDoCron).toMatch(/publicarItem\(/);
+    expect(publicarTs.indexOf('const publicarUmAgora')).toBeGreaterThan(0);
+  });
+
+  it('o tipo que não tinha produtor passou a ter', () => {
+    expect(publicarTs).toMatch(/type: 'publication'/);
+    expect(publicarTs).toMatch(/from\('notifications'\)\s*\.insert\(/);
+  });
+
+  it('avisa nos três desfechos, e cada um lê diferente', () => {
+    // "Publicado" e "publicado pela metade" lendo igual seria o desfecho que
+    // mais passa despercebido voltando a passar: a fila diz `publicado`, o
+    // story não saiu, e `last_error` guarda um motivo que ninguém abre.
+    expect(corpoDoCron).toMatch(/tipo: 'publicado'/);
+    expect(corpoDoCron).toMatch(/tipo: 'parcial'/);
+    expect(corpoDoCron).toMatch(/tipo: 'falhou'/);
+  });
+
+  it('a falha só avisa depois de esgotar as tentativas', () => {
+    /*
+      Entre as tentativas o item volta para `pendente` e a passada seguinte
+      tenta de novo. Avisar ali daria três avisos para uma falha que talvez se
+      resolvesse sozinha — e ensinar a ignorar o sino é perder justamente o
+      aviso que importa.
+    */
+    const aviso = corpoDoCron.indexOf("{ tipo: 'falhou'");
+    expect(aviso, 'o aviso de falha sumiu do laço').toBeGreaterThan(-1);
+
+    const linha = corpoDoCron.slice(corpoDoCron.lastIndexOf('\n', aviso) + 1, aviso);
+    expect(linha, 'o aviso de falha deixou de depender de `esgotou`').toMatch(
+      /if \(esgotou\)/
+    );
+  });
+
+  it('o aviso nunca derruba a passada', () => {
+    // Ele roda dentro do laço que publica. Uma exceção ali trocaria o
+    // compromisso da rota — publicar — pelo acessório dela. É a mesma regra
+    // de `empurrarNotificacoes`.
+    const fn = publicarTs.slice(publicarTs.indexOf('const avisarNoPainel'));
+    const corpo = fn.slice(0, fn.indexOf('\n};'));
+
+    expect(corpo.length).toBeGreaterThan(200);
+    expect(corpo, 'o aviso passou a poder lançar').toMatch(/try \{/);
+    expect(corpo).toMatch(/catch/);
+  });
+
+  it('só o cron avisa — "publicar agora" tem alguém olhando a tela', () => {
+    /*
+      O caminho manual devolve o desfecho para quem clicou, e a tela mostra na
+      hora. Um aviso para o que já está à vista é ruído — é a mesma razão de o
+      webhook não ter ido para a fila de e-mail.
+    */
+    const inicioDoManual = publicarTs.indexOf('const publicarUmAgora');
+    const chamadas = [...publicarTs.matchAll(/await avisarNoPainel\(/g)].map(
+      (m) => m.index!
+    );
+
+    expect(chamadas.length, 'o aviso sumiu do cron').toBeGreaterThan(1);
+    for (const posicao of chamadas) {
+      expect(
+        posicao,
+        'o caminho de "publicar agora" passou a avisar — a tela já mostra'
+      ).toBeLessThan(inicioDoManual);
+    }
+  });
+
+  it('o aviso leva para a fila, onde o motivo está à vista', () => {
+    expect(publicarTs).toMatch(/tab: 'publicacoes'/);
+  });
+});

@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.68.0',
+    data: '2026-09-21',
+    resumo:
+      'A publicação passou a avisar: o post que saiu, o que falhou e o que saiu pela metade.',
+    novidades: [
+      'Quando o agendador publica, você recebe aviso no sino e no celular — com o nome do conteúdo e a rede em que ele saiu. Antes o cron publicava no perfil do cliente e ninguém era avisado de nada.',
+      'Falha ao publicar também avisa, e só depois de esgotadas as três tentativas: entre elas o sistema tenta de novo sozinho, e avisar a cada tentativa daria três sustos para um problema que às vezes se resolve na passada seguinte.',
+      '"Publicado pela metade" é um aviso próprio, para o caso em que o feed saiu e o story não. Era o desfecho mais fácil de não perceber: a fila dizia "publicado" e o motivo ficava guardado numa tela que alguém precisava abrir.',
+    ],
+    corrigido: [
+      'Clicar numa notificação agora leva à tela de que ela fala, e a marca como lida. O destino já era gravado em toda notificação desde sempre e nunca era lido — clicar não fazia nada, e o contador do sino só crescia.',
+      'O sino ganhou "Marcar todas como lidas". A função existia no sistema e não tinha botão nenhum ligado a ela.',
+      'A notificação de pedido de ajuste apontava para uma tela que não existe. Ninguém tinha visto porque o destino nunca era usado.',
+      'O sino passou a dizer quando não há nada, em vez de abrir um popover vazio sem explicação.',
+    ],
+  },
+  {
     versao: '2.67.0',
     data: '2026-09-21',
     resumo:

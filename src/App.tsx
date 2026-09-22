@@ -81,7 +81,7 @@ import { VersaoDoApp } from './components/common/VersaoDoApp';
 import { AvisoDeAtualizacao } from './components/common/AvisoDeAtualizacao';
 import { marcarCargaBemSucedida } from './lib/atualizacao';
 import { tela } from './lib/telaSobDemanda';
-import { ehAbaDeAdmin } from './lib/rotas';
+import { ehAbaDeAdmin, CAMINHOS } from './lib/rotas';
 import { AcessoBloqueado } from './components/common/AcessoBloqueado';
 import { diasAteOExpurgo } from './lib/lixeira';
 import { Button } from './components/ui/button';
@@ -105,9 +105,11 @@ const MainLayout: React.FC = () => {
     setCurrentWorkspace,
     currentUser, 
     agencyHealthScore, 
-    jobs, 
+    jobs,
     notifications,
-    openCreateJobModal, 
+    markNotificationRead,
+    markAllNotificationsRead,
+    openCreateJobModal,
     setIsSearchModalOpen,
     isClientPortalOpen,
     visualizarPortalDoCliente,
@@ -605,18 +607,76 @@ const MainLayout: React.FC = () => {
                       no F5. Agora há sondagem de um minuto — e o rótulo diz o
                       intervalo, em vez de prometer o instante.
                     */}
-                    <span className="text-[10px] text-slate-400 font-medium">Atualiza a cada minuto</span>
+                    <div className="flex items-center gap-2">
+                      {unreadNotifs > 0 && (
+                        <button
+                          type="button"
+                          onClick={markAllNotificationsRead}
+                          className="text-[10px] font-semibold text-purple-600 dark:text-purple-300 hover:underline"
+                        >
+                          Marcar todas como lidas
+                        </button>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-medium">Atualiza a cada minuto</span>
+                    </div>
                   </div>
 
                   <div className="max-h-72 overflow-y-auto space-y-2 text-xs">
+                    {notifications.length === 0 && (
+                      <p className="text-[11px] text-slate-400 py-4 text-center">
+                        Nenhuma notificação por aqui.
+                      </p>
+                    )}
                     {notifications.map(n => (
-                      <div key={n.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-purple-50/50 dark:hover:bg-purple-500/10 transition">
-                        <span className="font-bold text-slate-800 dark:text-slate-200 block">{n.title}</span>
+                      /*
+                        **O aviso passou a levar a algum lugar.**
+
+                        `link_context` era escrito em cinco pontos do contexto,
+                        tipado e mapeado nos dois sentidos — e **nunca lido**.
+                        `markNotificationRead` e `markAllNotificationsRead`
+                        existiam no contexto, exportadas, e **sem um único
+                        chamador**: clicar não fazia nada e o contador do sino
+                        só crescia, para sempre. É a família de
+                        `agendarPublicacao` sem produtor, e da coluna
+                        `trial_ends_at` — código que parece uma regra e não é.
+
+                        É `<button>` à mão de propósito: o papel é "card
+                        clicável" (título, mensagem e horário em bloco), e a
+                        altura fixa do `<Button>` cortaria o conteúdo — foi o
+                        erro dos nove cards migrados por engano.
+                      */
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => {
+                          markNotificationRead(n.id);
+                          /*
+                            A aba é conferida contra `CAMINHOS`, que é a fonte
+                            única de quem existe. `linkContext.tab` é `string`
+                            solta no tipo, e já havia um `'conteudos'` gravado
+                            que **não é aba nenhuma** — navegar para ele
+                            deixaria a tela em branco, que é pior que o clique
+                            não fazer nada.
+                          */
+                          const destino = n.linkContext?.tab;
+                          if (destino && destino in CAMINHOS) {
+                            setActiveTab(destino as TabType);
+                            setShowNotifications(false);
+                          }
+                        }}
+                        className="w-full text-left p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-purple-50/50 dark:hover:bg-purple-500/10 transition"
+                      >
+                        <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          {!n.read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600 dark:bg-purple-500 shrink-0" />
+                          )}
+                          {n.title}
+                        </span>
                         <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5 leading-snug">{n.message}</p>
                         <span className="text-[10px] text-slate-400 font-mono block mt-1">
                           {safeTimeFormat(n.createdAt)}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
