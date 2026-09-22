@@ -123,3 +123,102 @@ describe('as outras listas fechadas de jobs', () => {
     }
   });
 });
+
+describe('toda coluna que o app escreve existe numa migração', () => {
+  /**
+   * **`jobs.canais` esteve em produção por dez dias sem migração nenhuma.**
+   *
+   * Ela foi aplicada à mão pelo SQL Editor, e o registro ficou só na tabela de
+   * histórico do banco. Quem reconstruísse o schema a partir de
+   * `supabase/migrations/` — a pasta que este projeto trata como fonte de
+   * verdade — ficaria sem a coluna, e o multicanal quebraria em silêncio: o
+   * mapper lê `l.canais`, não acharia nada e cairia sempre no `[l.platform]`,
+   * um canal só, sem erro em lugar nenhum.
+   *
+   * É a armadilha do agendador ao contrário, e a segunda vez que ela aparece:
+   * antes foi `adicionar_membro_existente`, uma função que estava no banco e
+   * em migração nenhuma. Lá a guarda criada olhava `supabase.rpc`; o buraco
+   * que sobrou era a **coluna**, que nenhum `rpc` nomeia.
+   *
+   * Nada local acusa: `tsc` não conhece coluna do Postgres, o vitest não fala
+   * com o banco e o `vite build` não sabe o que é schema.
+   *
+   * A lista é **derivada** dos `*ParaLinha` de `mappers.ts` — eles são a
+   * fronteira por onde tudo o que o app grava passa. Lista literal teria de
+   * ser editada junto com o código, e é assim que uma guarda deixa de
+   * guardar.
+   */
+  const mapeadores = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'lib', 'mappers.ts'), 'utf-8')
+  );
+
+  const sqlDeTodasAsMigracoes = (() => {
+    const dir = join(RAIZ, 'supabase', 'migrations');
+    const { readdirSync } = require('node:fs') as typeof import('node:fs');
+    return readdirSync(dir)
+      .filter((a) => a.endsWith('.sql'))
+      .map((a) => semComentarios(readFileSync(join(dir, a), 'utf-8')))
+      .join('\n')
+      .toLowerCase();
+  })();
+
+  /** As chaves de primeiro nível de cada `*ParaLinha`. */
+  const colunasEscritas = (() => {
+    const achadas = new Map<string, string>();
+
+    for (const m of mapeadores.matchAll(/export const (\w+ParaLinha)\b/g)) {
+      const inicio = m.index!;
+      const abre = mapeadores.indexOf('{', mapeadores.indexOf('=>', inicio));
+      if (abre === -1) continue;
+
+      let profundidade = 0;
+      let fim = abre;
+      for (let i = abre; i < mapeadores.length; i++) {
+        const c = mapeadores[i];
+        if (c === '{' || c === '(' || c === '[') profundidade++;
+        if (c === '}' || c === ')' || c === ']') profundidade--;
+        if (profundidade === 0) {
+          fim = i;
+          break;
+        }
+      }
+
+      const corpo = mapeadores.slice(abre + 1, fim);
+      // Só o primeiro nível: um objeto aninhado é conteúdo de uma coluna
+      // jsonb, não uma coluna.
+      let nivel = 0;
+      for (const linha of corpo.split('\n')) {
+        const chave = nivel === 0 && linha.match(/^\s{4}([a-z][a-z0-9_]*)\s*:/);
+        if (chave) achadas.set(chave[1], m[1]);
+        for (const c of linha) {
+          if (c === '{' || c === '(' || c === '[') nivel++;
+          if (c === '}' || c === ')' || c === ']') nivel--;
+        }
+      }
+    }
+
+    return achadas;
+  })();
+
+  it('a guarda achou os mapeadores e as migrações', () => {
+    // Sem isto, um `mappers.ts` renomeado faria a extração devolver zero
+    // colunas e a asserção abaixo passaria sem medir nada — que é como a
+    // guarda do `aria-label` afirmou sobre o lugar errado sem falhar.
+    expect(colunasEscritas.size).toBeGreaterThan(40);
+    expect(sqlDeTodasAsMigracoes.length).toBeGreaterThan(10000);
+    expect([...colunasEscritas.keys()]).toContain('canais');
+  });
+
+  it('nenhuma coluna gravada pelo app falta nas migrações', () => {
+    const orfas = [...colunasEscritas.entries()]
+      .filter(([coluna]) => !sqlDeTodasAsMigracoes.includes(coluna))
+      .map(([coluna, mapeador]) => `${coluna} (escrita por ${mapeador})`);
+
+    expect(
+      orfas,
+      'coluna gravada pelo app e criada por migração nenhuma: quem reconstruir ' +
+        'o banco a partir de supabase/migrations/ fica sem ela, e a gravação ' +
+        'falha em segundo plano, sem erro em lugar nenhum'
+    ).toEqual([]);
+  });
+});
