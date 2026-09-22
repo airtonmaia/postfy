@@ -155,3 +155,95 @@ describe('o card arrastado é o mesmo card', () => {
     expect(quadro).toMatch(/Solte aqui/);
   });
 });
+
+describe('a ordem da coluna, e a posição que o arrasto grava', () => {
+  /**
+   * **O quadro nunca ordenou nada.** `filteredJobs` não tinha um `.sort()`: a
+   * ordem de cada coluna era a da carga do banco — que ninguém escolheu, que
+   * muda quando a consulta muda, e que *parecia* ser por data. Acidente com
+   * cara de regra é o pior tipo.
+   *
+   * O comportamento do algoritmo é exercitado em `tests/ordem-do-quadro.test.ts`,
+   * com dados de verdade. O que fica aqui é o que só a tela pode errar: usar a
+   * lista errada, gravar o que não devia, ou esconder peça sem dizer.
+   */
+  it('a guarda está lendo o quadro', () => {
+    // Sem isto, um arquivo renomeado faria todas as asserções abaixo passarem
+    // sobre string vazia.
+    expect(quadro).toMatch(/const KanbanBoard|KanbanBoard: React\.FC|export default KanbanBoard/);
+    expect(quadro.length).toBeGreaterThan(2000);
+  });
+
+  it('a coluna desenha a lista ordenada, não o filtro cru', () => {
+    /*
+      A lista é calculada uma vez e usada no desenho **e** no `onDragEnd`, que
+      converte "soltei em cima deste card" em índice. Duas listas divergentes
+      fariam a peça cair num lugar diferente do que a pessoa viu.
+    */
+    expect(quadro).toMatch(/ordenarColuna\(/);
+    expect(quadro).toMatch(/jobsPorColuna/);
+    expect(
+      quadro,
+      'a coluna voltou a filtrar direto de filteredJobs, ignorando a ordem'
+    ).not.toMatch(/const colJobs = filteredJobs\.filter/);
+  });
+
+  it('o arrasto grava a posição, e é ela que a ordenação respeita', () => {
+    expect(quadro).toMatch(/posicaoFixa: destino/);
+    // `SortableContext` é o que dá posição ao arrasto: sem ele o dnd-kit só
+    // sabe em qual coluna o cursor está, e soltar no meio da lista seria
+    // indistinguível de soltar no fim.
+    expect(quadro).toMatch(/SortableContext/);
+  });
+
+  it('soltar onde a peça já estava continua não gravando nada', () => {
+    /*
+      A regra é a mesma de antes, agora mais larga: cobria a coluna, passou a
+      cobrir a posição. Sem ela, pegar um card e devolvê-lo ao mesmo lugar o
+      fixaria — um gesto de desistência viraria uma decisão que o quadro
+      respeita para sempre.
+    */
+    const corpo = quadro.slice(quadro.indexOf('const aoTerminarArrasto'));
+    const handler = corpo.slice(0, corpo.indexOf('\n  };'));
+
+    expect(handler.length).toBeGreaterThan(200);
+    expect(handler, 'sumiu a saída de "soltei em cima de mim mesmo"').toMatch(
+      /alvo === job\.id && !novoStatus/
+    );
+    expect(handler, 'sumiu a saída de "mesma posição"').toMatch(
+      /job\.posicaoFixa === destino/
+    );
+  });
+
+  it('o card fixado se identifica e dá como soltar', () => {
+    /*
+      Card parado num lugar que a ordem escolhida não explica parece defeito
+      do quadro. Sem a marca, quem fixou semana passada não tem como descobrir
+      que foi ele mesmo — e sem a saída, não tem como desfazer.
+    */
+    expect(cartao).toMatch(/posicaoFixa != null/);
+    expect(cartao).toMatch(/aoSoltarPosicao/);
+    // O menu de ordenação também solta, para quem não sabe em qual card olhar.
+    expect(quadro).toMatch(/soltarTodos/);
+  });
+
+  it('a janela de datas não esconde peça em silêncio', () => {
+    /*
+      A janela pergunta "o que acontece neste período", e o que não tem data
+      não acontece em período nenhum — então some. Sumiço silencioso é a
+      armadilha 9: quem filtra e não encontra a peça que acabou de criar
+      conclui que ela não foi salva.
+    */
+    expect(quadro).toMatch(/semDataEscondidas/);
+    expect(quadro).toMatch(/fora desta janela/);
+  });
+
+  it('arrastar continua sem enfileirar publicação', () => {
+    // A regra mais cara do quadro, repetida aqui porque o handler foi
+    // reescrito: o que sai no perfil do cliente não volta.
+    expect(quadro).toMatch(/statusAoSoltar/);
+    expect(quadro, 'o arrasto passou a escolher `scheduled`').not.toMatch(
+      /novoStatus\s*=\s*['"]scheduled['"]/
+    );
+  });
+});

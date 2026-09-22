@@ -215,6 +215,9 @@ export const jobDaLinha = (l: Linha): Job => ({
   comments: l.comments ?? [],
   lastFeedback: ounull(l.last_feedback),
   timesheetMinutes: l.timesheet_minutes ?? 0,
+  // `ounull` não serve aqui: ela trata `0` como vazio, e zero é o topo da
+  // coluna — o índice mais fixado que existe.
+  posicaoFixa: l.posicao_fixa ?? null,
 });
 
 /** Datas vazias precisam virar null: string vazia não é timestamp válido. */
@@ -256,6 +259,9 @@ export const jobParaLinha = (j: Partial<Job>): Linha =>
     comments: j.comments,
     last_feedback: j.lastFeedback,
     timesheet_minutes: j.timesheetMinutes,
+    // `semNulos` corta só o `undefined`, então `null` viaja — e aqui ele
+    // precisa viajar: é assim que soltar um card fixado chega ao banco.
+    posicao_fixa: j.posicaoFixa,
   });
 
 // --------------------------------------------------------------------- Lead

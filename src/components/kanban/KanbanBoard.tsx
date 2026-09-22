@@ -26,7 +26,18 @@ import { Job, JobStatus, Client, JobTipo } from '../../types';
 import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
 import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
+import { FiltrosDoQuadro } from './FiltrosDoQuadro';
+import {
+  ordenarColuna,
+  dentroDoPeriodo,
+  dataQueOrdena,
+  ORDEM_PADRAO,
+  PERIODO_PADRAO,
+  type ChaveDeOrdem,
+  type Periodo,
+} from '../../lib/ordemDoQuadro';
 
 interface Coluna {
   id: string;
@@ -112,12 +123,24 @@ export const KanbanBoard: React.FC = () => {
     platformFilter, 
     setPlatformFilter, 
     moveJobStatus, 
+    updateJob,
     setSelectedJob, 
     openCreateJobModal,
     currentWorkspace
   } = usePostfy();
 
   const [search, setSearch] = useState('');
+
+  /**
+   * Ordem e janela vivem no estado da tela, não em `user_settings`.
+   *
+   * São escolhas de momento — "me mostra o que vence esta semana" —, não
+   * preferências que a pessoa quer encontrar de volta amanhã. Guardá-las no
+   * banco faria alguém abrir o quadro num dia qualquer com metade das peças
+   * escondidas por um filtro que ela não lembra de ter ligado.
+   */
+  const [ordem, setOrdem] = useState<ChaveDeOrdem>(ORDEM_PADRAO);
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_PADRAO);
 
   /** O id do que está sendo arrastado. `null` quando nada está. */
   const [arrastando, setArrastando] = useState<string | null>(null);
@@ -226,7 +249,7 @@ export const KanbanBoard: React.FC = () => {
   ];
 
   // Filter jobs
-  const filteredJobs = jobs.filter(job => {
+  const antesDoPeriodo = jobs.filter(job => {
     if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
     if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
     if (search) {
@@ -235,6 +258,34 @@ export const KanbanBoard: React.FC = () => {
     }
     return true;
   });
+
+  const filteredJobs = antesDoPeriodo.filter((job) => dentroDoPeriodo(job, periodo));
+
+  /**
+   * Quantas peças a janela escondeu **por não terem data**.
+   *
+   * A janela pergunta "o que acontece neste período", e o que não tem data não
+   * acontece em período nenhum — então ela some. Sumiço silencioso é a
+   * armadilha 9: quem filtra por "este mês" e não encontra a peça que acabou
+   * de criar conclui que ela não foi salva. O quadro diz o número.
+   */
+  const semDataEscondidas =
+    periodo === 'todos'
+      ? 0
+      : antesDoPeriodo.filter((j) => !dataQueOrdena(j)).length;
+
+  const fixados = filteredJobs.filter((j) => j.posicaoFixa != null).length;
+
+  /**
+   * Solta todos os cards fixados **do que está em tela**, não da agência
+   * inteira: soltar em silêncio a peça de um cliente que o filtro esconde
+   * seria desfazer uma decisão que quem clicou não está vendo.
+   */
+  const soltarTodos = () => {
+    for (const job of filteredJobs) {
+      if (job.posicaoFixa != null) updateJob(job.id, { posicaoFixa: null });
+    }
+  };
 
   const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
 
@@ -264,6 +315,24 @@ export const KanbanBoard: React.FC = () => {
     return col.statuses[0];
   };
 
+  /**
+   * Cada coluna já na ordem final: os fixados nos índices deles, o resto
+   * fluindo pela chave escolhida.
+   *
+   * Calculada uma vez e usada nos dois lugares que precisam dela — o desenho
+   * e o `onDragEnd`, que converte "soltei em cima deste card" em índice.
+   * Recalcular no handler abriria a porta para as duas listas divergirem, e a
+   * peça cairia num lugar diferente do que a pessoa viu.
+   */
+  const jobsPorColuna = useMemo(() => {
+    const mapa = new Map<string, Job[]>();
+    for (const col of columns) {
+      const daColuna = filteredJobs.filter((j) => col.statuses.includes(j.status));
+      mapa.set(col.id, ordenarColuna(daColuna, ordem, (j) => clientMap.get(j.clientId)?.name ?? ''));
+    }
+    return mapa;
+  }, [filteredJobs, ordem, clientMap]);
+
   const aoComecarArrasto = (evento: DragStartEvent) => setArrastando(String(evento.active.id));
 
   const aoTerminarArrasto = (evento: DragEndEvent) => {
@@ -272,18 +341,49 @@ export const KanbanBoard: React.FC = () => {
     const job = jobs.find((j) => j.id === String(evento.active.id));
     if (!job) return;
 
-    const col = columns.find((c) => c.id === String(evento.over?.id ?? ''));
-    const novoStatus = statusAoSoltar(col, job);
-    if (!novoStatus) return;
+    const alvo = String(evento.over?.id ?? '');
+    if (!alvo) return;
 
     /*
-      `moveJobStatus` e não `updateJob`: ele carimba a data de publicação
-      quando a peça entra em "Publicado" e dispara o aviso ao cliente quando
-      ela entra em "Para Aprovação". O comentário de lá já dizia que arrastar
-      o card é "como a maior parte do conteúdo chega" àquela coluna — e até
-      agora não havia como arrastar nada.
+      O alvo é uma coluna **ou** um card. Com o `useSortable`, soltar em cima
+      de outro card devolve o id dele — é isso que dá a posição. Soltar na
+      área livre da coluna devolve o id da coluna, e aí o destino é o fim.
     */
-    moveJobStatus(job.id, novoStatus);
+    const col =
+      columns.find((c) => c.id === alvo) ??
+      columns.find((c) => (jobsPorColuna.get(c.id) ?? []).some((j) => j.id === alvo));
+    if (!col) return;
+
+    const lista = jobsPorColuna.get(col.id) ?? [];
+    const novoStatus = statusAoSoltar(col, job);
+
+    /*
+      **Soltar onde a peça já estava não grava nada**, e a regra ficou mais
+      larga do que era: antes ela só cobria a coluna, agora cobre a posição.
+      Sem isso, pegar um card e devolvê-lo ao mesmo lugar o fixaria — e um
+      gesto de desistência viraria uma decisão que o quadro passa a respeitar
+      para sempre.
+    */
+    if (alvo === job.id && !novoStatus) return;
+
+    const indice = lista.findIndex((j) => j.id === alvo);
+    const destino = indice >= 0 ? indice : lista.length;
+
+    if (!novoStatus && job.posicaoFixa === destino) return;
+
+    /*
+      `moveJobStatus` e não `updateJob` para o status: ele carimba a data de
+      publicação quando a peça entra em "Publicado" e dispara o aviso ao
+      cliente quando ela entra em "Para Aprovação".
+    */
+    if (novoStatus) moveJobStatus(job.id, novoStatus);
+
+    /*
+      E a posição vai à parte, porque ela não é status: é a decisão de que
+      **esta** peça fica **aqui**, e é ela que a ordenação passa a respeitar
+      enquanto o resto da coluna continua fluindo por data.
+    */
+    updateJob(job.id, { posicaoFixa: destino });
   };
 
   return (
@@ -295,6 +395,19 @@ export const KanbanBoard: React.FC = () => {
           <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
             {filteredJobs.length} jobs ativos
           </span>
+          {/*
+            O que a janela escondeu, dito em vez de sumido. Quem filtra por
+            "este mês" e não encontra a peça que acabou de criar conclui que
+            ela não foi salva — e a persistência aqui roda em segundo plano,
+            então essa conclusão é exatamente a que já custou caro antes.
+          */}
+          {semDataEscondidas > 0 && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+              {semDataEscondidas === 1
+                ? '1 sem data, fora desta janela'
+                : `${semDataEscondidas} sem data, fora desta janela`}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -321,6 +434,15 @@ export const KanbanBoard: React.FC = () => {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+
+          <FiltrosDoQuadro
+            ordem={ordem}
+            aoMudarOrdem={setOrdem}
+            periodo={periodo}
+            aoMudarPeriodo={setPeriodo}
+            fixados={fixados}
+            aoSoltarTodos={soltarTodos}
+          />
 
           {/* Adicionar: a agência escolhe qual das três entregas vai criar. */}
           <div className="relative">
@@ -401,7 +523,7 @@ export const KanbanBoard: React.FC = () => {
       >
         <div className="flex-1 flex overflow-x-auto p-6 gap-4 items-start min-h-0">
           {columns.map(col => {
-            const colJobs = filteredJobs.filter(j => col.statuses.includes(j.status));
+            const colJobs = jobsPorColuna.get(col.id) ?? [];
 
             return (
               <ColunaDoQuadro
@@ -444,15 +566,27 @@ export const KanbanBoard: React.FC = () => {
                   </div>
                 }
               >
-                {colJobs.map(job => (
-                  <CartaoArrastavel
-                    key={job.id}
-                    job={job}
-                    client={clientMap.get(job.clientId)}
-                    aoAbrir={() => setSelectedJob(job)}
-                    aoTrocarStatus={(status) => moveJobStatus(job.id, status)}
-                  />
-                ))}
+                {/*
+                  O `SortableContext` é o que dá **posição** ao arrasto: sem
+                  ele o dnd-kit só sabe dizer em qual coluna o cursor está, e
+                  soltar no meio da lista seria indistinguível de soltar no
+                  fim. A estratégia vertical é a que casa com uma coluna.
+                */}
+                <SortableContext
+                  items={colJobs.map((j) => j.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {colJobs.map(job => (
+                    <CartaoArrastavel
+                      key={job.id}
+                      job={job}
+                      client={clientMap.get(job.clientId)}
+                      aoAbrir={() => setSelectedJob(job)}
+                      aoTrocarStatus={(status) => moveJobStatus(job.id, status)}
+                      aoSoltarPosicao={() => updateJob(job.id, { posicaoFixa: null })}
+                    />
+                  ))}
+                </SortableContext>
               </ColunaDoQuadro>
             );
           })}
