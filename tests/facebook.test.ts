@@ -217,3 +217,127 @@ describe('a tela não promete o que não está configurado', () => {
     expect(env).toMatch(/FACEBOOK_APP_SECRET/);
   });
 });
+
+/**
+ * **Quem administra duas Páginas conectava uma em silêncio.**
+ *
+ * O retorno ficava com `paginas[0]` — a primeira que a Meta devolvesse — e a
+ * tela dizia "Conta conectada: @Página". Com uma Página só, certo; com duas,
+ * o servidor decidia sozinho o que era da pessoa decidir, e possivelmente a
+ * errada: os posts do cliente sairiam no perfil de outro negócio dela.
+ *
+ * É a mesma família do `find` que enfileirava uma rede de duas e do
+ * `.eq('platform', 'instagram')` que publicava Facebook no Instagram. O
+ * comentário no código chegava a dizer que a tela "ainda não existe" — o que
+ * é honesto sobre o código e não ajuda quem clicou.
+ */
+describe('a Página é escolhida por quem autoriza', () => {
+  const semCom = semComentarios(callback);
+
+  it('com mais de uma Página, a conexão não é gravada sozinha', () => {
+    // A guarda central: voltar a `paginas[0]` sem passar pela escolha faz
+    // este teste falhar antes de alguém perder um post no perfil errado.
+    expect(semCom, 'a tela de escolha sumiu do retorno').toMatch(/paginaDeEscolha\(/);
+    expect(semCom, 'a conexão direta deixou de ser o caso de uma Página só').toMatch(
+      /paginas\.length === 1/
+    );
+  });
+
+  it('uma Página só conecta direto', () => {
+    // Perguntar o óbvio é ruído, e custaria um clique em toda conexão do caso
+    // mais comum. A lista continua sendo buscada, que é o que
+    // `pages_show_list` justifica.
+    const ramo = semCom.slice(semCom.indexOf('paginas.length === 1'));
+    expect(ramo.slice(0, 400)).toMatch(/guardarConexao\(/);
+  });
+
+  it('nenhum token vai para o HTML da escolha', () => {
+    /*
+      A tela lista Páginas de terceiro, e a saída fácil é mandar o token de
+      cada uma num campo escondido para o passo dois não precisar buscar. Isso
+      o colocaria no DOM, no histórico e em qualquer captura — e captura de
+      tela é exatamente o que se faz desta tela ao gravar o vídeo da revisão
+      da Meta.
+    */
+    const tela = semCom.slice(
+      semCom.indexOf('const paginaDeEscolha'),
+      semCom.indexOf('const guardarConexao')
+    );
+
+    expect(tela.length).toBeGreaterThan(100);
+    expect(tela, 'o token da Página vazou para o HTML da escolha').not.toMatch(
+      /tokenDaPagina|access_token/
+    );
+  });
+
+  it('o passo dois busca o token no servidor', () => {
+    // Sem isto não haveria como publicar: o código da Meta é de uso único, e
+    // o token da Página só vem de `/me/accounts`.
+    const passoDois = semCom.slice(semCom.indexOf('if (pendente && paginaEscolhida)'));
+    expect(passoDois.slice(0, 1500)).toMatch(/paginasDoUsuario\(/);
+    expect(passoDois.slice(0, 1500)).toMatch(/escolhida\.tokenDaPagina/);
+  });
+
+  it('a agência sai do estado assinado, nunca da query', () => {
+    /*
+      A mesma regra do cliente no passo um: quem chega aqui veio da Meta, sem
+      sessão. Uma agência na URL seria escolhida por quem quisesse, e a Página
+      de um cliente viraria conexão na agência de outro.
+    */
+    const passoDois = semCom.slice(
+      semCom.indexOf('if (pendente && paginaEscolhida)'),
+      semCom.indexOf('const base =')
+    );
+
+    expect(passoDois).not.toMatch(/searchParams\.get\('workspace|searchParams\.get\('client/);
+    expect(semCom, 'o passo dois deixou de exigir o estado assinado').toMatch(
+      /!estado \|\| \(!codigo/
+    );
+  });
+
+  it('a autorização pendente morre depois de usada, e as vencidas saem sozinhas', () => {
+    // Ela guarda um token de usuário. Token esquecido numa tabela é sobra que
+    // ninguém vê envelhecer.
+    expect(semCom).toMatch(
+      /from\('social_autorizacoes_pendentes'\)\s*\.delete\(\)\s*\.eq\('id'/
+    );
+    expect(semCom, 'as pendentes vencidas deixaram de ser varridas').toMatch(
+      /from\('social_autorizacoes_pendentes'\)\s*\.delete\(\)\s*\.lt\('criado_em'/
+    );
+    expect(semCom, 'a pendente deixou de ter prazo').toMatch(/VALIDADE_DA_PENDENTE_MS/);
+  });
+
+  it('nome de Página não entra cru no HTML', () => {
+    // O nome é escolhido por quem cadastrou a Página, e a tela é servida do
+    // nosso domínio — com a sessão do Orquesia aberta na aba que a abriu.
+    const tela = semCom.slice(
+      semCom.indexOf('const paginaDeEscolha'),
+      semCom.indexOf('const guardarConexao')
+    );
+
+    expect(tela).toMatch(/escapar\(p\.accountName\)/);
+    expect(tela, 'a foto da Página entrou no HTML sem escapar').toMatch(/escapar\(p\.fotoUrl\)/);
+  });
+
+  it('a tabela da pendente é inalcançável por sessão nenhuma', () => {
+    /*
+      RLS ligada e **zero políticas**, como `social_tokens` e `portal_codigos`:
+      ela guarda um token de terceiro, e o dono da agência não é exceção.
+    */
+    const migracao = ler(
+      'supabase',
+      'migrations',
+      '20260923150000_escolha_da_pagina_do_facebook.sql'
+    );
+
+    expect(migracao).toMatch(
+      /alter table public\.social_autorizacoes_pendentes enable row level security/
+    );
+    expect(
+      migracao,
+      'a tabela da autorização pendente ganhou política — ela guarda token de usuário'
+    ).not.toMatch(/create policy[^;]*social_autorizacoes_pendentes/);
+    // Repetível: a outra máquina aplica sem saber que já foi aplicada.
+    expect(migracao).toMatch(/create table if not exists/);
+  });
+});
