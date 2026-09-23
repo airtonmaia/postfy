@@ -97,6 +97,22 @@ export const urlDeAutorizacao = (
   `&redirect_uri=${encodeURIComponent(redirectUri)}` +
   `&response_type=code` +
   `&scope=${encodeURIComponent(ESCOPOS_FACEBOOK)}` +
+  /**
+   * **`rerequest` é o que faz a tela de escolha de Páginas aparecer de novo.**
+   *
+   * A autorização do Facebook tem um passo em que a pessoa marca **quais
+   * Páginas** o app pode ver. Quem passa rápido por ele libera uma só — e a
+   * partir daí a Meta guarda essa concessão: uma segunda tentativa **pula o
+   * diálogo inteiro** e devolve exatamente a mesma Página, porque do ponto de
+   * vista dela nada mudou. O sintoma é reconectar e obter o mesmo resultado
+   * quantas vezes se tente, sem erro em lugar nenhum.
+   *
+   * Com `rerequest`, o diálogo é mostrado outra vez e a escolha das Páginas
+   * volta a ser feita. Custa um passo a quem já tinha liberado tudo, e é o
+   * único caminho de dentro do produto para consertar uma liberação curta —
+   * a alternativa é a pessoa achar as Integrações empresariais no Facebook.
+   */
+  `&auth_type=rerequest` +
   `&state=${encodeURIComponent(estado)}`;
 
 /**
@@ -142,23 +158,51 @@ export const trocarCodigoPorToken = async (
  * **É este token que publica.** O do usuário, que o login devolveu, serve
  * para listar as Páginas e mais nada: publicar com ele falha com "permissão
  * insuficiente" depois de a conexão já parecer pronta.
+ *
+ * ### A lista vem paginada, e ignorar isso corta Páginas em silêncio
+ *
+ * `/me/accounts` devolve **25 por vez** por padrão e o resto em
+ * `paging.next`. Lendo só a primeira resposta, quem administra trinta
+ * Páginas via cinco, e as outras simplesmente não existiriam para o
+ * Orquesia — sem erro, sem aviso, e com a tela de escolha parecendo
+ * completa. É o pior tipo de falha deste projeto: a tela afirma uma lista
+ * que não é a lista.
+ *
+ * O teto de voltas existe para uma resposta com `next` sempre presente não
+ * prender a função até o tempo dela estourar.
  */
+const MAX_PAGINACOES = 10;
+
 export const paginasDoUsuario = async (
   tokenDoUsuario: string
 ): Promise<PaginaDoFacebook[]> => {
-  const resposta = await chamar(
-    `${GRAPH}/me/accounts?fields=id,name,access_token,picture{url}` +
-      `&access_token=${encodeURIComponent(tokenDoUsuario)}`
-  );
+  let url =
+    `${GRAPH}/me/accounts?fields=id,name,access_token,picture{url}&limit=100` +
+    `&access_token=${encodeURIComponent(tokenDoUsuario)}`;
 
-  return (resposta.data || [])
-    .filter((p: any) => p?.id && p?.access_token)
-    .map((p: any) => ({
-      accountId: String(p.id),
-      accountName: p.name || String(p.id),
-      tokenDaPagina: p.access_token,
-      fotoUrl: p.picture?.data?.url,
-    }));
+  const paginas: PaginaDoFacebook[] = [];
+  const vistas = new Set<string>();
+
+  for (let volta = 0; volta < MAX_PAGINACOES && url; volta += 1) {
+    const resposta = await chamar(url);
+
+    for (const p of resposta.data || []) {
+      // Sem `access_token` a Página não publica, e listá-la seria oferecer
+      // uma escolha que falha depois.
+      if (!p?.id || !p?.access_token || vistas.has(String(p.id))) continue;
+      vistas.add(String(p.id));
+      paginas.push({
+        accountId: String(p.id),
+        accountName: p.name || String(p.id),
+        tokenDaPagina: p.access_token,
+        fotoUrl: p.picture?.data?.url,
+      });
+    }
+
+    url = resposta.paging?.next || '';
+  }
+
+  return paginas;
 };
 
 /**

@@ -341,3 +341,68 @@ describe('a Página é escolhida por quem autoriza', () => {
     expect(migracao).toMatch(/create table if not exists/);
   });
 });
+
+/**
+ * **A lista de Páginas chegava cortada, e nada acusava.**
+ *
+ * Relato de uso: "não listou todas as minhas páginas, tenho várias". Duas
+ * causas independentes, e as duas silenciosas — a tela mostra uma lista
+ * completa de um conjunto incompleto, que é a armadilha 9 no momento em que a
+ * pessoa está escolhendo onde o conteúdo do cliente dela vai sair.
+ */
+describe('a lista de Páginas não chega cortada', () => {
+  const semCom = semComentarios(facebook);
+
+  it('a paginação de /me/accounts é seguida', () => {
+    /*
+      `/me/accounts` devolve 25 por vez e o resto em `paging.next`. Lendo só a
+      primeira resposta, quem administra trinta Páginas via as primeiras — sem
+      erro e sem aviso.
+    */
+    const lista = semCom.slice(semCom.indexOf('export const paginasDoUsuario'));
+    const corpo = lista.slice(0, lista.indexOf('export const publicarNoFacebook'));
+
+    expect(corpo, 'a paginação de /me/accounts deixou de ser seguida').toMatch(
+      /paging\?\.next/
+    );
+    expect(corpo, 'o limite por resposta voltou ao padrão de 25').toMatch(/limit=100/);
+    // Sem teto, uma resposta com `next` sempre presente prende a função até o
+    // tempo dela estourar.
+    expect(corpo).toMatch(/MAX_PAGINACOES/);
+  });
+
+  it('a autorização pede a escolha das Páginas de novo', () => {
+    /*
+      A Meta guarda quais Páginas foram liberadas. Sem `auth_type=rerequest`,
+      uma segunda tentativa **pula o diálogo** e devolve exatamente a mesma
+      Página: reconectar não conserta uma liberação curta, e não há erro que
+      explique isso.
+    */
+    const url = semCom.slice(semCom.indexOf('export const urlDeAutorizacao'));
+    expect(url.slice(0, 700), 'a autorização voltou a reaproveitar a liberação anterior').toMatch(
+      /auth_type=rerequest/
+    );
+  });
+
+  it('uma Página só diz que foi a única que a Meta liberou', () => {
+    /*
+      Uma Página liberada e uma Página existente são indistinguíveis daqui. Sem
+      a frase, quem administra várias conclui que o Orquesia não achou as
+      outras — foi exatamente essa a conclusão de quem usou primeiro.
+    */
+    const semComCallback = semComentarios(callback);
+    const ramo = semComCallback.slice(semComCallback.indexOf('paginas.length === 1'));
+
+    expect(ramo.slice(0, 900)).toMatch(/única Página que o Facebook liberou/);
+  });
+
+  it('a tela de escolha diz o que fazer quando falta Página', () => {
+    const semComCallback = semComentarios(callback);
+    const tela = semComCallback.slice(
+      semComCallback.indexOf('const paginaDeEscolha'),
+      semComCallback.indexOf('const guardarConexao')
+    );
+
+    expect(tela).toMatch(/Não está vendo todas as suas Páginas/);
+  });
+});

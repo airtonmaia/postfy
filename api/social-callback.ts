@@ -49,7 +49,16 @@ const ESTILO_DA_PAGINA =
   "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
   'margin:0;background:#f8fafc;color:#0f172a';
 
-const paginaDeRetorno = (mensagem: string, erro: boolean): Response =>
+/**
+ * `detalhe` é o que a pessoa precisa saber **depois** de dar certo.
+ *
+ * Nasceu de um caso real: quem administra várias Páginas conectou uma e
+ * concluiu que o Orquesia não tinha achado as outras. Não tinha mesmo — a
+ * Meta só liberou aquela —, e a tela não dizia isso nem onde mexer. Sucesso
+ * que esconde uma escolha pela metade é a armadilha 9 na hora mais barata de
+ * evitá-la: a pessoa ainda está com a janela aberta.
+ */
+const paginaDeRetorno = (mensagem: string, erro: boolean, detalhe?: string): Response =>
   new Response(
     `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
      <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,6 +67,13 @@ const paginaDeRetorno = (mensagem: string, erro: boolean): Response =>
                   display:flex;align-items:center;justify-content:center;height:100vh">
        <div style="text-align:center;max-width:420px;padding:32px">
          <p style="font-size:15px;font-weight:600">${escapar(mensagem)}</p>
+         ${
+           detalhe
+             ? `<p style="font-size:12px;color:#64748b;margin-top:12px;line-height:1.6;
+                          text-align:left;background:#f1f5f9;padding:12px 14px;
+                          border-radius:12px">${escapar(detalhe)}</p>`
+             : ''
+         }
          <p style="font-size:13px;color:#64748b;margin-top:12px">
            Você já pode fechar esta janela.
          </p>
@@ -129,6 +145,10 @@ const paginaDeEscolha = (
          </p>
          <div style="display:flex;flex-direction:column;gap:10px">${linhas}</div>
          <p style="font-size:12px;color:#94a3b8;margin-top:20px;line-height:1.5">
+           Não está vendo todas as suas Páginas? Feche esta janela, clique em
+           Conectar de novo e marque todas na tela da Meta — é ela que decide
+           quais o Orquesia enxerga.
+           <br><br>
            A autorização vale por 15 minutos. Passando disso, é só conectar de novo.
          </p>
        </div>
@@ -151,7 +171,9 @@ const guardarConexao = async (
   rede: 'instagram' | 'facebook',
   conta: { accountId: string; accountName: string },
   token: string,
-  expiraEm: number | null
+  expiraEm: number | null,
+  /** O que a pessoa precisa saber depois de dar certo. Ver `paginaDeRetorno`. */
+  detalhe?: string
 ): Promise<Response> => {
   // 60 dias, e renovável — `api/publicar.ts` renova antes de vencer. Fica
   // em `social_connections` porque é o que a tela mostra; o token, esse
@@ -200,7 +222,7 @@ const guardarConexao = async (
     return paginaDeRetorno('Não foi possível guardar a credencial da conta.', true);
   }
 
-  return paginaDeRetorno(`Conta conectada: @${conta.accountName}`, false);
+  return paginaDeRetorno(`Conta conectada: @${conta.accountName}`, false, detalhe);
 };
 
 /** Quanto tempo uma autorização pode ficar esperando a escolha. */
@@ -343,8 +365,18 @@ async function handler(request: Request): Promise<Response> {
         );
       }
 
-      // Uma Página só não é escolha: perguntar o óbvio é ruído, e o passo a
-      // mais custa um clique em toda conexão do caso mais comum.
+      /*
+        Uma Página só não é escolha: perguntar o óbvio é ruído, e o passo a
+        mais custa um clique em toda conexão do caso mais comum.
+
+        **Mas "uma" pode ser o resultado de uma liberação curta**, não do
+        tamanho da conta. Na autorização da Meta existe um passo em que se
+        marca quais Páginas o app enxerga, e quem passa rápido por ele libera
+        uma. Do lado de cá, uma Página liberada e uma Página existente são
+        indistinguíveis — então a tela diz o que houve, em vez de deixar a
+        pessoa concluir que o Orquesia não achou as outras. Foi exatamente
+        essa a conclusão de quem usou primeiro.
+      */
       if (paginas.length === 1) {
         return await guardarConexao(
           supabase,
@@ -352,7 +384,10 @@ async function handler(request: Request): Promise<Response> {
           'facebook',
           { accountId: paginas[0].accountId, accountName: paginas[0].accountName },
           paginas[0].tokenDaPagina,
-          trocado.expiraEm
+          trocado.expiraEm,
+          'Foi a única Página que o Facebook liberou para o Orquesia. Se você ' +
+            'administra outras, clique em Conectar de novo e, na tela da Meta, ' +
+            'marque todas as Páginas antes de continuar.'
         );
       }
 
