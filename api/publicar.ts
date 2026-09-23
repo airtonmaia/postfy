@@ -72,6 +72,23 @@ const NOME_DA_REDE: Record<string, string> = {
   twitter: 'X',
 };
 
+/**
+ * As redes que **esta rota** publica sozinha.
+ *
+ * Espelha `REDES_QUE_PUBLICAM` de `src/lib/redes.ts`: a lista de lá é o que a
+ * tela promete, e esta é o que o servidor honra. Divergir não quebra nada até
+ * alguém marcar o canal novo — é a mesma classe do `check` de `jobs.format`.
+ *
+ * Ela existe porque o literal `'instagram'` estava escrito à mão na escolha
+ * da conta do "publicar agora", e isso fazia a publicação imediata **só
+ * existir para o Instagram** — com o Facebook já publicando pelo cron, pela
+ * mesma `publicarItem`.
+ */
+const REDES_QUE_PUBLICAM = ['instagram', 'facebook'] as const;
+
+const publicaSozinho = (rede: string): boolean =>
+  (REDES_QUE_PUBLICAM as readonly string[]).includes(rede);
+
 type DesfechoDaPublicacao =
   | { tipo: 'publicado' }
   | { tipo: 'parcial'; motivo: string }
@@ -387,7 +404,7 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
   const doUsuario = clienteDoUsuario(request);
   const { data: job } = await doUsuario
     .from('jobs')
-    .select('id, workspace_id, client_id')
+    .select('id, workspace_id, client_id, canais, platform')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -409,113 +426,195 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
     return json({ error: 'Seu perfil não pode publicar.' }, 403);
   }
 
-  const { data: conexao } = await supabase
+  /**
+   * **Os canais da peça decidem onde ela sai. Isto era um bug, e ele
+   * publicava no perfil errado.**
+   *
+   * A consulta aqui era `.eq('platform', 'instagram').maybeSingle()`: a rota
+   * ignorava `job.canais` por inteiro e pegava a conta de Instagram do
+   * cliente, qualquer que fosse a rede marcada no conteúdo. Uma peça marcada
+   * **só como Facebook** saía no **Instagram**, e a tela respondia
+   * "Publicado em @conta" — verdadeira sobre a conta, muda sobre a rede.
+   * Aconteceu em produção, com uma peça de teste.
+   *
+   * E post no perfil do cliente não volta. É a família que este projeto já
+   * registra três vezes — o `find` que enfileirava uma rede de duas, o
+   * `|| midia` que trocava a arte do story, a fila sem produtor —, agora no
+   * caminho com menos margem: o cron erra por cinco minutos, este erra na
+   * frente de quem clicou, no perfil que o cliente abre.
+   *
+   * O recuo para `platform` é o mesmo de `agendarPublicacao`: peça gravada
+   * antes do multicanal não tem `canais`.
+   */
+  const marcados: string[] = (job.canais || []).filter(Boolean);
+  const canais: string[] = marcados.length ? marcados : [job.platform];
+
+  const automaticos = canais.filter(publicaSozinho);
+  const manuais = canais.filter((rede) => !publicaSozinho(rede));
+
+  const { data: conexoes } = await supabase
     .from('social_connections')
-    .select('id, account_name')
+    .select('id, account_name, platform')
     .eq('workspace_id', job.workspace_id)
     .eq('client_id', job.client_id)
-    .eq('platform', 'instagram')
-    .maybeSingle();
+    .in('platform', automaticos.length ? automaticos : ['-']);
 
-  if (!conexao) {
+  /*
+    Uma conta por rede, a mais antiga — `listarContas` do navegador ordena
+    assim, e duas conexões da mesma rede para o mesmo cliente publicariam a
+    peça duas vezes no que, para quem lê, é o mesmo lugar.
+  */
+  const porRede = new Map<string, any>();
+  for (const conexao of conexoes || []) {
+    if (!porRede.has(conexao.platform)) porRede.set(conexao.platform, conexao);
+  }
+
+  const semConta = automaticos.filter((rede) => !porRede.has(rede));
+
+  if (porRede.size === 0) {
+    /*
+      A mensagem nomeia a rede. "Este cliente não tem conta conectada" sem
+      dizer qual manda a pessoa procurar no lugar errado — e foi justamente
+      uma frase que citava o Instagram que escondeu este bug.
+    */
+    const faltando = [...semConta, ...manuais].map((r) => NOME_DA_REDE[r] || r).join(' e ');
     return json(
-      { error: 'Este cliente não tem conta do Instagram conectada.', code: 'SEM_CONEXAO' },
+      {
+        error:
+          manuais.length && !semConta.length
+            ? `${faltando}: a postagem é manual, o Orquesia não publica sozinho nesta rede.`
+            : `Este cliente não tem conta conectada em ${faltando || 'nenhuma rede automática'}.`,
+        code: 'SEM_CONEXAO',
+      },
       409
     );
   }
 
-  // Já publicado é parada, não retentativa. A restrição de unicidade da fila
-  // existe porque **publicar duplicado é pior que não publicar**, e um
-  // `upsert` cego por cima de uma linha `publicado` colocaria o mesmo post
-  // no perfil do cliente outra vez.
-  const { data: jaNaFila } = await supabase
-    .from('publish_queue')
-    .select('id, status, external_id')
-    .eq('job_id', job.id)
-    .eq('connection_id', conexao.id)
-    .maybeSingle();
+  const publicadas: any[] = [];
+  const falhas: any[] = [];
 
-  if (jaNaFila?.status === 'publicado') {
-    return json(
-      {
-        error: `Este conteúdo já foi publicado em @${conexao.account_name}.`,
+  for (const [rede, conexao] of porRede) {
+    // Já publicado é parada, não retentativa. A restrição de unicidade da fila
+    // existe porque **publicar duplicado é pior que não publicar**, e um
+    // `upsert` cego por cima de uma linha `publicado` colocaria o mesmo post
+    // no perfil do cliente outra vez.
+    const { data: jaNaFila } = await supabase
+      .from('publish_queue')
+      .select('id, status, external_id')
+      .eq('job_id', job.id)
+      .eq('connection_id', conexao.id)
+      .maybeSingle();
+
+    if (jaNaFila?.status === 'publicado') {
+      /*
+        Com uma rede só isto continua sendo o JA_PUBLICADO de antes; com duas,
+        ele não pode derrubar a que ainda não saiu — é a mesma razão de
+        `jaEstava` ter deixado de ser exceção em `agendarPublicacao`.
+      */
+      falhas.push({
+        rede,
+        conta: conexao.account_name,
+        motivo: `Este conteúdo já foi publicado em @${conexao.account_name}.`,
         code: 'JA_PUBLICADO',
         externalId: jaNaFila.external_id,
-      },
-      409
-    );
-  }
+      });
+      continue;
+    }
 
-  // `upsert` e não `insert`: repetir o teste depois de uma falha não pode
-  // estourar por causa da restrição de unicidade (job_id, connection_id).
-  const { data: item, error: erroFila } = await supabase
-    .from('publish_queue')
-    .upsert(
-      {
-        workspace_id: job.workspace_id,
+    // `upsert` e não `insert`: repetir o teste depois de uma falha não pode
+    // estourar por causa da restrição de unicidade (job_id, connection_id).
+    const { data: item, error: erroFila } = await supabase
+      .from('publish_queue')
+      .upsert(
+        {
+          workspace_id: job.workspace_id,
+          job_id: job.id,
+          connection_id: conexao.id,
+          scheduled_for: new Date().toISOString(),
+          status: 'publicando',
+        },
+        { onConflict: 'job_id,connection_id' }
+      )
+      .select('id, attempts, status')
+      .single();
+
+    if (erroFila || !item) {
+      console.error('[publicar] fila (agora)', erroFila?.message);
+      falhas.push({
+        rede,
+        conta: conexao.account_name,
+        motivo: 'Não foi possível colocar na fila.',
+      });
+      continue;
+    }
+
+    try {
+      const publicado = await publicarItem(supabase, {
         job_id: job.id,
         connection_id: conexao.id,
-        scheduled_for: new Date().toISOString(),
-        status: 'publicando',
-      },
-      { onConflict: 'job_id,connection_id' }
-    )
-    .select('id, attempts, status')
-    .single();
+      });
 
-  if (erroFila || !item) {
-    console.error('[publicar] fila (agora)', erroFila?.message);
-    return json({ error: 'Não foi possível colocar na fila.' }, 500);
+      await supabase
+        .from('publish_queue')
+        .update({
+          status: 'publicado',
+          external_id: publicado.id,
+          story_external_id: publicado.idDoStory ?? null,
+          published_at: new Date().toISOString(),
+          // Mesma regra do cron: o feed já saiu, então o item fecha como
+          // publicado e o aviso do story fica à vista.
+          last_error: publicado.avisoDoStory ?? null,
+          attempts: (item.attempts ?? 0) + 1,
+        })
+        .eq('id', item.id);
+
+      publicadas.push({
+        rede,
+        conta: conexao.account_name,
+        externalId: publicado.id,
+        storyExternalId: publicado.idDoStory,
+        // A tela mostra a ressalva quando o story não saiu: "publicado" sem
+        // dizer isso seria a tela afirmando o que não aconteceu.
+        aviso: publicado.avisoDoStory,
+      });
+    } catch (erro) {
+      const motivo =
+        erro instanceof ErroDaMeta || erro instanceof Error ? erro.message : 'Falha desconhecida.';
+
+      // Fica em `falhou`, e não de volta em `pendente`: quem pediu está olhando
+      // a resposta, e um item pendente faria o cron repetir por baixo sem
+      // ninguém ter decidido isso.
+      await supabase
+        .from('publish_queue')
+        .update({ status: 'falhou', last_error: motivo, attempts: (item.attempts ?? 0) + 1 })
+        .eq('id', item.id);
+
+      falhas.push({ rede, conta: conexao.account_name, motivo });
+    }
   }
 
-  try {
-    const publicado = await publicarItem(supabase, {
-      job_id: job.id,
-      connection_id: conexao.id,
-    });
-
-    await supabase
-      .from('publish_queue')
-      .update({
-        status: 'publicado',
-        external_id: publicado.id,
-        story_external_id: publicado.idDoStory ?? null,
-        published_at: new Date().toISOString(),
-        // Mesma regra do cron: o feed já saiu, então o item fecha como
-        // publicado e o aviso do story fica à vista.
-        last_error: publicado.avisoDoStory ?? null,
-        attempts: (item.attempts ?? 0) + 1,
-      })
-      .eq('id', item.id);
-
+  /*
+    O conteúdo só vira `published` se alguma rede aceitou. Marcar com tudo
+    falhado diria no quadro que a peça está no ar — a afirmação mais cara que
+    esta rota pode fazer errado.
+  */
+  if (publicadas.length) {
     await supabase
       .from('jobs')
       .update({ status: 'published', published_date: new Date().toISOString() })
       .eq('id', job.id);
-
-    return json({
-      ok: true,
-      externalId: publicado.id,
-      storyExternalId: publicado.idDoStory,
-      // A tela mostra a ressalva quando o story não saiu: "publicado" sem
-      // dizer isso seria a tela afirmando o que não aconteceu.
-      aviso: publicado.avisoDoStory,
-      conta: conexao.account_name,
-    });
-  } catch (erro) {
-    const motivo =
-      erro instanceof ErroDaMeta || erro instanceof Error ? erro.message : 'Falha desconhecida.';
-
-    // Fica em `falhou`, e não de volta em `pendente`: quem pediu está olhando
-    // a resposta, e um item pendente faria o cron repetir por baixo sem
-    // ninguém ter decidido isso.
-    await supabase
-      .from('publish_queue')
-      .update({ status: 'falhou', last_error: motivo, attempts: (item.attempts ?? 0) + 1 })
-      .eq('id', item.id);
-
-    return json({ error: motivo, conta: conexao.account_name }, 502);
   }
+
+  /*
+    Nada publicado continua sendo erro de requisição: quem clicou está olhando
+    a resposta, e um 200 com a lista vazia faria a tela ter de lembrar de
+    conferir. Uma rede de duas é 200 — e o texto nomeia as duas.
+  */
+  if (!publicadas.length) {
+    return json({ error: falhas.map((f) => f.motivo).join(' '), falhas }, 502);
+  }
+
+  return json({ ok: true, publicadas, falhas, semConta, manuais });
 };
 
 /**
@@ -622,7 +721,7 @@ const publicarItem = async (
     .maybeSingle();
 
   if (!conexao) throw new Error('A conta conectada não existe mais.');
-  if (conexao.platform !== 'instagram' && conexao.platform !== 'facebook') {
+  if (!publicaSozinho(conexao.platform)) {
     throw new Error(`Publicação em ${conexao.platform} ainda não implementada.`);
   }
 

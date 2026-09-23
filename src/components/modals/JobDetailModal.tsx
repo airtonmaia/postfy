@@ -49,6 +49,7 @@ import { deParedeParaUtc, deUtcParaParede } from '../../lib/fusoHorario';
 import { safeDateFormat } from '../../lib/utils';
 import {
   publicarAgora,
+  textoDaPublicacao,
   agendarPublicacao,
   textoDoAgendamento,
   quandoDeveSair,
@@ -340,15 +341,18 @@ export const JobDetailModal: React.FC = () => {
     setAcao('publicando');
     setResultado(null);
     try {
-      const { conta, aviso } = await publicarAgora(atualizado.id);
       /**
-       * `aviso` é o caso do feed que saiu e do story que não. Ele não pode ler
-       * como sucesso liso: a peça está no perfil pela metade, e é isso que a
-       * tela precisa dizer.
+       * O texto sai de `textoDaPublicacao`, e ele **nomeia a rede**.
+       *
+       * Esta tela dizia `Publicado em @conta` — verdadeira sobre a conta e
+       * muda sobre onde a peça saiu. Foi assim que um conteúdo marcado só
+       * como Facebook apareceu no Instagram com a tela em verde: o servidor
+       * escolhia a conta errada, e a frase não tinha como acusar.
+       *
+       * O `aviso` do story entra no mesmo texto: a peça está no perfil pela
+       * metade, e isso não pode ler como sucesso liso.
        */
-      setResultado(
-        aviso ? { ok: false, texto: aviso } : { ok: true, texto: `Publicado em @${conta}.` }
-      );
+      setResultado(textoDaPublicacao(await publicarAgora(atualizado.id)));
     } catch (e) {
       /**
        * A falha traz o motivo que o servidor deu. "Publicado" sem conferir
@@ -817,7 +821,16 @@ export const JobDetailModal: React.FC = () => {
                 </Button>
 
                 {/* Publicar agora fica por último e com a cor de aviso: é a
-                    única ação da tela que não tem volta. */}
+                    única ação da tela que não tem volta.
+
+                    **Só aparece quando algum canal marcado publica sozinho.**
+                    Numa peça só de LinkedIn ele existia e o servidor recusava
+                    — botão que promete o que não faz é pior que botão
+                    ausente. A condição deriva de `REDES_QUE_PUBLICAM`, nunca
+                    de um nome de rede escrito aqui: era `includes('instagram')`
+                    no cadastro, e foi isso que escondeu o Facebook depois de
+                    ele já publicar. */}
+                {dados.canais.some(publicaSozinho) && (
                 <Button
                   onClick={() => void publicar()}
                   disabled={ocupado || selectedJob.status === 'published'}
@@ -831,6 +844,7 @@ export const JobDetailModal: React.FC = () => {
                   <Send className="w-4 h-4" />
                   {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
                 </Button>
+                )}
               </div>
 
               {/* O que o servidor respondeu, com o texto que ele mandou.

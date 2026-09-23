@@ -475,9 +475,11 @@ const esperarOConteudoExistir = async (jobId: string, limiteMs = 10_000): Promis
   return false;
 };
 
-export interface ResultadoDaPublicacao {
-  externalId: string;
+/** Uma saída que aconteceu: a peça está no ar nesta conta. */
+export interface SaidaPublicada {
+  rede: JobPlatform;
   conta: string;
+  externalId: string;
   /** O id do story, quando o formato é `feed_story`. */
   storyExternalId?: string;
   /**
@@ -490,6 +492,83 @@ export interface ResultadoDaPublicacao {
    */
   aviso?: string;
 }
+
+/**
+ * O que aconteceu com **cada canal** da peça.
+ *
+ * Era um objeto de uma conta só (`{ externalId, conta, aviso }`), e a forma
+ * combinava com o bug do servidor: a rota escolhia a conta de Instagram do
+ * cliente e ignorava os canais marcados, então uma peça só de Facebook saía
+ * no Instagram com a tela dizendo "Publicado em @conta". Um resultado por
+ * canal é o que torna a mentira impossível de escrever — a rede vem junto.
+ *
+ * É a mesma forma de `ResultadoDoAgendamento`, e pela mesma razão: "publiquei
+ * em uma de duas" precisa ser dito por inteiro.
+ */
+export interface ResultadoDaPublicacao {
+  publicadas: SaidaPublicada[];
+  /** Redes que publicam sozinhas, mas não saíram — com o motivo do servidor. */
+  falhas: { rede: JobPlatform; conta?: string; motivo: string }[];
+  /** Redes automáticas sem conta conectada para este cliente. */
+  semConta: JobPlatform[];
+  /** Redes que não publicam sozinhas: a postagem é manual. */
+  manuais: JobPlatform[];
+}
+
+/**
+ * O que dizer depois de publicar — **um texto só, para as duas telas**.
+ *
+ * Mesma decisão de `textoDoAgendamento`, e ela vale mais aqui: publicação
+ * imediata não tem volta, então a frase precisa nomear **onde** a peça saiu e
+ * onde não saiu. A versão antiga era `Publicado em @conta` montada em cada
+ * modal, sem a rede — e foi exatamente isso que deixou um post de Facebook
+ * sair no Instagram sem ninguém desconfiar da tela.
+ */
+export const textoDaPublicacao = (r: ResultadoDaPublicacao): { ok: boolean; texto: string } => {
+  const partes: string[] = [];
+
+  if (r.publicadas.length) {
+    partes.push(
+      `Publicado em ${r.publicadas
+        .map((p) => `${NOME_DA_REDE[p.rede] ?? p.rede} (@${p.conta})`)
+        .join(' e ')}.`
+    );
+  }
+
+  // O aviso do story vem junto e não pode se perder no meio: a peça está no
+  // perfil pela metade, e republicar duplicaria o feed.
+  for (const p of r.publicadas) if (p.aviso) partes.push(p.aviso);
+
+  for (const f of r.falhas) {
+    partes.push(`${NOME_DA_REDE[f.rede] ?? f.rede}: ${f.motivo}`);
+  }
+
+  if (r.semConta.length) {
+    partes.push(
+      `${nomesDasRedes(r.semConta)}: este cliente não tem conta conectada, então a ` +
+        'postagem é sua — conecte a conta dele para o disparo automático.'
+    );
+  }
+
+  if (r.manuais.length) {
+    partes.push(`${nomesDasRedes(r.manuais)}: postagem manual, o Orquesia não dispara sozinho.`);
+  }
+
+  if (!partes.length) return { ok: false, texto: 'Nenhum canal marcado neste conteúdo.' };
+
+  /*
+    Verde só quando tudo o que podia sair saiu. Uma rede publicada e outra
+    falhada lê como problema, porque é: a peça está no ar pela metade, e é a
+    metade que falta que precisa de alguém.
+  */
+  const completo =
+    r.publicadas.length > 0 &&
+    r.falhas.length === 0 &&
+    r.semConta.length === 0 &&
+    r.publicadas.every((p) => !p.aviso);
+
+  return { ok: completo, texto: partes.join(' ') };
+};
 
 /**
  * Publica um conteúdo agora, e espera a resposta da Meta.
@@ -529,9 +608,9 @@ export const publicarAgora = async (jobId: string): Promise<ResultadoDaPublicaca
   }
 
   return {
-    externalId: payload.externalId,
-    conta: payload.conta,
-    storyExternalId: payload.storyExternalId,
-    aviso: payload.aviso,
+    publicadas: payload.publicadas || [],
+    falhas: payload.falhas || [],
+    semConta: payload.semConta || [],
+    manuais: payload.manuais || [],
   };
 };

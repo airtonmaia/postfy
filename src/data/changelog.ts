@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.71.0',
+    data: '2026-09-23',
+    resumo:
+      'Publicar agora respeita os canais da peça — antes um conteúdo de Facebook saía no Instagram.',
+    corrigido: [
+      'Um conteúdo marcado só como Facebook era publicado no Instagram do cliente. O "Publicar agora" ignorava os canais da peça e pegava sempre a conta de Instagram, e a tela respondia "Publicado em @conta" — a conta certa, a rede errada. Agora a publicação segue os canais marcados.',
+      'O botão "Publicar agora" não aparecia no cadastro quando só o Facebook estava marcado. Ele perguntava pelo Instagram pelo nome, em vez de perguntar quais redes publicam sozinhas.',
+      'O botão também some quando nenhum canal da peça publica sozinho: antes ele existia numa peça só de LinkedIn e o servidor recusava depois do clique.',
+    ],
+    melhorias: [
+      'Publicar agora publica em todos os canais automáticos da peça, e não só no primeiro — como o agendamento já fazia.',
+      'A mensagem depois de publicar nomeia a rede, não só a conta, e diz o que ficou de fora: rede sem conta conectada, rede de postagem manual e falha de uma rede quando a outra saiu.',
+      'Uma rede publicada e outra falhada deixa de ler como sucesso: a peça está no ar pela metade, e é a metade que falta que precisa de alguém.',
+    ],
+  },
+  {
     versao: '2.70.0',
     data: '2026-09-23',
     resumo:

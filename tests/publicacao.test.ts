@@ -10,7 +10,9 @@ import {
   proximaPassada,
   MINUTOS_ENTRE_PASSADAS,
   textoDoAgendamento,
+  textoDaPublicacao,
   type ResultadoDoAgendamento,
+  type ResultadoDaPublicacao,
 } from '../src/lib/redes';
 import { semComentarios } from './util/semComentarios';
 
@@ -58,11 +60,23 @@ describe('REDES_QUE_PUBLICAM não afirma mais do que existe', () => {
   });
 
   it('a rota recusa conexão de rede que não publica', () => {
-    // O cinto: mesmo que a fila receba um item de outra rede, a rota não
-    // tenta publicar às cegas.
-    expect(publicarTs).toMatch(
-      /conexao\.platform !== 'instagram' && conexao\.platform !== 'facebook'/
-    );
+    /*
+      O cinto: mesmo que a fila receba um item de outra rede, a rota não tenta
+      publicar às cegas.
+
+      **A guarda saiu da sintaxe.** Ela exigia o literal
+      `conexao.platform !== 'instagram' && conexao.platform !== 'facebook'` e
+      reprovou no dia em que as duas comparações viraram uma chamada a
+      `publicaSozinho` — que é a mesma decisão, derivada da lista em vez de
+      repetida. Guarda presa à forma obriga a editá-la junto com o código, e é
+      assim que ela deixa de guardar. Agora mede o efeito: a recusa acontece, e
+      quem decide quem passa é a lista.
+    */
+    const corpo = publicarTs.slice(publicarTs.indexOf('const publicarItem'));
+    const recusa = corpo.slice(0, corpo.indexOf('ainda não implementada'));
+
+    expect(recusa).toMatch(/publicaSozinho\(conexao\.platform\)|conexao\.platform !== '/);
+    expect(publicarTs).toMatch(/ainda não implementada/);
   });
 
   it('toda rede do tipo tem uma explicação, inclusive as que não publicam', () => {
@@ -593,5 +607,182 @@ describe('a publicação avisa quem precisa saber', () => {
 
   it('o aviso leva para a fila, onde o motivo está à vista', () => {
     expect(publicarTs).toMatch(/tab: 'publicacoes'/);
+  });
+});
+
+/**
+ * **Publicar agora saía no perfil errado.**
+ *
+ * A rota escolhia a conta com `.eq('platform', 'instagram').maybeSingle()` e
+ * **ignorava `job.canais`**. Uma peça marcada só como Facebook era publicada
+ * no Instagram do cliente, e a tela respondia "Publicado em @conta" — a conta
+ * certa, a rede errada, nada acusando. Aconteceu em produção.
+ *
+ * No cadastro o botão nem aparecia (`dados.canais.includes('instagram')`), o
+ * que escondia metade do problema: quem marcasse só Facebook não via o botão
+ * na modal de criação e via na de detalhe, onde ele publicava no lugar errado.
+ *
+ * As duas metades são o mesmo erro — um nome de rede escrito à mão onde
+ * `REDES_QUE_PUBLICAM` já decide —, e é isso que estas guardas medem.
+ */
+describe('publicar agora segue os canais da peça', () => {
+  it('a rota lê os canais do conteúdo', () => {
+    // Sem `canais` na consulta, a rede marcada não chega à decisão — que é
+    // exatamente como o Instagram virou destino de um post de Facebook.
+    expect(publicarTs).toMatch(/\.select\('id, workspace_id, client_id, canais, platform'\)/);
+  });
+
+  it('a conta é escolhida pela rede do canal, não por uma rede escrita à mão', () => {
+    const rotaAgora = publicarTs.slice(publicarTs.indexOf('const publicarUmAgora'));
+    const escolha = rotaAgora.slice(
+      rotaAgora.indexOf("from('social_connections')"),
+      rotaAgora.indexOf('const publicadas')
+    );
+
+    expect(escolha).toMatch(/\.in\('platform',/);
+    expect(
+      escolha,
+      'a escolha da conta voltou a fixar uma rede: uma peça de Facebook sai no Instagram'
+    ).not.toMatch(/\.eq\('platform', '\w+'\)/);
+  });
+
+  it('publica em todos os canais automáticos, não no primeiro', () => {
+    const rotaAgora = publicarTs.slice(publicarTs.indexOf('const publicarUmAgora'));
+    // O laço é o que separa "publiquei numa de duas" de "publiquei nas duas".
+    expect(rotaAgora).toMatch(/for \(const \[rede, conexao\] of porRede\)/);
+    expect(rotaAgora).toMatch(/publicadas\.push/);
+  });
+
+  it('o que o servidor honra espelha o que a tela promete', () => {
+    // Duas listas, dois lados. Divergir não quebra nada até alguém marcar o
+    // canal novo — a mesma classe do `check` de `jobs.format`.
+    const doServidor = publicarTs
+      .match(/const REDES_QUE_PUBLICAM = \[([^\]]*)\] as const;/)?.[1]
+      .split(',')
+      .map((r) => r.trim().replace(/'/g, ''))
+      .filter(Boolean);
+
+    expect(doServidor, 'api/publicar.ts não declara mais a lista de redes').toBeTruthy();
+    expect([...(doServidor as string[])].sort()).toEqual([...REDES_QUE_PUBLICAM].sort());
+  });
+
+  it('o conteúdo só vira publicado se alguma rede aceitou', () => {
+    const rotaAgora = publicarTs.slice(publicarTs.indexOf('const publicarUmAgora'));
+    const marcaOJob = rotaAgora.indexOf("status: 'published'");
+    const guarda = rotaAgora.lastIndexOf('if (publicadas.length)', marcaOJob);
+
+    expect(
+      guarda >= 0 && guarda < marcaOJob,
+      'o job é marcado como publicado sem conferir se alguma rede aceitou'
+    ).toBe(true);
+  });
+
+  it('nenhuma tela decide o botão de publicar por um nome de rede', () => {
+    /*
+      A guarda procura o **efeito**: uma tela perguntando se um canal
+      específico está marcado. `publicaSozinho` é a resposta certa, e ela
+      acompanha REDES_QUE_PUBLICAM sozinha.
+    */
+    const pasta = join(RAIZ, 'src', 'components', 'modals');
+    const arquivos = readdirSync(pasta).filter((n) => n.endsWith('.tsx'));
+    expect(arquivos.length).toBeGreaterThan(0);
+
+    for (const nome of arquivos) {
+      const fonte = semComentarios(readFileSync(join(pasta, nome), 'utf-8'));
+      for (const rede of REDES_QUE_PUBLICAM) {
+        expect(
+          fonte,
+          `${nome} pergunta por '${rede}' à mão — rede nova entra em REDES_QUE_PUBLICAM ` +
+            'e o botão continua escondido, que foi o caso do Facebook'
+        ).not.toMatch(new RegExp(`canais\\.includes\\('${rede}'\\)`));
+      }
+    }
+  });
+
+  it('as duas modais dizem em qual rede a peça saiu', () => {
+    // `Publicado em @conta` não nomeia a rede, e foi essa frase que deixou o
+    // post de Facebook aparecer no Instagram com a tela em verde.
+    for (const nome of ['CreateJobModal', 'JobDetailModal']) {
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', 'modals', `${nome}.tsx`), 'utf-8')
+      );
+      expect(fonte, `${nome} não usa textoDaPublicacao`).toMatch(/textoDaPublicacao\(/);
+      expect(fonte, `${nome} volta a montar o texto da publicação à mão`).not.toMatch(
+        /Publicado em @\$\{/
+      );
+    }
+  });
+});
+
+describe('o que a tela diz depois de publicar', () => {
+  const vazio = (): ResultadoDaPublicacao => ({
+    publicadas: [],
+    falhas: [],
+    semConta: [],
+    manuais: [],
+  });
+
+  it('nomeia a rede, não só a conta', () => {
+    const { ok, texto } = textoDaPublicacao({
+      ...vazio(),
+      publicadas: [{ rede: 'facebook', conta: 'Minha Página', externalId: '1' }],
+    });
+
+    expect(ok).toBe(true);
+    expect(texto).toContain('Facebook');
+    expect(texto).toContain('@Minha Página');
+    // A prova do bug: com a rede na frase, "saiu no Instagram" é legível.
+    expect(texto).not.toContain('Instagram');
+  });
+
+  it('duas redes publicadas aparecem as duas', () => {
+    const { texto } = textoDaPublicacao({
+      ...vazio(),
+      publicadas: [
+        { rede: 'instagram', conta: 'cliente', externalId: '1' },
+        { rede: 'facebook', conta: 'Página', externalId: '2' },
+      ],
+    });
+
+    expect(texto).toContain('Instagram');
+    expect(texto).toContain('Facebook');
+  });
+
+  it('uma saiu e a outra não é problema, não sucesso', () => {
+    const { ok, texto } = textoDaPublicacao({
+      ...vazio(),
+      publicadas: [{ rede: 'instagram', conta: 'cliente', externalId: '1' }],
+      falhas: [{ rede: 'facebook', conta: 'Página', motivo: 'Token expirado.' }],
+    });
+
+    expect(ok).toBe(false);
+    expect(texto).toContain('Instagram');
+    expect(texto).toContain('Facebook: Token expirado.');
+  });
+
+  it('o aviso do story não se perde no meio do sucesso', () => {
+    const { ok, texto } = textoDaPublicacao({
+      ...vazio(),
+      publicadas: [
+        { rede: 'instagram', conta: 'cliente', externalId: '1', aviso: 'O feed saiu. O story não.' },
+      ],
+    });
+
+    expect(ok).toBe(false);
+    expect(texto).toContain('O story não.');
+  });
+
+  it('rede sem conta conectada é nomeada, não silenciada', () => {
+    const { ok, texto } = textoDaPublicacao({ ...vazio(), semConta: ['facebook'] });
+
+    expect(ok).toBe(false);
+    expect(texto).toContain('Facebook');
+    expect(texto).toContain('não tem conta conectada');
+  });
+
+  it('conteúdo sem canal automático diz isso em vez de mensagem vazia', () => {
+    const { ok, texto } = textoDaPublicacao(vazio());
+    expect(ok).toBe(false);
+    expect(texto.length).toBeGreaterThan(0);
   });
 });

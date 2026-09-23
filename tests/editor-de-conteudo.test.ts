@@ -270,15 +270,22 @@ describe('publicar agora diz o que saiu, e o que não saiu', () => {
      * motivo em `last_error`, porque marcar `falhou` republicaria o feed na
      * passada seguinte. Sem o campo na tela, "Publicado em @conta" afirmava
      * duas saídas onde houve uma.
+     *
+     * **A guarda saiu da forma.** Ela exigia o ternário `aviso ? { ok: false`
+     * dentro do editor, e reprovou quando o texto da publicação mudou de casa
+     * — a mesma lição das cinco guardas ancoradas em `CreateJobModal`. O que
+     * ela protege é a decisão: o aviso existe no resultado e chega à frase.
+     * Onde a frase é montada é detalhe, e `textoDaPublicacao` é um lugar só
+     * para as duas telas, pela razão de sempre.
      */
     expect(redes, 'o aviso do story sumiu do resultado da publicação').toMatch(
       /aviso\?: string/
     );
-    expect(redes, 'o aviso deixou de ser repassado ao chamador').toMatch(
-      /aviso: payload\.aviso/
+    expect(redes, 'o texto da publicação parou de repassar o aviso do story').toMatch(
+      /if \(p\.aviso\) partes\.push\(p\.aviso\)/
     );
-    expect(editor, 'o editor voltou a ignorar o aviso do story').toMatch(
-      /aviso \? \{ ok: false/
+    expect(editor, 'o editor voltou a montar o texto da publicação sozinho').toMatch(
+      /textoDaPublicacao\(/
     );
   });
 
