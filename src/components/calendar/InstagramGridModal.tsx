@@ -20,6 +20,7 @@ import { Job } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 interface InstagramGridModalProps {
   isOpen: boolean;
@@ -183,7 +184,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                   >
                     {mediaUrl ? (
                       <img
-                        src={mediaUrl}
+                        src={urlDeExibicao(mediaUrl)}
                         alt={job.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                       />
@@ -259,7 +260,7 @@ export const InstagramGridModal: React.FC<InstagramGridModalProps> = ({
                   <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 aspect-square">
                     {previewJob.mediaUrls[0] ? (
                       <img
-                        src={previewJob.mediaUrls[0]}
+                        src={urlDeExibicao(previewJob.mediaUrls[0])}
                         alt=""
                         className="w-full h-full object-cover"
                       />

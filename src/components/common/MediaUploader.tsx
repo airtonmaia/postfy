@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { arquivosApi, ApiError } from '../../lib/api';
+import { googleConfigurado, faltaDoGoogle, pedirTokenDoGoogle, abrirSeletorDoDrive } from '../../lib/google';
+import { ehDoDrive, ehVideo, referenciaDoDrive, urlDeExibicao, urlNoDrive } from '../../lib/midiaDoDrive';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Upload, 
@@ -66,6 +68,35 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [progresso, setProgresso] = useState(0);
+
+  /**
+   * Escolher a arte no Google Drive.
+   *
+   * **Nada é copiado agora, e esse é o ponto da entrega.** O que entra na
+   * lista é uma referência `drive://`; o arquivo só vai para o R2 na hora de
+   * agendar, e sai de lá depois de a peça ir ao ar. Copiar aqui faria o Drive
+   * virar um explorador de arquivos e o vídeo morar nos dois lugares para
+   * sempre — o oposto do que se pediu.
+   */
+  const escolherNoDrive = async () => {
+    setUploadError(null);
+
+    const vagas = maxFiles - mediaUrls.length;
+    if (vagas <= 0) {
+      setUploadError(`Limite de ${maxFiles} arquivos atingido.`);
+      return;
+    }
+
+    try {
+      const token = await pedirTokenDoGoogle();
+      const escolhidos = await abrirSeletorDoDrive(token, vagas);
+      if (!escolhidos.length) return;
+
+      onChange([...mediaUrls, ...escolhidos.map(referenciaDoDrive)]);
+    } catch (erro) {
+      setUploadError(erro instanceof Error ? erro.message : 'Não foi possível abrir o Google Drive.');
+    }
+  };
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -262,6 +293,40 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   Por link da web
                 </Button>
 
+                {/*
+                  O Drive mora aqui, e não na lista `origens` que a tela passa:
+                  são dois uploaders por peça (feed e story) e a escolha mexe
+                  em `onChange`, que é deste componente. Na lista de fora,
+                  cada tela teria de reescrever o mesmo handler — e é assim que
+                  uma delas fica para trás.
+
+                  Desligado quando falta configuração, **com o nome da
+                  variável**: a mesma regra da aba Integrações. Botão que abre
+                  e falha é pior que botão ausente.
+                */}
+                <Button variant="ghost"
+                  type="button"
+                  disabled={!googleConfigurado() || enviando}
+                  title={
+                    googleConfigurado()
+                      ? 'Escolher no seu Google Drive'
+                      : `Falta configurar ${faltaDoGoogle().join(' e ')}`
+                  }
+                  onClick={() => {
+                    setMenuAberto(false);
+                    void escolherNoDrive();
+                  }}
+                  className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                >
+                  <ExternalLink className="w-4 h-4 text-slate-400" />
+                  <span className="flex-1 text-left">Google Drive</span>
+                  {!googleConfigurado() && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                      falta configurar
+                    </span>
+                  )}
+                </Button>
+
                 {origens.length > 0 && (
                   <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
                 )}
@@ -361,10 +426,33 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             key={idx}
             className="group relative w-32 shrink-0 aspect-[4/5] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xs"
           >
-            {isVideo(url) ? (
+            {/*
+              Arte do Drive não tem URL que o navegador desenhe: `drive://` é
+              uma referência, não um endereço. O que aparece é a miniatura que
+              o Google devolveu — suficiente para conferir o enquadramento, que
+              é o que esta caixa de 128px serve para fazer.
+            */}
+            {ehDoDrive(url) ? (
+              urlDeExibicao(url) ? (
+                <img src={urlDeExibicao(url)} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+              )
+            ) : isVideo(url) ? (
               <video src={url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
             ) : (
               <img src={url} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
+            )}
+
+            {/* Dizer de onde veio, porque a diferença importa: a arte do Drive
+                só é copiada para o R2 na hora de agendar, e some de lá depois
+                de a peça ir ao ar. */}
+            {ehDoDrive(url) && (
+              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold uppercase tracking-wide">
+                Drive
+              </span>
             )}
 
             {/* O número é a página no carrossel, não um enfeite. */}
@@ -372,14 +460,26 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               {idx + 1}
             </div>
 
-            {isVideo(url) && (
+            {(isVideo(url) || ehVideo(url)) && (
               <div className="absolute top-1.5 left-1.5 p-1 rounded-md bg-black/70 text-white">
                 <Video className="w-2.5 h-2.5" />
               </div>
             )}
 
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-1.5">
+                {/* A miniatura serve para conferir o enquadramento; o vídeo
+                    inteiro está no Drive, e quem tem acesso à pasta abre daqui. */}
+                {ehDoDrive(url) && (
+                  <Button size="icon-sm"
+                    type="button"
+                    onClick={() => window.open(urlNoDrive(url) || '', '_blank', 'noopener')}
+                    className="bg-black/60 hover:bg-black/80 text-white"
+                    title="Abrir no Google Drive"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Button>
+                )}
                 <Button variant="destructive" size="icon-sm"
                   type="button"
                   onClick={() => handleRemoveMedia(idx)}

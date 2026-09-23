@@ -10,6 +10,7 @@ import {
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
 import { publicarNoFacebook, publicarStoryNoFacebook, dadosDaPagina } from './_lib/facebook.js';
+import { apagarObjeto } from './_lib/r2.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 import { empurrarNotificacoes } from './_lib/push.js';
 
@@ -319,6 +320,9 @@ async function handler(request: Request): Promise<Response> {
           ? { tipo: 'parcial', motivo: publicado.avisoDoStory }
           : { tipo: 'publicado' }
       );
+
+      // A cópia do Drive some quando não há mais rede esperando esta peça.
+      await limparCopiaDoDrive(supabase, item.job_id);
 
       resultados.push({
         id: item.id,
@@ -631,6 +635,10 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
     return json({ error: falhas.map((f) => f.motivo).join(' '), falhas }, 502);
   }
 
+  // Mesma limpeza do cron: a cópia temporária do Drive só sai quando
+  // nenhuma rede ainda espera por esta peça.
+  await limparCopiaDoDrive(supabase, job.id);
+
   return json({ ok: true, publicadas, falhas, semConta, manuais });
 };
 
@@ -701,6 +709,55 @@ const atualizarSeguidoresDasPaginas = async (supabase: any): Promise<number> => 
   } catch (erro) {
     console.warn('[publicar] seguidores', erro instanceof Error ? erro.message : erro);
     return 0;
+  }
+};
+
+/**
+ * Apaga do R2 a cópia da arte que veio do Drive.
+ *
+ * É o outro lado da entrega: o acervo fica no Drive da agência, e o balde
+ * guarda só o que está em trânsito entre agendar e publicar. Sem esta
+ * limpeza, "não ocupar espaço" viraria "ocupar o mesmo espaço com um passo a
+ * mais", que é pior que não ter feito nada.
+ *
+ * **Só apaga o que `midia_publicavel.chaves` nomeia.** Derivar a chave da URL
+ * pública seria adivinhar o caminho, e um engano ali apaga arte da agência —
+ * a que ela subiu do computador, que não tem cópia em lugar nenhum.
+ *
+ * **E só quando a fila daquela peça acabou.** Um conteúdo marcado para
+ * Instagram e Facebook tem duas linhas na fila: apagar depois da primeira
+ * deixaria a segunda sem arquivo, e a rede que falta falharia com "não foi
+ * possível baixar a mídia" — sem nada indicando que o problema fomos nós.
+ *
+ * Nunca lança. A peça já está no ar; um arquivo que sobrou no balde é
+ * desperdício, e derrubar a passada por causa dele seria trocar centavos por
+ * uma publicação atrasada.
+ */
+const limparCopiaDoDrive = async (supabase: any, jobId: string): Promise<void> => {
+  try {
+    const { data: restantes } = await supabase
+      .from('publish_queue')
+      .select('id')
+      .eq('job_id', jobId)
+      .in('status', ['pendente', 'publicando'])
+      .limit(1);
+
+    if (restantes?.length) return;
+
+    const { data: job } = await supabase
+      .from('jobs')
+      .select('midia_publicavel')
+      .eq('id', jobId)
+      .maybeSingle();
+
+    const chaves: string[] = job?.midia_publicavel?.chaves || [];
+    if (!chaves.length) return;
+
+    for (const chave of chaves) await apagarObjeto(chave);
+
+    await supabase.from('jobs').update({ midia_publicavel: null }).eq('id', jobId);
+  } catch (erro) {
+    console.warn('[publicar] limpeza da cópia', erro instanceof Error ? erro.message : erro);
   }
 };
 
@@ -810,16 +867,37 @@ const publicarItem = async (
 
   const { data: job } = await supabase
     .from('jobs')
-    .select('title, caption, media_urls, story_media_urls, format, hashtags')
+    .select('title, caption, media_urls, story_media_urls, format, hashtags, midia_publicavel')
     .eq('id', item.job_id)
     .maybeSingle();
 
   if (!job) throw new Error('O conteúdo não existe mais.');
 
-  const midia = (job.media_urls || [])[0];
+  /**
+   * A cópia no R2 vence a lista da tela.
+   *
+   * `media_urls` pode trazer `drive://<id>`: a arte mora no Drive da agência,
+   * e o R2 guarda só o que está em trânsito. Quem baixa a mídia é a **Meta**,
+   * sem sessão e sem cookie, e um link do Drive devolve HTML — então o que vai
+   * para ela é sempre `midia_publicavel`, escrita na hora de agendar.
+   */
+  const publicavel = job.midia_publicavel || {};
+  const midia = (publicavel.feed || [])[0] || (job.media_urls || [])[0];
   if (!midia) throw new Error('O conteúdo não tem mídia para publicar.');
   if (midia.startsWith('data:')) {
     throw new Error('A mídia precisa estar numa URL pública, não embutida.');
+  }
+  /*
+    O cinto. Se a cópia não aconteceu — a pessoa agendou antes desta entrega,
+    ou a gravação falhou —, isto para aqui, com o motivo à vista na fila. A
+    alternativa é a Meta baixar uma página HTML e publicar o que ninguém
+    escolheu: erro que aparece no perfil do cliente, e post não volta.
+  */
+  if (midia.startsWith('drive://')) {
+    throw new Error(
+      'A arte ainda está no Google Drive. Abra o conteúdo e agende de novo: ' +
+        'é o agendamento que traz o arquivo para um endereço que a Meta consegue baixar.'
+    );
   }
 
   const legenda = [job.caption || job.title, (job.hashtags || []).join(' ')]
@@ -867,7 +945,7 @@ const publicarItem = async (
      * seguinte começaria publicando o **feed** de novo. Post duplicado no
      * perfil do cliente não volta.
      */
-    const arteDoStoryNaPagina = (job.story_media_urls || [])[0];
+    const arteDoStoryNaPagina = (publicavel.story || [])[0] || (job.story_media_urls || [])[0];
     if (!arteDoStoryNaPagina) {
       return { id: idDoFeedNaPagina, avisoDoStory: SEM_ARTE_DE_STORY };
     }
@@ -940,7 +1018,7 @@ const publicarItem = async (
    * marcar `falhou` republicaria o feed na passada seguinte — e o motivo vai
    * para `last_error`, à vista na fila e na tela do conteúdo.
    */
-  const midiaDoStory = (job.story_media_urls || [])[0];
+  const midiaDoStory = (publicavel.story || [])[0] || (job.story_media_urls || [])[0];
   if (!midiaDoStory) {
     return { id: idDoFeed, avisoDoStory: SEM_ARTE_DE_STORY };
   }

@@ -66,6 +66,7 @@ import {
   DialogBody,
   DialogFooter,
 } from '../ui/dialog';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
 const QUADROS_DO_CRIATIVO = [
@@ -147,7 +148,7 @@ const CriativoDeFeedEStory: React.FC<{
       }
     >
       {url ? (
-        <img src={url} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
+        <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
           <Layers className="w-6 h-6" />
@@ -841,7 +842,7 @@ export const ClientPortalView: React.FC = () => {
                         job.format !== 'feed_story' &&
                         (job.mediaUrls && job.mediaUrls.length > 0 ? (
                           <img
-                            src={job.mediaUrls[0]}
+                            src={urlDeExibicao(job.mediaUrls[0])}
                             alt=""
                             className="w-full h-full object-cover"
                           />
@@ -1828,7 +1829,7 @@ export const ClientPortalView: React.FC = () => {
                     encaixe="caber"
                   />
                 ) : calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
-                  <img src={calendarPreviewJob.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                  <img src={urlDeExibicao(calendarPreviewJob.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
                     <Layers className="w-8 h-8" />

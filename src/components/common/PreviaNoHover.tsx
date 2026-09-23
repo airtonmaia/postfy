@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
  * A arte grande que aparece ao passar o mouse sobre um card de conteúdo.
@@ -130,7 +131,7 @@ export const PreviaNoHover: React.FC<PreviaNoHoverProps> = ({
             <div
               className={`w-full ${proporcao} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl bg-slate-900`}
             >
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <img src={urlDeExibicao(url)} alt="" className="w-full h-full object-cover" />
             </div>
           </div>,
           document.body

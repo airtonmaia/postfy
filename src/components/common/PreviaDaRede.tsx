@@ -8,6 +8,7 @@ import type { JobPlatform } from '../../types';
 import { Avatar } from './Avatar';
 import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
  * Como a publicação vai aparecer na rede.
@@ -110,7 +111,7 @@ const LARGURA: Record<Dispositivo, string> = {
 const Arte: React.FC<{ url?: string; proporcao: string }> = ({ url, proporcao }) => (
   <div className={`${proporcao} w-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center`}>
     {url ? (
-      <img src={url} alt="" className="w-full h-full object-cover" />
+      <img src={urlDeExibicao(url)} alt="" className="w-full h-full object-cover" />
     ) : (
       <div className="flex flex-col items-center gap-1.5 text-slate-400">
         <Layers className="w-7 h-7" />

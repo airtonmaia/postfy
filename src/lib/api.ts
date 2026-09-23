@@ -103,11 +103,19 @@ export const arquivosApi = {
    * Envia o arquivo e devolve a URL pública.
    * onProgress usa XMLHttpRequest porque fetch não reporta progresso de envio.
    */
-  enviar: async (
+  /**
+   * Envia e devolve a URL pública **e a chave no balde**.
+   *
+   * A chave existe por causa da cópia temporária da mídia do Drive: ela é
+   * apagada depois de a peça ir ao ar, e apagar pede a chave. Derivá-la do
+   * endereço público seria adivinhar o caminho — e um engano ali apaga arte
+   * da agência, não a cópia.
+   */
+  enviarComChave: async (
     arquivo: File,
     workspaceId: string,
     onProgress?: (porcentagem: number) => void
-  ): Promise<string> => {
+  ): Promise<{ url: string; chave: string }> => {
     const { uploadUrl, publicUrl, key } = await arquivosApi.pedirUrl({
       fileName: arquivo.name,
       contentType: arquivo.type || 'application/octet-stream',
@@ -140,8 +148,15 @@ export const arquivosApi = {
         500
       );
     }
-    return publicUrl;
+    return { url: publicUrl, chave: key };
   },
+
+  /** O caminho de sempre, para quem só precisa do endereço. */
+  enviar: async (
+    arquivo: File,
+    workspaceId: string,
+    onProgress?: (porcentagem: number) => void
+  ): Promise<string> => (await arquivosApi.enviarComChave(arquivo, workspaceId, onProgress)).url,
 };
 
 export interface StatusDoServidor {

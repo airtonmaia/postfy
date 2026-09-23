@@ -8,6 +8,7 @@ import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { PreviaNoHover } from '../common/PreviaNoHover';
 import { proporcaoDoCriativo } from '../../lib/formatos';
 import { Button } from '../ui/button';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -219,7 +220,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                       <div className="flex items-center gap-1.5">
                         {job.mediaUrls && job.mediaUrls.length > 0 && (
                           <img
-                            src={job.mediaUrls[0]}
+                            src={urlDeExibicao(job.mediaUrls[0])}
                             alt=""
                             className="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-200 dark:border-slate-800"
                           />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Instagram, HardDrive, MessageCircle, CircleDashed, CheckCircle2 } from 'lucide-react';
+import { Instagram, MessageCircle, CircleDashed, CheckCircle2 } from 'lucide-react';
 import { ConexoesSociais } from '../../publications/ConexoesSociais';
 
 /**
@@ -16,12 +16,13 @@ import { ConexoesSociais } from '../../publications/ConexoesSociais';
  * por consentimento, uma por cliente, e cada uma vale só para quem conectou.
  */
 
+/*
+  O Google Drive **saiu desta lista**: ele existe, no botão "Adicionar mídia"
+  de qualquer conteúdo. Integração construída que continua anunciada como
+  planejada é a armadilha 9 na direção inofensiva — em vez de prometer o que
+  não existe, esconde o que existe —, e custa igual de descobrir.
+*/
 const PLANEJADAS: { nome: string; desc: string; Icone: React.FC<{ className?: string }> }[] = [
-  {
-    nome: 'Google Drive',
-    desc: 'Puxar fotos e vídeos direto da pasta do cliente, sem baixar e subir de novo.',
-    Icone: HardDrive,
-  },
   {
     nome: 'WhatsApp API (Cloud, Evolution ou Z-API)',
     desc: 'Avisar o cliente por WhatsApp quando houver conteúdo esperando aprovação.',

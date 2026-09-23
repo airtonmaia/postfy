@@ -414,6 +414,7 @@ describe('o que a tela diz depois de agendar', () => {
     jaNaFila: [],
     semConta: [],
     manuais: [],
+    midiaNaoCopiada: [],
   };
   const quando = new Date(Date.now() + 3600_000).toISOString();
 

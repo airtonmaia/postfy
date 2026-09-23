@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.74.0',
+    data: '2026-09-23',
+    resumo:
+      'A arte pode vir do Google Drive, e o acervo continua morando lá.',
+    novidades: [
+      'O botão "Adicionar mídia" abre o seu Google Drive: você escolhe a foto ou o vídeo sem baixar no computador e sem subir de novo.',
+      'A peça guarda a referência do arquivo, não uma cópia. A miniatura aparece na prévia, no quadro, no calendário e no portal do cliente, e um botão abre o arquivo no Drive para quem tem acesso à pasta.',
+    ],
+    melhorias: [
+      'O arquivo só é copiado para o armazenamento na hora de agendar ou publicar — é a Meta que baixa a mídia, e ela não consegue baixar do Drive. Depois que a peça vai ao ar, a cópia é apagada: o armazenamento guarda só o que está em trânsito.',
+      'Uma cópia que falhe não agenda nada, e a mensagem nomeia o arquivo. Agendar com a arte pela metade deixaria um carrossel incompleto no perfil do cliente.',
+      'A permissão pedida ao Google é a mínima: o app enxerga apenas os arquivos que você escolher no seletor, um a um.',
+    ],
+  },
+  {
     versao: '2.73.0',
     data: '2026-09-23',
     resumo:

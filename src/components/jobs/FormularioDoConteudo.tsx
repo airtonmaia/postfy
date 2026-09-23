@@ -82,9 +82,14 @@ const CANAIS: {
  * cópias da mesma lista divergem na primeira vez que alguém acrescentar uma
  * integração num só.
  */
+/*
+  O Google Drive **saiu desta lista** e mora dentro do `MediaUploader`: a
+  escolha mexe em `onChange`, que é dele, e são dois uploaders por peça (feed
+  e story). Numa lista de fora, cada tela reescreveria o mesmo handler — e é
+  assim que um dos dois fica para trás.
+*/
 const ORIGENS_DE_MIDIA = [
   { rotulo: 'Canva', disponivel: false },
-  { rotulo: 'Google Drive', disponivel: false },
   { rotulo: 'Dropbox', disponivel: false },
 ];
 

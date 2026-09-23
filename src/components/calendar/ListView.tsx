@@ -15,6 +15,7 @@ import {
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 export const ListView: React.FC = () => {
   const { 
@@ -90,7 +91,7 @@ export const ListView: React.FC = () => {
                 <div className="flex items-start gap-4 min-w-0">
                   {job.mediaUrls && job.mediaUrls.length > 0 ? (
                     <img
-                      src={job.mediaUrls[0]}
+                      src={urlDeExibicao(job.mediaUrls[0])}
                       alt=""
                       className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
                     />
