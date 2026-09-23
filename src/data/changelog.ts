@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.75.1',
+    data: '2026-09-23',
+    resumo: 'A miniatura da arte do Drive voltava vazia.',
+    corrigido: [
+      'A miniatura era buscada pelo navegador, e o endereço de imagem do Google não autoriza leitura de outro site: a busca falhava antes do primeiro byte, sem erro visível. Agora quem busca é o servidor, onde essa restrição não existe.',
+    ],
+    melhorias: [
+      'A miniatura é guardada com resolução maior, para não ficar borrada na prévia grande e no portal do cliente.',
+    ],
+  },
+  {
     versao: '2.75.0',
     data: '2026-09-23',
     resumo:

@@ -380,16 +380,36 @@ describe('o escopo do Google é o que não exige verificação', () => {
       carrega lá. Foi exatamente o que aconteceu no primeiro vídeo escolhido —
       quadro vazio no app e no portal.
     */
-    expect(google, 'a busca da miniatura sumiu').toMatch(/export const miniaturaDoDrive/);
+    const rota = semComentarios(ler('api', 'upload-url.ts'));
+
+    expect(rota, 'a busca da miniatura sumiu da rota').toMatch(/const miniaturaDoDrive/);
+    expect(rota, 'a miniatura deixou de ser guardada no balde').toMatch(/PutObjectCommand/);
 
     const uploader = semComentarios(ler('src', 'components', 'common', 'MediaUploader.tsx'));
     const escolha = uploader.slice(uploader.indexOf('const escolherNoDrive'));
-
     expect(escolha.slice(0, 2000)).toMatch(/miniaturaDoDrive\(/);
-    expect(
-      escolha.slice(0, 2000),
-      'a miniatura deixou de ser guardada: ela precisa ser um arquivo nosso'
-    ).toMatch(/arquivosApi\.enviar\(/);
+  });
+
+  it('a miniatura é buscada no servidor, por causa de CORS', () => {
+    /*
+      `lh3.googleusercontent.com` **não manda** cabeçalho de origem cruzada: o
+      `fetch` da aba falha antes de ler o primeiro byte. A primeira versão
+      tentou no navegador e a miniatura vinha sempre vazia — sem erro visível,
+      porque a falha é capturada e vira "sem miniatura".
+
+      A guarda mede o efeito: o navegador não pode voltar a falar com o
+      endereço de miniatura do Google.
+    */
+    for (const arquivo of ['google.ts', 'midiaParaPublicar.ts', 'midiaDoDrive.ts']) {
+      const fonte = semComentarios(ler('src', 'lib', arquivo));
+      expect(
+        fonte,
+        `${arquivo} busca a miniatura do Google no navegador — o CORS de lá não deixa`
+      ).not.toMatch(/thumbnailLink|googleusercontent/);
+    }
+
+    const rota = semComentarios(ler('api', 'upload-url.ts'));
+    expect(rota).toMatch(/thumbnailLink/);
   });
 
   it('a tela diz o que falta configurar, com o nome da variável', () => {

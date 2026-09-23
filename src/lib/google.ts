@@ -139,50 +139,6 @@ export const abrirSeletorDoDrive = async (
 };
 
 /**
- * A miniatura do arquivo, em bytes.
- *
- * **Ela precisa virar um arquivo nosso, e é isso que torna esta função
- * necessária.** A URL de miniatura que o Google devolve é curta de vida e
- * pede a conta que autorizou — e a arte também é vista no **portal do
- * cliente**, que é anônimo por definição: nenhum endereço do Google carrega
- * lá. Foi exatamente o que aconteceu no primeiro vídeo escolhido: quadro
- * vazio no app e no portal.
- *
- * Então o que vai para a peça é uma miniatura guardada no R2. São alguns
- * kilobytes — o vídeo, que é o que pesa, continua só no Drive.
- *
- * Não lança: sem miniatura a peça ainda é válida, e o cartão mostra o nome do
- * arquivo em vez de um quadro vazio.
- */
-export const miniaturaDoDrive = async (id: string, token: string): Promise<Blob | null> => {
-  try {
-    const ficha = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}` +
-        '?fields=thumbnailLink&supportsAllDrives=true',
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (!ficha.ok) return null;
-    const { thumbnailLink } = await ficha.json();
-    if (typeof thumbnailLink !== 'string') return null;
-
-    /*
-      `=s220` é o tamanho que o Google devolve por padrão, e ele fica borrado
-      na prévia grande do portal. O sufixo aceita outro valor, e 800 é o
-      suficiente para o enquadramento sem virar um arquivo que pesa.
-    */
-    const grande = thumbnailLink.replace(/=s\d+(-c)?$/, '=s800');
-
-    const imagem = await fetch(grande);
-    if (!imagem.ok) return null;
-
-    return await imagem.blob();
-  } catch {
-    return null;
-  }
-};
-
-/**
  * Baixa o arquivo do Drive para a memória do navegador.
  *
  * `alt=media` é o que devolve os bytes; sem ele vem o JSON com os metadados —
