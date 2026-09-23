@@ -1,11 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { arquivosApi, ApiError } from '../../lib/api';
-import {
-  googleConfigurado,
-  faltaDoGoogle,
-  abrirSeletorDoDrive,
-  miniaturaDoDrive,
-} from '../../lib/google';
+import { googleConfigurado, faltaDoGoogle, abrirSeletorDoDrive } from '../../lib/google';
 import { tokenDoDrive } from '../../lib/driveDaAgencia';
 import {
   ehDoDrive,
@@ -125,24 +120,14 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
       const referencias: string[] = [];
 
       for (const arquivo of escolhidos) {
-        let miniatura: string | undefined;
-
-        const imagem = await miniaturaDoDrive(arquivo.id, token);
-        if (imagem) {
-          try {
-            const nome = `miniatura-${arquivo.id}.jpg`;
-            miniatura = await arquivosApi.enviar(
-              new File([imagem], nome, { type: imagem.type || 'image/jpeg' }),
-              currentWorkspace.id
-            );
-          } catch {
-            /*
-              Sem miniatura a peça continua válida: o cartão mostra o nome do
-              arquivo. Derrubar a escolha por causa da prévia seria trocar o
-              que importa pelo que ajuda.
-            */
-          }
-        }
+        /*
+          A miniatura é buscada **pelo servidor**: o endereço que o Google dá
+          não manda cabeçalho de origem cruzada, e o `fetch` daqui falha antes
+          do primeiro byte. Sem miniatura a peça continua válida, e o cartão
+          mostra o nome do arquivo.
+        */
+        const miniatura =
+          (await arquivosApi.miniaturaDoDrive(currentWorkspace.id, arquivo.id)) ?? undefined;
 
         referencias.push(referenciaDoDrive({ ...arquivo, miniatura }));
       }

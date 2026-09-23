@@ -4,6 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   usuarioDaRequisicao,
   clienteDoUsuario,
+  clienteDeServico,
   json,
   naoAutenticado,
   falharComSeguranca,
@@ -11,6 +12,7 @@ import {
   excedeuLimite,
 } from './_lib/auth.js';
 import { r2Configurado, clienteR2, listarObjetos, apagarObjeto } from './_lib/r2.js';
+import { credenciaisDoGoogle, renovarAcesso } from './_lib/googleDrive.js';
 
 
 /**
@@ -111,6 +113,18 @@ async function handler(request: Request): Promise<Response> {
    */
   if (request.method === 'GET') return listarDaBiblioteca(request, usuario.id);
   if (request.method === 'DELETE') return apagarDaBiblioteca(request, usuario.id);
+
+  /*
+    Quarto modo: a miniatura do arquivo do Drive. Ela é buscada aqui por
+    causa de CORS — o endereço de miniatura do Google não manda cabeçalho de
+    origem cruzada, e o `fetch` da aba falha antes do primeiro byte.
+  */
+  if (request.method === 'POST') {
+    const espiada = await request.clone().json().catch(() => ({} as any));
+    if (espiada?.acao === 'miniatura-do-drive') {
+      return miniaturaDoDrive(request, usuario.id);
+    }
+  }
 
   if (request.method !== 'POST') {
     return json({ error: 'Método não permitido.' }, 405);
@@ -214,6 +228,109 @@ async function handler(request: Request): Promise<Response> {
  * cliente na chave resolveria só os arquivos novos, e deixaria os antigos
  * órfãos para sempre.
  */
+/**
+ * A miniatura de um arquivo do Drive, guardada no R2.
+ *
+ * **Ela é buscada aqui, e não no navegador, por causa de CORS.** A URL que o
+ * Google devolve aponta para `lh3.googleusercontent.com`, que **não manda**
+ * cabeçalho de origem cruzada: o `fetch` da aba falha antes de ler o
+ * primeiro byte. A primeira versão tentou no navegador e a miniatura vinha
+ * sempre vazia — o cartão mostrava o nome do arquivo, e a prévia e o portal
+ * ficavam com o quadro em branco. No servidor não há CORS.
+ *
+ * E ela **precisa** virar um arquivo nosso: a URL do Google é curta de vida
+ * e pede a conta que autorizou, enquanto o portal do cliente é anônimo por
+ * definição. Nenhum endereço do Google carrega lá.
+ *
+ * São alguns kilobytes. O vídeo, que é o que pesa, continua só no Drive.
+ *
+ * Mora nesta rota porque é aqui que as credenciais do R2 já estão — rota
+ * nova levaria o produto a 13 funções e **derrubaria o deploy inteiro**
+ * (armadilha 6).
+ */
+const miniaturaDoDrive = async (request: Request, userId: string): Promise<Response> => {
+  let corpo: any;
+  try {
+    corpo = await request.json();
+  } catch {
+    return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
+  }
+
+  const { workspaceId, fileId } = corpo || {};
+  if (!textoValido(workspaceId, 64) || !textoValido(fileId, 200)) {
+    return json({ error: 'Agência ou arquivo não informado.' }, 400);
+  }
+
+  const membro = await papelNaAgencia(request, workspaceId, userId);
+  if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
+
+  if (!r2Configurado()) {
+    return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
+  }
+
+  const { id, segredo } = credenciaisDoGoogle();
+  if (!id || !segredo) {
+    return json({ error: 'Google Drive não configurado no servidor.' }, 503);
+  }
+
+  const supabase = clienteDeServico();
+  if (!supabase) return json({ error: 'Credenciais não configuradas.' }, 503);
+
+  const { data: credencial } = await supabase
+    .from('drive_credenciais')
+    .select('refresh_token')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (!credencial?.refresh_token) {
+    return json({ error: 'Esta agência não tem Google Drive conectado.' }, 409);
+  }
+
+  try {
+    const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
+
+    const ficha = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +
+        '?fields=thumbnailLink&supportsAllDrives=true',
+      { headers: { Authorization: `Bearer ${acesso}` } }
+    );
+
+    if (!ficha.ok) return json({ url: null });
+
+    const { thumbnailLink } = await ficha.json();
+    if (typeof thumbnailLink !== 'string') return json({ url: null });
+
+    /*
+      O sufixo de tamanho é trocado: o padrão do Google é pequeno e fica
+      borrado na prévia grande do portal. 800 é o suficiente para conferir o
+      enquadramento sem virar um arquivo que pesa.
+    */
+    const imagem = await fetch(thumbnailLink.replace(/=s\d+(-c)?$/, '=s800'));
+    if (!imagem.ok) return json({ url: null });
+
+    const bytes = Buffer.from(await imagem.arrayBuffer());
+    const tipo = imagem.headers.get('content-type') || 'image/jpeg';
+    const chave = `${workspaceId}/${Date.now()}-miniatura-${nomeSeguro(`${fileId}.jpg`)}`;
+
+    await clienteR2().send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET,
+        Key: chave,
+        Body: bytes,
+        ContentType: tipo,
+      })
+    );
+
+    const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    // Sem domínio público a miniatura existe no balde e não abre em lugar
+    // nenhum. `null` aqui faz a tela cair no nome do arquivo, que é honesto.
+    return json({ url: base ? `${base}/${chave}` : null });
+  } catch (erro) {
+    console.warn('[upload] miniatura do drive', erro instanceof Error ? erro.message : erro);
+    return json({ url: null });
+  }
+};
+
 const listarDaBiblioteca = async (request: Request, userId: string): Promise<Response> => {
   const workspaceId = new URL(request.url).searchParams.get('workspaceId') || '';
   if (!textoValido(workspaceId, 64)) {

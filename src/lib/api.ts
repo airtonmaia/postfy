@@ -151,6 +151,33 @@ export const arquivosApi = {
     return { url: publicUrl, chave: key };
   },
 
+  /**
+   * A miniatura de um arquivo do Drive, já guardada no balde.
+   *
+   * **Quem busca é o servidor, e isso não é preferência.** O endereço de
+   * miniatura do Google aponta para `lh3.googleusercontent.com`, que não
+   * manda cabeçalho de origem cruzada: o `fetch` daqui falha antes de ler o
+   * primeiro byte. A primeira versão tentou no navegador e a miniatura vinha
+   * sempre vazia — o cartão mostrava o nome do arquivo, e a prévia e o portal
+   * ficavam em branco.
+   *
+   * Devolve `null` quando não há miniatura. A peça continua válida: o cartão
+   * mostra o nome do arquivo em vez de um quadro vazio.
+   */
+  miniaturaDoDrive: async (workspaceId: string, fileId: string): Promise<string | null> => {
+    try {
+      const { url } = await chamar<{ url: string | null }>('/api/upload-url', {
+        acao: 'miniatura-do-drive',
+        workspaceId,
+        fileId,
+      });
+      return url;
+    } catch {
+      /* Sem miniatura a peça continua válida. Ver o comentário acima. */
+      return null;
+    }
+  },
+
   /** O caminho de sempre, para quem só precisa do endereço. */
   enviar: async (
     arquivo: File,
