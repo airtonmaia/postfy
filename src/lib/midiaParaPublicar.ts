@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { arquivosApi } from './api';
-import { pedirTokenDoGoogle, baixarDoDrive } from './google';
+import { baixarDoDrive } from './google';
+import { tokenDoDrive } from './driveDaAgencia';
 import { dadosDoDrive, ehDoDrive } from './midiaDoDrive';
 
 /**
@@ -47,22 +48,6 @@ export interface PreparoDaMidia {
 const nomeDoArquivo = (url: string): string => dadosDoDrive(url)?.nome || 'arquivo';
 
 /**
- * Pede o token sem abrir janela e, se não vier, com janela.
- *
- * O caso comum é agendar horas depois de escolher, com a autorização já dada
- * — e abrir a janela do Google toda vez que alguém aperta "Agendar" seria
- * cobrar de novo o que já foi concedido. O `drive.file` guarda a permissão
- * **por arquivo**, então o silencioso costuma bastar.
- */
-const token = async (): Promise<string> => {
-  try {
-    return await pedirTokenDoGoogle(true);
-  } catch {
-    return await pedirTokenDoGoogle(false);
-  }
-};
-
-/**
  * Copia para o R2 o que ainda está no Drive, e grava `midia_publicavel`.
  *
  * Não lança quando um arquivo falha: devolve a falha com o nome dele. Uma
@@ -86,7 +71,12 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
     return { copiados: 0, falhas: [] };
   }
 
-  const acesso = await token();
+  /*
+    O token é o da agência, pedido ao servidor. Antes a janela do Google
+    abria aqui — no meio do "Agendar", depois de a pessoa já ter escolhido o
+    arquivo horas antes.
+  */
+  const acesso = await tokenDoDrive(job.workspace_id);
   const falhas: PreparoDaMidia['falhas'] = [];
   const chaves: string[] = [];
   let copiados = 0;

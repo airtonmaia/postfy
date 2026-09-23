@@ -12,6 +12,11 @@ import {
   dadosDaPagina,
   type PaginaDoFacebook,
 } from './_lib/facebook.js';
+import {
+  trocarCodigoPorToken as trocarCodigoDoGoogle,
+  emailDaConta,
+  credenciaisDoGoogle,
+} from './_lib/googleDrive.js';
 
 
 /**
@@ -282,16 +287,29 @@ async function handler(request: Request): Promise<Response> {
    * inválido", que não aponta para nada.
    */
   const rede = dados.rede;
+  const doGoogle = credenciaisDoGoogle();
   const appId =
-    rede === 'facebook' ? process.env.FACEBOOK_APP_ID : process.env.INSTAGRAM_APP_ID;
+    rede === 'google_drive'
+      ? doGoogle.id
+      : rede === 'facebook'
+        ? process.env.FACEBOOK_APP_ID
+        : process.env.INSTAGRAM_APP_ID;
   const appSecret =
-    rede === 'facebook'
-      ? process.env.FACEBOOK_APP_SECRET
-      : process.env.INSTAGRAM_APP_SECRET;
+    rede === 'google_drive'
+      ? doGoogle.segredo
+      : rede === 'facebook'
+        ? process.env.FACEBOOK_APP_SECRET
+        : process.env.INSTAGRAM_APP_SECRET;
+
+  const NOME_DO_FLUXO: Record<string, string> = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    google_drive: 'Google Drive',
+  };
 
   if (!appId || !appSecret) {
     return paginaDeRetorno(
-      `Conexão com o ${rede === 'facebook' ? 'Facebook' : 'Instagram'} não configurada no servidor.`,
+      `Conexão com o ${NOME_DO_FLUXO[rede] || rede} não configurada no servidor.`,
       true
     );
   }
@@ -302,6 +320,80 @@ async function handler(request: Request): Promise<Response> {
   }
 
   try {
+    /**
+     * **O Drive da agência, e não uma conta por cliente.**
+     *
+     * A arte mora numa pasta só da agência; quem escolhe o arquivo é quem
+     * produz a peça, para qualquer cliente. Uma conexão por cliente
+     * obrigaria a autorizar o mesmo Drive dezenas de vezes, e o `drive.file`
+     * é por arquivo escolhido de qualquer jeito.
+     */
+    if (rede === 'google_drive') {
+      const base = process.env.APP_URL || 'https://app.orquesia.com.br';
+      const trocado = await trocarCodigoDoGoogle(
+        codigo as string,
+        `${base}/api/social-callback`,
+        appId,
+        appSecret
+      );
+
+      /*
+        Sem refresh token a conexão dura uma hora e morre calada. Isso
+        acontece quando o `access_type=offline` ou o `prompt=consent` saem da
+        URL de autorização — e a tela diria "conectado" sobre algo que não
+        sobrevive à tarde.
+      */
+      if (!trocado.renovacao) {
+        return paginaDeRetorno(
+          'O Google não devolveu a credencial de acesso continuado. Tente ' +
+            'conectar de novo; se repetir, remova o Orquesia em ' +
+            'myaccount.google.com → Segurança → Acesso de terceiros e refaça.',
+          true
+        );
+      }
+
+      const email = await emailDaConta(trocado.acesso);
+
+      const { error: erroConexao } = await supabase.from('drive_da_agencia').upsert(
+        {
+          workspace_id: dados.workspaceId,
+          email,
+          conectado_por: dados.userId,
+          conectado_em: new Date().toISOString(),
+        },
+        { onConflict: 'workspace_id' }
+      );
+
+      if (erroConexao) {
+        console.error('[social/callback] drive', erroConexao.message);
+        return paginaDeRetorno('Não foi possível guardar a conexão.', true);
+      }
+
+      const { error: erroCredencial } = await supabase.from('drive_credenciais').upsert(
+        {
+          workspace_id: dados.workspaceId,
+          refresh_token: trocado.renovacao,
+          access_token: trocado.acesso,
+          expira_em: new Date(Date.now() + trocado.expiraEm * 1000).toISOString(),
+          atualizado_em: new Date().toISOString(),
+        },
+        { onConflict: 'workspace_id' }
+      );
+
+      if (erroCredencial) {
+        // Conexão sem credencial não abre o seletor e não diz por quê.
+        // Melhor falhar aqui, com a pessoa ainda olhando a tela.
+        console.error('[social/callback] drive credencial', erroCredencial.message);
+        await supabase.from('drive_da_agencia').delete().eq('workspace_id', dados.workspaceId);
+        return paginaDeRetorno('Não foi possível guardar a credencial do Drive.', true);
+      }
+
+      return paginaDeRetorno(
+        email ? `Google Drive conectado: ${email}` : 'Google Drive conectado.',
+        false
+      );
+    }
+
     /**
      * **Passo dois: a Página escolhida.**
      *

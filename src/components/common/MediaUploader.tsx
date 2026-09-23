@@ -1,7 +1,20 @@
 import React, { useRef, useState } from 'react';
 import { arquivosApi, ApiError } from '../../lib/api';
-import { googleConfigurado, faltaDoGoogle, pedirTokenDoGoogle, abrirSeletorDoDrive } from '../../lib/google';
-import { ehDoDrive, ehVideo, referenciaDoDrive, urlDeExibicao, urlNoDrive } from '../../lib/midiaDoDrive';
+import {
+  googleConfigurado,
+  faltaDoGoogle,
+  abrirSeletorDoDrive,
+  miniaturaDoDrive,
+} from '../../lib/google';
+import { tokenDoDrive } from '../../lib/driveDaAgencia';
+import {
+  ehDoDrive,
+  ehVideo,
+  dadosDoDrive,
+  referenciaDoDrive,
+  urlDeExibicao,
+  urlNoDrive,
+} from '../../lib/midiaDoDrive';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
   Upload, 
@@ -78,6 +91,21 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
    * virar um explorador de arquivos e o vídeo morar nos dois lugares para
    * sempre — o oposto do que se pediu.
    */
+  /**
+   * Escolher a arte no Google Drive.
+   *
+   * **Nada do arquivo é copiado agora, e esse é o ponto da entrega.** O que
+   * entra na lista é uma referência; o vídeo só vai para o R2 na hora de
+   * agendar, e sai de lá depois de a peça ir ao ar.
+   *
+   * A exceção é a **miniatura**, que é copiada aqui e de propósito. A URL de
+   * miniatura do Google é curta de vida e pede a conta que autorizou — e a
+   * arte também é vista no portal do cliente, que é anônimo: nenhum endereço
+   * do Google carrega lá. São alguns kilobytes; o que pesa continua no Drive.
+   *
+   * E o token é o **da agência**: conectado uma vez em Configurações →
+   * Integrações, não pedido a cada peça.
+   */
   const escolherNoDrive = async () => {
     setUploadError(null);
 
@@ -86,15 +114,46 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
       setUploadError(`Limite de ${maxFiles} arquivos atingido.`);
       return;
     }
+    if (!currentWorkspace?.id) return;
 
     try {
-      const token = await pedirTokenDoGoogle();
+      const token = await tokenDoDrive(currentWorkspace.id);
       const escolhidos = await abrirSeletorDoDrive(token, vagas);
       if (!escolhidos.length) return;
 
-      onChange([...mediaUrls, ...escolhidos.map(referenciaDoDrive)]);
+      setEnviando(true);
+      const referencias: string[] = [];
+
+      for (const arquivo of escolhidos) {
+        let miniatura: string | undefined;
+
+        const imagem = await miniaturaDoDrive(arquivo.id, token);
+        if (imagem) {
+          try {
+            const nome = `miniatura-${arquivo.id}.jpg`;
+            miniatura = await arquivosApi.enviar(
+              new File([imagem], nome, { type: imagem.type || 'image/jpeg' }),
+              currentWorkspace.id
+            );
+          } catch {
+            /*
+              Sem miniatura a peça continua válida: o cartão mostra o nome do
+              arquivo. Derrubar a escolha por causa da prévia seria trocar o
+              que importa pelo que ajuda.
+            */
+          }
+        }
+
+        referencias.push(referenciaDoDrive({ ...arquivo, miniatura }));
+      }
+
+      onChange([...mediaUrls, ...referencias]);
     } catch (erro) {
-      setUploadError(erro instanceof Error ? erro.message : 'Não foi possível abrir o Google Drive.');
+      setUploadError(
+        erro instanceof Error ? erro.message : 'Não foi possível abrir o Google Drive.'
+      );
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -436,8 +495,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               urlDeExibicao(url) ? (
                 <img src={urlDeExibicao(url)} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400">
-                  <ImageIcon className="w-6 h-6" />
+                /* Sem miniatura, o nome do arquivo — um quadro vazio não diz
+                   qual arte é, e foi o que a primeira versão mostrou. */
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 text-slate-400">
+                  <ImageIcon className="w-5 h-5 shrink-0" />
+                  <span className="text-[10px] font-semibold text-center leading-tight line-clamp-3 break-all">
+                    {dadosDoDrive(url)?.nome}
+                  </span>
                 </div>
               )
             ) : isVideo(url) ? (

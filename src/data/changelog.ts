@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.75.0',
+    data: '2026-09-23',
+    resumo:
+      'O Google Drive é conectado uma vez, pela agência — e a miniatura passou a aparecer.',
+    novidades: [
+      'Configurações → Integrações ganhou o cartão do Google Drive: conecte uma conta e toda a equipe da agência escolhe arquivos por ela. A tela mostra de qual conta se trata e desde quando.',
+    ],
+    corrigido: [
+      'A arte vinda do Drive aparecia como quadro vazio na prévia, no quadro e no portal do cliente. A miniatura do Google exige a conta que autorizou, e o portal é anônimo — agora ela é guardada como um arquivo pequeno, e carrega em qualquer lugar.',
+      'Sem miniatura, o cartão mostra o nome do arquivo em vez de um quadro vazio.',
+    ],
+    melhorias: [
+      'A janela do Google deixou de abrir a cada conteúdo. Quem monta dez posts numa tarde autorizava dez vezes.',
+      'A credencial de acesso continuado fica no servidor, numa tabela que sessão nenhuma alcança. O navegador recebe apenas um acesso de uma hora.',
+      'Desconectar é de quem administra a agência, e diz o que muda antes de confirmar.',
+    ],
+  },
+  {
     versao: '2.74.1',
     data: '2026-09-23',
     resumo: 'O seletor do Google Drive abria e não deixava clicar em nada.',
