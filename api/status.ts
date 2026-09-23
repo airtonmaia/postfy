@@ -6,6 +6,8 @@ import {
   naoAutenticado,
 } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
+import { ESCOPOS_INSTAGRAM } from './_lib/instagram.js';
+import { ESCOPOS_FACEBOOK } from './_lib/facebook.js';
 
 
 /**
@@ -123,6 +125,30 @@ async function handler(request: Request): Promise<Response> {
     // jeito por social-connect e social-callback; divergir num caractere faz
     // a autorização falhar só depois de a pessoa digitar a senha.
     urlDeRetorno: `${(process.env.APP_URL || 'https://app.orquesia.com.br').replace(/\/+$/, '')}/api/social-callback`,
+
+    /**
+     * Os escopos que o servidor **realmente** pede, não uma lista escrita à
+     * mão na tela.
+     *
+     * A tela de Integrações existe para a pessoa cadastrar na Meta exatamente
+     * o que vamos pedir, e ela trazia os dois escopos do Instagram como texto
+     * fixo. Lista literal ao lado de uma constante é a divergência de sempre:
+     * ela sobrevive intacta no dia em que o escopo muda, e o erro aparece só
+     * **depois** de alguém já ter digitado a senha — com uma mensagem da Meta
+     * que não nomeia o escopo.
+     *
+     * E aqui a divergência é pior que o normal: os escopos do Facebook e os
+     * do Instagram **nunca podem ir no mesmo pedido** (ver o cabeçalho de
+     * `api/_lib/facebook.ts`), então uma tela que mistura os dois ensina a
+     * cadastrar a combinação que faz a autorização falhar.
+     *
+     * Vem como array para a tela não precisar saber que a constante é uma
+     * string separada por vírgula.
+     */
+    escopos: {
+      instagram: ESCOPOS_INSTAGRAM.split(','),
+      facebook: ESCOPOS_FACEBOOK.split(','),
+    },
 
     // Stripe, em três respostas pelo mesmo motivo do Instagram: cada falta
     // se resolve num lugar diferente.

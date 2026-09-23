@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { urlDeAutorizacao, ESCOPOS_INSTAGRAM } from '../api/_lib/instagram.js';
 import { semComentarios } from './util/semComentarios';
@@ -124,13 +125,60 @@ describe('URL de retorno', () => {
   });
 
   it('a tela de Integrações mostra qual é, vinda do servidor', () => {
-    // Escrita à mão na tela, ela envelheceria sem ninguém notar — e o valor
-    // certo depende de APP_URL, que só o servidor conhece.
+    /*
+      Escrita à mão na tela, ela envelheceria sem ninguém notar — e o valor
+      certo depende de `APP_URL`, que só o servidor conhece.
+
+      **A guarda lê a pasta, não um arquivo.** Ela apontava para
+      `AdminIntegracoesView.tsx` e reprovou no dia em que o cartão da Meta
+      virou componente próprio — medindo uma tela que já não tem o trecho. É
+      a mesma lição das cinco guardas ancoradas em `CreateJobModal`: guarda
+      presa a um nome de arquivo morre na primeira refatoração, e o que ela
+      protege é a decisão, não o endereço.
+    */
     const status = readFileSync('api/status.ts', 'utf-8');
     expect(status).toMatch(/urlDeRetorno/);
-    const tela = readFileSync('src/components/admin/AdminIntegracoesView.tsx', 'utf-8');
-    expect(tela).toMatch(/status\?\.urlDeRetorno/);
-    expect(tela).toMatch(/clipboard\.writeText/);
+
+    const admin = readdirSync('src/components/admin')
+      .filter((a) => a.endsWith('.tsx'))
+      .map((a) => readFileSync(join('src/components/admin', a), 'utf-8'))
+      .join('\n');
+
+    expect(admin.length, 'a guarda não achou a área de admin').toBeGreaterThan(1000);
+    expect(admin).toMatch(/status\?\.urlDeRetorno/);
+    expect(admin).toMatch(/clipboard\.writeText/);
+  });
+
+  it('a tela não escreve os escopos à mão', () => {
+    /*
+      Ela trazia `instagram_business_basic` e
+      `instagram_business_content_publish` como texto fixo, ao lado das
+      constantes que a autorização realmente usa. Lista literal ao lado de
+      uma constante é a divergência de sempre: sobrevive intacta no dia em
+      que o escopo muda, e o erro aparece **depois** de alguém digitar a
+      senha, com uma mensagem da Meta que não nomeia o escopo.
+
+      Pior aqui do que o normal: os escopos do Facebook e os do Instagram
+      **nunca podem ir no mesmo pedido**, então uma tela desatualizada ensina
+      a cadastrar a combinação que faz a autorização falhar.
+    */
+    const admin = readdirSync('src/components/admin')
+      .filter((a) => a.endsWith('.tsx'))
+      .map((a) => semComentarios(readFileSync(join('src/components/admin', a), 'utf-8')))
+      .join('\n');
+
+    expect(admin, 'os escopos voltaram a ser texto fixo na tela').not.toMatch(
+      /instagram_business_(basic|content_publish)/
+    );
+    expect(admin, 'os escopos do Facebook viraram texto fixo na tela').not.toMatch(
+      /pages_(show_list|read_engagement|manage_posts)/
+    );
+    // Eles vêm do servidor, que os deriva de `ESCOPOS_INSTAGRAM`/`ESCOPOS_FACEBOOK`.
+    expect(admin).toMatch(/escopos\?\.(instagram|facebook)/);
+
+    const status = semComentarios(readFileSync('api/status.ts', 'utf-8'));
+    expect(status).toMatch(/ESCOPOS_INSTAGRAM/);
+    expect(status).toMatch(/ESCOPOS_FACEBOOK/);
   });
 
   it('o retorno é GET, porque quem chega é uma navegação', () => {

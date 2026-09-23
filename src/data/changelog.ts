@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.70.0',
+    data: '2026-09-23',
+    resumo:
+      'Admin → Integrações ganhou o cartão do Facebook, ao lado do Instagram.',
+    novidades: [
+      'O Facebook tem cartão próprio na tela de Integrações: a URL de redirecionamento para copiar, as permissões que o servidor pede e o estado de FACEBOOK_APP_ID e FACEBOOK_APP_SECRET.',
+      'A lista de integrações passou a mostrar a linha do Facebook, dizendo o que falta quando falta.',
+    ],
+    melhorias: [
+      'Os dois cartões deixam claro que são apps diferentes na Meta, cada um nomeando a própria variável — usar o id de um no outro falha só depois de alguém digitar a senha, com uma mensagem que não explica a causa.',
+      'As permissões mostradas agora vêm do servidor, e são exatamente as que a autorização pede. Antes eram texto fixo na tela e podiam divergir sem ninguém perceber.',
+    ],
+    corrigido: [
+      'A tela nunca teve como mostrar o estado das credenciais do Facebook: o servidor já respondia, e o campo faltava do lado do app. Quem fosse configurar não descobria o que faltava por ali.',
+    ],
+  },
+  {
     versao: '2.69.0',
     data: '2026-09-22',
     resumo:
