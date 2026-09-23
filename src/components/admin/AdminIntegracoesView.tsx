@@ -9,6 +9,7 @@ import {
   Sparkles,
   CircleDashed,
   Instagram,
+  Facebook,
   Copy,
   Check,
   CreditCard,
@@ -17,6 +18,7 @@ import {
 import { usePostfy } from '../../context/PostfyContext';
 import { webhookApi, statusApi, ApiError, type StatusDoServidor } from '../../lib/api';
 import { Button } from '../ui/button';
+import { CardDaRedeDaMeta } from './CardDaRedeDaMeta';
 
 type StatusIntegracao = 'ativa' | 'opcional' | 'nao_implementada';
 
@@ -184,6 +186,17 @@ export const AdminIntegracoesView: React.FC = () => {
             : 'As credenciais estão no servidor. A agência conecta a conta em Configurações → Integrações.',
     },
     {
+      nome: 'Facebook (publicação em Página)',
+      status: status ? (status.facebook && status.estadoDoOauth ? 'ativa' : 'opcional') : null,
+      desc: !status
+        ? 'Consultando o servidor...'
+        : !status.facebook
+          ? 'Faltam FACEBOOK_APP_ID e FACEBOOK_APP_SECRET. É outro app, com outro id: o do Instagram não serve aqui.'
+          : !status.estadoDoOauth
+            ? 'Falta OAUTH_STATE_SECRET, que assina qual agência está conectando. Sem ele a conexão nem começa.'
+            : 'As credenciais estão no servidor. A agência conecta a Página em Configurações → Integrações.',
+    },
+    {
       nome: 'Cobrança das agências (Stripe)',
       status: status
         ? (status.cobranca && status.cobrancaPreco ? 'ativa' : 'opcional')
@@ -273,126 +286,71 @@ export const AdminIntegracoesView: React.FC = () => {
       </div>
 
       {/*
-        Instagram.
+        As duas redes da Meta.
 
-        Cartão próprio, e não mais uma linha na lista, porque aqui o que
+        Cartão próprio — e não mais uma linha na lista — porque aqui o que
         trava a integração não é uma variável faltando: é a **URL de retorno
         não bater** com a cadastrada na Meta. Esse erro só aparece depois de a
-        pessoa já ter digitado a senha do Instagram, e a mensagem da Meta não
-        diz qual das duas está errada. Deixar o valor exato à mão, para
-        copiar, é o que resolve.
+        pessoa já ter digitado a senha, e a mensagem da Meta não diz qual das
+        duas está errada. Deixar o valor exato à mão, para copiar, é o que
+        resolve.
 
-        O app id daqui também não é o do app da Meta — é o de Instagram →
-        Configuração da API, e confundir os dois é o segundo erro mais comum.
+        **São dois apps distintos no mesmo painel**, e confundi-los é o
+        segundo erro mais comum: o id do Instagram fica em Instagram →
+        Configuração da API, o do Facebook é o do app da Meta. Usar um no
+        lugar do outro falha depois do login, com uma mensagem que não nomeia
+        a causa. Dois cartões lado a lado, cada um nomeando a própria
+        variável, é o que torna a diferença visível antes de custar caro.
+
+        O desenho é um só (`CardDaRedeDaMeta`): duas cópias divergiriam na
+        primeira pressa, e um cartão desatualizado aqui ensina a cadastrar
+        errado.
       */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white shadow-xs">
-            <Instagram className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-              Instagram
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Configuração do app na Meta. Quem conecta a conta de cada cliente é a
-              agência, em Configurações → Integrações.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-            URL de redirecionamento
-          </span>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+      <CardDaRedeDaMeta
+        status={status}
+        icone={<Instagram className="w-5 h-5" />}
+        corDaMarca="bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600"
+        nome="Instagram"
+        descricao="Configuração do app na Meta. Quem conecta a conta de cada cliente é a agência, em Configurações → Integrações."
+        ondeColar={
+          <>
             Cole este valor exato em <strong>Instagram → Configuração da API → Configurar
             o login da empresa</strong>, nos campos “URL de redirecionamento” e “URL de
             callback”. A Meta compara caractere a caractere: uma barra a mais e a
             autorização falha depois do login, sem dizer o motivo.
-          </p>
+          </>
+        }
+        escopos={status?.escopos?.instagram ?? []}
+        credenciais={[
+          { nome: 'INSTAGRAM_APP_ID', ok: status ? status.instagram : null },
+          { nome: 'INSTAGRAM_APP_SECRET', ok: status ? status.instagram : null },
+          { nome: 'OAUTH_STATE_SECRET', ok: status ? status.estadoDoOauth : null },
+          { nome: 'CRON_SECRET', ok: status ? status.agendador : null },
+        ]}
+      />
 
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <code className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 font-mono break-all">
-              {status?.urlDeRetorno || 'consultando o servidor...'}
-            </code>
-            <Button
-              type="button"
-              disabled={!status?.urlDeRetorno}
-              onClick={async () => {
-                if (!status?.urlDeRetorno) return;
-                try {
-                  await navigator.clipboard.writeText(status.urlDeRetorno);
-                  setCopiado(true);
-                  setTimeout(() => setCopiado(false), 2500);
-                } catch {
-                  /* Sem permissão de área de transferência, o texto está à vista. */
-                }
-              }}
-              className="shrink-0 bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
-            >
-              {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiado ? 'Copiado' : 'Copiar'}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-2.5 pt-1">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-              Permissões pedidas
-            </span>
-            <code className="text-[11px] text-slate-700 dark:text-slate-300 font-mono block mt-1 leading-relaxed">
-              instagram_business_basic<br />
-              instagram_business_content_publish
-            </code>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-              Credenciais no servidor
-            </span>
-            <code className="text-[11px] text-slate-700 dark:text-slate-300 font-mono block mt-1 leading-relaxed">
-              INSTAGRAM_APP_ID {status ? (status.instagram ? '✓' : '✗') : '…'}<br />
-              INSTAGRAM_APP_SECRET {status ? (status.instagram ? '✓' : '✗') : '…'}<br />
-              OAUTH_STATE_SECRET {status ? (status.estadoDoOauth ? '✓' : '✗') : '…'}<br />
-              CRON_SECRET {status ? (status.agendador ? '✓' : '✗') : '…'}
-            </code>
-          </div>
-        </div>
-
-        {/* Duas armadilhas que não aparecem como erro em lugar nenhum. */}
-        {status && !status.midiaPublica && (
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-start gap-2">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-              Falta <code className="font-mono">R2_PUBLIC_BASE_URL</code>. O Instagram
-              <strong> baixa</strong> a imagem da URL que mandamos, então sem domínio
-              público no bucket a publicação falha mesmo com tudo o mais certo.
-            </p>
-          </div>
-        )}
-        {status && !status.agendador && (
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-start gap-2">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-              Falta <code className="font-mono">CRON_SECRET</code> — e ele precisa estar
-              nos <strong>dois lugares</strong>: nas variáveis da Vercel e nos segredos do
-              repositório no GitHub. Sem os dois, o agendador roda e leva 401 em toda
-              passada; a publicação agendada nunca dispara, e nada no app acusa.
-            </p>
-          </div>
-        )}
-
-        <a
-          href="https://developers.facebook.com/apps/"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline"
-        >
-          Abrir o painel de apps da Meta
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
+      <CardDaRedeDaMeta
+        status={status}
+        icone={<Facebook className="w-5 h-5" />}
+        corDaMarca="bg-[#1877F2]"
+        nome="Facebook"
+        descricao="App separado do Instagram, com id e segredo próprios. Publica na Página do cliente, não no perfil pessoal."
+        ondeColar={
+          <>
+            Cole este valor exato em <strong>Login do Facebook → Configurações → URIs
+            de redirecionamento do OAuth válidos</strong>. É o mesmo endereço do
+            Instagram — quem separa as duas redes é o <code className="font-mono">state</code> assinado,
+            não a URL —, e a Meta continua comparando caractere a caractere.
+          </>
+        }
+        escopos={status?.escopos?.facebook ?? []}
+        credenciais={[
+          { nome: 'FACEBOOK_APP_ID', ok: status ? status.facebook : null },
+          { nome: 'FACEBOOK_APP_SECRET', ok: status ? status.facebook : null },
+          { nome: 'OAUTH_STATE_SECRET', ok: status ? status.estadoDoOauth : null },
+          { nome: 'CRON_SECRET', ok: status ? status.agendador : null },
+        ]}
+      />
 
       {/*
         Stripe.

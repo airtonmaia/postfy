@@ -162,6 +162,23 @@ export interface StatusDoServidor {
 
   /** INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET — não são os do app da Meta. */
   instagram: boolean;
+  /**
+   * FACEBOOK_APP_ID e FACEBOOK_APP_SECRET.
+   *
+   * **Outro app na Meta, outro par de credenciais.** `/api/status` respondia
+   * isto desde que o Facebook passou a publicar, e este tipo não tinha o
+   * campo — então a tela de Integrações não tinha como mostrar o estado, e
+   * quem fosse configurar o Facebook não descobria o que faltava por aqui.
+   */
+  facebook: boolean;
+  /**
+   * Os escopos que o servidor pede em cada rede, como ele os pede.
+   *
+   * Vêm do servidor porque a tela precisa dizer o que cadastrar na Meta, e
+   * uma lista escrita à mão aqui divergiria de `ESCOPOS_*` sem quebrar nada
+   * — o erro só apareceria depois de alguém digitar a senha.
+   */
+  escopos: { instagram: string[]; facebook: string[] };
   /** Assina o `state` do OAuth. Sem ele a conexão nem começa. */
   estadoDoOauth: boolean;
   /** CRON_SECRET. Sem ele o agendador leva 401 em toda passada. */
