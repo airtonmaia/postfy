@@ -153,11 +153,21 @@ describe('publicar despacha pela rede da conexão', () => {
   });
 
   it('rede fora das duas continua sendo recusada', () => {
-    // O cinto: mesmo que a fila receba um item de outra rede, a rota não
-    // tenta publicar às cegas.
-    expect(semComentarios(publicar)).toMatch(
-      /conexao\.platform !== 'instagram' && conexao\.platform !== 'facebook'/
-    );
+    /*
+      O cinto: mesmo que a fila receba um item de outra rede, a rota não tenta
+      publicar às cegas.
+
+      A guarda media a **sintaxe** das duas comparações e reprovou quando elas
+      viraram uma chamada a `publicaSozinho` — mesma decisão, derivada da lista
+      em vez de repetida. Agora mede o efeito, e a lista do servidor é conferida
+      contra `REDES_QUE_PUBLICAM` em `tests/publicacao.test.ts`.
+    */
+    const corpo = semComentarios(publicar);
+    const item = corpo.slice(corpo.indexOf('const publicarItem'));
+    const recusa = item.slice(0, item.indexOf('ainda não implementada'));
+
+    expect(recusa).toMatch(/publicaSozinho\(conexao\.platform\)|conexao\.platform !== '/);
+    expect(corpo).toMatch(/ainda não implementada/);
   });
 
   it('a medição de métrica continua só do Instagram', () => {

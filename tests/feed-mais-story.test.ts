@@ -469,12 +469,22 @@ describe('a arte do story nunca é substituída pela do feed', () => {
      * houve uma saída de duas. É a mesma mentira do `|| midia`, só na tela em
      * vez de no perfil.
      */
+    /*
+      A guarda procurava a palavra `aviso` dentro da tela, e o texto da
+      publicação mudou de casa: agora ele sai de `textoDaPublicacao`, um lugar
+      só para as duas telas — que é o que impediu a outra metade deste bug, a
+      frase "Publicado em @conta" que não nomeava a rede.
+
+      Então ela passou a medir o efeito: quem publica não monta a frase
+      sozinho. Uma tela que voltasse a montá-la voltaria a poder esquecer o
+      aviso, que é exatamente o que a modal de cadastro fazia.
+    */
     for (const tela of telasQueSalvam) {
       if (!/publicarAgora\(/.test(tela)) continue;
       expect(
         tela,
-        'uma tela que publica voltou a ignorar o aviso do story'
-      ).toMatch(/aviso/);
+        'uma tela que publica voltou a montar o texto sozinha, e aí o aviso do story se perde'
+      ).toMatch(/textoDaPublicacao\(/);
     }
   });
 });

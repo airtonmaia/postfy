@@ -17,6 +17,7 @@ import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import {
   publicaSozinho,
   publicarAgora,
+  textoDaPublicacao,
   agendarPublicacao,
   textoDoAgendamento,
   quandoDeveSair,
@@ -358,18 +359,16 @@ export const CreateJobModal: React.FC = () => {
     setAcao('publicando');
     setResultado(null);
     try {
-      const { conta, externalId, aviso } = await publicarAgora(novo.id);
       /**
-       * **O `aviso` era descartado aqui**, e a modal de detalhe já o lia. Ele é
-       * o caso do feed que saiu e do story que não: dizer "Publicado" liso
-       * afirma duas saídas onde houve uma, e é o mesmo tipo de mentira que o
-       * `|| midia` do servidor produzia — só na tela em vez de no perfil.
+       * O texto sai de `textoDaPublicacao`, não daqui.
+       *
+       * Ele era montado nas duas modais, e as duas diziam `Publicado em
+       * @conta` **sem nomear a rede** — que é o que deixou um conteúdo marcado
+       * só como Facebook sair no Instagram com a tela parecendo certa. O
+       * `aviso` do story entra no mesmo texto, pela mesma razão de sempre:
+       * duas cópias divergem na primeira pressa, e esta já tinha divergido.
        */
-      setResultado(
-        aviso
-          ? { ok: false, texto: aviso }
-          : { ok: true, texto: `Publicado em @${conta}. Id na Meta: ${externalId}` }
-      );
+      setResultado(textoDaPublicacao(await publicarAgora(novo.id)));
     } catch (err) {
       setResultado({
         ok: false,
@@ -468,12 +467,12 @@ export const CreateJobModal: React.FC = () => {
                 aviso: é a única ação daqui que não tem volta. Encostada no
                 botão que a pessoa aperta por reflexo, ela seria apertada por
                 reflexo também. */}
-            {dados.canais.includes('instagram') && (
+            {dados.canais.some(publicaSozinho) && (
               <Button
                 type="button"
                 onClick={(e) => void publicarImediatamente(e)}
                 disabled={ocupado}
-                title="Salva e publica imediatamente no Instagram do cliente. Não tem volta."
+                title="Salva e publica imediatamente nas contas conectadas do cliente. Não tem volta."
                 className="border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60"
               >
                 <Send className="w-3.5 h-3.5" />
