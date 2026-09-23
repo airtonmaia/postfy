@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.72.0',
+    data: '2026-09-23',
+    resumo:
+      'Conectar o Facebook passou a perguntar em qual Página publicar.',
+    novidades: [
+      'Quem administra mais de uma Página do Facebook agora escolhe qual conectar, numa lista com nome e foto de cada uma.',
+    ],
+    corrigido: [
+      'Com duas ou mais Páginas, o Orquesia conectava a primeira em silêncio — possivelmente a errada, e os posts do cliente sairiam no perfil de outro negócio.',
+    ],
+    melhorias: [
+      'Com uma Página só, a conexão continua direta: perguntar o óbvio custaria um clique em toda conexão do caso mais comum.',
+      'Nenhuma credencial passa pela tela de escolha. O token da Página é buscado no servidor depois da escolha, e a autorização que espera vive minutos numa tabela que sessão nenhuma alcança.',
+    ],
+  },
+  {
     versao: '2.71.0',
     data: '2026-09-23',
     resumo:

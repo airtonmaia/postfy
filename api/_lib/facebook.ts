@@ -51,6 +51,15 @@ export interface PaginaDoFacebook {
   accountName: string;
   /** O token **da Página**. É este que publica, e não o do usuário. */
   tokenDaPagina: string;
+  /**
+   * A foto da Página, para a tela de escolha.
+   *
+   * Quem administra duas Páginas do mesmo cliente as distingue pela foto
+   * antes de ler o nome — e nomes parecidos ("Loja", "Loja Oficial") são o
+   * caso em que escolher errado é mais fácil. Opcional porque a Meta pode
+   * não devolver, e uma escolha sem foto continua sendo uma escolha.
+   */
+  fotoUrl?: string;
 }
 
 export class ErroDoFacebook extends Error {
@@ -138,7 +147,8 @@ export const paginasDoUsuario = async (
   tokenDoUsuario: string
 ): Promise<PaginaDoFacebook[]> => {
   const resposta = await chamar(
-    `${GRAPH}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(tokenDoUsuario)}`
+    `${GRAPH}/me/accounts?fields=id,name,access_token,picture{url}` +
+      `&access_token=${encodeURIComponent(tokenDoUsuario)}`
   );
 
   return (resposta.data || [])
@@ -147,6 +157,7 @@ export const paginasDoUsuario = async (
       accountId: String(p.id),
       accountName: p.name || String(p.id),
       tokenDaPagina: p.access_token,
+      fotoUrl: p.picture?.data?.url,
     }));
 };
 
