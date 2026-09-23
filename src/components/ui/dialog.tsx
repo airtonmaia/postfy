@@ -126,6 +126,28 @@ export interface DialogContentProps
   semFechar?: boolean;
 }
 
+/**
+ * Janela de terceiro aberta por cima de uma modal nossa.
+ *
+ * **O seletor do Google Drive abria e não deixava clicar em nada.** O Radix
+ * torna a modal *modal* de três formas ao mesmo tempo: põe
+ * `pointer-events: none` no `body` (só o conteúdo da modal volta a receber
+ * clique), prende o foco dentro dela, e fecha ao primeiro clique de fora.
+ * Uma janela que o Google injeta direto no `body` cai nas três — ela aparece,
+ * e o clique não chega nela.
+ *
+ * O sintoma engana: a janela está **visível e por cima**, então parece um
+ * problema de z-index. Não é; é o clique que não atravessa.
+ *
+ * Isto não é uma exceção para o Google. Vale para qualquer coisa que abra
+ * fora da árvore do React em cima de uma modal, e por isso a regra mora no
+ * primitivo — repetida em cada tela, a próxima nasceria sem ela.
+ */
+const SELETOR_DE_FORA = '.picker-dialog, .picker-dialog-bg, .picker, iframe[src*="docs.google.com"]';
+
+const veioDeJanelaDeFora = (alvo: EventTarget | null): boolean =>
+  alvo instanceof Element && Boolean(alvo.closest(SELETOR_DE_FORA));
+
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
@@ -135,6 +157,30 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(variantesDoConteudo({ tamanho }), className)}
+      /*
+        Clicar no seletor do Google é "clicar fora" para o Radix, e fechar a
+        modal de conteúdo ali perderia o formulário inteiro — com a pessoa no
+        meio de escolher a arte. O `preventDefault` vale **só** para a janela
+        de fora: clique no fundo continua fechando, que é o que a tecla Esc e
+        o clique fora existem para fazer.
+      */
+      onPointerDownOutside={(evento) => {
+        if (veioDeJanelaDeFora(evento.target)) evento.preventDefault();
+        props.onPointerDownOutside?.(evento);
+      }}
+      onInteractOutside={(evento) => {
+        if (veioDeJanelaDeFora(evento.target)) evento.preventDefault();
+        props.onInteractOutside?.(evento);
+      }}
+      /*
+        Sem isto o campo de busca do seletor não recebe o que se digita: a
+        trava de foco do Radix puxa o cursor de volta para a modal a cada
+        tecla.
+      */
+      onFocusOutside={(evento) => {
+        if (veioDeJanelaDeFora(evento.target)) evento.preventDefault();
+        props.onFocusOutside?.(evento);
+      }}
       {...props}
     >
       {children}

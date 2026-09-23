@@ -322,3 +322,85 @@ describe('o escopo do Google é o que não exige verificação', () => {
     expect(rotas.length).toBeLessThanOrEqual(12);
   });
 });
+
+/**
+ * **O seletor do Google abria e não deixava clicar em nada.**
+ *
+ * O Radix torna a modal *modal* de três formas ao mesmo tempo: põe
+ * `pointer-events: none` no `body`, prende o foco dentro dela, e fecha ao
+ * primeiro clique de fora. Uma janela injetada direto no `body` — que é como
+ * o seletor do Google funciona — cai nas três.
+ *
+ * O sintoma engana: ela aparece **visível e por cima**, então parece
+ * z-index. Não é; é o clique que não atravessa. E nada local acusa: `tsc`
+ * compila, o vitest não monta componente e o `vite build` não mede caixa. É a
+ * armadilha 0 outra vez, na camada em que só abrir a tela mostra.
+ */
+describe('janela de terceiro por cima de uma modal recebe clique', () => {
+  const dialogo = semComentarios(ler('src', 'components', 'ui', 'dialog.tsx'));
+  const css = ler('src', 'index.css');
+
+  it('o clique volta a atravessar até a janela de fora', () => {
+    // `pointer-events: auto` é o que devolve o clique. Sem ele a janela
+    // aparece e não responde a nada.
+    expect(css).toMatch(/\.picker-dialog[^{]*\{[^}]*pointer-events:\s*auto\s*!important/);
+  });
+
+  it('a regra fica fora de camada, para vencer sem depender de especificidade', () => {
+    // Mesma razão da folha de marca injetada pelo tema: fora de `@layer`
+    // vence o que está dentro, e foi medido no Chromium.
+    const regra = css.indexOf('.picker-dialog');
+    const ultimaCamada = css.lastIndexOf('@layer');
+
+    expect(regra).toBeGreaterThan(-1);
+    expect(regra, 'a regra do seletor entrou dentro de uma camada').toBeGreaterThan(ultimaCamada);
+  });
+
+  it('clicar na janela de fora não fecha a modal por baixo', () => {
+    /*
+      Para o Radix, clicar no seletor é "clicar fora". Fechar ali perderia o
+      formulário inteiro, com a pessoa no meio de escolher a arte.
+    */
+    /*
+      Os três, e **cada um com a exceção dentro**. A primeira versão desta
+      guarda só exigia que os nomes aparecessem: tirando o `preventDefault`
+      de um deles, ela continuava aprovando — e é justamente o do foco que
+      faz o campo de busca do seletor aceitar o que se digita.
+    */
+    for (const gancho of ['onPointerDownOutside', 'onInteractOutside', 'onFocusOutside']) {
+      const corpo = dialogo.slice(dialogo.indexOf(`${gancho}={`));
+
+      expect(corpo.length, `${gancho} sumiu do primitivo`).toBeGreaterThan(0);
+      expect(
+        corpo.slice(0, 200),
+        `${gancho} deixou de abrir exceção para a janela de fora`
+      ).toMatch(/veioDeJanelaDeFora\(evento\.target\)\) evento\.preventDefault\(\)/);
+    }
+  });
+
+  it('a exceção vale só para a janela de fora', () => {
+    /*
+      Clique no fundo continua fechando — é o que o Esc e o clique fora
+      existem para fazer. Um `preventDefault` incondicional trocaria um
+      defeito por outro, e o outro seria a modal que não fecha.
+    */
+    const guarda = dialogo.slice(dialogo.indexOf('onPointerDownOutside'));
+    expect(guarda.slice(0, 300)).toMatch(/if \(veioDeJanelaDeFora/);
+  });
+
+  it('a regra mora no primitivo, não em cada tela', () => {
+    // Repetida em cada modal, a próxima nasceria sem ela — é a história das
+    // doze alturas de botão e das sete barras de abas.
+    const modais = readdirSync(join(RAIZ, 'src', 'components', 'modals')).filter((n) =>
+      n.endsWith('.tsx')
+    );
+
+    for (const nome of modais) {
+      const fonte = semComentarios(readFileSync(join(RAIZ, 'src', 'components', 'modals', nome), 'utf-8'));
+      expect(
+        fonte,
+        `${nome} escreve a exceção da janela de fora à mão — ela pertence ao primitivo`
+      ).not.toMatch(/picker-dialog/);
+    }
+  });
+});

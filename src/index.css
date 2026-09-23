@@ -235,3 +235,31 @@
   background: #3f3f46;
 }
 
+/* ---------------------------------------------------------------------
+   O seletor do Google Drive, aberto por cima de uma modal
+
+   O Radix põe `pointer-events: none` no `body` enquanto uma modal está
+   aberta, e só o conteúdo dela volta a receber clique. O seletor do Google é
+   injetado direto no `body`, fora da árvore do React: ele **aparece por
+   cima** e o clique não chega nele.
+
+   O sintoma engana — a janela está visível e na frente, então parece
+   z-index. Não é: é o clique que não atravessa. `pointer-events: auto` aqui
+   é o que devolve o clique; o `z-index` é o cinto para o caso de a modal
+   subir de camada um dia.
+
+   Fora de `@layer` de propósito: assim vence o que está dentro, sem depender
+   de especificidade — a mesma razão da folha de marca injetada pelo tema.
+   --------------------------------------------------------------------- */
+.picker-dialog,
+.picker-dialog-bg {
+  pointer-events: auto !important;
+}
+
+.picker-dialog {
+  z-index: 2147483647 !important;
+}
+
+.picker-dialog-bg {
+  z-index: 2147483646 !important;
+}
