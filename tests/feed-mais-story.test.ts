@@ -84,7 +84,10 @@ describe('o story sai como story, não no feed', () => {
     // Sem ler `format` do banco, o publicador não tem como saber para onde a
     // peça vai — e era exatamente essa a causa do story cair no feed.
     expect(publicar, 'o publicador deixou de ler o formato do conteúdo').toMatch(
-      /select\('title, caption, media_urls, story_media_urls, format, hashtags'\)/
+      // A lista de colunas não é literal: ela cresceu quando `midia_publicavel`
+      // entrou, e fixar a lista inteira obriga a editar a guarda junto com o
+      // código. O que importa é que `format` e as duas listas de arte cheguem.
+      /select\('title, caption, media_urls, story_media_urls, format,[^']*'\)/
     );
   });
 });

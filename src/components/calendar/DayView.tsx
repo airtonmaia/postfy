@@ -7,6 +7,7 @@ import { Plus, Clock, CheckCircle2, MessageSquare, AlertCircle, ArrowRight } fro
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 interface DayViewProps {
   currentDate: Date;
@@ -116,7 +117,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
 
                   {job.mediaUrls && job.mediaUrls.length > 0 && (
                     <img
-                      src={job.mediaUrls[0]}
+                      src={urlDeExibicao(job.mediaUrls[0])}
                       alt=""
                       className="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
                     />

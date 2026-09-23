@@ -7,6 +7,7 @@ import { safeDateFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, TipoBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
  * O card do quadro — **um desenho só**, para a lista e para o que segue o
@@ -96,7 +97,7 @@ export const CartaoDoQuadro: React.FC<{
     <div className="flex items-start gap-2.5">
       {job.mediaUrls && job.mediaUrls.length > 0 && (
         <img
-          src={job.mediaUrls[0]}
+          src={urlDeExibicao(job.mediaUrls[0])}
           alt=""
           className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
           /* Sem isto o navegador inicia o arrasto nativo da imagem por cima do

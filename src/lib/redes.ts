@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { ApiError } from './api';
 import { safeDateTimeFormat } from './utils';
+import { prepararMidiaDoDrive } from './midiaParaPublicar';
 import type { JobPlatform } from '../types';
 
 /**
@@ -275,6 +276,14 @@ export interface ResultadoDoAgendamento {
   semConta: JobPlatform[];
   /** Redes que não publicam sozinhas: a postagem na data é manual. */
   manuais: JobPlatform[];
+  /**
+   * Arte que está no Drive e não deu para copiar para o R2.
+   *
+   * Quando há alguma, **nada entra na fila**: a Meta baixa a mídia da URL que
+   * mandamos, e uma peça agendada sem a cópia publicaria pela metade ou
+   * falharia na madrugada. Melhor não agendar e dizer qual arquivo é.
+   */
+  midiaNaoCopiada: { nome: string; motivo: string }[];
 }
 
 /**
@@ -337,13 +346,26 @@ export const agendarPublicacao = async (
     scheduledDate: string;
   }
 ): Promise<ResultadoDoAgendamento> => {
-  const contas = await listarContas();
   const saida: ResultadoDoAgendamento = {
     enfileiradas: [],
     jaNaFila: [],
     semConta: [],
     manuais: [],
+    midiaNaoCopiada: [],
   };
+
+  /*
+    A cópia do Drive vem **antes** de qualquer linha entrar na fila. Depois
+    seria tarde: o agendador passa de cinco em cinco minutos e publicaria uma
+    peça cuja arte ainda está num lugar de onde a Meta não consegue baixar.
+  */
+  const preparo = await prepararMidiaDoDrive(job.id);
+  if (preparo.falhas.length) {
+    saida.midiaNaoCopiada = preparo.falhas;
+    return saida;
+  }
+
+  const contas = await listarContas();
 
   for (const canal of canaisDoJob(job)) {
     if (!publicaSozinho(canal)) {
@@ -404,6 +426,18 @@ export const textoDoAgendamento = (
 
   if (r.manuais.length) {
     partes.push(`${nomesDasRedes(r.manuais)}: postagem manual, o Orquesia não dispara sozinho.`);
+  }
+
+  if (r.midiaNaoCopiada.length) {
+    // Primeiro na frase porque é o que impede tudo o mais: sem a cópia, nada
+    // foi para a fila.
+    return {
+      ok: false,
+      texto:
+        'Nada foi agendado: não deu para trazer do Drive ' +
+        r.midiaNaoCopiada.map((f) => `"${f.nome}" (${f.motivo})`).join(' e ') +
+        '. Confira se o arquivo ainda existe e se o acesso continua concedido.',
+    };
   }
 
   if (!partes.length) {
@@ -599,6 +633,22 @@ export const publicarAgora = async (jobId: string): Promise<ResultadoDaPublicaca
   if (!(await esperarOConteudoExistir(jobId))) {
     throw new ApiError(
       'O conteúdo ainda não terminou de salvar. Espere um instante e tente de novo.',
+      409
+    );
+  }
+
+  /*
+    A cópia do Drive antes de chamar o servidor, e pelo mesmo motivo do
+    agendamento: a Meta baixa a mídia da URL que mandamos, e `drive://` não é
+    uma URL de mídia. Falhando, a publicação nem começa — publicar pela metade
+    no perfil do cliente não volta.
+  */
+  const preparo = await prepararMidiaDoDrive(jobId);
+  if (preparo.falhas.length) {
+    throw new ApiError(
+      'Não deu para trazer do Drive ' +
+        preparo.falhas.map((f) => `"${f.nome}" (${f.motivo})`).join(' e ') +
+        '. Confira se o arquivo ainda existe e se o acesso continua concedido.',
       409
     );
   }

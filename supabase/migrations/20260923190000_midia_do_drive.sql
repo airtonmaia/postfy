@@ -1,0 +1,28 @@
+-- ---------------------------------------------------------------------
+-- A cópia temporária da arte que mora no Google Drive
+--
+-- `jobs.media_urls` passou a aceitar referências `drive://<id>`: a arte fica
+-- no Drive da agência, e o R2 deixa de guardar o acervo. Só que **quem baixa
+-- a mídia é a Meta**, sem sessão e sem cookie, e um link do Drive devolve
+-- HTML — publicar com ele sairia errado ou não sairia, com a fila dizendo
+-- que deu certo.
+--
+-- Então a peça é copiada para o R2 **na hora de agendar**, pelo navegador de
+-- quem agenda (que é quem tem o token do Google), e é essa cópia que a Meta
+-- baixa. `midia_publicavel` guarda as URLs públicas dessa cópia e as chaves
+-- no balde, para o agendador apagá-las **depois** de a peça ter ido ao ar.
+--
+-- **As chaves são guardadas, e não derivadas da URL.** Sem elas, apagar
+-- exigiria adivinhar o caminho a partir do endereço público — e um engano ali
+-- apaga arte da agência, não a cópia. O que esta coluna nomeia é exatamente o
+-- que pode ser apagado: nada mais.
+--
+-- `media_urls` **não muda** nessa operação, de propósito. Ela é o que a tela
+-- desenha e o que o cliente aprovou; reescrevê-la com a URL do R2 faria a
+-- peça deixar de apontar para o Drive no dia seguinte, e a persistência
+-- derivada de diff transformaria isso numa gravação a mais em cada passada.
+--
+-- Nulo é "não há cópia" — o caso normal de toda peça que não veio do Drive.
+-- ---------------------------------------------------------------------
+alter table public.jobs
+    add column if not exists midia_publicavel jsonb;

@@ -31,6 +31,7 @@ import {
 import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { Client, Job, JobPlatform } from '../../types';
 import { Button } from '../ui/button';
+import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
  * Os canais de um conteúdo, separados pelo que de fato acontece na data.
@@ -212,7 +213,7 @@ export const PublicationsView: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {job.mediaUrls && job.mediaUrls.length > 0 && (
-                      <img src={job.mediaUrls[0]} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0" />
+                      <img src={urlDeExibicao(job.mediaUrls[0])} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0" />
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
