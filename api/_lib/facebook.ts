@@ -206,6 +206,52 @@ export const paginasDoUsuario = async (
 };
 
 /**
+ * Os dados públicos da Página conectada.
+ *
+ * **É a única leitura de Página que o produto faz, e ela tem dois papéis.**
+ *
+ * O primeiro é de tela: a conexão mostrava só o nome vindo de `/me/accounts`,
+ * e quem administra várias Páginas com nomes parecidos não tem como conferir
+ * que conectou a certa. O número de seguidores distingue as duas de relance —
+ * e conectar a errada só aparece quando o post do cliente sai no perfil de
+ * outro negócio, que é tarde.
+ *
+ * O segundo é de permissão: `pages_read_engagement` é **obrigatória** para o
+ * `pages_manage_posts` (a própria análise da Meta diz isso), e o app precisa
+ * ter feito uma chamada bem-sucedida com ela para a permissão ser liberada.
+ * Sem esta função não havia nenhuma: listar é `pages_show_list`, publicar é
+ * `pages_manage_posts`. Uma chamada feita só para agradar o revisor seria
+ * outra coisa — esta tem leitor na tela.
+ *
+ * Não lança: a conexão não pode falhar porque um número não veio. Sem ele a
+ * tela mostra o nome, como mostrava antes.
+ */
+export const dadosDaPagina = async (
+  pageId: string,
+  tokenDaPagina: string
+): Promise<{ nome?: string; seguidores?: number }> => {
+  try {
+    const dados = await chamar(
+      `${GRAPH}/${pageId}?fields=name,followers_count` +
+        `&access_token=${encodeURIComponent(tokenDaPagina)}`
+    );
+
+    return {
+      nome: typeof dados.name === 'string' ? dados.name : undefined,
+      // Nulo é "não medi", nunca zero: `?? 0` faria uma leitura que falhou
+      // parecer uma Página sem ninguém.
+      seguidores:
+        typeof dados.followers_count === 'number' && Number.isFinite(dados.followers_count)
+          ? dados.followers_count
+          : undefined,
+    };
+  } catch (erro) {
+    console.warn('[facebook] leitura da Página indisponível', (erro as Error).message);
+    return {};
+  }
+};
+
+/**
  * Publica na Página.
  *
  * **Um passo, e não dois.** Diferente do Instagram, não há contêiner a criar

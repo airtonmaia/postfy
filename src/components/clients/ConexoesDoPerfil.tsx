@@ -22,6 +22,7 @@ import {
   type RedeDaMeta,
 } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
+import { safeDateFormat } from '../../lib/utils';
 import { ComTooltip } from '../ui/tooltip';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
@@ -198,6 +199,21 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                       {conta ? `@${conta.accountName}` : rede.pendencia || 'Nenhuma conta ligada a este perfil.'}
                     </p>
+
+                    {/* Os seguidores são o que distingue duas Páginas de nome
+                        parecido — e conectar a errada só aparece quando o post
+                        do cliente sai no perfil de outro negócio.
+
+                        A data vai junto porque seguidor muda todo dia: o
+                        número sozinho afirmaria o de hoje com o dado de quando
+                        a conexão foi criada. Ausente é "não medi", e aí não há
+                        linha nenhuma — zero seria uma Página sem ninguém. */}
+                    {conta?.seguidores != null && (
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                        {conta.seguidores.toLocaleString('pt-BR')} seguidores
+                        {conta.seguidoresEm ? ` · medido em ${safeDateFormat(conta.seguidoresEm)}` : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
 

@@ -122,6 +122,17 @@ export interface ContaConectada {
   accountId: string;
   accountName: string;
   createdAt: string;
+  /**
+   * Seguidores da Página, e **quando** isso foi medido.
+   *
+   * Os dois andam juntos: seguidor muda todo dia, e mostrar o número sem a
+   * data é afirmar o de hoje com o dado de quando a conexão foi criada. Nulo
+   * é "não medi" — nunca zero, que seria uma Página sem ninguém.
+   *
+   * Só o Facebook tem: é a leitura da Página, e o Instagram não tem Página.
+   */
+  seguidores?: number;
+  seguidoresEm?: string;
 }
 
 export interface ItemDaFila {
@@ -150,6 +161,8 @@ export const listarContas = async (): Promise<ContaConectada[]> => {
     accountId: l.account_id,
     accountName: l.account_name,
     createdAt: l.created_at,
+    seguidores: l.seguidores ?? undefined,
+    seguidoresEm: l.seguidores_em ?? undefined,
   }));
 };
 

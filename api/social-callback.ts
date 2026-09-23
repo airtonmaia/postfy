@@ -9,6 +9,7 @@ import {
 import {
   trocarCodigoPorToken as trocarCodigoDoFacebook,
   paginasDoUsuario,
+  dadosDaPagina,
   type PaginaDoFacebook,
 } from './_lib/facebook.js';
 
@@ -180,6 +181,15 @@ const guardarConexao = async (
   // continua na tabela que sessão nenhuma alcança.
   const expiraEmIso = expiraEm ? new Date(Date.now() + expiraEm * 1000).toISOString() : null;
 
+  /*
+    A leitura da Página, e só para o Facebook: o Instagram não tem Página e a
+    chamada nem existe lá. Ela serve para a tela mostrar de qual Página se
+    trata — nome parecido é o caso em que conectar a errada é mais fácil —, e
+    não derruba a conexão quando falha: `dadosDaPagina` devolve vazio.
+  */
+  const daPagina =
+    rede === 'facebook' ? await dadosDaPagina(conta.accountId, token) : {};
+
   const { data: conexao, error } = await supabase
     .from('social_connections')
     .upsert(
@@ -191,9 +201,16 @@ const guardarConexao = async (
         client_id: dados.clientId ?? null,
         platform: rede,
         account_id: conta.accountId,
-        account_name: conta.accountName,
+        // O nome da leitura direta vence o de `/me/accounts` quando existe:
+        // é o mesmo campo, lido da própria Página.
+        account_name: daPagina.nome || conta.accountName,
         expires_at: expiraEmIso,
         created_by: dados.userId,
+        // Nulo é "não medi". Escrever 0 faria uma leitura falha parecer uma
+        // Página sem ninguém, e `seguidores_em` é o que torna o número
+        // honesto: seguidor muda todo dia.
+        seguidores: daPagina.seguidores ?? null,
+        seguidores_em: daPagina.seguidores === undefined ? null : new Date().toISOString(),
       },
       { onConflict: 'workspace_id,platform,account_id' }
     )

@@ -9,7 +9,7 @@ import {
 } from './_lib/auth.js';
 import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
-import { publicarNoFacebook, publicarStoryNoFacebook } from './_lib/facebook.js';
+import { publicarNoFacebook, publicarStoryNoFacebook, dadosDaPagina } from './_lib/facebook.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 import { empurrarNotificacoes } from './_lib/push.js';
 
@@ -252,20 +252,32 @@ async function handler(request: Request): Promise<Response> {
     return json({ error: 'Não foi possível ler a fila.' }, 500);
   }
 
-  if (!itens || itens.length === 0) {
-    return json({ processados: 0, renovadas, email, push });
-  }
-
+  /**
+   * **A fila vazia é o estado normal desta rota, e ela tinha um `return`
+   * aqui.**
+   *
+   * Tudo o que vinha depois — a medição de `post_metrics` — só acontecia nos
+   * cinco minutos em que por acaso houvesse um post agendado para sair. Numa
+   * agência que publica duas vezes por semana, isso é medir duas vezes por
+   * semana: funciona no teste, com um item na fila, e não funciona no uso.
+   *
+   * É exatamente a armadilha que este arquivo já registra para o Web Push —
+   * `empurrarNotificacoes` vem antes do `return` por esta razão, com guarda
+   * escrita. A medição tinha a mesma forma e nenhuma guarda.
+   *
+   * Agora há uma saída só: sem item, o laço não roda, e o resto da passada
+   * acontece do mesmo jeito.
+   */
   const resultados: { id: string; ok: boolean; detalhe: string }[] = [];
   const comecou = Date.now();
   let adiados = 0;
 
-  for (const item of itens) {
+  for (const item of itens || []) {
     // Fim do orçamento: o resto fica pendente e é o primeiro da próxima
     // passada. Parar aqui é de propósito — estourar o tempo da função no meio
     // de uma publicação deixa a peça no ar sem a fila saber.
     if (Date.now() - comecou > ORCAMENTO_MS) {
-      adiados = itens.length - resultados.length;
+      adiados = (itens as any[]).length - resultados.length;
       break;
     }
 
@@ -343,6 +355,10 @@ async function handler(request: Request): Promise<Response> {
    */
   const metricas = await atualizarMetricas(supabase, comecou);
 
+  // Depois das métricas, que já são a parte que pode esperar: seguidor é
+  // enfeite perto de publicar, e uma vez por dia por conexão.
+  const seguidores = await atualizarSeguidoresDasPaginas(supabase);
+
   return json({
     processados: resultados.length,
     publicados: resultados.filter((r) => r.ok).length,
@@ -355,6 +371,7 @@ async function handler(request: Request): Promise<Response> {
     email,
     push,
     metricas,
+    seguidores,
   });
 }
 
@@ -629,6 +646,64 @@ const publicarUmAgora = async (request: Request): Promise<Response> => {
  * risco. A Meta só renova token com mais de 24 horas, e a margem de 10 dias
  * dá quase duas semanas de tentativas antes de a conta cair.
  */
+/**
+ * Mantém o número de seguidores da Página verdadeiro.
+ *
+ * Ele é lido ao conectar, e conexão é coisa de uma vez só: sem esta passada,
+ * a tela mostraria para sempre o número do dia em que a Página entrou, com
+ * cara de hoje. `seguidores_em` deixaria isso visível — e uma data velha à
+ * vista é melhor que um número velho escondido —, mas o barato aqui é manter
+ * o número, não explicar por que ele é velho.
+ *
+ * Uma vez por dia por conexão, e só Facebook: o Instagram não tem Página, e
+ * `dadosDaPagina` fala com `graph.facebook.com` com o token **da Página**.
+ *
+ * Nunca lança. Seguidor é enfeite perto de publicar, e uma leitura falha não
+ * pode derrubar a passada que leva o post do cliente ao ar.
+ */
+const INTERVALO_DE_SEGUIDORES_MS = 24 * 60 * 60_000;
+
+const atualizarSeguidoresDasPaginas = async (supabase: any): Promise<number> => {
+  try {
+    const limite = new Date(Date.now() - INTERVALO_DE_SEGUIDORES_MS).toISOString();
+
+    const { data: conexoes } = await supabase
+      .from('social_connections')
+      .select('id, account_id')
+      .eq('platform', 'facebook')
+      .or(`seguidores_em.is.null,seguidores_em.lt.${limite}`)
+      .limit(LOTE);
+
+    if (!conexoes?.length) return 0;
+
+    let medidas = 0;
+    for (const conexao of conexoes) {
+      const { data: guardado } = await supabase
+        .from('social_tokens')
+        .select('access_token')
+        .eq('connection_id', conexao.id)
+        .maybeSingle();
+
+      if (!guardado?.access_token) continue;
+
+      const dados = await dadosDaPagina(conexao.account_id, guardado.access_token);
+      if (dados.seguidores === undefined) continue;
+
+      await supabase
+        .from('social_connections')
+        .update({ seguidores: dados.seguidores, seguidores_em: new Date().toISOString() })
+        .eq('id', conexao.id);
+
+      medidas += 1;
+    }
+
+    return medidas;
+  } catch (erro) {
+    console.warn('[publicar] seguidores', erro instanceof Error ? erro.message : erro);
+    return 0;
+  }
+};
+
 const MARGEM_DE_RENOVACAO_MS = 10 * 24 * 60 * 60_000;
 
 const renovarTokensQuePodemVencer = async (supabase: any): Promise<number> => {

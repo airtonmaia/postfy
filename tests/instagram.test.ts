@@ -62,12 +62,38 @@ describe('fluxo do Instagram, não o do Facebook', () => {
    * Facebook. Na tela de autorização do Instagram eles fazem a autorização
    * ser recusada — depois do login, com um erro que não nomeia o escopo.
    */
-  it('os escopos são só os dois do Instagram', () => {
-    expect(ESCOPOS_INSTAGRAM.split(',')).toEqual([
-      'instagram_business_basic',
-      'instagram_business_content_publish',
-    ]);
+  it('os escopos são só os do Instagram, e cada um tem uso no código', () => {
+    /*
+      A lista literal saiu. Ela era a guarda inteira, e reprovou no dia em que
+      `instagram_business_manage_insights` entrou — um escopo que o código já
+      usava desde que `post_metrics` existe, sem estar pedido.
+
+      O que ela protege são duas coisas, e nenhuma é a lista: nenhum escopo de
+      Página pode entrar aqui (é o que faz a autorização do Instagram recusar,
+      com erro depois do login que não nomeia a causa), e nenhum escopo pode
+      ser pedido sem ter uso — permissão a mais é justificativa e vídeo a mais
+      na análise da Meta, e é assim que um envio inteiro volta.
+    */
+    const escopos = ESCOPOS_INSTAGRAM.split(',');
+
+    expect(escopos, 'escopo de Página no fluxo do Instagram').not.toContain(
+      expect.stringMatching(/^pages_/)
+    );
     expect(ESCOPOS_INSTAGRAM).not.toMatch(/pages_/);
+    for (const escopo of escopos) expect(escopo).toMatch(/^instagram_/);
+
+    // Ler a conta e publicar são o mínimo: sem os dois não há integração.
+    expect(escopos).toContain('instagram_business_basic');
+    expect(escopos).toContain('instagram_business_content_publish');
+
+    // `/insights` é o que traz alcance, salvamentos e compartilhamentos. Os
+    // dois andam juntos: a chamada sem o escopo falha em silêncio e a coluna
+    // fica em `—` para sempre; o escopo sem a chamada é permissão pedida à
+    // toa.
+    expect(
+      escopos.includes('instagram_business_manage_insights'),
+      'o código chama /insights e o escopo não está pedido — a métrica nunca chega'
+    ).toBe(/\/insights\?/.test(instagram));
   });
 
   it('a troca do código é POST form-encoded no api.instagram.com', () => {

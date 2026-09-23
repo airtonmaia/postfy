@@ -34,15 +34,34 @@ const GRAPH = 'https://graph.instagram.com/v21.0';
 const GRAPH_RAIZ = 'https://graph.instagram.com';
 
 /**
- * O mínimo para ler a conta e publicar.
+ * O mínimo para ler a conta, publicar e medir.
  *
  * `pages_show_list` e `pages_read_engagement` saíram: são escopos do fluxo do
  * Facebook e **fazem a tela de autorização do Instagram recusar** — o erro
  * aparece só depois do login, e diz "escopo inválido" sem nomear qual.
+ *
+ * ### `manage_insights` entrou porque sem ele a métrica nunca chega
+ *
+ * `buscarMetricas` chama `/insights` para alcance, salvamentos e
+ * compartilhamentos desde que `post_metrics` existe, e o escopo **não estava
+ * aqui**: a chamada falhava em toda passada do medidor, em silêncio, e a
+ * coluna de alcance ficava em `—` para sempre. A tela não mentia — "nulo é
+ * não medi" —, mas o número não tinha como existir.
+ *
+ * A ordem normal deste projeto é capacidade primeiro, promessa depois: o
+ * escopo entraria só depois de aprovado. Aqui quem define a ordem é a Meta —
+ * a análise do app **exige uma chamada de API bem-sucedida** com a permissão
+ * para liberá-la, e a chamada precisa do escopo. Com o app em
+ * desenvolvimento a permissão já vale para os testadores, então é assim que o
+ * ciclo fecha.
+ *
+ * Se a análise recusar, este é o item a tirar daqui — e junto sai a chamada
+ * de `/insights`, senão a tela volta a oferecer um número que não enche.
  */
 export const ESCOPOS_INSTAGRAM = [
   'instagram_business_basic',
   'instagram_business_content_publish',
+  'instagram_business_manage_insights',
 ].join(',');
 
 export interface ContaDoInstagram {

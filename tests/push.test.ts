@@ -21,35 +21,58 @@ const sw = semComentarios(ler('public', 'sw.js'));
 const clientePush = semComentarios(ler('src', 'lib', 'push.ts'));
 
 describe('o push sai em toda passada, não só quando há o que publicar', () => {
-  it('empurrar vem antes do return antecipado da fila', () => {
+  it('nada que precisa rodar toda passada fica depois de um return', () => {
     /**
      * **Este é o erro que a guarda existe para pegar, e ele é fácil de
-     * cometer.** `api/publicar.ts` tem um `return` logo depois de ler a
+     * cometer.** `api/publicar.ts` tinha um `return` logo depois de ler a
      * `publish_queue`, para quando não há nada agendado — que é o estado
      * normal da rota na imensa maioria das passadas.
      *
-     * Empurrar depois dele faria a notificação sair **só** nos cinco minutos
-     * em que por acaso houvesse um post para publicar. Funcionaria no teste,
-     * com um item na fila, e não funcionaria no uso — sem erro em lugar
-     * nenhum, que é a pior forma de quebrar.
+     * O que ficasse depois dele aconteceria **só** nos cinco minutos em que
+     * por acaso houvesse um post para publicar: funciona no teste, com um
+     * item na fila, e não funciona no uso — sem erro em lugar nenhum.
+     *
+     * O push já respeitava isso, com esta guarda. **A medição de
+     * `post_metrics` não** — ela ficava depois, e ninguém tinha olhado.
+     * Então o `return` saiu: agora há uma saída só, o laço não roda sem item,
+     * e a pergunta "isto acontece toda passada?" deixa de depender de onde a
+     * linha está.
+     *
+     * A guarda passou a medir o efeito, e não a ordem de duas strings: a
+     * ordem só respondia pelo push, e foi por isso que a medição pôde
+     * quebrar ao lado dela sem nada reprovar.
      */
-    const chamada = publicar.indexOf('empurrarNotificacoes(');
-    const returnAntecipado = publicar.indexOf('return json({ processados: 0');
+    const inicio = publicar.indexOf("from('publish_queue')");
+    const fim = publicar.indexOf('atualizarMetricas(supabase');
+    const corpo = publicar.slice(inicio, fim);
 
-    expect(chamada, 'o push sumiu do cron').toBeGreaterThan(-1);
-    expect(returnAntecipado, 'o return antecipado da fila sumiu — confira esta guarda').toBeGreaterThan(-1);
-    expect(
-      chamada,
-      'o push passou a sair depois do return antecipado: ele só aconteceria ' +
-        'nas passadas em que houvesse conteúdo agendado'
-    ).toBeLessThan(returnAntecipado);
+    expect(inicio, 'a leitura da fila sumiu — confira esta guarda').toBeGreaterThan(-1);
+    expect(fim, 'a medição sumiu do cron — confira esta guarda').toBeGreaterThan(inicio);
+
+    /*
+      Saída por erro pode existir: falhar ao ler a fila é um caso em que não há
+      passada para continuar. O que não pode é a saída **de sucesso** — ela é
+      que troca "toda passada" por "nas passadas em que houve item".
+    */
+    for (let i = corpo.indexOf('return json('); i >= 0; i = corpo.indexOf('return json(', i + 1)) {
+      expect(
+        corpo.slice(i, i + 160),
+        'voltou uma saída de sucesso no meio da passada: o que vem depois dela ' +
+          'só acontece quando há item na fila'
+      ).toMatch(/error/);
+    }
+
+    for (const obrigatoria of ['empurrarNotificacoes(', 'atualizarMetricas(']) {
+      expect(
+        publicar.indexOf(obrigatoria),
+        `${obrigatoria} sumiu do cron`
+      ).toBeGreaterThan(-1);
+    }
   });
 
-  it('a rota devolve o resumo do push nos dois caminhos', () => {
+  it('a rota devolve o resumo do push', () => {
     // Sem isso, "o push saiu?" vira uma pergunta sem resposta — e esta rota é
     // chamada por um cron que ninguém olha.
-    expect(publicar).toContain('return json({ processados: 0, renovadas, email, push })');
-    expect(publicar.slice(publicar.indexOf('metricas,'))).toBeTruthy();
     expect(publicar, 'o resumo do push saiu da resposta final').toMatch(/push,\s*\n\s*metricas,/);
   });
 });
