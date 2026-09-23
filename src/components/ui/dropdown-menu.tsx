@@ -136,6 +136,67 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
 ));
 DropdownMenuCheckboxItem.displayName = DropdownMenuPrimitive.CheckboxItem.displayName;
 
+export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+/**
+ * Escolha única — a irmã do `CheckboxItem`, com a marca redonda.
+ *
+ * **A forma da marca é o que diz quantos cabem**, e não é enfeite: quadrado
+ * significa "posso marcar vários", redondo significa "escolha um". Reusar a
+ * caixinha do checkbox aqui faria a barra do quadro parecer que dá para
+ * ordenar por data *e* por cliente ao mesmo tempo.
+ *
+ * O canto vem traduzido como o resto do arquivo: `rounded-lg` no item, que é
+ * o passo de controle pequeno. A marca é `rounded-full` porque ela é um
+ * círculo de verdade — a exceção nomeada do vocabulário, não um sexto passo.
+ */
+export const DropdownMenuRadioItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem> & {
+    /** Linha de apoio, para a opção dizer o que ela faz sem exigir um teste. */
+    descricao?: string;
+  }
+>(({ className, children, descricao, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(
+      // `group` para o círculo abaixo enxergar o estado do item: o
+      // `data-state` mora na raiz, e o Radix não o repassa para dentro.
+      'group relative flex cursor-pointer select-none items-start gap-2.5 rounded-lg py-1.5 pl-2 pr-2',
+      'text-xs outline-hidden transition',
+      'focus:bg-accent focus:text-accent-foreground',
+      'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      "[&_svg]:pointer-events-none [&_svg]:shrink-0",
+      className
+    )}
+    {...props}
+  >
+    <span
+      className={cn(
+        // Desenhada por fora do `ItemIndicator` de propósito: o indicador do
+        // Radix só existe quando marcado, e sem o círculo vazio ao lado das
+        // outras opções a lista deixa de parecer escolhível.
+        'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition',
+        'border-slate-300 dark:border-slate-600',
+        'group-data-[state=checked]:border-primary'
+      )}
+    >
+      <DropdownMenuPrimitive.ItemIndicator>
+        <span className="h-2 w-2 rounded-full bg-primary" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    <span className="min-w-0">
+      <span className="block font-semibold">{children}</span>
+      {descricao && (
+        <span className="block text-[11px] text-muted-foreground leading-snug">
+          {descricao}
+        </span>
+      )}
+    </span>
+  </DropdownMenuPrimitive.RadioItem>
+));
+DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName;
+
 export const DropdownMenuLabel = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Label>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & {

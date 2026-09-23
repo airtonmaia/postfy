@@ -1,10 +1,12 @@
 import React from 'react';
-import { useDraggable } from '@dnd-kit/core';
-import { MessageSquare, Clock, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { MessageSquare, Clock, GripVertical, Pin } from 'lucide-react';
 import type { Client, Job, JobStatus } from '../../types';
 import { safeDateFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, TipoBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
+import { Button } from '../ui/button';
 
 /**
  * O card do quadro — **um desenho só**, para a lista e para o que segue o
@@ -25,7 +27,9 @@ export const CartaoDoQuadro: React.FC<{
    * inclinação — é o que dá a sensação de que a peça saiu da coluna.
    */
   flutuando?: boolean;
-}> = ({ job, client, aoTrocarStatus, flutuando = false }) => (
+  /** Solta a posicao fixada. Ausente no card que segue o cursor. */
+  aoSoltarPosicao?: () => void;
+}> = ({ job, client, aoTrocarStatus, flutuando = false, aoSoltarPosicao }) => (
   <div
     className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/90 p-3.5 space-y-2.5 group ${
       flutuando
@@ -42,6 +46,34 @@ export const CartaoDoQuadro: React.FC<{
         </span>
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        {/*
+          **O card fixado diz que está fixado.** Sem esta marca, uma peça
+          parada num lugar que a ordem escolhida não explica parece defeito do
+          quadro — e a pessoa não tem como descobrir que foi ela mesma quem
+          arrastou aquilo semana passada.
+
+          Clicar solta. É `Button` com `size="icon-sm"` e não um `<button>` à
+          mão: a escala existe justamente para não nascer a décima terceira
+          altura, e ícone sem rótulo é o caso que o `icon-sm` atende.
+        */}
+        {job.posicaoFixa != null && !flutuando && aoSoltarPosicao && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Fixado nesta posição. Clique para soltar."
+            aria-label="Soltar a posição deste card"
+            /* Sem isto, encostar no botão começa a arrastar o card em vez de
+               soltá-lo — o mesmo cuidado do seletor de status abaixo. */
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              aoSoltarPosicao();
+            }}
+            className="text-purple-600 dark:text-purple-400"
+          >
+            <Pin className="w-3 h-3" />
+          </Button>
+        )}
         <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
           v{job.currentVersion}
         </span>
@@ -159,26 +191,51 @@ export const CartaoArrastavel: React.FC<{
   client?: Client;
   aoAbrir: () => void;
   aoTrocarStatus: (status: JobStatus) => void;
-}> = ({ job, client, aoAbrir, aoTrocarStatus }) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: job.id,
-    data: { status: job.status },
-  });
+  aoSoltarPosicao: () => void;
+}> = ({ job, client, aoAbrir, aoTrocarStatus, aoSoltarPosicao }) => {
+  /**
+   * `useSortable` e não `useDraggable`: o card passou a poder ser solto
+   * **numa posição**, não só numa coluna.
+   *
+   * Ele é construído em cima do `useDraggable`, então as restrições de
+   * ativação dos sensores continuam valendo — que é o que separa o clique que
+   * abre a peça do arrasto que a move, e o que impede o deslize de sequestrar
+   * a rolagem no telefone.
+   */
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: job.id, data: { status: job.status } });
 
   return (
     <div
       ref={setNodeRef}
+      /*
+        O transform é o que abre o buraco para o card que está chegando. Sem
+        ele a lista fica parada e não há como saber onde a peça vai cair — o
+        `DragOverlay` mostra o que você segura, não onde vai encostar.
+      */
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       {...listeners}
       {...attributes}
       onClick={aoAbrir}
       /* O rótulo do botão que o dnd-kit monta por baixo: sem ele, quem navega
          por teclado ouve "arrastável" e nada mais. */
-      aria-label={`${job.title}. Arraste para mudar de coluna.`}
+      aria-label={`${job.title}. Arraste para mudar de coluna ou de posição.`}
       className={`cursor-grab active:cursor-grabbing touch-none ${
         isDragging ? 'opacity-40' : ''
       }`}
     >
-      <CartaoDoQuadro job={job} client={client} aoTrocarStatus={aoTrocarStatus} />
+      <CartaoDoQuadro
+        job={job}
+        client={client}
+        aoTrocarStatus={aoTrocarStatus}
+        aoSoltarPosicao={aoSoltarPosicao}
+      />
     </div>
   );
 };

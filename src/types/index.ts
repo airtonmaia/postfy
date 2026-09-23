@@ -391,6 +391,15 @@ export interface Job {
   copywriterId?: string;
   socialMediaId?: string;
   
+  /**
+   * Índice em que a peça foi fixada dentro da coluna, ou `null` quando ela
+   * flui pela ordem escolhida.
+   *
+   * Só existe porque alguém arrastou o card para um lugar. Card que ninguém
+   * tocou continua obedecendo à data — ver `src/lib/ordemDoQuadro.ts`.
+   */
+  posicaoFixa?: number | null;
+
   // Workflow extras
   checklist: JobChecklistItem[];
   comments: JobComment[];

@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.69.0',
+    data: '2026-09-22',
+    resumo:
+      'O quadro passou a ter ordem: por data, com o card que você arrasta segurando o lugar.',
+    novidades: [
+      'Duas opções novas na barra do quadro: "Ordenar" (data, cliente, prioridade ou título) e a janela de datas (já passou, próximos 7 dias, este mês, mês que vem).',
+      'A ordem padrão é por data, do mais próximo para o mais distante — o que vence antes, e o que já venceu, sobe para o topo da coluna.',
+      'Arrastar um card para uma posição fixa ele ali. O resto da coluna continua se organizando por data em volta dele, então uma decisão sua não desliga a ordenação do quadro inteiro.',
+      'O card fixado mostra um alfinete, e clicar nele solta. Quem preferir soltar tudo de uma vez encontra o botão dentro do menu "Ordenar".',
+    ],
+    melhorias: [
+      'O quadro nunca teve ordenação de verdade: a sequência dos cards era a da carga do banco, que ninguém escolhia e que mudava sozinha. Parecia ordem por data, e não era.',
+      'Ao filtrar por um período, o quadro diz quantos conteúdos ficaram de fora por não terem data — em vez de deixá-los sumir sem explicação.',
+      'A fronteira entre "hoje" e "já passou" segue o fuso da agência, não o do aparelho. Sem isso, a mesma peça apareceria como atrasada para quem está em São Paulo e não para o colega em Manaus.',
+    ],
+  },
+  {
     versao: '2.68.0',
     data: '2026-09-21',
     resumo:
