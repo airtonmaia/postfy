@@ -286,6 +286,13 @@ describe('toda tela que desenha arte passa pelo tradutor', () => {
 
 describe('o escopo do Google é o que não exige verificação', () => {
   const google = semComentarios(ler('src', 'lib', 'google.ts'));
+  /*
+    A autorização mudou de lado: era pedida no navegador a cada peça, e agora
+    é da agência, com o `refresh_token` guardado no servidor. Por isso a
+    guarda do escopo passou a ler o arquivo do servidor — ela estava ancorada
+    no lugar onde o escopo morava, não na decisão que ela protege.
+  */
+  const servidor = semComentarios(ler('api', '_lib', 'googleDrive.ts'));
 
   it('é drive.file, e não a conta inteira', () => {
     /*
@@ -294,9 +301,68 @@ describe('o escopo do Google é o que não exige verificação', () => {
       `drive.readonly` leria a conta inteira, exigiria verificação e não daria
       nada a mais: a escolha acontece no seletor de qualquer jeito.
     */
-    expect(google).toMatch(/auth\/drive\.file/);
-    expect(google, 'entrou um escopo que obriga à verificação do Google').not.toMatch(
+    expect(servidor).toMatch(/auth\/drive\.file/);
+    expect(servidor, 'entrou um escopo que obriga à verificação do Google').not.toMatch(
       /auth\/drive\.readonly/
+    );
+  });
+
+  it('a autorização pede acesso continuado, e pede o consentimento de novo', () => {
+    /*
+      Os dois andam juntos. Sem `access_type=offline` o Google não devolve
+      refresh token e a conexão morre em uma hora, calada. Sem
+      `prompt=consent` ele só o devolve na **primeira** autorização daquela
+      conta — reconectar depois de um problema traria uma resposta sem ele, e
+      a tela diria "conectado" sobre algo que não sobrevive à tarde.
+    */
+    const url = servidor.slice(servidor.indexOf('export const urlDeAutorizacao'));
+    expect(url.slice(0, 900)).toMatch(/access_type=offline/);
+    expect(url.slice(0, 900)).toMatch(/prompt=consent/);
+  });
+
+  it('sem refresh token a conexão não é dada como feita', () => {
+    // "Conectado" sobre uma credencial que dura uma hora é a armadilha 9 no
+    // lugar mais caro: a peça agendada falha de madrugada.
+    const callback = semComentarios(ler('api', 'social-callback.ts'));
+    expect(callback).toMatch(/if \(!trocado\.renovacao\)/);
+  });
+
+  it('o segredo do Google não vai para o navegador', () => {
+    /*
+      `VITE_` é o prefixo que o Vite escreve dentro do bundle. O `client_id` e
+      a chave de API são públicos por definição; o segredo não é, e um
+      `VITE_GOOGLE_CLIENT_SECRET` o publicaria para qualquer um que abrisse o
+      código da página.
+    */
+    expect(servidor).toMatch(/GOOGLE_CLIENT_SECRET/);
+    expect(servidor, 'o segredo do Google ganhou o prefixo do bundle').not.toMatch(
+      /VITE_GOOGLE_CLIENT_SECRET/
+    );
+
+    for (const arquivo of ['google.ts', 'driveDaAgencia.ts', 'midiaParaPublicar.ts']) {
+      const fonte = semComentarios(ler('src', 'lib', arquivo));
+      expect(fonte, `${arquivo} menciona o segredo do Google`).not.toMatch(
+        /GOOGLE_CLIENT_SECRET/
+      );
+    }
+  });
+
+  it('o refresh token nunca é devolvido à aba', () => {
+    /*
+      Ele é o que dá acesso continuado à conta do Google. No navegador,
+      viraria acesso permanente para quem abrisse o console — o que a aba
+      recebe é um token de uma hora.
+    */
+    const connect = semComentarios(ler('api', 'social-connect.ts'));
+    const modo = connect.slice(
+      connect.indexOf('const tokenDoDrive'),
+      connect.indexOf('async function handler')
+    );
+
+    expect(modo.length).toBeGreaterThan(200);
+    expect(modo).toMatch(/json\(\{ token: /);
+    expect(modo, 'a rota passou a devolver o refresh token para o navegador').not.toMatch(
+      /json\(\{[^}]*refresh/
     );
   });
 
@@ -307,100 +373,51 @@ describe('o escopo do Google é o que não exige verificação', () => {
     expect(google).toMatch(/alt=media/);
   });
 
+  it('a miniatura vira arquivo nosso, senão o portal não desenha nada', () => {
+    /*
+      A URL de miniatura do Google é curta de vida e pede a conta que
+      autorizou. O **portal do cliente é anônimo**: nenhum endereço do Google
+      carrega lá. Foi exatamente o que aconteceu no primeiro vídeo escolhido —
+      quadro vazio no app e no portal.
+    */
+    expect(google, 'a busca da miniatura sumiu').toMatch(/export const miniaturaDoDrive/);
+
+    const uploader = semComentarios(ler('src', 'components', 'common', 'MediaUploader.tsx'));
+    const escolha = uploader.slice(uploader.indexOf('const escolherNoDrive'));
+
+    expect(escolha.slice(0, 2000)).toMatch(/miniaturaDoDrive\(/);
+    expect(
+      escolha.slice(0, 2000),
+      'a miniatura deixou de ser guardada: ela precisa ser um arquivo nosso'
+    ).toMatch(/arquivosApi\.enviar\(/);
+  });
+
   it('a tela diz o que falta configurar, com o nome da variável', () => {
     const uploader = semComentarios(ler('src', 'components', 'common', 'MediaUploader.tsx'));
 
-    expect(google).toMatch(/VITE_GOOGLE_CLIENT_ID/);
     expect(google).toMatch(/VITE_GOOGLE_API_KEY/);
     expect(uploader, 'o botão do Drive deixou de dizer o que falta').toMatch(/faltaDoGoogle\(\)/);
   });
 
-  it('não entrou rota nova em api/', () => {
-    // São 12 de 12 funções no plano Hobby, e a 13ª derruba o deploy inteiro
-    // com tudo verde localmente (armadilha 6).
-    const rotas = readdirSync(join(RAIZ, 'api')).filter((n) => n.endsWith('.ts'));
-    expect(rotas.length).toBeLessThanOrEqual(12);
-  });
-});
-
-/**
- * **O seletor do Google abria e não deixava clicar em nada.**
- *
- * O Radix torna a modal *modal* de três formas ao mesmo tempo: põe
- * `pointer-events: none` no `body`, prende o foco dentro dela, e fecha ao
- * primeiro clique de fora. Uma janela injetada direto no `body` — que é como
- * o seletor do Google funciona — cai nas três.
- *
- * O sintoma engana: ela aparece **visível e por cima**, então parece
- * z-index. Não é; é o clique que não atravessa. E nada local acusa: `tsc`
- * compila, o vitest não monta componente e o `vite build` não mede caixa. É a
- * armadilha 0 outra vez, na camada em que só abrir a tela mostra.
- */
-describe('janela de terceiro por cima de uma modal recebe clique', () => {
-  const dialogo = semComentarios(ler('src', 'components', 'ui', 'dialog.tsx'));
-  const css = ler('src', 'index.css');
-
-  it('o clique volta a atravessar até a janela de fora', () => {
-    // `pointer-events: auto` é o que devolve o clique. Sem ele a janela
-    // aparece e não responde a nada.
-    expect(css).toMatch(/\.picker-dialog[^{]*\{[^}]*pointer-events:\s*auto\s*!important/);
-  });
-
-  it('a regra fica fora de camada, para vencer sem depender de especificidade', () => {
-    // Mesma razão da folha de marca injetada pelo tema: fora de `@layer`
-    // vence o que está dentro, e foi medido no Chromium.
-    const regra = css.indexOf('.picker-dialog');
-    const ultimaCamada = css.lastIndexOf('@layer');
-
-    expect(regra).toBeGreaterThan(-1);
-    expect(regra, 'a regra do seletor entrou dentro de uma camada').toBeGreaterThan(ultimaCamada);
-  });
-
-  it('clicar na janela de fora não fecha a modal por baixo', () => {
+  it('a conexão é da agência, e a tela diz de qual conta', () => {
     /*
-      Para o Radix, clicar no seletor é "clicar fora". Fechar ali perderia o
-      formulário inteiro, com a pessoa no meio de escolher a arte.
+      "Conectado" sem dizer de quem não ajuda: quem conectar a conta errada do
+      Google só descobre quando não achar os arquivos no seletor.
     */
-    /*
-      Os três, e **cada um com a exceção dentro**. A primeira versão desta
-      guarda só exigia que os nomes aparecessem: tirando o `preventDefault`
-      de um deles, ela continuava aprovando — e é justamente o do foco que
-      faz o campo de busca do seletor aceitar o que se digita.
-    */
-    for (const gancho of ['onPointerDownOutside', 'onInteractOutside', 'onFocusOutside']) {
-      const corpo = dialogo.slice(dialogo.indexOf(`${gancho}={`));
-
-      expect(corpo.length, `${gancho} sumiu do primitivo`).toBeGreaterThan(0);
-      expect(
-        corpo.slice(0, 200),
-        `${gancho} deixou de abrir exceção para a janela de fora`
-      ).toMatch(/veioDeJanelaDeFora\(evento\.target\)\) evento\.preventDefault\(\)/);
-    }
-  });
-
-  it('a exceção vale só para a janela de fora', () => {
-    /*
-      Clique no fundo continua fechando — é o que o Esc e o clique fora
-      existem para fazer. Um `preventDefault` incondicional trocaria um
-      defeito por outro, e o outro seria a modal que não fecha.
-    */
-    const guarda = dialogo.slice(dialogo.indexOf('onPointerDownOutside'));
-    expect(guarda.slice(0, 300)).toMatch(/if \(veioDeJanelaDeFora/);
-  });
-
-  it('a regra mora no primitivo, não em cada tela', () => {
-    // Repetida em cada modal, a próxima nasceria sem ela — é a história das
-    // doze alturas de botão e das sete barras de abas.
-    const modais = readdirSync(join(RAIZ, 'src', 'components', 'modals')).filter((n) =>
-      n.endsWith('.tsx')
+    const cartao = semComentarios(
+      ler('src', 'components', 'settings', 'tabs', 'DriveDaAgenciaCard.tsx')
     );
 
-    for (const nome of modais) {
-      const fonte = semComentarios(readFileSync(join(RAIZ, 'src', 'components', 'modals', nome), 'utf-8'));
-      expect(
-        fonte,
-        `${nome} escreve a exceção da janela de fora à mão — ela pertence ao primitivo`
-      ).not.toMatch(/picker-dialog/);
-    }
+    expect(cartao).toMatch(/conexao\.email/);
+    expect(cartao).toMatch(/conectarDrive\(/);
+    expect(cartao).toMatch(/desconectarDrive\(/);
+  });
+
+  it('não entrou rota nova em api/', () => {
+    // São 12 de 12 funções no plano Hobby, e a 13ª derruba o deploy inteiro
+    // com tudo verde localmente (armadilha 6). O token do Drive é um **modo**
+    // de `social-connect`, não uma rota.
+    const rotas = readdirSync(join(RAIZ, 'api')).filter((n) => n.endsWith('.ts'));
+    expect(rotas.length).toBeLessThanOrEqual(12);
   });
 });

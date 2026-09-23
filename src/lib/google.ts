@@ -24,18 +24,25 @@ import type { ArquivoDoDrive } from './midiaDoDrive';
  * pré-assinada de sempre. O servidor nunca vê o token do Google.
  */
 
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+/**
+ * A chave de API do seletor, e só ela.
+ *
+ * **O `client_id` saiu daqui.** Ele agora vive no servidor, junto do segredo,
+ * porque a autorização deixou de ser por aba e passou a ser da agência: quem
+ * guarda o `refresh_token` é o servidor, e a aba pede um token de uma hora
+ * quando precisa. Uma segunda forma de obter token no navegador seria uma
+ * segunda verdade sobre quem está conectado.
+ *
+ * A chave de API é pública por definição — ela vai no bundle e o que a
+ * protege são as restrições de origem e de API no console do Google.
+ */
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined;
-const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
 
-export const googleConfigurado = (): boolean => Boolean(CLIENT_ID && API_KEY);
+/** Se o **seletor** pode abrir. Se a agência conectou é outra pergunta. */
+export const googleConfigurado = (): boolean => Boolean(API_KEY);
 
 /** O que falta, com o nome da variável — a mesma regra da aba Integrações. */
-export const faltaDoGoogle = (): string[] =>
-  [
-    !CLIENT_ID ? 'VITE_GOOGLE_CLIENT_ID' : null,
-    !API_KEY ? 'VITE_GOOGLE_API_KEY' : null,
-  ].filter(Boolean) as string[];
+export const faltaDoGoogle = (): string[] => (API_KEY ? [] : ['VITE_GOOGLE_API_KEY']);
 
 const carregado = new Map<string, Promise<void>>();
 
@@ -61,37 +68,6 @@ const carregarScript = (src: string): Promise<void> => {
 
   carregado.set(src, promessa);
   return promessa;
-};
-
-/**
- * O token de acesso do Google, válido por cerca de uma hora.
- *
- * `silencioso` pede sem abrir janela, que é o caso de quando a pessoa já
- * autorizou e só está agendando a peça horas depois. Falhando, o chamador
- * pede de novo com a janela — o `drive.file` guarda a permissão **por
- * arquivo**, então o arquivo escolhido ontem continua alcançável hoje.
- */
-export const pedirTokenDoGoogle = async (silencioso = false): Promise<string> => {
-  if (!CLIENT_ID) throw new Error('Integração com o Google Drive não configurada.');
-
-  await carregarScript('https://accounts.google.com/gsi/client');
-  const google = (window as any).google;
-  if (!google?.accounts?.oauth2) throw new Error('Não foi possível carregar o Google.');
-
-  return new Promise<string>((resolve, reject) => {
-    const cliente = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: ESCOPO,
-      prompt: silencioso ? '' : 'consent',
-      callback: (resposta: any) => {
-        if (resposta?.access_token) resolve(resposta.access_token);
-        else reject(new Error('Autorização do Google não concluída.'));
-      },
-      error_callback: () => reject(new Error('Autorização do Google não concluída.')),
-    });
-
-    cliente.requestAccessToken();
-  });
 };
 
 /**
@@ -160,6 +136,50 @@ export const abrirSeletorDoDrive = async (
 
     seletor.setVisible(true);
   });
+};
+
+/**
+ * A miniatura do arquivo, em bytes.
+ *
+ * **Ela precisa virar um arquivo nosso, e é isso que torna esta função
+ * necessária.** A URL de miniatura que o Google devolve é curta de vida e
+ * pede a conta que autorizou — e a arte também é vista no **portal do
+ * cliente**, que é anônimo por definição: nenhum endereço do Google carrega
+ * lá. Foi exatamente o que aconteceu no primeiro vídeo escolhido: quadro
+ * vazio no app e no portal.
+ *
+ * Então o que vai para a peça é uma miniatura guardada no R2. São alguns
+ * kilobytes — o vídeo, que é o que pesa, continua só no Drive.
+ *
+ * Não lança: sem miniatura a peça ainda é válida, e o cartão mostra o nome do
+ * arquivo em vez de um quadro vazio.
+ */
+export const miniaturaDoDrive = async (id: string, token: string): Promise<Blob | null> => {
+  try {
+    const ficha = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}` +
+        '?fields=thumbnailLink&supportsAllDrives=true',
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!ficha.ok) return null;
+    const { thumbnailLink } = await ficha.json();
+    if (typeof thumbnailLink !== 'string') return null;
+
+    /*
+      `=s220` é o tamanho que o Google devolve por padrão, e ele fica borrado
+      na prévia grande do portal. O sufixo aceita outro valor, e 800 é o
+      suficiente para o enquadramento sem virar um arquivo que pesa.
+    */
+    const grande = thumbnailLink.replace(/=s\d+(-c)?$/, '=s800');
+
+    const imagem = await fetch(grande);
+    if (!imagem.ok) return null;
+
+    return await imagem.blob();
+  } catch {
+    return null;
+  }
 };
 
 /**

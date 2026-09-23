@@ -3,6 +3,7 @@ import { rota } from './_lib/rota.js';
 import {
   usuarioDaRequisicao,
   clienteDoUsuario,
+  clienteDeServico,
   json,
   naoAutenticado,
   falharComSeguranca,
@@ -10,6 +11,11 @@ import {
 } from './_lib/auth.js';
 import { urlDeAutorizacao } from './_lib/instagram.js';
 import { urlDeAutorizacao as urlDoFacebook } from './_lib/facebook.js';
+import {
+  urlDeAutorizacao as urlDoDrive,
+  credenciaisDoGoogle,
+  renovarAcesso,
+} from './_lib/googleDrive.js';
 
 
 /**
@@ -60,7 +66,7 @@ export const montarEstado = (
    * trocado pelo do Facebook — e as duas trocas de código batem em endpoints
    * diferentes, com segredos de apps diferentes.
    */
-  rede: 'instagram' | 'facebook' = 'instagram'
+  rede: 'instagram' | 'facebook' | 'google_drive' = 'instagram'
 ): string => {
   const corpo = `${workspaceId}.${userId}.${Date.now()}.${clientId ?? ''}.${rede}`;
   return `${Buffer.from(corpo).toString('base64url')}.${assinarEstado(corpo, segredo)}`;
@@ -71,7 +77,12 @@ export const conferirEstado = (
   estado: string,
   segredo: string,
   validadeMs = 15 * 60_000
-): { workspaceId: string; userId: string; clientId?: string; rede: 'instagram' | 'facebook' } | null => {
+): {
+  workspaceId: string;
+  userId: string;
+  clientId?: string;
+  rede: 'instagram' | 'facebook' | 'google_drive';
+} | null => {
   const [corpoB64, assinatura] = estado.split('.');
   if (!corpoB64 || !assinatura) return null;
 
@@ -92,13 +103,123 @@ export const conferirEstado = (
   // Estado antigo, emitido antes do Facebook existir, não tem o campo. Ele
   // continua valendo por 15 minutos depois do deploy, e cai no Instagram —
   // que era a única rede quando ele foi assinado.
-  const rede = redeCrua === 'facebook' ? 'facebook' : 'instagram';
+  const rede =
+    redeCrua === 'facebook' ? 'facebook' : redeCrua === 'google_drive' ? 'google_drive' : 'instagram';
   if (!workspaceId || !userId || !emissao) return null;
   if (Date.now() - Number(emissao) > validadeMs) return null;
 
   // Um corpo de três campos é um estado emitido antes de o cliente existir
   // aqui. Continua válido — vira conexão da agência, sem cliente.
   return { workspaceId, userId, clientId: clientId || undefined, rede };
+};
+
+/**
+ * Um token de acesso ao Drive da agência, para a aba usar por uma hora.
+ *
+ * **O refresh token nunca sai daqui.** Ele é o que dá acesso continuado à
+ * conta do Google de quem conectou; no navegador, viraria acesso permanente
+ * para quem abrisse o console. O que a aba recebe é o token curto, com
+ * escopo `drive.file` — e `drive.file` só alcança os arquivos escolhidos no
+ * seletor, um a um.
+ *
+ * O token guardado é reaproveitado enquanto vale: sem isso, cada peça pediria
+ * um novo ao Google, e o limite de renovações por conta é real.
+ */
+const MARGEM_DO_TOKEN_MS = 2 * 60_000;
+
+const tokenDoDrive = async (
+  request: Request,
+  userId: string,
+  workspaceId: unknown
+): Promise<Response> => {
+  if (!textoValido(workspaceId, 64)) {
+    return json({ error: 'Agência não informada.' }, 400);
+  }
+
+  const { id, segredo: segredoDoGoogle } = credenciaisDoGoogle();
+  if (!id || !segredoDoGoogle) {
+    return json(
+      {
+        error:
+          'Google Drive não configurado no servidor. Defina GOOGLE_CLIENT_ID e ' +
+          'GOOGLE_CLIENT_SECRET.',
+        code: 'DRIVE_NOT_CONFIGURED',
+      },
+      503
+    );
+  }
+
+  // Membro basta: escolher a arte é trabalho de quem produz. Conectar e
+  // desconectar é que são de quem administra.
+  const doUsuario = clienteDoUsuario(request);
+  const { data: membro } = await doUsuario
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
+
+  const supabase = clienteDeServico();
+  if (!supabase) {
+    return json({ error: 'Armazenamento de credenciais não configurado.' }, 503);
+  }
+
+  const { data: credencial } = await supabase
+    .from('drive_credenciais')
+    .select('refresh_token, access_token, expira_em')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (!credencial?.refresh_token) {
+    return json(
+      {
+        error:
+          'Esta agência ainda não conectou um Google Drive. Faça isso em ' +
+          'Configurações → Integrações.',
+        code: 'DRIVE_SEM_CONEXAO',
+      },
+      409
+    );
+  }
+
+  const aindaVale =
+    credencial.access_token &&
+    credencial.expira_em &&
+    new Date(credencial.expira_em).getTime() - MARGEM_DO_TOKEN_MS > Date.now();
+
+  if (aindaVale) return json({ token: credencial.access_token });
+
+  try {
+    const { acesso, expiraEm } = await renovarAcesso(credencial.refresh_token, id, segredoDoGoogle);
+
+    await supabase
+      .from('drive_credenciais')
+      .update({
+        access_token: acesso,
+        expira_em: new Date(Date.now() + expiraEm * 1000).toISOString(),
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq('workspace_id', workspaceId);
+
+    return json({ token: acesso });
+  } catch {
+    /*
+      O refresh token morreu — a pessoa revogou o acesso na conta dela, ou o
+      app foi removido. A tela precisa dizer isso com o que fazer, senão o
+      seletor simplesmente não abre e ninguém sabe por quê.
+    */
+    return json(
+      {
+        error:
+          'A autorização do Google Drive expirou ou foi revogada. Reconecte em ' +
+          'Configurações → Integrações.',
+        code: 'DRIVE_EXPIRADO',
+      },
+      409
+    );
+  }
 };
 
 async function handler(request: Request): Promise<Response> {
@@ -117,29 +238,60 @@ async function handler(request: Request): Promise<Response> {
    * digitado a senha, com uma mensagem que não nomeia a causa.
    */
   const corpoDaRede = await request.clone().json().catch(() => ({} as any));
-  const rede: 'instagram' | 'facebook' =
-    corpoDaRede?.rede === 'facebook' ? 'facebook' : 'instagram';
+  const rede: 'instagram' | 'facebook' | 'google_drive' =
+    corpoDaRede?.rede === 'facebook'
+      ? 'facebook'
+      : corpoDaRede?.rede === 'google_drive'
+        ? 'google_drive'
+        : 'instagram';
+
+  /**
+   * **Pedir o token do Drive é um modo desta rota, não uma rota nova.**
+   *
+   * São 12 de 12 funções no plano Hobby, e a 13ª derruba o deploy inteiro com
+   * `tsc`, vitest e build verdes (armadilha 6). E o lugar é este: aqui já
+   * moram o segredo do OAuth e a conferência de quem manda na agência.
+   *
+   * O que a aba recebe é um token de **uma hora**, com escopo `drive.file` —
+   * nunca o refresh token, que é o que dá acesso continuado e mora numa
+   * tabela sem política nenhuma.
+   */
+  if (corpoDaRede?.acao === 'token-do-drive') {
+    return await tokenDoDrive(request, usuario.id, corpoDaRede?.workspaceId);
+  }
+
+  const doGoogle = credenciaisDoGoogle();
 
   const appId =
-    rede === 'facebook' ? process.env.FACEBOOK_APP_ID : process.env.INSTAGRAM_APP_ID;
+    rede === 'google_drive'
+      ? doGoogle.id
+      : rede === 'facebook'
+        ? process.env.FACEBOOK_APP_ID
+        : process.env.INSTAGRAM_APP_ID;
   const appSecret =
-    rede === 'facebook'
-      ? process.env.FACEBOOK_APP_SECRET
-      : process.env.INSTAGRAM_APP_SECRET;
+    rede === 'google_drive'
+      ? doGoogle.segredo
+      : rede === 'facebook'
+        ? process.env.FACEBOOK_APP_SECRET
+        : process.env.INSTAGRAM_APP_SECRET;
   const segredo = SEGREDO_DO_ESTADO();
 
   if (!appId || !appSecret || !segredo) {
     return json(
       {
         error:
-          rede === 'facebook'
-            ? 'Conexão com o Facebook não configurada. Defina FACEBOOK_APP_ID, ' +
-              'FACEBOOK_APP_SECRET e OAUTH_STATE_SECRET. Publicar numa Página ' +
-              'exige revisão do app na Meta para pages_manage_posts.'
-            : 'Conexão com o Instagram não configurada. Defina INSTAGRAM_APP_ID, ' +
-              'INSTAGRAM_APP_SECRET e OAUTH_STATE_SECRET. Atenção: o app id do ' +
-              'Instagram não é o do app da Meta — ele fica em Instagram → ' +
-              'Configuração da API.',
+          rede === 'google_drive'
+            ? 'Google Drive não configurado. Defina GOOGLE_CLIENT_ID e ' +
+              'GOOGLE_CLIENT_SECRET (o segredo não leva o prefixo VITE_: ele ' +
+              'nunca pode ir para o navegador).'
+            : rede === 'facebook'
+              ? 'Conexão com o Facebook não configurada. Defina FACEBOOK_APP_ID, ' +
+                'FACEBOOK_APP_SECRET e OAUTH_STATE_SECRET. Publicar numa Página ' +
+                'exige revisão do app na Meta para pages_manage_posts.'
+              : 'Conexão com o Instagram não configurada. Defina INSTAGRAM_APP_ID, ' +
+                'INSTAGRAM_APP_SECRET e OAUTH_STATE_SECRET. Atenção: o app id do ' +
+                'Instagram não é o do app da Meta — ele fica em Instagram → ' +
+                'Configuração da API.',
         code: 'SOCIAL_NOT_CONFIGURED',
       },
       503
@@ -201,9 +353,11 @@ async function handler(request: Request): Promise<Response> {
     // autorização do outro: `pages_*` fazem a tela do Instagram recusar. Por
     // isso a escolha acontece aqui, e nunca num pedido que junte os dois.
     const url =
-      rede === 'facebook'
-        ? urlDoFacebook(appId, redirectUri, estado)
-        : urlDeAutorizacao(appId, redirectUri, estado);
+      rede === 'google_drive'
+        ? urlDoDrive(appId, redirectUri, estado)
+        : rede === 'facebook'
+          ? urlDoFacebook(appId, redirectUri, estado)
+          : urlDeAutorizacao(appId, redirectUri, estado);
 
     // A URL de redirecionamento vai junto porque ela precisa estar cadastrada
     // **igual** na Meta, e o erro de não bater só aparece depois de a pessoa

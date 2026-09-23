@@ -1,6 +1,7 @@
 import React from 'react';
 import { Instagram, MessageCircle, CircleDashed, CheckCircle2 } from 'lucide-react';
 import { ConexoesSociais } from '../../publications/ConexoesSociais';
+import { DriveDaAgenciaCard } from './DriveDaAgenciaCard';
 
 /**
  * Integrações da agência: as contas que ela conecta.
@@ -44,6 +45,11 @@ export const SettingsIntegrations: React.FC = () => (
     </div>
 
     <ConexoesSociais />
+
+    {/* O Drive é da **agência**, não de um cliente: a arte mora numa pasta só
+        e serve a todos eles. Por isso ele fica aqui, e não na ficha do
+        cliente ao lado das contas sociais. */}
+    <DriveDaAgenciaCard />
 
     {/* Compartilhamento por WhatsApp: não precisa de conexão, então fica como
         informação e não como algo a configurar. */}
