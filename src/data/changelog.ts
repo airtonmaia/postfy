@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.74.1',
+    data: '2026-09-23',
+    resumo: 'O seletor do Google Drive abria e não deixava clicar em nada.',
+    corrigido: [
+      'A janela do Google aparecia por cima da modal de conteúdo e não respondia a clique nenhum: a modal bloqueia o clique fora dela, e a janela do Google é aberta fora dela.',
+      'Clicar no seletor também fechava a modal por baixo, perdendo o formulário no meio da escolha da arte.',
+      'O campo de busca do seletor não aceitava o que se digitava, porque a modal puxava o cursor de volta a cada tecla.',
+    ],
+    melhorias: [
+      'A escolha múltipla aparece só onde cabe: no campo da arte do story, que aceita um arquivo, o seletor deixa de oferecer marcar vários.',
+    ],
+  },
+  {
     versao: '2.74.0',
     data: '2026-09-23',
     resumo:

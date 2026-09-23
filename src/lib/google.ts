@@ -126,13 +126,21 @@ export const abrirSeletorDoDrive = async (
       // publicação, longe de quem escolheu.
       .setMimeTypes('image/png,image/jpeg,image/webp,video/mp4,video/quicktime');
 
-    const seletor = new picker.PickerBuilder()
+    const construtor = new picker.PickerBuilder()
       .addView(vista)
       .setOAuthToken(token)
       .setDeveloperKey(API_KEY)
       .setLocale('pt-BR')
-      .setTitle('Escolha a arte no seu Drive')
-      .enableFeature(quantos > 1 ? picker.Feature.MULTISELECT_ENABLED : picker.Feature.SIMPLE_UPLOAD_ENABLED)
+      .setTitle('Escolha a arte no seu Drive');
+
+    /*
+      Escolha múltipla só onde ela cabe: o uploader do story aceita um arquivo,
+      e deixar marcar dois ali ofereceria uma escolha que seria descartada
+      depois — a família de defeito que este projeto mais registra.
+    */
+    if (quantos > 1) construtor.enableFeature(picker.Feature.MULTISELECT_ENABLED);
+
+    const seletor = construtor
       .setCallback((dados: any) => {
         if (dados.action === picker.Action.CANCEL) resolve([]);
         if (dados.action !== picker.Action.PICKED) return;
