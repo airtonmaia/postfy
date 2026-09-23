@@ -406,3 +406,85 @@ describe('a lista de Páginas não chega cortada', () => {
     expect(tela).toMatch(/Não está vendo todas as suas Páginas/);
   });
 });
+
+/**
+ * **`pages_read_engagement` era pedida e nunca usada.**
+ *
+ * A análise da Meta exige uma chamada de API bem-sucedida com a permissão
+ * para liberá-la, e o Orquesia não fazia nenhuma: listar Páginas é
+ * `pages_show_list`, publicar é `pages_manage_posts`. O envio simplesmente
+ * não fechava, e o motivo não estava escrito em lugar nenhum.
+ *
+ * A saída não foi uma chamada de fachada — é a família do `trial_ends_at`,
+ * agora ao contrário: uma permissão declarada sem uso. `dadosDaPagina` tem
+ * leitor na tela, e é o que distingue duas Páginas de nome parecido antes de
+ * o post do cliente sair no perfil errado.
+ */
+describe('a Página conectada é lida, e o número tem data', () => {
+  const semCom = semComentarios(facebook);
+
+  it('existe uma leitura da Página, e ela usa o token da Página', () => {
+    expect(semCom, 'a leitura da Página sumiu — pages_read_engagement volta a ser pedida sem uso')
+      .toMatch(/export const dadosDaPagina/);
+
+    const corpo = semCom.slice(semCom.indexOf('export const dadosDaPagina'));
+    expect(corpo.slice(0, 900)).toMatch(/fields=name,followers_count/);
+    expect(corpo.slice(0, 900)).toMatch(/tokenDaPagina/);
+  });
+
+  it('a leitura não derruba a conexão quando falha', () => {
+    // Seguidor é enfeite perto de conectar. Uma leitura que estoura não pode
+    // custar a conexão inteira, que é o que a pessoa veio fazer.
+    const corpo = semCom.slice(
+      semCom.indexOf('export const dadosDaPagina'),
+      semCom.indexOf('export const publicarNoFacebook')
+    );
+
+    expect(corpo).toMatch(/try \{/);
+    expect(corpo).toMatch(/catch/);
+  });
+
+  it('nulo é não medi, nunca zero', () => {
+    /*
+      `?? 0` faria uma leitura falha parecer uma Página sem ninguém — a mesma
+      regra de `post_metrics`, onde nenhuma coluna tem `default 0`.
+    */
+    const corpo = semCom.slice(
+      semCom.indexOf('export const dadosDaPagina'),
+      semCom.indexOf('export const publicarNoFacebook')
+    );
+
+    expect(corpo).not.toMatch(/followers_count \?\? 0|followers_count \|\| 0/);
+
+    const migracao = ler('supabase', 'migrations', '20260923170000_seguidores_da_pagina.sql');
+    expect(migracao).toMatch(/add column if not exists seguidores integer;/);
+    expect(migracao, 'seguidores ganhou default — conexão antiga viraria Página sem ninguém')
+      .not.toMatch(/seguidores integer[^;]*default/);
+  });
+
+  it('o número só aparece na tela com a data em que foi medido', () => {
+    /*
+      Seguidor muda todo dia. O número sozinho afirma o de hoje com o dado de
+      quando a conexão foi criada — é a armadilha 9 num lugar barato de
+      evitar, e a mesma razão de `post_metrics` ter `medido_em`.
+    */
+    const tela = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'components', 'clients', 'ConexoesDoPerfil.tsx'), 'utf-8')
+    );
+
+    expect(tela).toMatch(/seguidores/);
+    // A frase, não o nome do campo: `conta.seguidoresEm` pode continuar no
+    // arquivo com a data já fora da tela, que foi o que uma primeira versão
+    // desta guarda deixou passar.
+    expect(tela, 'o número de seguidores perdeu a data da medição').toMatch(/medido em/);
+  });
+
+  it('o agendador mantém o número verdadeiro', () => {
+    // Conexão é coisa de uma vez só: sem esta passada, a tela mostraria para
+    // sempre o número do dia em que a Página entrou, com cara de hoje.
+    const cron = semComentarios(publicar);
+    expect(cron).toMatch(/atualizarSeguidoresDasPaginas/);
+    expect(cron, 'a atualização deixou de ter intervalo — seria uma chamada por passada')
+      .toMatch(/INTERVALO_DE_SEGUIDORES_MS/);
+  });
+});

@@ -31,8 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
-    versao: '2.72.1',
+    versao: '2.73.0',
     data: '2026-09-23',
+    resumo:
+      'A métrica do Instagram passa a ter como chegar, e a conexão do Facebook mostra de qual Página se trata.',
+    corrigido: [
+      'O alcance, os salvamentos e os compartilhamentos nunca chegavam: o Orquesia chamava a API de insights sem pedir a permissão correspondente, então a chamada falhava em silêncio e a coluna ficava vazia para sempre.',
+      'A medição ficava depois do retorno antecipado do agendador, e a fila vazia é o estado normal dele: na prática, só media nas passadas em que por acaso havia um post para publicar.',
+    ],
+    novidades: [
+      'A conexão do Facebook mostra quantos seguidores a Página tem, com a data da medição. É o que distingue duas Páginas de nome parecido antes de o conteúdo sair no perfil errado.',
+    ],
+    melhorias: [
+      'O agendador mantém esse número atualizado, uma vez por dia por conexão.',
+    ],
+  },
+  {
+    versao: '2.72.1',    data: '2026-09-23',
     resumo:
       'A lista de Páginas do Facebook chegava cortada, por duas causas silenciosas.',
     corrigido: [

@@ -528,8 +528,15 @@ describe('a publicação avisa quem precisa saber', () => {
    * É a família do `trial_ends_at`: um valor declarado que parece uma regra e
    * não é. Quem lê o schema conclui que o aviso existe.
    */
+  /*
+    O corte é `for (const item of itens`, sem o fecha-parênteses: ele estava
+    completo e reprovou no dia em que o laço virou `of itens || []` — com o
+    `return` da fila vazia removido, `itens` passou a poder ser nulo. A
+    asserção de sanidade logo abaixo é o que transformou isso num erro
+    legível, em vez de uma guarda medindo string vazia e aprovando tudo.
+  */
   const corpoDoCron = publicarTs.slice(
-    publicarTs.indexOf('for (const item of itens)'),
+    publicarTs.indexOf('for (const item of itens'),
     publicarTs.indexOf('const publicarUmAgora')
   );
 
