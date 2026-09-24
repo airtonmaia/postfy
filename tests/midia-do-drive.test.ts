@@ -1081,9 +1081,44 @@ describe('o portal toca pelo player do Google, e a liberação acaba', () => {
   const drive = semComentarios(ler('api', '_lib', 'googleDrive.ts'));
 
   it('o vídeo do Drive toca pelo player do Google', () => {
-    const player = portal.slice(portal.indexOf('const VideoComCapa'));
-    expect(player.slice(0, 1200)).toMatch(/drive\.google\.com\/file\/d\//);
-    expect(player.slice(0, 1200)).toMatch(/\/preview/);
+    const player = portal.slice(portal.indexOf('const PlayerDoDrive'));
+    expect(player.slice(0, 700)).toMatch(/drive\.google\.com\/file\/d\//);
+    expect(player.slice(0, 700)).toMatch(/\/preview/);
+  });
+
+  it('o player do Drive é montado direto, sem capa nossa por cima', () => {
+    /*
+      **Eram dois cliques para uma coisa só.** O nosso play abria o player do
+      Drive, que pedia o play dele — e o segundo parecia que o primeiro não
+      tinha funcionado. O player do Google já mostra um quadro do vídeo e o
+      próprio botão; a capa que desenhávamos só adiava o que ele faz melhor.
+    */
+    /*
+      O corte termina no componente seguinte, e não numa contagem de
+      caracteres: a janela de 700 alcançava o `VideoComCapa` logo abaixo —
+      que **tem** estado, e com razão — e reprovava código correto.
+    */
+    const inicio = portal.indexOf('const PlayerDoDrive');
+    const player = portal.slice(inicio, portal.indexOf('const VideoComCapa', inicio));
+
+    expect(player.length, 'o player do Drive sumiu — confira esta guarda').toBeGreaterThan(100);
+    expect(player, 'voltou uma camada de play antes do player do Drive').not.toMatch(
+      /useState|setTocando/
+    );
+
+    // E o uso é direto, não por dentro do player com capa.
+    expect(portal).toMatch(/<PlayerDoDrive/);
+    expect(
+      semComentarios(portal),
+      'o player com capa voltou a receber o id do Drive'
+    ).not.toMatch(/noDrive=/);
+  });
+
+  it('a lista não monta o player de todos os cards de uma vez', () => {
+    // Uma aba de aprovações tem vários cards. Sem isto, abrir a tela monta o
+    // player de cada um — e o que carrega é a casca, mas são várias.
+    const player = portal.slice(portal.indexOf('const PlayerDoDrive'));
+    expect(player.slice(0, 700)).toMatch(/loading="lazy"/);
   });
 
   it('o play aparece mesmo sem a cópia no balde', () => {
@@ -1093,7 +1128,9 @@ describe('o portal toca pelo player do Google, e a liberação acaba', () => {
       cuja cópia falhou, continua assistível no portal.
     */
     expect(portal).toMatch(/idDeVideoNoDrive\(/);
-    expect(portal, 'o play voltou a depender da cópia').toMatch(/video \|\| idNoDrive/);
+    expect(portal, 'o Drive deixou de ter prioridade sobre a cópia').toMatch(
+      /idNoDrive \? \(\s*<PlayerDoDrive/
+    );
   });
 
   it('a liberação é de leitura, nunca de escrita', () => {
