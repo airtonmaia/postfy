@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.77.0',
+    data: '2026-09-24',
+    resumo:
+      'O vídeo do Drive vem junto com a peça, e a arte sai do armazenamento quando o conteúdo é excluído.',
+    novidades: [
+      'Excluir um conteúdo agora apaga também a mídia dele do armazenamento — só a que nenhum outro conteúdo, material ou ficha de cliente estiver usando.',
+    ],
+    melhorias: [
+      'O vídeo escolhido no Drive é trazido assim que a peça é criada, e não mais só ao mandar para aprovação: quem monta a peça é o primeiro a precisar vê-la rodando, na prévia.',
+      'Acrescentar um vídeo do Drive a um conteúdo que já existe também o traz na hora.',
+      'Depois de publicar, o vídeo sai do armazenamento e fica a imagem de capa — o registro da peça continua completo e o espaço volta.',
+    ],
+  },
+  {
     versao: '2.76.0',
     data: '2026-09-24',
     resumo: 'O cliente assiste ao vídeo no portal antes de aprovar.',

@@ -609,21 +609,28 @@ describe('o cliente vê o vídeo antes de aprovar', () => {
     expect(funcao.slice(0, 400)).toMatch(/ehDoDrive\(url\) \? copia \|\| null : url/);
   });
 
-  it('a cópia é criada ao mandar para aprovação, num lugar só', () => {
+  it('a cópia é criada com a peça, num lugar só', () => {
     /*
-      São quatro caminhos para o mesmo status — o botão do cadastro, o do
-      detalhe, o seletor do card e o arrasto no quadro. Repetir a chamada em
-      cada um garante esquecer um, e esquecer aqui não quebra nada visível: o
-      cliente aprova sem ver o vídeo.
+      **A guarda mudou junto com a decisão.** Ela exigia a cópia no momento
+      da aprovação, e amarrá-la a um status fazia a peça passar horas sem
+      vídeo nenhum — o tempo em que ela é produzida e conferida na prévia.
+      Agora a cópia nasce com a peça, e o gatilho da edição é a **mídia**
+      ter mudado, não o status.
+
+      O ponto único continua sendo o que a guarda protege: são quatro
+      caminhos que mexem na mídia de uma peça, e repetir a chamada em cada um
+      garante esquecer um.
     */
     const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
 
-    expect(contexto).toMatch(/const garantirMidiaParaOPortal/);
-    expect(contexto).toMatch(/garantirMidiaParaOPortal\(jobId, updates\.status\)/);
+    expect(contexto).toMatch(/const garantirMidiaDoDrive/);
     expect(
       contexto,
-      'conteúdo que já nasce aguardando aprovação ficou sem a cópia'
-    ).toMatch(/garantirMidiaParaOPortal\(newJob\.id, newJob\.status\)/);
+      'trocar a mídia de uma peça existente deixou de trazer a arte do Drive'
+    ).toMatch(/updates\.mediaUrls \|\| updates\.storyMediaUrls\) garantirMidiaDoDrive/);
+    expect(contexto, 'conteúdo recém-criado ficou sem a cópia').toMatch(
+      /garantirMidiaDoDrive\(newJob\.id\)/
+    );
 
     // Nenhuma tela chama direto: o ponto único é o que impede o quarto
     // caminho de nascer sem ela.
@@ -668,5 +675,58 @@ describe('o cliente vê o vídeo antes de aprovar', () => {
     expect(paraLinha, 'a cópia entrou no caminho de escrita do diff').not.toMatch(
       /midia_publicavel/
     );
+  });
+});
+
+/**
+ * **Excluir o conteúdo e deixar a arte no balde é a sobra que ninguém vê
+ * crescer.**
+ *
+ * A Biblioteca passa a listar arquivo de peça que não existe mais, e a
+ * agência paga por um acervo que ela acha que apagou. Do outro lado está um
+ * risco pior: a mesma arte pode servir a dois conteúdos — é literalmente por
+ * isso que a Biblioteca conta usos antes de deixar excluir —, e apagar sem
+ * conferir tiraria a imagem de um post que continua no ar, com a falha
+ * aparecendo no perfil do cliente.
+ */
+describe('a peça apagada leva a arte dela junto', () => {
+  const limpeza = semComentarios(ler('src', 'lib', 'midiaDaPeca.ts'));
+  const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+
+  it('excluir o conteúdo apaga a mídia dele', () => {
+    expect(contexto, 'excluir o conteúdo deixou de limpar a arte').toMatch(
+      /apagarMidiaDaPeca\(jobToDelete\)/
+    );
+  });
+
+  it('nunca apaga o que outro conteúdo usa', () => {
+    /*
+      A conferência é o coração desta função. Sem ela, excluir um post
+      levaria junto a arte de outro — e o outro continua publicado.
+    */
+    expect(limpeza).toMatch(/levantarUsos\(\)/);
+    expect(limpeza).toMatch(/j\.id !== job\.id/);
+    expect(limpeza, 'material do cliente e ficha deixaram de segurar o arquivo').toMatch(
+      /uso\?\.outros \|\| 0\) > 0/
+    );
+  });
+
+  it('o arquivo do Drive não é apagado — ele não é nosso', () => {
+    /*
+      O que mora no Drive é da agência, na conta dela. O que é nosso é a
+      miniatura e a cópia temporária; apagar o original seria o produto
+      mexendo no acervo de quem o usa.
+    */
+    expect(limpeza).toMatch(/ehDoDrive\(url\)/);
+    const ramo = limpeza.slice(limpeza.indexOf('if (ehDoDrive(url))'));
+    expect(ramo.slice(0, 400)).toMatch(/miniatura/);
+    expect(ramo.slice(0, 400)).toMatch(/continue/);
+  });
+
+  it('a limpeza não transforma uma exclusão concluída em erro', () => {
+    // O conteúdo já saiu quando isto roda. O que sobra no balde aparece na
+    // Biblioteca com zero usos e pode ser apagado de lá.
+    expect(limpeza).toMatch(/catch/);
+    expect(contexto).toMatch(/void apagarMidiaDaPeca/);
   });
 });
