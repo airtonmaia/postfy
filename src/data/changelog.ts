@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.76.0',
+    data: '2026-09-24',
+    resumo: 'O cliente assiste ao vídeo no portal antes de aprovar.',
+    novidades: [
+      'Vídeo agora toca no portal do cliente, com controles e a miniatura como capa. Vale para a arte que veio do Google Drive e para a que foi enviada do computador.',
+    ],
+    corrigido: [
+      'Vídeo enviado do computador nunca tocou no portal: a tela o desenhava como imagem, e quem aprovava um Reels decidia sobre um quadro vazio.',
+    ],
+    melhorias: [
+      'A arte do Drive é copiada para o armazenamento ao ser mandada para aprovação — é o que permite o portal tocá-la, já que ele é anônimo e nenhum endereço do Google abre sem login.',
+      'O agendador apaga a cópia das peças que saíram do fluxo sem publicar por aqui, como as de rede com postagem manual.',
+    ],
+  },
+  {
     versao: '2.75.3',
     data: '2026-09-24',
     resumo: 'O seletor do Drive não concedia acesso ao arquivo escolhido.',

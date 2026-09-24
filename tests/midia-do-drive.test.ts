@@ -565,3 +565,108 @@ describe('o seletor concede acesso ao app', () => {
     }
   });
 });
+
+/**
+ * **O cliente aprovava um vídeo sem nunca tê-lo visto.**
+ *
+ * O portal desenhava toda mídia com uma tag de imagem — inclusive um `.mp4`
+ * enviado do computador, que nunca tocou ali. Com a arte no Drive ficou pior:
+ * o portal é anônimo, e nenhum endereço do Google abre sem login.
+ *
+ * Decidir sobre o que não se viu é a pior versão da armadilha 9, porque quem
+ * é enganado não é o dono do produto — é o cliente de quem paga por ele.
+ */
+describe('o cliente vê o vídeo antes de aprovar', () => {
+  const portal = semComentarios(ler('src', 'components', 'portal', 'ClientPortalView.tsx'));
+
+  it('o portal toca vídeo em vez de desenhá-lo como imagem', () => {
+    expect(portal, 'o portal voltou a desenhar vídeo com tag de imagem').toMatch(/<video/);
+    expect(portal).toMatch(/videoParaTocar\(/);
+  });
+
+  it('o vídeo não toca sozinho, e tem controles', () => {
+    /*
+      Som que começa sem alguém pedir é o motivo de tanta gente fechar a aba —
+      e quem abre o portal veio decidir, não ser surpreendido.
+    */
+    const trecho = portal.slice(portal.indexOf('<video'));
+    expect(trecho.slice(0, 400)).toMatch(/controls/);
+    expect(trecho.slice(0, 400)).not.toMatch(/autoPlay/);
+    // A miniatura como cartaz: sem ela o quadro fica preto até o primeiro
+    // frame, que num vídeo grande demora.
+    expect(trecho.slice(0, 400)).toMatch(/poster=/);
+  });
+
+  it('arte do Drive só toca pela cópia', () => {
+    /*
+      O endereço do Drive não abre sem login, e o portal é anônimo. Devolver
+      a referência para a tag de vídeo daria um player quebrado — pior que a
+      miniatura parada, que pelo menos mostra a arte.
+    */
+    const midia = semComentarios(ler('src', 'lib', 'midiaDoDrive.ts'));
+    const funcao = midia.slice(midia.indexOf('export const videoParaTocar'));
+
+    expect(funcao.slice(0, 400)).toMatch(/ehDoDrive\(url\) \? copia \|\| null : url/);
+  });
+
+  it('a cópia é criada ao mandar para aprovação, num lugar só', () => {
+    /*
+      São quatro caminhos para o mesmo status — o botão do cadastro, o do
+      detalhe, o seletor do card e o arrasto no quadro. Repetir a chamada em
+      cada um garante esquecer um, e esquecer aqui não quebra nada visível: o
+      cliente aprova sem ver o vídeo.
+    */
+    const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+
+    expect(contexto).toMatch(/const garantirMidiaParaOPortal/);
+    expect(contexto).toMatch(/garantirMidiaParaOPortal\(jobId, updates\.status\)/);
+    expect(
+      contexto,
+      'conteúdo que já nasce aguardando aprovação ficou sem a cópia'
+    ).toMatch(/garantirMidiaParaOPortal\(newJob\.id, newJob\.status\)/);
+
+    // Nenhuma tela chama direto: o ponto único é o que impede o quarto
+    // caminho de nascer sem ela.
+    for (const pasta of ['modals', 'kanban']) {
+      const arquivos = readdirSync(join(RAIZ, 'src', 'components', pasta)).filter((n) =>
+        n.endsWith('.tsx')
+      );
+      for (const nome of arquivos) {
+        const fonte = semComentarios(readFileSync(join(RAIZ, 'src', 'components', pasta, nome), 'utf-8'));
+        expect(fonte, `${nome} chama a cópia direto — ela pertence ao contexto`).not.toMatch(
+          /prepararMidiaDoDrive\(/
+        );
+      }
+    }
+  });
+
+  it('a cópia sem dono é varrida pelo agendador', () => {
+    /*
+      Nem toda peça vai ao ar por aqui: uma de LinkedIn é postada à mão, e uma
+      reprovada pode ficar meses em ajuste. Sem a varredura, "o balde guarda
+      só o que está em trânsito" viraria falso devagar.
+    */
+    const cron = semComentarios(ler('api', 'publicar.ts'));
+
+    expect(cron).toMatch(/limparCopiasSemDono/);
+    expect(cron, 'a varredura deixou de poupar quem ainda usa a cópia').toMatch(
+      /ESTADOS_QUE_AINDA_USAM_A_COPIA/
+    );
+  });
+
+  it('a cópia não é escrita de volta pela persistência', () => {
+    /*
+      `midia_publicavel` é mapeada só na leitura. Nos dois lados, cada edição
+      da peça reescreveria a cópia — e uma tela que não sabe que ela existe a
+      apagaria com `undefined`, deixando o portal sem vídeo sem ninguém
+      entender por quê.
+    */
+    const mappers = semComentarios(ler('src', 'lib', 'mappers.ts'));
+    const paraLinha = mappers.slice(mappers.indexOf('export const jobParaLinha'));
+
+    expect(mappers).toMatch(/midiaPublicavel: l\.midia_publicavel/);
+    expect(paraLinha, 'a cópia entrou no caminho de escrita do diff').not.toMatch(
+      /midia_publicavel/
+    );
+  });
+});

@@ -66,7 +66,7 @@ import {
   DialogBody,
   DialogFooter,
 } from '../ui/dialog';
-import { urlDeExibicao } from '../../lib/midiaDoDrive';
+import { urlDeExibicao, videoParaTocar } from '../../lib/midiaDoDrive';
 
 /** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
 const QUADROS_DO_CRIATIVO = [
@@ -128,11 +128,20 @@ const CriativoDeFeedEStory: React.FC<{
    * espaço disponível não é o mesmo.
    */
   encaixe?: 'preencher' | 'caber';
-}> = ({ feed, story, encaixe = 'preencher' }) => {
+  /**
+   * A cópia no R2 de cada quadro, quando a arte mora no Google Drive.
+   *
+   * É ela que **toca** aqui: o portal é anônimo e nenhum endereço do Google
+   * abre sem login. Sem ela, resta a miniatura — que basta para uma arte e
+   * não basta para um Reels, onde o movimento e o áudio são metade da peça.
+   */
+  copias?: { feed?: string; story?: string };
+}> = ({ feed, story, encaixe = 'preencher', copias }) => {
   const [quadro, setQuadro] = useState<QuadroDoCriativo>('feed');
   const arteDoQuadro: Record<QuadroDoCriativo, string | undefined> = { feed, story };
   const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
   const url = arteDoQuadro[emTela.chave];
+  const video = videoParaTocar(url, copias?.[emTela.chave]);
 
   /**
    * Dois irmãos, não um bloco: a arte vai de borda a borda e o seletor fica
@@ -147,7 +156,22 @@ const CriativoDeFeedEStory: React.FC<{
           : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
       }
     >
-      {url ? (
+      {video ? (
+        /*
+          Com `controls` e sem tocar sozinho: o cliente abre o portal para
+          decidir, e som que começa sem ele pedir é o motivo de tanta gente
+          fechar a aba. O `poster` é a miniatura, então o quadro nunca fica
+          preto esperando o primeiro frame.
+        */
+        <video
+          src={video}
+          poster={urlDeExibicao(url || '') || undefined}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full h-full object-cover"
+        />
+      ) : url ? (
         <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
@@ -835,17 +859,37 @@ export const ClientPortalView: React.FC = () => {
                         <CriativoDeFeedEStory
                           feed={job.mediaUrls?.[0]}
                           story={job.storyMediaUrls?.[0]}
+                          copias={{
+                            feed: job.midiaPublicavel?.feed?.[0],
+                            story: job.midiaPublicavel?.story?.[0],
+                          }}
                         />
                       )}
 
                       {definicaoDoTipo(job.tipo).pedeArte &&
                         job.format !== 'feed_story' &&
                         (job.mediaUrls && job.mediaUrls.length > 0 ? (
-                          <img
-                            src={urlDeExibicao(job.mediaUrls[0])}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
+                          /* Vídeo toca; imagem é imagem. Antes tudo era
+                             desenhado como imagem, então quem aprovava um
+                             Reels decidia sobre um quadro vazio. */
+                          videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ? (
+                            <video
+                              src={
+                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) as string
+                              }
+                              poster={urlDeExibicao(job.mediaUrls[0]) || undefined}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={urlDeExibicao(job.mediaUrls[0])}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          )
                         ) : (
                           <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
                             <Layers className="w-8 h-8" />
