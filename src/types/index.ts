@@ -366,6 +366,20 @@ export interface Job {
   mediaUrls: string[];
   /** A arte do story, quando `format` é `feed_story`. */
   storyMediaUrls?: string[];
+  /**
+   * A cópia no R2 da arte que mora no Google Drive.
+   *
+   * **Só de leitura.** Quem escreve é o navegador de quem manda para
+   * aprovação ou agenda, direto no banco, e quem apaga é o agendador depois
+   * de a peça ir ao ar. Ela **não** entra em `jobParaLinha` de propósito: a
+   * persistência é derivada de diff, e mapear os dois lados faria cada
+   * edição da peça reescrever a cópia — inclusive apagando-a com `undefined`
+   * numa tela que não sabe que ela existe.
+   *
+   * É por ela que o **portal do cliente** toca o vídeo: o portal é anônimo, e
+   * nenhum endereço do Drive abre sem login.
+   */
+  midiaPublicavel?: { feed?: string[]; story?: string[]; chaves?: string[] };
   
   // Versions and history
   currentVersion: number;

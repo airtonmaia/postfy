@@ -56,11 +56,26 @@ const nomeDoArquivo = (url: string): string => dadosDoDrive(url)?.nome || 'arqui
  * `agendarPublicacao` devolver o que ficou de fora em vez de estourar.
  */
 export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidia> => {
-  const { data: job } = await supabase
-    .from('jobs')
-    .select('workspace_id, media_urls, story_media_urls, midia_publicavel')
-    .eq('id', jobId)
-    .maybeSingle();
+  /*
+    A peça pode ainda não existir no banco.
+
+    A persistência é derivada de diff e roda em segundo plano: quem cria o
+    conteúdo já mandando para aprovação chega aqui antes de o insert
+    acontecer, e uma consulta única voltaria vazia — sem erro, e sem cópia. É
+    a mesma espera que `publicarAgora` faz, pela mesma razão.
+  */
+  let job: any = null;
+  const ateQuando = Date.now() + 10_000;
+  while (!job && Date.now() < ateQuando) {
+    const { data } = await supabase
+      .from('jobs')
+      .select('workspace_id, media_urls, story_media_urls, midia_publicavel')
+      .eq('id', jobId)
+      .maybeSingle();
+
+    job = data;
+    if (!job) await new Promise((r) => setTimeout(r, 400));
+  }
 
   if (!job) return { copiados: 0, falhas: [] };
 

@@ -196,6 +196,8 @@ export const jobDaLinha = (l: Linha): Job => ({
   link: ounull(l.link),
   mediaUrls: l.media_urls ?? [],
   storyMediaUrls: l.story_media_urls ?? [],
+  // Só de leitura: ver o comentário no tipo. `jobParaLinha` não a escreve.
+  midiaPublicavel: l.midia_publicavel ?? undefined,
   currentVersion: l.current_version ?? 1,
   versions: l.versions ?? [],
   createdAt: l.created_at,

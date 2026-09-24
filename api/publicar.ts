@@ -363,6 +363,10 @@ async function handler(request: Request): Promise<Response> {
   // enfeite perto de publicar, e uma vez por dia por conexão.
   const seguidores = await atualizarSeguidoresDasPaginas(supabase);
 
+  // Por último: a cópia do Drive de peças que já saíram do fluxo. É a parte
+  // que pode esperar cinco minutos sem consequência nenhuma.
+  const copiasLimpas = await limparCopiasSemDono(supabase);
+
   return json({
     processados: resultados.length,
     publicados: resultados.filter((r) => r.ok).length,
@@ -376,6 +380,7 @@ async function handler(request: Request): Promise<Response> {
     push,
     metricas,
     seguidores,
+    copiasLimpas,
   });
 }
 
@@ -758,6 +763,53 @@ const limparCopiaDoDrive = async (supabase: any, jobId: string): Promise<void> =
     await supabase.from('jobs').update({ midia_publicavel: null }).eq('id', jobId);
   } catch (erro) {
     console.warn('[publicar] limpeza da cópia', erro instanceof Error ? erro.message : erro);
+  }
+};
+
+/**
+ * Apaga as cópias do Drive que ficaram sem dono.
+ *
+ * A cópia nasce ao mandar para aprovação — é ela que o portal toca, porque
+ * nenhum endereço do Google abre sem login — e some depois de a peça ir ao
+ * ar. Só que **nem toda peça vai ao ar por aqui**: uma peça de LinkedIn é
+ * postada à mão, e uma reprovada pode ficar meses em ajuste.
+ *
+ * Sem esta varredura, "o balde guarda só o que está em trânsito" viraria
+ * falso devagar, do jeito que ninguém vê acontecer.
+ *
+ * O corte é o **estado da peça**, não a idade: enquanto ela está esperando
+ * aprovação, aprovada ou agendada, a cópia tem leitor. Fora desses três, não
+ * tem — e a de LinkedIn publicada à mão cai aqui, que é o caso que motivou a
+ * varredura.
+ *
+ * Nunca lança. Espaço desperdiçado é barato; derrubar a passada que leva o
+ * post do cliente ao ar, não.
+ */
+const ESTADOS_QUE_AINDA_USAM_A_COPIA = ['for_approval', 'approved', 'scheduled'];
+
+const limparCopiasSemDono = async (supabase: any): Promise<number> => {
+  try {
+    const { data: peças } = await supabase
+      .from('jobs')
+      .select('id, status, midia_publicavel')
+      .not('midia_publicavel', 'is', null)
+      .not('status', 'in', `(${ESTADOS_QUE_AINDA_USAM_A_COPIA.join(',')})`)
+      .limit(LOTE);
+
+    if (!peças?.length) return 0;
+
+    let apagadas = 0;
+    for (const peça of peças) {
+      // A mesma limpeza da publicação: ela confere se ainda há rede
+      // esperando esta peça antes de apagar.
+      await limparCopiaDoDrive(supabase, peça.id);
+      apagadas += 1;
+    }
+
+    return apagadas;
+  } catch (erro) {
+    console.warn('[publicar] cópias sem dono', erro instanceof Error ? erro.message : erro);
+    return 0;
   }
 };
 

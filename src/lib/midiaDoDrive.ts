@@ -95,6 +95,27 @@ export const ehVideo = (url: string): boolean => {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
 };
 
+/**
+ * O endereço que **toca** a peça, ou nulo quando não há vídeo para tocar.
+ *
+ * Duas coisas se resolvem aqui, e a segunda existia antes do Drive:
+ *
+ * - arte que mora no Drive não tem endereço que o navegador abra, e o portal
+ *   do cliente é anônimo — nenhum link do Google carrega lá. O que toca é a
+ *   **cópia no R2**, feita ao mandar para aprovação;
+ * - e vídeo enviado do computador **nunca tocou no portal**: a tela o
+ *   desenhava com uma tag de imagem, então quem aprovava um Reels via um
+ *   quadro vazio e decidia sobre o que não viu.
+ *
+ * Imagem devolve nulo: quem chama desenha a imagem como sempre.
+ */
+export const videoParaTocar = (url?: string, copia?: string): string | null => {
+  if (!url) return null;
+  if (!ehVideo(url)) return null;
+  // Arte do Drive só toca pela cópia; sem ela, resta a miniatura.
+  return ehDoDrive(url) ? copia || null : url;
+};
+
 /** Quantas artes desta peça ainda estão só no Drive. */
 export const quantasNoDrive = (...listas: (string[] | undefined)[]): number =>
   listas.flatMap((l) => l || []).filter(ehDoDrive).length;

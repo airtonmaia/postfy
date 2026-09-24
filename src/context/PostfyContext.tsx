@@ -75,6 +75,7 @@ import {
 } from '../lib/rotas';
 import { carregarAcessoDaAgencia, type AcessoDaAgencia } from '../lib/assinatura';
 import { definirFusoDaAgencia } from '../lib/fusoHorario';
+import { prepararMidiaDoDrive } from '../lib/midiaParaPublicar';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -1623,12 +1624,43 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       void dispararAutomacoes('conteudo_aguardando_aprovacao', {
         jobId: newJob.id, jobTitle: newJob.title,
       });
+      // A arte do Drive precisa existir num endereço que o portal abra. Ver
+      // `garantirMidiaParaOPortal` — ela espera a peça chegar ao banco.
+      garantirMidiaParaOPortal(newJob.id, newJob.status);
     }
 
     return newJob;
   };
   
+  /**
+   * A arte do Drive precisa existir num endereço que o **portal** abra.
+   *
+   * O portal do cliente é anônimo por definição, e nenhum endereço do Google
+   * abre sem login: quem aprova via a miniatura e mais nada — o que basta
+   * para uma arte, e não basta para um Reels, onde o movimento e o áudio são
+   * metade da peça.
+   *
+   * Então a cópia para o R2, que já acontecia ao agendar, passa a acontecer
+   * também **ao mandar para aprovação**. Ela é apagada depois de a peça ir ao
+   * ar, como sempre foi: o balde segue guardando só o que está em trânsito.
+   *
+   * **Mora aqui, e não nas telas, porque são quatro caminhos para o mesmo
+   * status**: o botão do cadastro, o do detalhe, o seletor do card e o
+   * arrasto no quadro. Repetir a chamada em cada um garante esquecer um — e
+   * esquecer aqui não quebra nada visível: o cliente aprova sem ver o vídeo.
+   *
+   * Não bloqueia e não avisa quando falha. A peça segue com a miniatura, que
+   * é exatamente o que ela tinha antes desta função existir.
+   */
+  const garantirMidiaParaOPortal = (jobId: string, status?: JobStatus) => {
+    if (status !== 'for_approval') return;
+    void prepararMidiaDoDrive(jobId).catch(() => {
+      /* Ver acima: sem a cópia, o portal mostra a miniatura. */
+    });
+  };
+
   const updateJob = (jobId: string, updates: Partial<Job>) => {
+    garantirMidiaParaOPortal(jobId, updates.status);
     setAllJobs(prev => prev.map(job => {
       if (job.id === jobId) {
         const updated = { ...job, ...updates };
