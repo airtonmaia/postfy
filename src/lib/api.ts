@@ -185,6 +185,32 @@ export const arquivosApi = {
     }
   },
 
+  /**
+   * Traz um arquivo do Drive para o balde — **pelo servidor**.
+   *
+   * O download do Drive redireciona para `googleusercontent.com`, e o destino
+   * do redirecionamento não manda cabeçalho de origem cruzada: no navegador
+   * ele morre antes do primeiro byte, com o erro capturado e a peça ficando
+   * sem cópia calada. Dois vídeos seguidos falharam assim enquanto a
+   * miniatura — que já era buscada no servidor — passava nos dois.
+   *
+   * Devolve o motivo quando não dá, porque "sem cópia" é um desfecho válido e
+   * silencioso ele é indistinguível de defeito.
+   */
+  copiarDoDrive: async (
+    workspaceId: string,
+    fileId: string
+  ): Promise<{ url: string | null; chave?: string; motivo?: string }> => {
+    try {
+      return await chamar<{ url: string | null; chave?: string; motivo?: string }>(
+        '/api/upload-url',
+        { acao: 'copiar-do-drive', workspaceId, fileId }
+      );
+    } catch (erro) {
+      return { url: null, motivo: erro instanceof Error ? erro.message : 'falha desconhecida' };
+    }
+  },
+
   /** O caminho de sempre, para quem só precisa do endereço. */
   enviar: async (
     arquivo: File,

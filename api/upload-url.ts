@@ -124,6 +124,12 @@ async function handler(request: Request): Promise<Response> {
     if (espiada?.acao === 'miniatura-do-drive') {
       return miniaturaDoDrive(request, usuario.id);
     }
+    // E a cópia do arquivo em si, pelo mesmo motivo: o download do Drive
+    // redireciona para um domínio que não libera origem cruzada, e no
+    // navegador ele morre antes do primeiro byte.
+    if (espiada?.acao === 'copiar-do-drive') {
+      return copiarDoDrive(request, usuario.id);
+    }
   }
 
   if (request.method !== 'POST') {
@@ -248,6 +254,159 @@ async function handler(request: Request): Promise<Response> {
  * nova levaria o produto a 13 funções e **derrubaria o deploy inteiro**
  * (armadilha 6).
  */
+/**
+ * Um token de acesso ao Drive da agência, para uso interno desta rota.
+ *
+ * Devolve o **motivo** em vez de lançar: as duas chamadas que o usam — a
+ * miniatura e a cópia do arquivo — tratam "não deu" como desfecho válido, e
+ * o que elas precisam é dizer por que não deu. Foi a falta disso que fez
+ * esta entrega levar três rodadas.
+ */
+const acessoDoDrive = async (
+  workspaceId: string
+): Promise<{ token?: string; motivo?: string }> => {
+  const { id, segredo } = credenciaisDoGoogle();
+  if (!id || !segredo) {
+    return { motivo: 'falta GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET no servidor' };
+  }
+
+  const supabase = clienteDeServico();
+  if (!supabase) return { motivo: 'falta a chave de serviço no servidor' };
+
+  const { data: credencial } = await supabase
+    .from('drive_credenciais')
+    .select('refresh_token')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (!credencial?.refresh_token) {
+    return { motivo: 'esta agência não tem Google Drive conectado' };
+  }
+
+  try {
+    const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
+    return { token: acesso };
+  } catch {
+    return { motivo: 'a autorização do Google Drive expirou ou foi revogada' };
+  }
+};
+
+/**
+ * Traz um arquivo do Drive para o balde.
+ *
+ * ### Por que aqui, e não no navegador
+ *
+ * A primeira versão baixava no navegador: `fetch` no `drive/v3/files/ID?alt=media`
+ * e `PUT` na URL pré-assinada. Funciona às vezes, e "às vezes" é o problema —
+ * o download do Drive **redireciona** para `googleusercontent.com`, e o
+ * destino do redirecionamento não manda cabeçalho de origem cruzada. O
+ * navegador corta antes do primeiro byte, o erro é capturado, e a peça fica
+ * sem cópia sem nada dizer.
+ *
+ * Foi o que aconteceu com dois vídeos seguidos enquanto a miniatura — que
+ * **já** era buscada aqui, pelo mesmo motivo — funcionava nos dois. O sinal
+ * estava na mesa: o que roda no servidor passa, o que roda na aba não.
+ *
+ * Aqui não há CORS, não há memória de aba e não depende de qual navegador
+ * está aberto.
+ *
+ * ### O teto existe e é dito
+ *
+ * A função serverless tem 60 segundos e memória finita. Acima do teto o
+ * arquivo **não** é copiado, e a resposta diz isso com o tamanho — a peça
+ * segue com a miniatura, e quem produz fica sabendo por quê. Um arquivo que
+ * estoura o tempo no meio deixaria a função morta sem resposta, que é o
+ * mesmo silêncio de antes com outro nome.
+ */
+const LIMITE_DA_COPIA = 100 * 1024 * 1024;
+
+const copiarDoDrive = async (request: Request, userId: string): Promise<Response> => {
+  let corpo: any;
+  try {
+    corpo = await request.json();
+  } catch {
+    return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
+  }
+
+  const { workspaceId, fileId } = corpo || {};
+  if (!textoValido(workspaceId, 64) || !textoValido(fileId, 200)) {
+    return json({ error: 'Agência ou arquivo não informado.' }, 400);
+  }
+
+  const membro = await papelNaAgencia(request, workspaceId, userId);
+  if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
+
+  if (!r2Configurado()) {
+    return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
+  }
+
+  const acesso = await acessoDoDrive(workspaceId);
+  if (!acesso.token) return json({ url: null, motivo: acesso.motivo });
+
+  try {
+    const ficha = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +
+        '?fields=name,mimeType,size&supportsAllDrives=true',
+      { headers: { Authorization: `Bearer ${acesso.token}` } }
+    );
+
+    if (!ficha.ok) {
+      return json({
+        url: null,
+        motivo:
+          ficha.status === 404
+            ? 'o arquivo não está mais no Drive, ou o acesso foi retirado'
+            : `o Google recusou a ficha do arquivo (${ficha.status})`,
+      });
+    }
+
+    const dados = await ficha.json();
+    const tamanho = Number(dados.size || 0);
+
+    if (tamanho > LIMITE_DA_COPIA) {
+      const mb = Math.round(tamanho / 1024 / 1024);
+      return json({
+        url: null,
+        motivo: `o arquivo tem ${mb} MB e o limite de cópia é 100 MB`,
+      });
+    }
+
+    const conteudo = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +
+        '?alt=media&supportsAllDrives=true',
+      { headers: { Authorization: `Bearer ${acesso.token}` } }
+    );
+
+    if (!conteudo.ok) {
+      return json({ url: null, motivo: `o Google recusou o download (${conteudo.status})` });
+    }
+
+    const bytes = Buffer.from(await conteudo.arrayBuffer());
+    const tipo = dados.mimeType || conteudo.headers.get('content-type') || 'application/octet-stream';
+    const chave = `${workspaceId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${nomeSeguro(
+      dados.name || `${fileId}.mp4`
+    )}`;
+
+    await clienteR2().send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET,
+        Key: chave,
+        Body: bytes,
+        ContentType: tipo,
+      })
+    );
+
+    const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    if (!base) return json({ url: null, motivo: 'falta R2_PUBLIC_BASE_URL no servidor' });
+
+    return json({ url: `${base}/${chave}`, chave });
+  } catch (erro) {
+    const motivo = erro instanceof Error ? erro.message : 'falha desconhecida';
+    console.warn('[upload] cópia do drive', motivo);
+    return json({ url: null, motivo });
+  }
+};
+
 const miniaturaDoDrive = async (request: Request, userId: string): Promise<Response> => {
   let corpo: any;
   try {
@@ -268,26 +427,11 @@ const miniaturaDoDrive = async (request: Request, userId: string): Promise<Respo
     return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
   }
 
-  const { id, segredo } = credenciaisDoGoogle();
-  if (!id || !segredo) {
-    return json({ error: 'Google Drive não configurado no servidor.' }, 503);
-  }
-
-  const supabase = clienteDeServico();
-  if (!supabase) return json({ error: 'Credenciais não configuradas.' }, 503);
-
-  const { data: credencial } = await supabase
-    .from('drive_credenciais')
-    .select('refresh_token')
-    .eq('workspace_id', workspaceId)
-    .maybeSingle();
-
-  if (!credencial?.refresh_token) {
-    return json({ error: 'Esta agência não tem Google Drive conectado.' }, 409);
-  }
+  const acessoDaAgencia = await acessoDoDrive(workspaceId);
+  if (!acessoDaAgencia.token) return json({ url: null, motivo: acessoDaAgencia.motivo });
 
   try {
-    const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
+    const acesso = acessoDaAgencia.token;
 
     const ficha = await fetch(
       `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +

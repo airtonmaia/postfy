@@ -367,10 +367,31 @@ describe('o escopo do Google é o que não exige verificação', () => {
   });
 
   it('o download pede os bytes, não os metadados', () => {
-    // Sem `alt=media` vem o JSON com os metadados — e o R2 receberia um
-    // arquivo de trezentos bytes com nome de vídeo, que só daria erro quando
-    // a Meta tentasse baixá-lo.
-    expect(google).toMatch(/alt=media/);
+    /*
+      Sem `alt=media` vem o JSON com os metadados — e o balde receberia um
+      arquivo de trezentos bytes com nome de vídeo, que só daria erro quando
+      a Meta tentasse baixá-lo.
+
+      A guarda mudou de arquivo junto com o download: ele saiu do navegador
+      porque o Drive redireciona para um domínio que não libera origem
+      cruzada, e a aba morre antes do primeiro byte.
+    */
+    const rota = semComentarios(ler('api', 'upload-url.ts'));
+    expect(rota).toMatch(/alt=media/);
+  });
+
+  it('o navegador não baixa mais do Drive', () => {
+    /*
+      Duas formas de fazer a mesma coisa, uma delas quebrada, é como um
+      defeito volta. O download no navegador **parece** funcionar — falha só
+      em parte dos arquivos, sempre em silêncio.
+    */
+    for (const arquivo of ['google.ts', 'midiaParaPublicar.ts', 'driveDaAgencia.ts']) {
+      const fonte = semComentarios(ler('src', 'lib', arquivo));
+      expect(fonte, `${arquivo} voltou a baixar do Drive pelo navegador`).not.toMatch(
+        /alt=media/
+      );
+    }
   });
 
   it('a miniatura vira arquivo nosso, senão o portal não desenha nada', () => {
@@ -883,5 +904,86 @@ describe('o portal não fica parado no primeiro instante', () => {
     // Um minuto. Mais curto encheria de consulta o banco por nada; mais longo
     // faria o cliente esperar sem saber o que esperar.
     expect(releitura).toMatch(/60_000/);
+  });
+});
+
+/**
+ * **A cópia do vídeo saiu do navegador, e a falha saiu do silêncio.**
+ *
+ * Dois vídeos seguidos ficaram sem cópia enquanto a miniatura — que já era
+ * buscada no servidor — passava nos dois. O sinal estava na mesa: o download
+ * do Drive redireciona para `googleusercontent.com`, e o destino do
+ * redirecionamento não libera origem cruzada. A aba morre antes do primeiro
+ * byte, o erro é capturado, e a peça fica sem vídeo calada.
+ *
+ * Silêncio é o que fez isto levar três rodadas de diagnóstico. As guardas
+ * abaixo protegem as duas metades: onde a cópia acontece, e que ela fale
+ * quando não acontecer.
+ */
+describe('a cópia do Drive acontece no servidor, e avisa quando falha', () => {
+  const rota = semComentarios(ler('api', 'upload-url.ts'));
+  const corpo = rota.slice(rota.indexOf('const copiarDoDrive'), rota.indexOf('const miniaturaDoDrive'));
+
+  it('a guarda está medindo a cópia', () => {
+    expect(corpo.length).toBeGreaterThan(400);
+  });
+
+  it('a rota confere o membro antes de falar com o Google', () => {
+    const membro = corpo.indexOf('papelNaAgencia(');
+    const google = corpo.indexOf('googleapis.com');
+
+    expect(membro).toBeGreaterThan(-1);
+    expect(membro, 'a rota fala com o Google antes de saber quem pediu').toBeLessThan(google);
+  });
+
+  it('há um teto de tamanho, e ele é dito', () => {
+    /*
+      A função tem 60 segundos e memória finita. Estourar no meio deixa a
+      função morta sem resposta — o mesmo silêncio de antes com outro nome.
+    */
+    expect(corpo).toMatch(/LIMITE_DA_COPIA/);
+    expect(corpo, 'o teto virou um erro mudo').toMatch(/limite de cópia é 100 MB/);
+  });
+
+  it('toda saída sem cópia carrega o motivo', () => {
+    const mudas: string[] = [];
+    for (let i = corpo.indexOf('url: null'); i >= 0; i = corpo.indexOf('url: null', i + 1)) {
+      const fim = corpo.indexOf('}', i);
+      const objeto = corpo.slice(i, fim < 0 ? i + 140 : fim);
+      if (!/motivo/.test(objeto)) mudas.push(objeto.split('\n')[0]);
+    }
+
+    expect(mudas, 'voltou uma saída sem cópia que não diz por quê').toEqual([]);
+  });
+
+  it('a agência fica sabendo que o vídeo não foi copiado', () => {
+    /*
+      "Sem cópia" era indistinguível de "não havia vídeo": a peça ia para o
+      cliente com a capa parada e ninguém da agência sabia. A faixa de erro
+      existe exatamente para este tipo de falha — ela foi criada porque o
+      produto perdia dado sem avisar.
+    */
+    const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+    const bloco = contexto.slice(contexto.indexOf('const garantirMidiaDoDrive'));
+
+    /*
+      Dentro do ramo que trata as falhas, e não em qualquer lugar do bloco: a
+      primeira versão procurava a chamada solta e continuava aprovando quando
+      o ramo virava um `return` mudo — porque o `catch` logo abaixo tem a
+      mesma chamada. É o vizinho no lugar do alvo outra vez.
+    */
+    const ramo = bloco.slice(
+      bloco.indexOf('if (preparo.falhas.length)'),
+      bloco.indexOf('} catch')
+    );
+
+    expect(ramo.length, 'o ramo das falhas sumiu — confira esta guarda').toBeGreaterThan(50);
+    expect(ramo, 'a falha da cópia voltou a ser engolida').toMatch(
+      /painelDeErros\.current\.falhou\(\s*'midia-do-drive'/
+    );
+    expect(
+      bloco.slice(0, 1600),
+      'a faixa não apaga quando a cópia volta a funcionar'
+    ).toMatch(/gravacaoDeuCerto\('midia-do-drive'\)/);
   });
 });

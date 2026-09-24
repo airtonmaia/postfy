@@ -1718,9 +1718,41 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * é exatamente o que ela tinha antes desta função existir.
    */
   const garantirMidiaDoDrive = (jobId: string) => {
-    void prepararMidiaDoDrive(jobId).catch(() => {
-      /* Ver acima: sem a cópia, o portal mostra a miniatura. */
-    });
+    void (async () => {
+      try {
+        const preparo = await prepararMidiaDoDrive(jobId);
+
+        /*
+          **A falha acende a faixa.** Ela era engolida, e "sem cópia" ficava
+          indistinguível de "não havia vídeo": a peça ia para o cliente com a
+          capa parada e ninguém da agência sabia. Três rodadas de diagnóstico
+          saíram desse silêncio — é a mesma lição da faixa de erro de
+          gravação, que existe porque o produto perdia dado sem avisar.
+        */
+        if (preparo.falhas.length) {
+          aplicarRepintura(
+            painelDeErros.current.falhou(
+              'midia-do-drive',
+              'O vídeo do Google Drive não foi copiado: ' +
+                preparo.falhas.map((f) => `"${f.nome}" (${f.motivo})`).join('; ') +
+                '. A peça segue com a imagem de capa, e o cliente não consegue assistir.'
+            )
+          );
+          return;
+        }
+
+        gravacaoDeuCerto('midia-do-drive');
+      } catch (erro) {
+        aplicarRepintura(
+          painelDeErros.current.falhou(
+            'midia-do-drive',
+            erro instanceof Error
+              ? `O vídeo do Google Drive não foi copiado: ${erro.message}`
+              : 'O vídeo do Google Drive não foi copiado.'
+          )
+        );
+      }
+    })();
   };
 
   const updateJob = (jobId: string, updates: Partial<Job>) => {

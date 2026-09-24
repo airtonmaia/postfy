@@ -1,7 +1,5 @@
 import { supabase } from './supabase';
 import { arquivosApi } from './api';
-import { baixarDoDrive } from './google';
-import { tokenDoDrive } from './driveDaAgencia';
 import { dadosDoDrive, ehDoDrive } from './midiaDoDrive';
 import { excluirArquivo } from './biblioteca';
 
@@ -113,12 +111,6 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
 
   if (mesmaLista) return { copiados: 0, falhas: [] };
 
-  /*
-    O token é o da agência, pedido ao servidor. Antes a janela do Google
-    abria aqui — no meio do "Agendar", depois de a pessoa já ter escolhido o
-    arquivo horas antes.
-  */
-  const { token: acesso } = await tokenDoDrive(job.workspace_id);
   const falhas: PreparoDaMidia['falhas'] = [];
   const chaves: string[] = [];
   let copiados = 0;
@@ -135,22 +127,27 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
         continue;
       }
 
-      try {
-        const conteudo = await baixarDoDrive(doDrive.id, acesso);
-        const arquivo = new File([conteudo], doDrive.nome, {
-          type: doDrive.tipo || conteudo.type || 'application/octet-stream',
-        });
+      /*
+        **A cópia é feita pelo servidor**, e isso não é preferência: o
+        download do Drive redireciona para um domínio que não libera origem
+        cruzada, e no navegador ele morre antes do primeiro byte — com o erro
+        capturado e a peça ficando sem vídeo, calada. Dois arquivos seguidos
+        falharam assim enquanto a miniatura, que já era buscada no servidor,
+        passava nos dois.
+      */
+      const copia = await arquivosApi.copiarDoDrive(job.workspace_id, doDrive.id);
 
-        const { url: publica, chave } = await arquivosApi.enviarComChave(arquivo, job.workspace_id);
-        saida.push(publica);
-        chaves.push(chave);
-        copiados += 1;
-      } catch (erro) {
+      if (!copia.url || !copia.chave) {
         falhas.push({
           nome: nomeDoArquivo(url),
-          motivo: erro instanceof Error ? erro.message : 'Falha ao copiar do Drive.',
+          motivo: copia.motivo || 'falha ao copiar do Drive',
         });
+        continue;
       }
+
+      saida.push(copia.url);
+      chaves.push(copia.chave);
+      copiados += 1;
     }
 
     return saida;
