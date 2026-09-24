@@ -77,6 +77,7 @@ import { carregarAcessoDaAgencia, type AcessoDaAgencia } from '../lib/assinatura
 import { definirFusoDaAgencia } from '../lib/fusoHorario';
 import { prepararMidiaDoDrive } from '../lib/midiaParaPublicar';
 import { apagarMidiaDaPeca } from '../lib/midiaDaPeca';
+import { quantasNoDrive } from '../lib/midiaDoDrive';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -1681,6 +1682,32 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
   };
   
+  /**
+   * Peça antiga com arte no Drive se resolve ao ser aberta.
+   *
+   * A cópia passou a nascer com a peça, mas o que já existia ficou sem ela —
+   * e sem ela não há o que tocar: o portal mostra a capa parada e o cliente
+   * aprova um Reels sem ver o Reels. Pedir que alguém tire e recoloque a arte
+   * seria transferir para quem usa um problema que é nosso.
+   *
+   * **É um efeito que grava, e isso pesou na decisão.** A regra deste projeto
+   * é que enfileirar publicação nunca sai de um efeito — porque publicar não
+   * volta. Copiar um arquivo volta: é idempotente (`prepararMidiaDoDrive`
+   * sai cedo quando a cópia já cobre a mídia atual), não tem efeito para
+   * fora, e acontece só quando alguém abre a peça, que é justamente quando
+   * ela precisa estar tocável.
+   */
+  useEffect(() => {
+    if (!selectedJob) return;
+    if (quantasNoDrive(selectedJob.mediaUrls, selectedJob.storyMediaUrls) === 0) return;
+
+    garantirMidiaDoDrive(selectedJob.id);
+    // Só o id: o objeto é recriado a cada render do contexto, e com ele na
+    // lista o efeito rodaria em toda mudança de estado da agência.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?.id]);
+
+
   const deleteJob = (jobId: string) => {
     const jobToDelete = jobs.find(j => j.id === jobId);
     if (jobToDelete) {

@@ -3,6 +3,7 @@ import { arquivosApi } from './api';
 import { baixarDoDrive } from './google';
 import { tokenDoDrive } from './driveDaAgencia';
 import { dadosDoDrive, ehDoDrive } from './midiaDoDrive';
+import { excluirArquivo } from './biblioteca';
 
 /**
  * Traz para o R2 a arte que está no Drive, na hora de publicar.
@@ -36,6 +37,18 @@ export interface MidiaPublicavel {
   story: string[];
   /** As chaves no balde. É o que o agendador apaga, e nada além disso. */
   chaves: string[];
+  /**
+   * A lista que gerou esta cópia.
+   *
+   * **É o que torna a cópia idempotente.** Sem ela, toda chamada refaria o
+   * trabalho: o mesmo vídeo seria baixado e enviado de novo a cada abertura
+   * da peça, deixando um arquivo órfão no balde por vez — o oposto do que
+   * esta entrega existe para fazer.
+   *
+   * Comparar as listas, e não contar itens: trocar uma arte por outra mantém
+   * o tamanho, e a cópia velha apontaria para o arquivo errado.
+   */
+  de?: { feed: string[]; story: string[] };
 }
 
 export interface PreparoDaMidia {
@@ -85,6 +98,20 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
   if (!doFeed.some(ehDoDrive) && !doStory.some(ehDoDrive)) {
     return { copiados: 0, falhas: [] };
   }
+
+  /*
+    Já copiado é não fazer nada. Esta função é chamada ao criar a peça, ao
+    trocar a mídia e ao abrir o conteúdo — sem esta saída, o mesmo vídeo
+    seria baixado e enviado de novo a cada vez, deixando um arquivo órfão no
+    balde por chamada.
+  */
+  const jaCopiado = job.midia_publicavel?.de;
+  const mesmaLista =
+    jaCopiado &&
+    JSON.stringify(jaCopiado.feed || []) === JSON.stringify(doFeed) &&
+    JSON.stringify(jaCopiado.story || []) === JSON.stringify(doStory);
+
+  if (mesmaLista) return { copiados: 0, falhas: [] };
 
   /*
     O token é o da agência, pedido ao servidor. Antes a janela do Google
@@ -139,7 +166,28 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
   */
   if (falhas.length) return { copiados, falhas };
 
-  const publicavel: MidiaPublicavel = { feed, story, chaves };
+  /*
+    A cópia anterior sai antes da nova entrar. Ela existe quando a arte foi
+    trocada — e deixá-la no balde seria guardar o vídeo de uma versão que
+    ninguém mais vê, que é exatamente a sobra que esta entrega evita.
+
+    Só as chaves que esta peça gerou: elas nunca são compartilhadas com
+    outra, porque cada cópia nasce com o instante no nome.
+  */
+  for (const chaveVelha of job.midia_publicavel?.chaves || []) {
+    try {
+      await excluirArquivo(job.workspace_id, chaveVelha);
+    } catch {
+      /* Uma sobra no balde não pode impedir a arte nova de entrar. */
+    }
+  }
+
+  const publicavel: MidiaPublicavel = {
+    feed,
+    story,
+    chaves,
+    de: { feed: doFeed, story: doStory },
+  };
   await supabase.from('jobs').update({ midia_publicavel: publicavel }).eq('id', jobId);
 
   return { copiados, falhas };
