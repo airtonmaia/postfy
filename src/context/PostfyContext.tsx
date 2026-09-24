@@ -51,6 +51,7 @@ import {
   definirNovaSenha,
   carregarSessao,
   aoMudarAutenticacao,
+  temSessaoAberta,
   type SessaoDoApp,
 } from '../lib/authSupabase';
 import { diferenciar, temMudanca, novoId } from '../lib/sincronizacao';
@@ -173,6 +174,16 @@ interface PostfyContextType {
   logout: () => Promise<void>;
   /** Recarrega a sessão do Supabase (usado após aceitar convite). */
   recarregarSessaoPublica: () => Promise<void>;
+  /**
+   * Por que uma sessão aberta não virou acesso.
+   *
+   * Existe para o login que termina **fora** da tela — a volta do Google. Ali
+   * não há chamada cujo retorno a tela possa ler: a página recarrega, e quem
+   * descobre que a conta não pôde entrar em agência nenhuma é o carregamento
+   * da sessão. Sem este recado, a pessoa volta do Google para a tela de login
+   * sem nada explicando, e tenta de novo para sempre.
+   */
+  avisoDaEntrada: string | null;
   recuperarSenha: (email: string) => Promise<{ success: boolean; message?: string }>;
   redefinirSenha: (novaSenha: string) => Promise<{ success: boolean; message?: string }>;
   
@@ -560,6 +571,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [avisoDaEntrada, setAvisoDaEntrada] = useState<string | null>(null);
 
   const USUARIO_VAZIO: User = {
     id: '', name: '', email: '', avatar: '', role: 'owner', workspaceId: '',
@@ -623,7 +635,32 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } = await carregarPreferencias();
     setThemeState(temaSalvo);
     setSidebarRecolhidaState(recolhidaSalva);
-    const sessao = await carregarSessao(lastWorkspaceId);
+    let sessao = await carregarSessao(lastWorkspaceId);
+
+    /*
+      Sessão aberta e nenhuma agência: é aqui que a volta do Google termina.
+
+      `carregarSessao` devolve `null` nos dois casos que parecem um só — quem
+      não entrou, e quem entrou e ainda não pertence a agência nenhuma. O
+      segundo é o primeiro acesso por um provedor externo: não houve chamada a
+      `login()` para criar a agência, porque o login terminou noutra página.
+      Sem este trecho, a pessoa autoriza no Google, volta, e encontra a tela de
+      login outra vez — autenticada, sem nada explicando e sem saída.
+
+      A conferência vem **depois** de `carregarSessao` falhar, e não antes: no
+      caminho normal, que é a imensa maioria das cargas, ela não custa uma
+      consulta a mais.
+    */
+    if (!sessao && (await temSessaoAberta())) {
+      const criada = await garantirAgencia();
+      // Quem tem convite pendente cai aqui, e a mensagem diz o que fazer:
+      // abrir o link do convite. Engoli-la deixaria a mesma tela muda.
+      setAvisoDaEntrada(criada.sucesso ? null : criada.mensagem || null);
+      if (criada.sucesso) sessao = await carregarSessao(lastWorkspaceId);
+    } else if (sessao) {
+      setAvisoDaEntrada(null);
+    }
+
     aplicarSessao(sessao);
     return sessao;
   };
@@ -2760,6 +2797,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCurrentUser,
         isAuthenticated,
         isAuthLoading,
+        avisoDaEntrada,
         login,
         register,
         recarregarSessaoPublica,

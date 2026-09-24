@@ -1528,6 +1528,54 @@ Conferido ao contrário, era exatamente isso que acontecia. É a mesma falha das
 três versões da guarda de formato; o recorte agora para no terminador da
 função.
 
+### Entrar com Google: o botão é a parte fácil, a volta é a que custa
+
+O login por provedor externo **não termina numa chamada**. `signInWithOAuth`
+manda a página inteira para o Google, então o que vem depois do `await` só roda
+quando ela *falha* — o caminho do sucesso é o navegador voltando para a raiz,
+com o app montando do zero.
+
+E é aí que estava o buraco: `carregarSessao` devolve `null` em **dois** casos
+que parecem um só — quem não entrou, e quem entrou e ainda não pertence a
+agência nenhuma. Quem cria a agência de quem chega pela primeira vez era
+`garantirAgencia`, chamada **só de dentro de `login()`**, que é o caminho da
+senha. Pelo Google não passa ninguém por ali: a pessoa autoriza, volta, e
+encontra a tela de login **idêntica** — autenticada, sem nada explicando, e
+clicando de novo para sempre.
+
+Por isso a criação da agência subiu para `recarregarSessao`, que é por onde
+toda volta passa. Três detalhes:
+
+- **A conferência vem depois de `carregarSessao` falhar**, não antes: no
+  caminho normal, que é a imensa maioria das cargas, ela não custa consulta
+  nenhuma.
+- **`garantirAgencia` pode recusar de propósito** — é o caso do convite
+  pendente —, e aí não há chamada cujo retorno a tela leia. O motivo viaja em
+  `avisoDaEntrada`, no contexto, e a `LoginView` o mostra na mesma faixa do
+  erro. Sem ele, o convidado que entra pelo Google fica num beco mudo.
+- **O nome e a foto do Google vêm em chaves próprias** (`full_name`/`name`,
+  `avatar_url`/`picture`); o cadastro daqui grava `nome`/`avatar`. Lendo só as
+  nossas, toda conta do Google entrava chamada pelo começo do e-mail e sem
+  foto — logo depois de a pessoa ter autorizado justamente o acesso ao perfil.
+  `nome` é lido primeiro: quem editou o perfil aqui dentro não pode ver o nome
+  do Google voltar no login seguinte.
+
+**O botão fica só na aba de login, e isso é decisão.** Em "Nova Agência" a
+pessoa digita o nome da agência, e não há como carregá-lo na ida — a conta
+nasceria com o nome padrão e o que ela escreveu sumiria sem aviso. É a tela
+oferecendo mais do que o caminho honra, que é a família do `feed_story`, do
+`|| midia` no story e da fila sem produtor.
+
+**Nada disso mora no repositório.** O provedor é ligado em *Authentication →
+Providers* no painel do Supabase, com um cliente OAuth do Google cuja URI de
+retorno é `https://<projeto>.supabase.co/auth/v1/callback`, e o domínio do app
+precisa estar nas *Redirect URLs*. Enquanto não estiver, a chamada volta
+`Unsupported provider: provider is not enabled` — que a tela traduz dizendo
+onde ligar, em vez de deixar quem clicou concluir que o produto quebrou.
+
+Protegido por `tests/entrar-com-google.test.ts`, conferido ao contrário:
+tirando o trecho da agência de `recarregarSessao`, duas asserções reprovam.
+
 ---
 
 ## Como verificar cada camada
