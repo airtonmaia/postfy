@@ -231,22 +231,17 @@ export const enviarEmPartes = async (
   try {
     const leitor = corpo.getReader();
     const partes: { ETag?: string; PartNumber: number }[] = [];
-    let acumulado: Uint8Array[] = [];
-    let acumuladoBytes = 0;
+    let sobra = Buffer.alloc(0);
     let enviadosAoTodo = 0;
     let numero = 1;
 
-    const enviarParte = async () => {
-      if (!acumuladoBytes) return;
-      const dados = Buffer.concat(acumulado.map((c) => Buffer.from(c)), acumuladoBytes);
+    const enviarParte = async (dados: Buffer) => {
       const resposta = await cliente.send(
         new UploadPartCommand({ Bucket, Key: chave, UploadId, PartNumber: numero, Body: dados })
       );
       partes.push({ ETag: resposta.ETag, PartNumber: numero });
       numero += 1;
-      enviadosAoTodo += acumuladoBytes;
-      acumulado = [];
-      acumuladoBytes = 0;
+      enviadosAoTodo += dados.length;
     };
 
     for (;;) {
@@ -254,19 +249,34 @@ export const enviarEmPartes = async (
       if (done) break;
       if (!value) continue;
 
-      acumulado.push(value);
-      acumuladoBytes += value.byteLength;
+      sobra = Buffer.concat([sobra, Buffer.from(value)]);
 
       if (Date.now() - comecou > orcamentoMs) {
-        throw new TempoEsgotadoNoEnvio(enviadosAoTodo + acumuladoBytes);
+        throw new TempoEsgotadoNoEnvio(enviadosAoTodo + sobra.length);
       }
 
-      // O S3 exige pelo menos 5 MB por parte, menos na última. Juntar até 8
-      // dá folga e mantém o pico de memória pequeno.
-      if (acumuladoBytes >= TAMANHO_DA_PARTE) await enviarParte();
+      /**
+       * **Partes de tamanho exato, e não "pelo menos tanto".**
+       *
+       * O S3 aceita partes de tamanhos diferentes; o **R2 não**: ele recusa
+       * com `All non-trailing parts must have the same length`. A primeira
+       * versão mandava o que tivesse acumulado quando passasse do limite —
+       * 8,0 MB, depois 8,3, depois 8,1 — e o erro só aparecia no arquivo que
+       * tinha mais de uma parte, ou seja, exatamente nos grandes que o envio
+       * em partes veio resolver.
+       *
+       * A sobra fica para a parte seguinte. A última pode ser menor, e é a
+       * única que pode.
+       */
+      while (sobra.length >= TAMANHO_DA_PARTE) {
+        await enviarParte(sobra.subarray(0, TAMANHO_DA_PARTE));
+        sobra = sobra.subarray(TAMANHO_DA_PARTE);
+      }
     }
 
-    await enviarParte();
+    // A última parte é o que sobrou, de qualquer tamanho. Arquivo menor que
+    // uma parte cai aqui com uma parte só, que é válido.
+    if (sobra.length) await enviarParte(sobra);
 
     await cliente.send(
       new CompleteMultipartUploadCommand({
