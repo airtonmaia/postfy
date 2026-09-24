@@ -168,6 +168,11 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  * botão fora dela empurraria a legenda e os botões de decisão para baixo da
  * dobra — e a decisão é o que a tela existe para receber.
  *
+ * **No canto inferior direito**, porque o superior já é da etiqueta de
+ * versão: os dois ali disputavam o mesmo espaço, e num card estreito o botão
+ * cobria o `v1` — a informação que diz ao cliente que a peça mudou desde a
+ * última vez que ele olhou.
+ *
  * Fica visível sempre, e não só no `hover`: no celular não há `hover`, e é
  * no celular que o cliente aprova.
  */
@@ -183,7 +188,7 @@ const BotaoBaixar: React.FC<{ url: string }> = ({ url }) => (
     }}
     title="Baixar este arquivo"
     aria-label="Baixar este arquivo"
-    className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/75 text-white flex items-center justify-center backdrop-blur-xs transition-colors"
+    className="absolute bottom-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/75 text-white flex items-center justify-center backdrop-blur-xs transition-colors"
   >
     <Download className="w-4 h-4" />
   </button>
