@@ -441,3 +441,81 @@ describe('o escopo do Google é o que não exige verificação', () => {
     expect(rotas.length).toBeLessThanOrEqual(12);
   });
 });
+
+/**
+ * **Duas versões desta entrega falharam em silêncio, e pelo mesmo motivo.**
+ *
+ * "Sem miniatura" é um desfecho válido — a peça continua servindo —, então a
+ * falha era capturada e virava `null`. Só que silenciosa ela é
+ * indistinguível de defeito: o quadro vazio não dizia se o problema era o
+ * Google, o balde ou a autorização, e cada rodada de diagnóstico custou uma
+ * versão.
+ *
+ * É a regra que este projeto já registra em outra roupa: *tela que depende de
+ * configuração externa diz o que falta, com nome*. Aqui o nome é o motivo.
+ */
+describe('a miniatura que não veio diz por que não veio', () => {
+  const rota = semComentarios(ler('api', 'upload-url.ts'));
+  const corpo = rota.slice(rota.indexOf('const miniaturaDoDrive'), rota.indexOf('const listarDaBiblioteca'));
+
+  it('a guarda está medindo a rota da miniatura', () => {
+    expect(corpo.length).toBeGreaterThan(500);
+  });
+
+  it('toda saída sem miniatura carrega o motivo', () => {
+    /*
+      A conferência é por **efeito**: nenhuma resposta pode dizer só
+      `url: null`. Uma saída muda é exatamente o que fez esta entrega
+      precisar de três versões.
+    */
+    /*
+      A primeira versão desta guarda procurava o literal `json({ url: null })`
+      e não pegava a forma quebrada em linhas — que é justamente como a saída
+      do final está escrita. Agora ela olha cada `url: null` e exige o motivo
+      logo ao lado.
+    */
+    const mudas: string[] = [];
+    for (let i = corpo.indexOf('url: null'); i >= 0; i = corpo.indexOf('url: null', i + 1)) {
+      /*
+        Até o fecha-chaves do próprio objeto, e não uma janela de tantos
+        caracteres: a janela alcançava o `const motivo` do `catch` logo
+        abaixo e aprovava uma saída muda. Guarda que aceita o vizinho no
+        lugar do alvo não guarda — este arquivo já registra isso três vezes.
+      */
+      const fim = corpo.indexOf('}', i);
+      const objeto = corpo.slice(i, fim < 0 ? i + 140 : fim);
+      if (!/motivo/.test(objeto)) mudas.push(objeto.split('\n')[0]);
+    }
+
+    expect(mudas, 'voltou uma saída sem miniatura que não diz por quê').toEqual([]);
+    expect(corpo).toMatch(/motivo:/);
+  });
+
+  it('a tela mostra o motivo em vez de só não desenhar', () => {
+    const uploader = semComentarios(ler('src', 'components', 'common', 'MediaUploader.tsx'));
+    expect(uploader).toMatch(/semMiniatura/);
+    expect(uploader, 'a tela voltou a engolir o motivo').toMatch(/busca\.motivo/);
+  });
+
+  it('página de erro do Google não é gravada como imagem', () => {
+    /*
+      O Google devolve HTML com status 200 quando recusa a miniatura. Gravá-lo
+      daria um arquivo no balde que o navegador não desenha — o mesmo quadro
+      vazio, agora ocupando espaço e parecendo resolvido.
+    */
+    expect(corpo).toMatch(/tipo\.startsWith\('image\/'\)/);
+  });
+
+  it('há mais de um caminho para a miniatura', () => {
+    /*
+      `thumbnailLink` só existe quando o Google já gerou a miniatura — para
+      vídeo recém-enviado pode demorar, e para alguns formatos não vem nunca.
+      O endereço de `drive.google.com/thumbnail` gera sob demanda.
+    */
+    expect(corpo).toMatch(/thumbnailLink/);
+    expect(corpo).toMatch(/drive\.google\.com\/thumbnail/);
+    // Com e sem o cabeçalho: arquivo não público recusa sem ele, e alguns
+    // endereços recusam com ele.
+    expect(corpo).toMatch(/for \(const comToken of \[true, false\]\)/);
+  });
+});

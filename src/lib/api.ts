@@ -164,17 +164,24 @@ export const arquivosApi = {
    * Devolve `null` quando não há miniatura. A peça continua válida: o cartão
    * mostra o nome do arquivo em vez de um quadro vazio.
    */
-  miniaturaDoDrive: async (workspaceId: string, fileId: string): Promise<string | null> => {
+  miniaturaDoDrive: async (
+    workspaceId: string,
+    fileId: string
+  ): Promise<{ url: string | null; motivo?: string }> => {
     try {
-      const { url } = await chamar<{ url: string | null }>('/api/upload-url', {
+      return await chamar<{ url: string | null; motivo?: string }>('/api/upload-url', {
         acao: 'miniatura-do-drive',
         workspaceId,
         fileId,
       });
-      return url;
-    } catch {
-      /* Sem miniatura a peça continua válida. Ver o comentário acima. */
-      return null;
+    } catch (erro) {
+      /*
+        Sem miniatura a peça continua válida — mas o **motivo** volta junto.
+        Duas versões desta entrega falharam em silêncio: a falha era
+        capturada, virava "sem miniatura", e o quadro vazio não dizia se o
+        problema era o Google, o balde ou a autorização.
+      */
+      return { url: null, motivo: erro instanceof Error ? erro.message : 'falha desconhecida' };
     }
   },
 
