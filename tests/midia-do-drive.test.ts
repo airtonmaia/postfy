@@ -442,16 +442,18 @@ describe('o escopo do Google é o que não exige verificação', () => {
 
   it('a conexão é da agência, e a tela diz de qual conta', () => {
     /*
-      "Conectado" sem dizer de quem não ajuda: quem conectar a conta errada do
-      Google só descobre quando não achar os arquivos no seletor.
+      "Conectado" sem dizer de quem não ajuda — e com **mais de uma conta**
+      isso deixa de ser detalhe: o e-mail é o que distingue o Drive da agência
+      do Drive do cliente na hora de escolher.
     */
     const cartao = semComentarios(
       ler('src', 'components', 'settings', 'tabs', 'DriveDaAgenciaCard.tsx')
     );
 
-    expect(cartao).toMatch(/conexao\.email/);
+    expect(cartao).toMatch(/conta\.email/);
     expect(cartao).toMatch(/conectarDrive\(/);
     expect(cartao).toMatch(/desconectarDrive\(/);
+    expect(cartao, 'a tela voltou a mostrar uma conta só').toMatch(/contas\.map\(/);
   });
 
   it('não entrou rota nova em api/', () => {
@@ -1177,5 +1179,143 @@ describe('o portal toca pelo player do Google, e a liberação acaba', () => {
     );
     const trancar = drive.slice(drive.indexOf('export const trancarPorLink'));
     expect(trancar.slice(0, 600)).toMatch(/permissions\/anyoneWithLink/);
+  });
+});
+
+/**
+ * **Mais de uma conta do Drive por agência.**
+ *
+ * Uma agência tem o Drive dela e, com frequência, o do cliente. Com uma
+ * conta só, buscar no outro exigia desconectar e reconectar — e o pior não
+ * era o trabalho: cada arte já escolhida deixava de ter miniatura, cópia e
+ * player, porque a credencial que as busca tinha ido embora.
+ *
+ * O que torna duas contas seguro é a **referência lembrar de qual veio**.
+ * `drive.file` é por app **e por conta**: o token de uma não alcança o
+ * arquivo da outra, e a resposta é 404 — o mesmo sintoma do arquivo sem
+ * concessão, que já custou três rodadas de diagnóstico.
+ */
+describe('a agência pode ter mais de uma conta do Drive', () => {
+  const uploader = semComentarios(ler('src', 'components', 'common', 'MediaUploader.tsx'));
+
+  it('a arte guarda de qual conta veio', () => {
+    const midia = semComentarios(ler('src', 'lib', 'midiaDoDrive.ts'));
+
+    expect(midia, 'a referência parou de gravar a conta').toMatch(
+      /campos\.set\('conta', arquivo\.conta\)/
+    );
+    expect(midia).toMatch(/conta: campos\.get\('conta'\)/);
+    expect(uploader, 'a escolha não grava mais a conta na referência').toMatch(/conta: conta\?\.id/);
+  });
+
+  it('a escolha da conta vem antes do seletor', () => {
+    /*
+      Abrir o seletor sem perguntar faria a pessoa procurar no lugar errado —
+      e, pior, o arquivo escolhido carregaria a conta errada para sempre.
+    */
+    expect(uploader).toMatch(/contas\.length > 1/);
+    expect(uploader).toMatch(/escolherNoDrive\(conta\)/);
+    // Com uma conta só não há o que escolher: perguntar o óbvio custaria um
+    // clique em toda escolha do caso mais comum.
+    expect(uploader).toMatch(/escolherNoDrive\(contas\[0\]\)/);
+  });
+
+  it('o servidor confere que a conta é da agência', () => {
+    /*
+      Sem isso, um id de conta de outra agência daria acesso ao Drive dela. É
+      o mesmo cuidado da chave do balde, conferida contra o prefixo da
+      agência antes de apagar.
+    */
+    for (const rota of ['upload-url.ts', 'social-connect.ts']) {
+      const fonte = semComentarios(ler('api', rota));
+      const escolha = fonte.slice(fonte.indexOf("from('drive_contas')"));
+
+      expect(escolha.slice(0, 500), `${rota} aceita a conta sem conferir a agência`).toMatch(
+        /\.eq\('workspace_id', workspaceId\)/
+      );
+    }
+  });
+
+  it('referência antiga cai na conta mais antiga', () => {
+    /*
+      Ela não diz de qual conta veio porque só existia uma quando foi
+      gravada. Cair na mais recente daria 404 na arte que funcionava ontem.
+    */
+    for (const rota of ['upload-url.ts', 'social-connect.ts']) {
+      const fonte = semComentarios(ler('api', rota));
+      expect(fonte, `${rota} não tem o recuo para a conta mais antiga`).toMatch(
+        /\.order\('conectado_em'\)\.limit\(1\)/
+      );
+    }
+  });
+
+  it('trancar por link agrupa por conta', () => {
+    /*
+      Cada arte pode ter vindo de uma conta diferente, e o token de uma não
+      alcança o arquivo da outra: uma volta só, com um token só, deixaria
+      metade das liberações de pé.
+    */
+    const cron = semComentarios(ler('api', 'publicar.ts'));
+    const trancar = cron.slice(cron.indexOf('const trancarVideosDoDrive'));
+
+    expect(trancar.slice(0, 2000)).toMatch(/porConta/);
+    expect(trancar.slice(0, 2000)).toMatch(/for \(const \[contaId, arquivos\] of porConta\)/);
+  });
+
+  it('reconectar a mesma conta não cria uma irmã', () => {
+    /*
+      Sem o índice único, autorizar de novo depois de um problema deixaria
+      duas entradas com o mesmo nome na tela de escolha — uma delas com
+      credencial morta, e nada distinguindo as duas.
+    */
+    const migracao = ler(
+      'supabase',
+      'migrations',
+      '20260924140000_varias_contas_do_drive.sql'
+    );
+
+    expect(migracao).toMatch(/create unique index if not exists drive_contas_agencia_email_idx/);
+    expect(semComentarios(ler('api', 'social-callback.ts'))).toMatch(
+      /onConflict: 'workspace_id,email'/
+    );
+  });
+
+  it('a credencial de cada conta continua inalcançável', () => {
+    const migracao = ler(
+      'supabase',
+      'migrations',
+      '20260924140000_varias_contas_do_drive.sql'
+    );
+
+    expect(migracao).toMatch(
+      /alter table public\.drive_contas_credenciais enable row level security/
+    );
+    expect(
+      migracao,
+      'a tabela da credencial ganhou política — ela guarda acesso continuado ao Drive'
+    ).not.toMatch(/create policy[^;]*drive_contas_credenciais/);
+  });
+
+  it('o que já estava conectado vira a primeira conta', () => {
+    /*
+      Sem a cópia, quem conectou ontem abriria a tela hoje e veria "nenhuma
+      conta" — e as peças daquela conta perderiam miniatura, cópia e player.
+      Migração que perde configuração é migração que gera chamado.
+    */
+    const migracao = ler(
+      'supabase',
+      'migrations',
+      '20260924140000_varias_contas_do_drive.sql'
+    );
+
+    expect(migracao).toMatch(/insert into public\.drive_contas[\s\S]*from public\.drive_da_agencia/);
+    expect(migracao).toMatch(
+      /insert into public\.drive_contas_credenciais[\s\S]*from public\.drive_credenciais/
+    );
+    // E as tabelas velhas ficam: a `main` publicada ainda as lê, e um `drop`
+    // aqui derrubaria o produto entre a migração e o deploy.
+    expect(migracao, 'a migração apaga tabela que a versão publicada ainda usa').not.toMatch(
+      /drop table/
+    );
   });
 });

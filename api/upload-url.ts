@@ -283,7 +283,19 @@ async function handler(request: Request): Promise<Response> {
  * esta entrega levar três rodadas.
  */
 const acessoDoDrive = async (
-  workspaceId: string
+  workspaceId: string,
+  /**
+   * Qual conta do Drive.
+   *
+   * A agência pode ter duas — a dela e a do cliente — e o token de uma não
+   * alcança o arquivo da outra: `drive.file` é por app **e por conta**, e
+   * usar a errada devolve 404, que é o mesmo sintoma do arquivo sem
+   * concessão.
+   *
+   * Ausente, cai na conta **mais antiga** da agência: é a única que existia
+   * quando as referências sem esse campo foram gravadas.
+   */
+  contaId?: string
 ): Promise<{ token?: string; motivo?: string }> => {
   const { id, segredo } = credenciaisDoGoogle();
   if (!id || !segredo) {
@@ -293,14 +305,37 @@ const acessoDoDrive = async (
   const supabase = clienteDeServico();
   if (!supabase) return { motivo: 'falta a chave de serviço no servidor' };
 
+  /*
+    A conta é conferida **contra a agência de quem pediu**, e não aceita como
+    veio: sem isso, um id de conta de outra agência daria acesso ao Drive
+    dela. É o mesmo cuidado da chave do balde, que é conferida contra o
+    prefixo antes de apagar.
+  */
+  const consulta = supabase
+    .from('drive_contas')
+    .select('id')
+    .eq('workspace_id', workspaceId);
+
+  const { data: conta } = contaId
+    ? await consulta.eq('id', contaId).maybeSingle()
+    : await consulta.order('conectado_em').limit(1).maybeSingle();
+
+  if (!conta) {
+    return {
+      motivo: contaId
+        ? 'esta conta do Google Drive não pertence à agência'
+        : 'esta agência não tem Google Drive conectado',
+    };
+  }
+
   const { data: credencial } = await supabase
-    .from('drive_credenciais')
+    .from('drive_contas_credenciais')
     .select('refresh_token')
-    .eq('workspace_id', workspaceId)
+    .eq('conta_id', conta.id)
     .maybeSingle();
 
   if (!credencial?.refresh_token) {
-    return { motivo: 'esta agência não tem Google Drive conectado' };
+    return { motivo: 'esta conta do Google Drive perdeu a credencial — reconecte' };
   }
 
   try {
@@ -363,7 +398,7 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
     return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
   }
 
-  const { workspaceId, fileId } = corpo || {};
+  const { workspaceId, fileId, contaId } = corpo || {};
   if (!textoValido(workspaceId, 64) || !textoValido(fileId, 200)) {
     return json({ error: 'Agência ou arquivo não informado.' }, 400);
   }
@@ -375,7 +410,7 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
     return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
   }
 
-  const acesso = await acessoDoDrive(workspaceId);
+  const acesso = await acessoDoDrive(workspaceId, contaId);
   if (!acesso.token) return json({ url: null, motivo: acesso.motivo });
 
   try {
@@ -479,7 +514,7 @@ const acessoPorLinkNoDrive = async (
     return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
   }
 
-  const { workspaceId, fileIds } = corpo || {};
+  const { workspaceId, fileIds, contaId } = corpo || {};
   if (!textoValido(workspaceId, 64) || !Array.isArray(fileIds) || !fileIds.length) {
     return json({ error: 'Agência ou arquivos não informados.' }, 400);
   }
@@ -487,7 +522,7 @@ const acessoPorLinkNoDrive = async (
   const membro = await papelNaAgencia(request, workspaceId, userId);
   if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
 
-  const acesso = await acessoDoDrive(workspaceId);
+  const acesso = await acessoDoDrive(workspaceId, contaId);
   if (!acesso.token) return json({ ok: false, motivo: acesso.motivo });
 
   let feitos = 0;
@@ -513,7 +548,7 @@ const miniaturaDoDrive = async (request: Request, userId: string): Promise<Respo
     return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
   }
 
-  const { workspaceId, fileId } = corpo || {};
+  const { workspaceId, fileId, contaId } = corpo || {};
   if (!textoValido(workspaceId, 64) || !textoValido(fileId, 200)) {
     return json({ error: 'Agência ou arquivo não informado.' }, 400);
   }
@@ -525,7 +560,7 @@ const miniaturaDoDrive = async (request: Request, userId: string): Promise<Respo
     return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
   }
 
-  const acessoDaAgencia = await acessoDoDrive(workspaceId);
+  const acessoDaAgencia = await acessoDoDrive(workspaceId, contaId);
   if (!acessoDaAgencia.token) return json({ url: null, motivo: acessoDaAgencia.motivo });
 
   try {

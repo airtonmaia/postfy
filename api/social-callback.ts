@@ -354,37 +354,50 @@ async function handler(request: Request): Promise<Response> {
 
       const email = await emailDaConta(trocado.acesso);
 
-      const { error: erroConexao } = await supabase.from('drive_da_agencia').upsert(
-        {
-          workspace_id: dados.workspaceId,
-          email,
-          conectado_por: dados.userId,
-          conectado_em: new Date().toISOString(),
-        },
-        { onConflict: 'workspace_id' }
-      );
+      /*
+        Uma linha por **conta**, não por agência: a agência costuma ter o
+        Drive dela e o do cliente, e quem monta a peça escolhe de onde buscar.
 
-      if (erroConexao) {
-        console.error('[social/callback] drive', erroConexao.message);
+        `onConflict` no par agência+e-mail: reconectar a mesma conta atualiza
+        a linha em vez de criar uma irmã — sem isso, autorizar de novo depois
+        de um problema deixaria duas entradas com o mesmo nome na tela de
+        escolha, uma delas com credencial morta.
+      */
+      const { data: conta, error: erroConexao } = await supabase
+        .from('drive_contas')
+        .upsert(
+          {
+            workspace_id: dados.workspaceId,
+            email,
+            conectado_por: dados.userId,
+            conectado_em: new Date().toISOString(),
+          },
+          { onConflict: 'workspace_id,email' }
+        )
+        .select('id')
+        .single();
+
+      if (erroConexao || !conta) {
+        console.error('[social/callback] drive', erroConexao?.message);
         return paginaDeRetorno('Não foi possível guardar a conexão.', true);
       }
 
-      const { error: erroCredencial } = await supabase.from('drive_credenciais').upsert(
+      const { error: erroCredencial } = await supabase.from('drive_contas_credenciais').upsert(
         {
-          workspace_id: dados.workspaceId,
+          conta_id: conta.id,
           refresh_token: trocado.renovacao,
           access_token: trocado.acesso,
           expira_em: new Date(Date.now() + trocado.expiraEm * 1000).toISOString(),
           atualizado_em: new Date().toISOString(),
         },
-        { onConflict: 'workspace_id' }
+        { onConflict: 'conta_id' }
       );
 
       if (erroCredencial) {
         // Conexão sem credencial não abre o seletor e não diz por quê.
         // Melhor falhar aqui, com a pessoa ainda olhando a tela.
         console.error('[social/callback] drive credencial', erroCredencial.message);
-        await supabase.from('drive_da_agencia').delete().eq('workspace_id', dados.workspaceId);
+        await supabase.from('drive_contas').delete().eq('id', conta.id);
         return paginaDeRetorno('Não foi possível guardar a credencial do Drive.', true);
       }
 

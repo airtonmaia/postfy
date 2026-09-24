@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.81.0',
+    data: '2026-09-24',
+    resumo: 'A agência pode conectar mais de uma conta do Google Drive.',
+    novidades: [
+      'Configurações → Integrações lista todas as contas conectadas, com o e-mail de cada uma, e tem "Conectar outra". A sua e a do cliente convivem.',
+      'No menu "Adicionar mídia", cada conta aparece com o e-mail: você escolhe de qual buscar antes de o seletor abrir. Com uma conta só, nada muda — ele abre direto.',
+    ],
+    melhorias: [
+      'Cada arte guarda de qual conta veio, então a prévia, a cópia e a liberação para o portal usam sempre a credencial certa.',
+      'Artes escolhidas antes desta versão continuam funcionando: elas usam a conta mais antiga, que era a única que existia quando foram escolhidas.',
+      'Reconectar a mesma conta atualiza a que já está lá, em vez de criar uma segunda entrada com o mesmo nome.',
+    ],
+  },
+  {
     versao: '2.80.1',
     data: '2026-09-24',
     resumo: 'Eram dois cliques para assistir ao vídeo no portal.',
