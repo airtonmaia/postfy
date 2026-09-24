@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { MarcaOrquesia } from '../common/MarcaOrquesia';
+import { LogoDoGoogle } from '../common/LogoDoGoogle';
+import { entrarComGoogle } from '../../lib/authSupabase';
 import { gerarSlug } from '../../lib/slug';
 import { usePostfy } from '../../context/PostfyContext';
 import { Role, User } from '../../types';
@@ -20,7 +22,8 @@ import {
 import { Button } from '../ui/button';
 
 export const LoginView: React.FC = () => {
-  const { login, register, recuperarSenha, currentWorkspace, aparencia } = usePostfy();
+  const { login, register, recuperarSenha, currentWorkspace, aparencia, avisoDaEntrada } =
+    usePostfy();
 
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -37,6 +40,33 @@ export const LoginView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  /**
+   * Entrar com o Google.
+   *
+   * **O caminho feliz não volta para cá.** `entrarComGoogle` manda a página
+   * inteira para o Google, então o que segue depois do `await` só roda quando
+   * a chamada falha — e é por isso que o botão não sai do estado de carregando
+   * no sucesso: devolvê-lo a "Entrar com Google" no instante em que o
+   * navegador está saindo diria que o clique não fez nada.
+   */
+  const handleGoogleLogin = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsGoogleLoading(true);
+
+    try {
+      const res = await entrarComGoogle();
+      if (!res.sucesso) {
+        setErrorMsg(res.mensagem || 'Não foi possível entrar com o Google.');
+        setIsGoogleLoading(false);
+      }
+    } catch {
+      setErrorMsg('Não foi possível abrir o login do Google. Tente novamente.');
+      setIsGoogleLoading(false);
+    }
+  };
 
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,11 +260,50 @@ export const LoginView: React.FC = () => {
             </button>
           </div>
 
+          {/* Entrar com Google — em cima do formulário, no modo de login.
+
+              Fica só nesta aba de propósito. Em "Nova Agência" a pessoa digita
+              o nome da agência, e o Google não tem por onde carregá-lo na ida:
+              a conta nasceria com o nome padrão e o que ela escreveu sumiria
+              sem aviso — a tela oferecendo mais do que o caminho honra, que é
+              a família de bug que este produto já pagou várias vezes.
+
+              Quem ainda não tem conta também entra por aqui: a primeira volta
+              do Google cria a conta e a agência, como já acontece com quem
+              confirma o e-mail depois do cadastro. */}
+          {activeMode === 'login' && (
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleLogin}
+                disabled={isLoading || isGoogleLoading}
+                className="w-full"
+              >
+                <LogoDoGoogle className="w-4 h-4" />
+                <span>{isGoogleLoading ? 'Abrindo o Google...' : 'Entrar com Google'}</span>
+              </Button>
+
+              <div className="flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  ou
+                </span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+            </div>
+          )}
+
           {/* Feedback Messages */}
-          {errorMsg && (
+          {/* `avisoDaEntrada` é o recado de quem voltou de um provedor externo
+              com sessão aberta e sem agência — o caso do convite pendente. Ele
+              não nasce de nenhum clique desta tela, então precisa aparecer
+              sozinho: sem isso a volta do Google é uma tela de login idêntica à
+              anterior, e a pessoa tenta de novo achando que falhou. */}
+          {(errorMsg || avisoDaEntrada) && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2 animate-in fade-in">
               <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-              <span>{errorMsg}</span>
+              <span>{errorMsg || avisoDaEntrada}</span>
             </div>
           )}
 

@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.84.0',
+    data: '2026-09-24',
+    resumo: 'Entrar com a conta do Google, em cima do formulário de login.',
+    novidades: [
+      'A tela de entrada tem o botão "Entrar com Google" acima do formulário — quem tem conta Google não precisa mais de senha para entrar.',
+      'Quem entra pelo Google pela primeira vez já chega com a agência criada, sem passar por cadastro.',
+    ],
+    melhorias: [
+      'O nome e a foto da conta do Google passam a preencher o perfil na entrada, em vez de o nome ser o começo do e-mail.',
+      'Quem volta do Google com um convite esperando vê o motivo na tela, em vez de cair de novo no login sem explicação.',
+      'Com o provedor ainda não ligado, a tela diz onde ligá-lo em vez de mostrar o erro cru do servidor.',
+    ],
+  },
+  {
     versao: '2.83.0',
     data: '2026-09-24',
     resumo: 'Copiar o acesso do cliente ao portal, pronto para enviar.',

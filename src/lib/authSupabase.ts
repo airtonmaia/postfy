@@ -27,7 +27,58 @@ const traduzir = (mensagem: string): string => {
   if (m.includes('unable to validate email')) return 'Informe um e-mail válido.';
   if (m.includes('for security purposes')) return 'Aguarde alguns segundos antes de tentar de novo.';
   if (m.includes('email rate limit')) return 'Limite de envio de e-mails atingido. Tente mais tarde.';
+  /*
+    O provedor desligado é erro de configuração, não do usuário, e a mensagem
+    crua ("Unsupported provider: provider is not enabled") faz quem clica
+    concluir que o produto está quebrado. A mesma regra da aba Integrações:
+    diz o que falta, com o nome de onde se liga.
+  */
+  if (m.includes('provider is not enabled')) {
+    return 'Entrar com Google ainda não está ligado neste ambiente — falta habilitar o provedor Google em Authentication → Providers, no painel do Supabase.';
+  }
   return mensagem;
+};
+
+/**
+ * Entrar com a conta do Google.
+ *
+ * **Redireciona a página inteira**, então o que vier depois desta chamada só
+ * roda quando ela *falha* — é o caminho do erro, não o do sucesso. Quem
+ * termina o login é a volta do Google: o SDK lê o código da URL
+ * (`detectSessionInUrl`), abre a sessão, e o app monta já autenticado.
+ *
+ * **Quem chega assim pela primeira vez não tem agência**, e é `garantirAgencia`
+ * no carregamento da sessão que cria a dele. Sem isso a volta do Google cai
+ * numa sessão sem vínculo, `carregarSessao` devolve `null`, e a pessoa vê a
+ * tela de login de novo — logada, sem nada explicando.
+ *
+ * `prompt: 'select_account'` porque quem entra num produto de agência costuma
+ * ter mais de uma conta Google aberta no navegador. Sem ele, o Google escolhe
+ * sozinho a primeira, e a pessoa entra com a conta errada sem ter visto a
+ * escolha acontecer.
+ */
+export const entrarComGoogle = async (): Promise<ResultadoAuth> => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/`,
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+  if (error) return { sucesso: false, mensagem: traduzir(error.message) };
+  return { sucesso: true };
+};
+
+/**
+ * Há sessão do Supabase Auth aberta?
+ *
+ * Diferente de `carregarSessao`, que devolve `null` tanto para quem não entrou
+ * quanto para quem entrou e ainda não pertence a agência nenhuma. São coisas
+ * diferentes e o segundo caso precisa de tratamento — é o da volta do Google.
+ */
+export const temSessaoAberta = async (): Promise<boolean> => {
+  const { data } = await supabase.auth.getSession();
+  return Boolean(data.session?.user);
 };
 
 export const entrar = async (email: string, senha: string): Promise<ResultadoAuth> => {
@@ -92,6 +143,24 @@ export const cadastrar = async (input: {
 };
 
 /**
+ * Nome e foto que vieram do provedor de identidade.
+ *
+ * Cada um grava numa chave diferente do mesmo `user_metadata`: o cadastro
+ * daqui escreve `nome`/`avatar`, e o Google devolve `full_name`/`name` e
+ * `avatar_url`/`picture`. Ler só a nossa faria toda conta do Google entrar com
+ * o nome sendo o começo do e-mail e sem foto — com cara de perfil por
+ * preencher, num produto onde a pessoa acabou de autorizar o acesso ao perfil.
+ *
+ * `nome` vem primeiro porque é o que a tela de perfil grava: quem editou o
+ * nome aqui dentro não pode ver o do Google voltar no login seguinte.
+ */
+const nomeDoMetadado = (metadados: any): string =>
+  (metadados?.nome || metadados?.full_name || metadados?.name || '').trim();
+
+const avatarDoMetadado = (metadados: any): string =>
+  (metadados?.avatar || metadados?.avatar_url || metadados?.picture || '').trim();
+
+/**
  * Garante que o usuário logado pertence a alguma agência.
  * Roda no primeiro login: cria a agência com o nome informado no cadastro.
  */
@@ -138,13 +207,14 @@ export const garantirAgencia = async (): Promise<ResultadoAuth> => {
   }
 
   const metadados = usuario.user_metadata || {};
+  const nomeDaPessoa = nomeDoMetadado(metadados);
   const nomeDaAgencia =
     (metadados.nome_da_agencia || '').trim() ||
-    `Agência de ${(metadados.nome || usuario.email || 'nova conta').split('@')[0]}`;
+    `Agência de ${(nomeDaPessoa || usuario.email || 'nova conta').split('@')[0]}`;
 
   const { error } = await supabase.rpc('criar_agencia', {
     nome: nomeDaAgencia,
-    nome_do_usuario: metadados.nome || null,
+    nome_do_usuario: nomeDaPessoa || null,
   });
 
   if (error) return { sucesso: false, mensagem: error.message };
@@ -255,8 +325,8 @@ export const carregarSessao = async (
   return {
     userId: usuario.id,
     email: usuario.email || '',
-    nome: escolhido.name || metadados.nome || (usuario.email || '').split('@')[0],
-    avatar: escolhido.avatar || metadados.avatar || '',
+    nome: escolhido.name || nomeDoMetadado(metadados) || (usuario.email || '').split('@')[0],
+    avatar: escolhido.avatar || avatarDoMetadado(metadados),
     // O papel vem da tabela de membros, nunca de user_metadata: metadados são
     // editáveis pelo próprio usuário e não servem para autorização.
     role: (escolhido.role || 'owner') as Role,
