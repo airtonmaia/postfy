@@ -80,7 +80,21 @@ const carregarScript = (src: string): Promise<void> => {
  */
 export const abrirSeletorDoDrive = async (
   token: string,
-  quantos: number
+  quantos: number,
+  /**
+   * O número do projeto no Google Cloud.
+   *
+   * **Sem ele o `drive.file` não concede nada.** O seletor abre, a pessoa
+   * escolhe, o arquivo entra na peça — e toda leitura depois volta **404**,
+   * porque o Google não registrou a concessão para este app. Foi o que
+   * aconteceu: a miniatura falhava com 404 e a cópia na hora de agendar
+   * falharia igual, já com a data marcada.
+   *
+   * Vem do servidor junto do token, derivado do `client_id`: o id do projeto
+   * é o número antes do hífen. Uma variável nova para repetir um número que
+   * já está no `client_id` seria mais uma coisa para cadastrar errado.
+   */
+  appId: string
 ): Promise<ArquivoDoDrive[]> => {
   if (!API_KEY) throw new Error('Integração com o Google Drive não configurada.');
 
@@ -106,6 +120,9 @@ export const abrirSeletorDoDrive = async (
       .addView(vista)
       .setOAuthToken(token)
       .setDeveloperKey(API_KEY)
+      .setAppId(appId)
+      // O que faz o `drive.file` valer para os arquivos escolhidos. Ver o
+      // porquê no parâmetro `appId`.
       .setLocale('pt-BR')
       .setTitle('Escolha a arte no seu Drive');
 

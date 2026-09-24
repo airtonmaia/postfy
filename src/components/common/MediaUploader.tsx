@@ -112,8 +112,8 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     if (!currentWorkspace?.id) return;
 
     try {
-      const token = await tokenDoDrive(currentWorkspace.id);
-      const escolhidos = await abrirSeletorDoDrive(token, vagas);
+      const { token, appId } = await tokenDoDrive(currentWorkspace.id);
+      const escolhidos = await abrirSeletorDoDrive(token, vagas, appId);
       if (!escolhidos.length) return;
 
       setEnviando(true);
