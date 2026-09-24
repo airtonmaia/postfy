@@ -987,3 +987,80 @@ describe('a cópia do Drive acontece no servidor, e avisa quando falha', () => {
     ).toMatch(/gravacaoDeuCerto\('midia-do-drive'\)/);
   });
 });
+
+/**
+ * **O teto de 100 MB não era decisão de produto — era a memória.**
+ *
+ * `PutObject` simples obriga a ter o arquivo inteiro na mão, e o primeiro
+ * vídeo real a esbarrar no limite tinha **109 MB**: o tamanho de um Reels
+ * comum. A mensagem chegou a quem produz ("o arquivo tem 109 MB e o limite é
+ * 100 MB") porque a rodada anterior tirou essa falha do silêncio — e foi ela
+ * que apontou a correção.
+ */
+describe('a cópia sobe em partes, e desiste com resposta', () => {
+  const r2 = semComentarios(ler('api', '_lib', 'r2.ts'));
+  const rota = semComentarios(ler('api', 'upload-url.ts'));
+
+  it('o arquivo não passa inteiro pela memória', () => {
+    expect(r2, 'o envio em partes sumiu').toMatch(/CreateMultipartUploadCommand/);
+    expect(r2).toMatch(/UploadPartCommand/);
+    expect(r2).toMatch(/CompleteMultipartUploadCommand/);
+
+    /*
+      O fim é procurado **a partir do começo**: `acessoDoDrive` é declarada
+      antes de `copiarDoDrive` no arquivo, e o corte solto devolvia string
+      vazia — a guarda passaria a medir nada. É a mesma armadilha da âncora
+      que encontra a ocorrência errada, agora por ordem em vez de repetição.
+    */
+    const inicio = rota.indexOf('const copiarDoDrive');
+    const copia = rota.slice(inicio, rota.indexOf('const miniaturaDoDrive', inicio));
+
+    expect(inicio, 'a cópia sumiu da rota').toBeGreaterThan(-1);
+    expect(copia.length, 'o corte da guarda ficou vazio').toBeGreaterThan(400);
+    expect(copia, 'a cópia voltou a carregar o arquivo inteiro na memória').not.toMatch(
+      /arrayBuffer\(\)/
+    );
+    expect(copia).toMatch(/enviarEmPartes\(/);
+  });
+
+  it('parte não concluída é abortada', () => {
+    /*
+      Parte enviada e não concluída **fica no balde ocupando espaço**,
+      invisível na listagem, e a Cloudflare cobra por ela até alguém limpar.
+    */
+    const envio = r2.slice(r2.indexOf('export const enviarEmPartes'));
+    expect(envio).toMatch(/AbortMultipartUploadCommand/);
+    expect(envio, 'o aborto saiu do caminho de erro').toMatch(/catch \(erro\)[\s\S]{0,200}Abort/);
+  });
+
+  it('há orçamento de tempo, e ele responde em vez de morrer', () => {
+    /*
+      Estourar o tempo da função no meio é o pior desfecho: não sobra nem o
+      motivo. É o mesmo `ORCAMENTO_MS` do agendador, pela mesma razão.
+    */
+    const envio = r2.slice(r2.indexOf('export const enviarEmPartes'));
+    expect(envio).toMatch(/orcamentoMs/);
+    expect(envio).toMatch(/TempoEsgotadoNoEnvio/);
+
+    expect(rota, 'o tempo esgotado voltou a virar "falha desconhecida"').toMatch(
+      /erro instanceof TempoEsgotadoNoEnvio/
+    );
+    expect(rota).toMatch(/o tempo de cópia acabou depois de/);
+  });
+
+  it('o teto subiu junto com a capacidade', () => {
+    // Um teto que corta o tamanho de um Reels comum não protege nada: ele só
+    // transfere o problema para quem produz.
+    expect(rota).toMatch(/const LIMITE_DA_COPIA = 500 \* 1024 \* 1024/);
+  });
+
+  it('nenhuma dependência nova entrou por causa disso', () => {
+    /*
+      `@aws-sdk/lib-storage` faria o mesmo e traria os dois lockfiles para
+      atualizar — o CI instala com `--frozen-lockfile`, e este projeto já
+      quebrou uma vez exatamente assim.
+    */
+    const pacote = JSON.parse(ler('package.json'));
+    expect(Object.keys(pacote.dependencies || {})).not.toContain('@aws-sdk/lib-storage');
+  });
+});
