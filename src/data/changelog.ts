@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.80.1',
+    data: '2026-09-24',
+    resumo: 'Eram dois cliques para assistir ao vídeo no portal.',
+    corrigido: [
+      'O play que desenhávamos abria o player do Google, que pedia o play dele — e o segundo clique parecia que o primeiro não tinha funcionado. Agora o player do Drive aparece direto, com o quadro do vídeo e um botão só.',
+    ],
+    melhorias: [
+      'Numa lista com vários conteúdos, o player de cada card só carrega quando ele chega à vista.',
+    ],
+  },
+  {
     versao: '2.80.0',
     data: '2026-09-24',
     resumo: 'O vídeo no portal passou a tocar em qualidade adaptável, como no YouTube.',

@@ -132,37 +132,38 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  *
  * Depois do clique ele toca sozinho — a pessoa acabou de pedir isso.
  */
+/**
+ * O player do Google, montado direto.
+ *
+ * **Sem capa nossa por cima, e isso é a decisão.** Havia duas camadas: o
+ * nosso play abria o player do Drive, que pedia o play dele — dois cliques
+ * para uma coisa só, e o segundo parecendo que o primeiro não funcionou.
+ *
+ * O player do Drive já mostra um quadro do vídeo e o próprio botão, então a
+ * capa que desenhávamos só adiava o que ele faz melhor: ele **transcodifica**
+ * e escolhe a resolução pela conexão, que é o motivo de ele estar aqui.
+ *
+ * `loading="lazy"` porque uma lista de aprovações tem vários cards: sem ele,
+ * abrir a aba montaria o player de todos de uma vez. Assim só o que está à
+ * vista carrega — e o que carrega é a casca do player, não o vídeo.
+ */
+const PlayerDoDrive: React.FC<{ id: string; rotulo: string }> = ({ id, rotulo }) => (
+  <iframe
+    src={`https://drive.google.com/file/d/${id}/preview`}
+    title={`Vídeo do ${rotulo}`}
+    allow="autoplay; fullscreen"
+    allowFullScreen
+    loading="lazy"
+    className="w-full h-full border-0"
+  />
+);
+
 const VideoComCapa: React.FC<{
   src: string;
   capa?: string;
   rotulo: string;
-  /**
-   * O arquivo no Drive, quando a arte veio de lá.
-   *
-   * **Com ele, quem toca é o player do Google** — e isso é a diferença entre
-   * o celular de quem aprova baixar o original inteiro ou receber a
-   * resolução que a conexão aguenta. O Google transcodifica; nós não temos
-   * como, e um vídeo de 109 MB numa aprovação pelo celular é a conta do mês
-   * de alguém.
-   *
-   * Sem ele — arte enviada do computador — segue o `<video>` apontando para
-   * o nosso balde, que é o que sempre foi.
-   */
-  noDrive?: string | null;
-}> = ({ src, capa, rotulo, noDrive }) => {
+}> = ({ src, capa, rotulo }) => {
   const [tocando, setTocando] = useState(false);
-
-  if (tocando && noDrive) {
-    return (
-      <iframe
-        src={`https://drive.google.com/file/d/${noDrive}/preview`}
-        title={`Vídeo do ${rotulo}`}
-        allow="autoplay; fullscreen"
-        allowFullScreen
-        className="w-full h-full border-0"
-      />
-    );
-  }
 
   if (tocando) {
     return (
@@ -251,12 +252,13 @@ const CriativoDeFeedEStory: React.FC<{
           : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
       }
     >
-      {video || idNoDrive ? (
+      {idNoDrive ? (
+        <PlayerDoDrive id={idNoDrive} rotulo={emTela.rotulo} />
+      ) : video ? (
         <VideoComCapa
-          src={video || ''}
+          src={video}
           capa={urlDeExibicao(url || '') || undefined}
           rotulo={emTela.rotulo}
-          noDrive={idNoDrive}
         />
       ) : url ? (
         <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
@@ -959,15 +961,18 @@ export const ClientPortalView: React.FC = () => {
                           /* Vídeo toca; imagem é imagem. Antes tudo era
                              desenhado como imagem, então quem aprovava um
                              Reels decidia sobre um quadro vazio. */
-                          videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ||
                           idDeVideoNoDrive(job.mediaUrls[0]) ? (
+                            <PlayerDoDrive
+                              id={idDeVideoNoDrive(job.mediaUrls[0]) as string}
+                              rotulo="conteúdo"
+                            />
+                          ) : videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ? (
                             <VideoComCapa
                               src={
-                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) || ''
+                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) as string
                               }
                               capa={urlDeExibicao(job.mediaUrls[0]) || undefined}
                               rotulo="conteúdo"
-                              noDrive={idDeVideoNoDrive(job.mediaUrls[0])}
                             />
                           ) : (
                             <img
