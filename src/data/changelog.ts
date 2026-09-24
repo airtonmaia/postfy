@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.78.1',
+    data: '2026-09-24',
+    resumo: 'O portal do cliente ficava parado no estado de quando foi aberto.',
+    corrigido: [
+      'O portal carregava uma vez e não perguntava mais nada: a peça mandada depois não aparecia, a resposta no chat não chegava, e o vídeo — que fica pronto alguns segundos depois da peça — nunca ganhava o play. O cliente aprovava olhando uma capa parada.',
+    ],
+    melhorias: [
+      'Ele relê a cada minuto e sempre que a aba volta ao primeiro plano, como o sino da agência. Uma releitura que falha não interrompe quem está no meio de aprovar.',
+      'A releitura não conta como visita nova: o aviso de "o cliente abriu o portal" continua saindo uma vez por abertura.',
+    ],
+  },
+  {
     versao: '2.78.0',
     data: '2026-09-24',
     resumo: 'O cliente dá play no vídeo direto no card de aprovação.',

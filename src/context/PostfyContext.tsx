@@ -1101,6 +1101,63 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalToken, isAuthenticated]);
 
+  /**
+   * O portal relê os dados de tempos em tempos.
+   *
+   * **Ele carregava uma vez e ficava parado**, e isso tem um custo que só
+   * aparece com uso: o cliente vê o estado de quando abriu a aba. A peça que
+   * a agência mandou depois não aparece; a resposta no chat não chega; e o
+   * caso que trouxe esta correção — o vídeo fica pronto alguns segundos
+   * depois de a peça surgir, e o cliente aprova olhando uma capa parada,
+   * achando que não há vídeo nenhum.
+   *
+   * Não é um caso de borda: a cópia do arquivo acontece no navegador **da
+   * agência**, e nada dela alcança a aba do cliente. Ou o portal pergunta de
+   * novo, ou ele mostra sempre o primeiro instante.
+   *
+   * Um minuto, com o padrão do `AvisoDeAtualizacao` e do sino: intervalo
+   * **e** volta do foco, porque o navegador estrangula timer de aba em
+   * segundo plano — que é onde a aba do cliente passa a maior parte do tempo.
+   *
+   * Falha em silêncio de propósito. O portal já está pintado com dados
+   * válidos; trocar isso por uma mensagem de erro por causa de uma releitura
+   * seria assustar quem está no meio de aprovar.
+   */
+  useEffect(() => {
+    if (!portalToken || isAuthenticated) return;
+
+    let parado = false;
+
+    const reler = async () => {
+      if (parado || document.visibilityState === 'hidden') return;
+
+      const dados = await carregarPortal(portalToken).catch(() => null);
+      if (parado || !dados) return;
+
+      setDadosDoPortal(dados);
+      setAllJobs(dados.jobs);
+      setAllClientMaterials(dados.materiais);
+      /*
+        `registrarAcessoNoPortal` **não** é chamado aqui: ele é o aviso de
+        visita, e uma visita que se repete a cada minuto encheria o painel da
+        agência — é a mesma razão pela qual ele mora no efeito de abertura.
+      */
+    };
+
+    const relogio = setInterval(() => void reler(), 60_000);
+    const aoVoltar = () => void reler();
+    window.addEventListener('focus', aoVoltar);
+    document.addEventListener('visibilitychange', aoVoltar);
+
+    return () => {
+      parado = true;
+      clearInterval(relogio);
+      window.removeEventListener('focus', aoVoltar);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portalToken, isAuthenticated]);
+
   // ============================================================
   // Sincronização com o banco
   // ============================================================

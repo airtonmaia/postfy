@@ -819,3 +819,69 @@ describe('o play é visível antes de o vídeo existir na tela', () => {
     expect(efeito.slice(0, 400)).toMatch(/garantirMidiaDoDrive\(selectedJob\.id\)/);
   });
 });
+
+/**
+ * **O portal carregava uma vez e ficava parado.**
+ *
+ * O cliente via o estado de quando abriu a aba: a peça mandada depois não
+ * aparecia, a resposta no chat não chegava, e — o caso que trouxe esta
+ * correção — o vídeo fica pronto alguns segundos depois de a peça surgir,
+ * então ele aprovava olhando uma capa parada, achando que não havia vídeo.
+ *
+ * Não é caso de borda. A cópia do arquivo acontece no navegador **da
+ * agência**, e nada dela alcança a aba do cliente: ou o portal pergunta de
+ * novo, ou ele mostra sempre o primeiro instante.
+ */
+describe('o portal não fica parado no primeiro instante', () => {
+  const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+  const releitura = contexto.slice(contexto.indexOf('const reler = async'));
+
+  it('a guarda está medindo a releitura', () => {
+    expect(releitura.length).toBeGreaterThan(200);
+  });
+
+  it('relê por intervalo e na volta do foco', () => {
+    /*
+      Os dois, como o sino e o aviso de atualização: o navegador estrangula
+      timer de aba em segundo plano, que é onde a aba do cliente passa a maior
+      parte do tempo.
+    */
+    expect(releitura).toMatch(/setInterval/);
+    /*
+      Os dois `addEventListener`, e não a palavra solta: `visibilitychange`
+      continua aparecendo na limpeza do efeito, então a alternativa frouxa
+      aprovava um efeito que tinha deixado de escutar. Conferido ao
+      contrário — tirando as duas escutas —, a guarda passava.
+    */
+    expect(releitura, 'a volta do foco deixou de reler').toMatch(
+      /addEventListener\('focus', aoVoltar\)/
+    );
+    expect(releitura, 'a volta da aba ao primeiro plano deixou de reler').toMatch(
+      /addEventListener\('visibilitychange', aoVoltar\)/
+    );
+  });
+
+  it('a releitura não vira uma visita nova', () => {
+    /*
+      `registrarAcessoNoPortal` é o aviso de visita. Uma visita que se repete
+      a cada minuto encheria o painel da agência — é a mesma razão pela qual
+      ele mora no efeito de abertura.
+    */
+    expect(
+      releitura.slice(0, 1200),
+      'a releitura passou a avisar a agência a cada minuto'
+    ).not.toMatch(/registrarAcessoNoPortal/);
+  });
+
+  it('a releitura que falha não derruba o portal', () => {
+    // A tela já está pintada com dados válidos. Trocar isso por uma mensagem
+    // de erro seria assustar quem está no meio de aprovar.
+    expect(releitura.slice(0, 600)).toMatch(/catch\(\(\) => null\)/);
+  });
+
+  it('o intervalo é o mesmo do resto do produto', () => {
+    // Um minuto. Mais curto encheria de consulta o banco por nada; mais longo
+    // faria o cliente esperar sem saber o que esperar.
+    expect(releitura).toMatch(/60_000/);
+  });
+});

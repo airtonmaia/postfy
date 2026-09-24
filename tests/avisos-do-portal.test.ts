@@ -367,10 +367,17 @@ describe('o sino mostra o que chegou enquanto a aba estava aberta', () => {
      * volta** o que acabou de ler: a chave primária recusa uma a uma, em
      * silêncio, dentro da fila de gravação.
      */
-    const bloco = contexto.slice(
-      contexto.indexOf('buscarNotificacoesRecentes()'),
-      contexto.indexOf('setInterval(')
-    );
+    /*
+      O fim do corte é procurado **a partir do começo dele**, e não do início
+      do arquivo. Com `indexOf('setInterval(')` solto, o dia em que outro
+      `setInterval` nascesse antes deste — foi o que a releitura do portal
+      fez — o corte viraria vazio e a guarda reprovaria código correto.
+    */
+    const inicio = contexto.indexOf('buscarNotificacoesRecentes()');
+    const bloco = contexto.slice(inicio, contexto.indexOf('setInterval(', inicio));
+
+    expect(inicio, 'a sondagem do sino sumiu — confira esta guarda').toBeGreaterThan(-1);
+    expect(bloco.length, 'o corte da guarda ficou vazio').toBeGreaterThan(50);
     expect(
       bloco,
       'a sondagem junta as notificações sem marcá-las como vindas do banco'
