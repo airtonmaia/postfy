@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.75.2',
+    data: '2026-09-23',
+    resumo: 'Quando a prévia do arquivo do Drive não vem, a tela diz por quê.',
+    corrigido: [
+      'A busca da miniatura falhava em silêncio: o quadro vazio não distinguia "o Google ainda não gerou" de "a autorização não vale" ou "falta configuração no servidor". Agora o motivo aparece junto do arquivo.',
+      'Uma página de erro do Google podia ser guardada como se fosse imagem — o mesmo quadro vazio, agora ocupando espaço.',
+    ],
+    melhorias: [
+      'Há um segundo caminho para a miniatura quando o Google ainda não gerou a primeira, e cada um é tentado com e sem credencial.',
+      'A arte entra na peça mesmo sem prévia: ela continua válida e é publicada normalmente.',
+    ],
+  },
+  {
     versao: '2.75.1',
     data: '2026-09-23',
     resumo: 'A miniatura da arte do Drive voltava vazia.',

@@ -291,22 +291,69 @@ const miniaturaDoDrive = async (request: Request, userId: string): Promise<Respo
 
     const ficha = await fetch(
       `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +
-        '?fields=thumbnailLink&supportsAllDrives=true',
+        '?fields=thumbnailLink,hasThumbnail,mimeType&supportsAllDrives=true',
       { headers: { Authorization: `Bearer ${acesso}` } }
     );
 
-    if (!ficha.ok) return json({ url: null });
+    if (!ficha.ok) {
+      return json({ url: null, motivo: `o Google recusou a ficha do arquivo (${ficha.status})` });
+    }
 
-    const { thumbnailLink } = await ficha.json();
-    if (typeof thumbnailLink !== 'string') return json({ url: null });
+    const dados = await ficha.json();
 
-    /*
-      O sufixo de tamanho é trocado: o padrão do Google é pequeno e fica
-      borrado na prévia grande do portal. 800 é o suficiente para conferir o
-      enquadramento sem virar um arquivo que pesa.
-    */
-    const imagem = await fetch(thumbnailLink.replace(/=s\d+(-c)?$/, '=s800'));
-    if (!imagem.ok) return json({ url: null });
+    /**
+     * **Dois endereços, e o segundo existe porque o primeiro não é
+     * garantido.**
+     *
+     * `thumbnailLink` só vem quando o Google já gerou a miniatura — para um
+     * vídeo recém-enviado ele pode demorar, e para alguns formatos não vem
+     * nunca. `drive.google.com/thumbnail` gera sob demanda e aceita o token
+     * no cabeçalho, então serve de segunda tentativa.
+     */
+    const candidatos = [
+      typeof dados.thumbnailLink === 'string'
+        ? dados.thumbnailLink.replace(/=s\d+(-c)?$/, '=s800')
+        : null,
+      `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w800`,
+    ].filter(Boolean) as string[];
+
+    let imagem: Response | null = null;
+    const tentativas: string[] = [];
+
+    for (const endereco of candidatos) {
+      /*
+        Com o cabeçalho primeiro: para arquivo que não é público, o Google
+        devolve 403 sem ele. Sem o cabeçalho depois, porque alguns endereços
+        de miniatura recusam a credencial em vez de ignorá-la.
+      */
+      for (const comToken of [true, false]) {
+        const tentativa = await fetch(
+          endereco,
+          comToken ? { headers: { Authorization: `Bearer ${acesso}` } } : undefined
+        );
+
+        const tipo = tentativa.headers.get('content-type') || '';
+        // Uma página de erro do Google volta com 200 e `text/html`. Gravá-la
+        // daria uma "miniatura" que o navegador não desenha — o mesmo quadro
+        // vazio, agora com um arquivo no balde.
+        if (tentativa.ok && tipo.startsWith('image/')) {
+          imagem = tentativa;
+          break;
+        }
+
+        tentativas.push(`${tentativa.status}${tipo ? ` ${tipo.split(';')[0]}` : ''}`);
+      }
+      if (imagem) break;
+    }
+
+    if (!imagem) {
+      return json({
+        url: null,
+        motivo:
+          `o Google não devolveu imagem (${tentativas.join(', ')})` +
+          (dados.hasThumbnail === false ? ' — este arquivo ainda não tem miniatura gerada' : ''),
+      });
+    }
 
     const bytes = Buffer.from(await imagem.arrayBuffer());
     const tipo = imagem.headers.get('content-type') || 'image/jpeg';
@@ -324,10 +371,15 @@ const miniaturaDoDrive = async (request: Request, userId: string): Promise<Respo
     const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
     // Sem domínio público a miniatura existe no balde e não abre em lugar
     // nenhum. `null` aqui faz a tela cair no nome do arquivo, que é honesto.
-    return json({ url: base ? `${base}/${chave}` : null });
+    return json(
+      base
+        ? { url: `${base}/${chave}` }
+        : { url: null, motivo: 'falta R2_PUBLIC_BASE_URL no servidor' }
+    );
   } catch (erro) {
-    console.warn('[upload] miniatura do drive', erro instanceof Error ? erro.message : erro);
-    return json({ url: null });
+    const motivo = erro instanceof Error ? erro.message : 'falha desconhecida';
+    console.warn('[upload] miniatura do drive', motivo);
+    return json({ url: null, motivo });
   }
 };
 

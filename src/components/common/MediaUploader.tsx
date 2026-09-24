@@ -118,6 +118,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
       setEnviando(true);
       const referencias: string[] = [];
+      const semMiniatura: string[] = [];
 
       for (const arquivo of escolhidos) {
         /*
@@ -126,13 +127,28 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           do primeiro byte. Sem miniatura a peça continua válida, e o cartão
           mostra o nome do arquivo.
         */
-        const miniatura =
-          (await arquivosApi.miniaturaDoDrive(currentWorkspace.id, arquivo.id)) ?? undefined;
+        const busca = await arquivosApi.miniaturaDoDrive(currentWorkspace.id, arquivo.id);
 
-        referencias.push(referenciaDoDrive({ ...arquivo, miniatura }));
+        /*
+          O motivo aparece na tela. "Sem miniatura" é um desfecho válido, mas
+          silencioso ele é indistinguível de defeito — foi o que aconteceu
+          duas vezes nesta entrega.
+        */
+        if (!busca.url && busca.motivo) {
+          semMiniatura.push(`${arquivo.nome}: ${busca.motivo}`);
+        }
+
+        referencias.push(referenciaDoDrive({ ...arquivo, miniatura: busca.url ?? undefined }));
       }
 
       onChange([...mediaUrls, ...referencias]);
+
+      if (semMiniatura.length) {
+        setUploadError(
+          `A arte entrou, mas sem prévia — ${semMiniatura.join('; ')}. ` +
+            'O arquivo continua válido e será publicado normalmente.'
+        );
+      }
     } catch (erro) {
       setUploadError(
         erro instanceof Error ? erro.message : 'Não foi possível abrir o Google Drive.'
