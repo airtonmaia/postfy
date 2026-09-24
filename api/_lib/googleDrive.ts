@@ -151,3 +151,74 @@ export const emailDaConta = async (acesso: string): Promise<string | null> => {
     return null;
   }
 };
+
+const DRIVE = 'https://www.googleapis.com/drive/v3';
+
+/**
+ * Libera o arquivo por link, para o player do Drive tocar no portal.
+ *
+ * ### O que se ganha, e o que se paga
+ *
+ * O portal do cliente é anônimo: para ele assistir a um vídeo, ou o arquivo
+ * vem do nosso balde — e aí o celular dele baixa os 109 MB do original — ou
+ * o Google serve, e o Google **transcodifica**: o player dele escolhe a
+ * resolução pela conexão, como o YouTube. Numa aprovação pelo celular, essa
+ * diferença é a conta do mês de alguém.
+ *
+ * O preço é explícito: enquanto a permissão existe, **qualquer pessoa com o
+ * endereço do arquivo assiste**, dentro ou fora do portal. O id aparece no
+ * código da página, então na prática o alcance é "quem consegue abrir o
+ * portal daquele cliente". Foi uma escolha feita sabendo disso, e por isso a
+ * liberação é **retirada** quando a peça sai de aprovação.
+ *
+ * `drive.file` alcança permissões dos arquivos que o app recebeu pelo
+ * seletor — não é preciso escopo mais largo, que é o que obrigaria à
+ * verificação do Google.
+ *
+ * Não lança: sem a liberação o portal cai na capa parada, que é o que ele
+ * mostrava antes. Derrubar a criação da peça por causa disso seria trocar o
+ * essencial pelo acessório.
+ */
+export const liberarPorLink = async (fileId: string, acesso: string): Promise<boolean> => {
+  try {
+    const resposta = await fetch(
+      `${DRIVE}/files/${encodeURIComponent(fileId)}/permissions?supportsAllDrives=true`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${acesso}`,
+          'Content-Type': 'application/json',
+        },
+        // `reader`, nunca `writer`: o cliente assiste, não mexe no arquivo.
+        body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      }
+    );
+
+    return resposta.ok;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Retira a liberação por link.
+ *
+ * A permissão de `anyone` tem id fixo `anyoneWithLink`, então não é preciso
+ * listar antes. Um 404 aqui é bom: significa que já não havia liberação.
+ *
+ * **Sem isto, a exposição seria permanente** — e o que justifica a liberação
+ * é ela durar o tempo da aprovação.
+ */
+export const trancarPorLink = async (fileId: string, acesso: string): Promise<boolean> => {
+  try {
+    const resposta = await fetch(
+      `${DRIVE}/files/${encodeURIComponent(fileId)}/permissions/anyoneWithLink` +
+        '?supportsAllDrives=true',
+      { method: 'DELETE', headers: { Authorization: `Bearer ${acesso}` } }
+    );
+
+    return resposta.ok || resposta.status === 404;
+  } catch {
+    return false;
+  }
+};

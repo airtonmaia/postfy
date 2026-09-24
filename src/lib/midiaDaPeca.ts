@@ -1,5 +1,6 @@
 import { excluirArquivo, levantarUsos } from './biblioteca';
-import { dadosDoDrive, ehDoDrive } from './midiaDoDrive';
+import { arquivosApi } from './api';
+import { dadosDoDrive, ehDoDrive, idDeVideoNoDrive } from './midiaDoDrive';
 import type { Job } from '../types';
 
 /**
@@ -65,8 +66,22 @@ const chaveDaUrl = (url: string): string | null => {
  */
 export const apagarMidiaDaPeca = async (job: Job): Promise<number> => {
   try {
+    if (!job.workspaceId) return 0;
+
+    /*
+      A liberação por link sai junto. Ela existe para o cliente assistir no
+      portal enquanto aprova — e uma peça excluída não é aprovada por
+      ninguém. O arquivo em si continua no Drive da agência; o que sai é o
+      acesso que nós abrimos.
+    */
+    const videos = [...(job.mediaUrls || []), ...(job.storyMediaUrls || [])]
+      .map((u) => idDeVideoNoDrive(u))
+      .filter(Boolean) as string[];
+
+    await arquivosApi.acessoNoDrive(job.workspaceId, videos, false);
+
     const candidatos = arquivosDaPeca(job);
-    if (!candidatos.length || !job.workspaceId) return 0;
+    if (!candidatos.length) return 0;
 
     /*
       A conferência vai ao **banco**, não ao estado carregado: `carregarTudo`
