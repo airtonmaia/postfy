@@ -154,27 +154,3 @@ export const abrirSeletorDoDrive = async (
     seletor.setVisible(true);
   });
 };
-
-/**
- * Baixa o arquivo do Drive para a memória do navegador.
- *
- * `alt=media` é o que devolve os bytes; sem ele vem o JSON com os metadados —
- * e o R2 receberia um arquivo de trezentos bytes com nome de vídeo, que só
- * daria erro na hora de a Meta tentar baixá-lo.
- */
-export const baixarDoDrive = async (id: string, token: string): Promise<Blob> => {
-  const resposta = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-
-  if (!resposta.ok) {
-    throw new Error(
-      resposta.status === 404
-        ? 'O arquivo não está mais no Drive, ou o acesso foi retirado.'
-        : `O Google recusou o download (${resposta.status}).`
-    );
-  }
-
-  return await resposta.blob();
-};

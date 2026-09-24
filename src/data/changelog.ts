@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.79.0',
+    data: '2026-09-24',
+    resumo: 'O vídeo do Drive passou a ser copiado pelo servidor, e a falha deixou de ser muda.',
+    corrigido: [
+      'Parte dos vídeos não era copiada, sempre em silêncio: o download saía do navegador, e o Google redireciona para um endereço que não autoriza leitura de outro site. A miniatura, que já vinha do servidor, funcionava — o vídeo, não.',
+      'Quando a cópia não acontece, a faixa de aviso do topo diz qual arquivo e por quê. Antes a peça ia para o cliente com a capa parada e ninguém da agência ficava sabendo.',
+    ],
+    melhorias: [
+      'Arquivos acima de 100 MB não são copiados, e a mensagem diz o tamanho: a função que copia tem tempo e memória finitos, e estourar no meio deixaria a falha sem resposta.',
+    ],
+  },
+  {
     versao: '2.78.1',
     data: '2026-09-24',
     resumo: 'O portal do cliente ficava parado no estado de quando foi aberto.',
