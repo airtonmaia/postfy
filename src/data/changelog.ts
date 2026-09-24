@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.83.0',
+    data: '2026-09-24',
+    resumo: 'Copiar o acesso do cliente ao portal, pronto para enviar.',
+    novidades: [
+      'Na aba Usuários do cliente, cada pessoa tem um botão que gera uma senha nova e copia endereço, e-mail e senha num texto só — é o que a agência montava à mão depois de definir a senha.',
+    ],
+    melhorias: [
+      'Ele pergunta antes: gerar uma senha nova invalida a atual e derruba as sessões abertas daquela pessoa.',
+      'A senha guardada continua sem poder ser lida de volta — ela é cifrada de propósito, e copiar o acesso significa criar uma nova.',
+      'Sem área de transferência disponível, a senha aparece numa caixa para ser copiada à mão, em vez de se perder.',
+    ],
+  },
+  {
     versao: '2.82.1',
     data: '2026-09-24',
     resumo: 'O botão de baixar mudou para o canto inferior direito.',

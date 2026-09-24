@@ -15,6 +15,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { pode } from '../../lib/permissions';
 import { safeDateFormat, copyToClipboard } from '../../lib/utils';
 import { gerarSenhaDoPortal, senhaCurta, TAMANHO_MINIMO_DA_SENHA } from '../../lib/senhas';
+import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -101,7 +102,7 @@ interface ClientUsersTabProps {
 }
 
 export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
-  const { currentUser } = usePostfy();
+  const { currentUser, currentWorkspace } = usePostfy();
   const podeGerenciar = pode(currentUser?.role, 'gerenciar_clientes');
 
   const [usuarios, setUsuarios] = useState<ClientUser[]>([]);
@@ -238,6 +239,78 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
       setSalvando(false);
     }
   };
+
+  /**
+   * Gera uma senha nova e copia o acesso pronto para enviar.
+   *
+   * **A senha atual não pode ser copiada, e isso não é limitação da tela.**
+   * O que o banco guarda é bcrypt — ele existe justamente para não voltar.
+   * Senha do portal é longa, dura meses e é reaproveitada em outros lugares;
+   * guardá-la de forma reversível faria o estrago sair deste produto para a
+   * vida da pessoa no dia em que o banco vazasse.
+   *
+   * Então o que este botão faz é o honesto: **gera uma nova**, grava, e
+   * entrega os três pedaços que o cliente precisa — endereço, e-mail e senha
+   * — num texto só. Era o que a agência montava à mão depois de definir a
+   * senha, e montar à mão é como se esquece de mandar o endereço.
+   *
+   * **Pergunta antes**, porque trocar a senha derruba as sessões abertas
+   * daquela pessoa — inclusive a aba que ela possa estar usando agora. É a
+   * mesma consequência de "tirar a senha", e ela não pode chegar como
+   * surpresa depois de um clique de conveniência.
+   */
+  const copiarAcesso = (usuario: ClientUser) =>
+    pedir({
+      titulo: usuario.senhaDefinidaEm ? 'Gerar uma senha nova?' : 'Gerar a senha de acesso?',
+      descricao: usuario.senhaDefinidaEm
+        ? `A senha atual de ${usuario.email} deixa de valer e as sessões abertas dessa ` +
+          'pessoa caem na hora. A senha guardada não pode ser lida de volta — ela é ' +
+          'cifrada de propósito —, então copiar o acesso significa criar uma nova.'
+        : `Uma senha será criada para ${usuario.email} e copiada junto com o endereço do ` +
+          'portal, pronta para enviar.',
+      rotuloConfirmar: 'Gerar e copiar',
+      aoConfirmar: async () => {
+        try {
+          const senha = gerarSenhaDoPortal();
+          await definirSenhaDoPortal(usuario.id, senha);
+
+          const agora = new Date().toISOString();
+          setUsuarios((atual) =>
+            atual.map((u) => (u.id === usuario.id ? { ...u, senhaDefinidaEm: agora } : u))
+          );
+          setErro(null);
+
+          /*
+            Os três pedaços juntos, na ordem em que a pessoa vai usá-los.
+            Só a senha seria metade do recado: quem recebe não sabe onde
+            entrar, e o e-mail dela é o usuário — que não é óbvio quando a
+            agência cadastrou um endereço diferente do que o cliente usa no
+            dia a dia.
+          */
+          const texto =
+            `Acesso ao portal\n\n` +
+            `Endereço: ${urlDoPortalDaAgencia(currentWorkspace?.slug || '', window.location.origin)}\n` +
+            `E-mail: ${usuario.email}\n` +
+            `Senha: ${senha}`;
+
+          if (await copyToClipboard(texto)) {
+            confirmar(
+              `Acesso de ${usuario.email} copiado. A senha não aparece de novo — ` +
+                'cole antes de fechar.'
+            );
+          } else {
+            /*
+              Sem área de transferência, a senha ficaria perdida: ela já foi
+              gravada e não volta. Melhor mostrá-la numa caixa que a pessoa
+              fecha depois de copiar à mão.
+            */
+            confirmar(`Senha de ${usuario.email}: ${senha}\n\nCopie agora — ela não aparece de novo.`);
+          }
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : 'Não foi possível gerar o acesso.');
+        }
+      },
+    });
 
   const tirarSenha = (usuario: ClientUser) =>
     pedir({
@@ -533,6 +606,21 @@ export const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ client }) => {
                       aria-label={usuario.senhaDefinidaEm ? 'Trocar a senha' : 'Definir uma senha'}
                     >
                       <KeyRound className="w-4 h-4" />
+                    </Button>
+
+                    {/*
+                      Copiar o acesso pronto para enviar. Ele **gera uma senha
+                      nova** — a guardada é cifrada e não volta —, então
+                      pergunta antes: trocar a senha derruba as sessões
+                      abertas daquela pessoa.
+                    */}
+                    <Button variant="ghost" size="icon-sm"
+                      onClick={() => copiarAcesso(usuario)}
+                      className="border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                      title="Gerar senha nova e copiar o acesso (endereço, e-mail e senha)"
+                      aria-label="Gerar senha nova e copiar o acesso"
+                    >
+                      <Copy className="w-4 h-4" />
                     </Button>
 
                     <button

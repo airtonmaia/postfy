@@ -42,7 +42,14 @@ const arquivosDeComponente = (pasta: string): string[] =>
 describe('hooks vêm antes de qualquer return de guarda', () => {
   it('nenhum componente declara hook depois de um `return null` de guarda', () => {
     for (const caminho of arquivosDeComponente(RAIZ)) {
-      const linhas = readFileSync(caminho, 'utf-8').split('\n');
+      /*
+        Quebra de linha dos dois jeitos: no Windows a linha termina em
+        retorno de carro, e a âncora que fecha o componente casa a linha
+        inteira — com o caractere invisível no fim ela nunca encontrava o
+        fecha-chaves. O corte ia até o fim do arquivo, e a guarda acusava o
+        hook de outro componente, que está correto.
+      */
+      const linhas = readFileSync(caminho, 'utf-8').split(/\r?\n/);
 
       /*
         **O corte para no fim do componente**, e a varredura olha todos eles.
