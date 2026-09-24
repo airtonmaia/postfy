@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.78.0',
+    data: '2026-09-24',
+    resumo: 'O cliente dá play no vídeo direto no card de aprovação.',
+    novidades: [
+      'A arte aparece como sempre, com um botão de play por cima. O vídeo só começa quando o cliente clica — e aí toca inteiro, com controles.',
+    ],
+    corrigido: [
+      'Conteúdos criados antes desta semana não tinham o vídeo preparado, e o portal mostrava só a capa parada. Agora eles se resolvem sozinhos quando alguém abre a peça no Orquesia.',
+      'O vídeo deixou de ser copiado de novo a cada abertura do conteúdo, o que deixava um arquivo repetido no armazenamento por vez.',
+      'Trocar a arte de uma peça agora apaga a cópia anterior em vez de deixá-la para trás.',
+    ],
+    melhorias: [
+      'Uma lista de aprovações com vários vídeos não começa a baixar todos ao abrir: cada um só carrega quando recebe o play.',
+    ],
+  },
+  {
     versao: '2.77.0',
     data: '2026-09-24',
     resumo:

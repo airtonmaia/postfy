@@ -589,12 +589,24 @@ describe('o cliente vê o vídeo antes de aprovar', () => {
       Som que começa sem alguém pedir é o motivo de tanta gente fechar a aba —
       e quem abre o portal veio decidir, não ser surpreendido.
     */
-    const trecho = portal.slice(portal.indexOf('<video'));
-    expect(trecho.slice(0, 400)).toMatch(/controls/);
-    expect(trecho.slice(0, 400)).not.toMatch(/autoPlay/);
-    // A miniatura como cartaz: sem ela o quadro fica preto até o primeiro
-    // frame, que num vídeo grande demora.
-    expect(trecho.slice(0, 400)).toMatch(/poster=/);
+    /*
+      **A decisão mudou de forma, e a guarda foi junto.** Antes o `<video>`
+      era montado sempre, com `poster` e sem `autoPlay`. Agora ele só nasce
+      depois do clique — e aí toca sozinho, porque a pessoa acabou de pedir
+      isso. O que a guarda protege é o mesmo: nada começa a tocar sem alguém
+      mandar.
+    */
+    const player = portal.slice(portal.indexOf('const VideoComCapa'));
+    const antesDoClique = player.slice(0, player.indexOf('if (tocando)'));
+
+    expect(antesDoClique.length).toBeGreaterThan(50);
+    expect(antesDoClique, 'o vídeo voltou a montar antes do clique').not.toMatch(/<video/);
+
+    const depoisDoClique = player.slice(player.indexOf('if (tocando)'));
+    expect(depoisDoClique.slice(0, 500)).toMatch(/controls/);
+    // A capa como cartaz: sem ela o quadro fica preto até o primeiro frame,
+    // que num vídeo grande demora.
+    expect(depoisDoClique.slice(0, 500)).toMatch(/poster=/);
   });
 
   it('arte do Drive só toca pela cópia', () => {
@@ -728,5 +740,82 @@ describe('a peça apagada leva a arte dela junto', () => {
     // Biblioteca com zero usos e pode ser apagado de lá.
     expect(limpeza).toMatch(/catch/);
     expect(contexto).toMatch(/void apagarMidiaDaPeca/);
+  });
+});
+
+/**
+ * **A capa com o play por cima, e o vídeo só depois do clique.**
+ *
+ * O player nativo com `poster` escondia a arte atrás de uma barra cinza —
+ * quando aparecia: em parte dos navegadores o botão central só surge depois
+ * do primeiro toque, e o card ficava indistinguível de uma imagem parada.
+ * Quem abre o portal para aprovar um Reels não adivinha que há vídeo ali.
+ */
+describe('o play é visível antes de o vídeo existir na tela', () => {
+  const portal = semComentarios(ler('src', 'components', 'portal', 'ClientPortalView.tsx'));
+  const player = portal.slice(portal.indexOf('const VideoComCapa'));
+
+  it('a guarda está medindo o player', () => {
+    expect(player.length).toBeGreaterThan(300);
+  });
+
+  it('há um play desenhado por nós sobre a capa', () => {
+    const antes = player.slice(0, player.indexOf('if (tocando)'));
+    expect(antes, 'o player sumiu ou mudou de forma').toBeTruthy();
+    expect(player).toMatch(/<Play /);
+    expect(player, 'o play deixou de ser clicável por teclado e leitor de tela').toMatch(
+      /aria-label=/
+    );
+  });
+
+  it('a lista de aprovações não pré-carrega um vídeo por card', () => {
+    /*
+      Cinco peças com vídeo abririam cinco conexões ao mesmo tempo, no celular
+      de alguém. Não montar o `<video>` antes do clique resolve isso de graça
+      — e é o mesmo motivo pelo qual ele resolve o afordance.
+    */
+    const antes = player.slice(0, player.indexOf('if (tocando)'));
+    expect(antes).not.toMatch(/<video|preload=/);
+  });
+
+  it('a cópia não é refeita a cada abertura da peça', () => {
+    /*
+      A peça é aberta muitas vezes. Sem a saída antecipada, cada abertura
+      baixaria o vídeo e o enviaria de novo, deixando um arquivo órfão no
+      balde por vez — o oposto do que esta entrega existe para fazer.
+    */
+    const preparar = semComentarios(ler('src', 'lib', 'midiaParaPublicar.ts'));
+
+    expect(preparar, 'a cópia deixou de guardar de qual lista ela veio').toMatch(/de: \{ feed:/);
+    expect(preparar, 'a cópia voltou a ser refeita mesmo quando já cobre a mídia').toMatch(
+      /if \(mesmaLista\) return/
+    );
+    // Comparar as listas, e não contar itens: trocar uma arte por outra
+    // mantém o tamanho, e a cópia velha apontaria para o arquivo errado.
+    expect(preparar).toMatch(/JSON\.stringify\(jaCopiado\.feed/);
+  });
+
+  it('a cópia anterior sai quando a arte é trocada', () => {
+    // Deixá-la no balde seria guardar o vídeo de uma versão que ninguém mais
+    // vê — a sobra que esta entrega existe para evitar.
+    const preparar = semComentarios(ler('src', 'lib', 'midiaParaPublicar.ts'));
+    const grava = preparar.indexOf('update({ midia_publicavel');
+    const apaga = preparar.indexOf('excluirArquivo(job.workspace_id, chaveVelha)');
+
+    expect(apaga).toBeGreaterThan(-1);
+    expect(apaga, 'a cópia velha passou a ser apagada depois da nova entrar').toBeLessThan(grava);
+  });
+
+  it('peça antiga com arte no Drive se resolve ao ser aberta', () => {
+    /*
+      A cópia passou a nascer com a peça, e o que já existia ficou sem ela.
+      Pedir que alguém tire e recoloque a arte seria transferir para quem usa
+      um problema que é nosso.
+    */
+    const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+    const efeito = contexto.slice(contexto.indexOf('if (!selectedJob) return;'));
+
+    expect(efeito.slice(0, 400)).toMatch(/quantasNoDrive\(/);
+    expect(efeito.slice(0, 400)).toMatch(/garantirMidiaDoDrive\(selectedJob\.id\)/);
   });
 });

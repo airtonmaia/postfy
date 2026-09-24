@@ -14,6 +14,7 @@ import {
   MessageSquare, 
   Sparkles,
   Layers,
+  Play,
   Send,
   ExternalLink,
   ShieldCheck,
@@ -114,6 +115,69 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  *   é o desfecho que a versão lado a lado existia para impedir, e o único
  *   que a aba poderia reintroduzir.
  */
+/**
+ * A capa com o play por cima, e o vídeo só depois do clique.
+ *
+ * **A capa é a arte que o cliente veio julgar**, e o player nativo com
+ * `poster` a entregava escondida atrás de uma barra de controles cinza —
+ * quando entregava: em parte dos navegadores o botão central só aparece
+ * depois do primeiro toque, e o card ficava indistinguível de uma imagem
+ * parada. Quem abre o portal para aprovar um Reels não adivinha que há um
+ * vídeo ali.
+ *
+ * Então o `<video>` **não é montado antes do clique**. Isso resolve o
+ * afordance e uma segunda coisa que só aparece com uso: uma lista de
+ * aprovações com cinco vídeos abriria cinco conexões de `preload` ao mesmo
+ * tempo, no celular de alguém.
+ *
+ * Depois do clique ele toca sozinho — a pessoa acabou de pedir isso.
+ */
+const VideoComCapa: React.FC<{ src: string; capa?: string; rotulo: string }> = ({
+  src,
+  capa,
+  rotulo,
+}) => {
+  const [tocando, setTocando] = useState(false);
+
+  if (tocando) {
+    return (
+      <video
+        src={src}
+        poster={capa || undefined}
+        controls
+        autoPlay
+        playsInline
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTocando(true)}
+      aria-label={`Assistir ao vídeo do ${rotulo}`}
+      className="group relative block w-full h-full"
+    >
+      {capa ? (
+        <img src={capa} alt={`Arte do ${rotulo}`} className="w-full h-full object-cover" />
+      ) : (
+        <span className="absolute inset-0 bg-slate-900" />
+      )}
+
+      {/* Escurece de leve para o play ter contraste sobre qualquer arte —
+          a nossa não sabe o que vem na capa do cliente. */}
+      <span className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
+
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="w-16 h-16 rounded-full bg-white/95 text-slate-900 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+          <Play className="w-7 h-7 ml-1" fill="currentColor" />
+        </span>
+      </span>
+    </button>
+  );
+};
+
 const CriativoDeFeedEStory: React.FC<{
   feed?: string;
   story?: string;
@@ -157,19 +221,10 @@ const CriativoDeFeedEStory: React.FC<{
       }
     >
       {video ? (
-        /*
-          Com `controls` e sem tocar sozinho: o cliente abre o portal para
-          decidir, e som que começa sem ele pedir é o motivo de tanta gente
-          fechar a aba. O `poster` é a miniatura, então o quadro nunca fica
-          preto esperando o primeiro frame.
-        */
-        <video
+        <VideoComCapa
           src={video}
-          poster={urlDeExibicao(url || '') || undefined}
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full h-full object-cover"
+          capa={urlDeExibicao(url || '') || undefined}
+          rotulo={emTela.rotulo}
         />
       ) : url ? (
         <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
@@ -873,15 +928,12 @@ export const ClientPortalView: React.FC = () => {
                              desenhado como imagem, então quem aprovava um
                              Reels decidia sobre um quadro vazio. */
                           videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ? (
-                            <video
+                            <VideoComCapa
                               src={
                                 videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) as string
                               }
-                              poster={urlDeExibicao(job.mediaUrls[0]) || undefined}
-                              controls
-                              playsInline
-                              preload="metadata"
-                              className="w-full h-full object-cover"
+                              capa={urlDeExibicao(job.mediaUrls[0]) || undefined}
+                              rotulo="conteúdo"
                             />
                           ) : (
                             <img

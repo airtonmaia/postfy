@@ -217,9 +217,14 @@ describe('as duas artes existem em todo lugar que decide', () => {
     expect(corpo, 'as abas deixaram de ser derivadas dos dois quadros').toMatch(
       /QUADROS_DO_CRIATIVO\.map\(/
     );
-    expect(corpo.slice(0, 3000), 'a aba sem arte deixou de avisar').toMatch(
-      /!arteDoQuadro\[chave\] &&/
-    );
+    /*
+      Sem janela de caracteres. A de 3000 reprovou no dia em que o player
+      entrou entre o começo do corte e o trecho medido — a guarda passou a
+      olhar para o lugar errado por causa de código novo no meio, que é a
+      mesma falha do recorte por `slice(0, 1400)` da senha do portal. O
+      padrão é único no arquivo; o corte serve só para dizer de onde ele vale.
+    */
+    expect(corpo, 'a aba sem arte deixou de avisar').toMatch(/!arteDoQuadro\[chave\] &&/);
   });
 
   it('a prévia da agência mostra a arte do story no quadro de story', () => {
