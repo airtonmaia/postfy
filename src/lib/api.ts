@@ -211,6 +211,38 @@ export const arquivosApi = {
     }
   },
 
+  /**
+   * Libera (ou tranca) por link os arquivos do Drive de uma peça.
+   *
+   * É o que faz o **player do Google** tocar no portal do cliente — ele
+   * transcodifica e escolhe a resolução pela conexão, enquanto um `<video>`
+   * apontando para o nosso balde entrega o original inteiro.
+   *
+   * O preço é explícito e temporário: enquanto a liberação existe, quem tem
+   * o endereço do arquivo assiste. Ela é retirada quando a peça sai de
+   * aprovação.
+   */
+  acessoNoDrive: async (
+    workspaceId: string,
+    fileIds: string[],
+    liberar: boolean
+  ): Promise<void> => {
+    if (!fileIds.length) return;
+    try {
+      await chamar<{ ok: boolean }>('/api/upload-url', {
+        acao: liberar ? 'liberar-no-drive' : 'trancar-no-drive',
+        workspaceId,
+        fileIds,
+      });
+    } catch {
+      /*
+        Sem a liberação o portal cai na capa parada, que é o que ele mostrava
+        antes. Derrubar a criação da peça por causa disso seria trocar o
+        essencial pelo acessório.
+      */
+    }
+  },
+
   /** O caminho de sempre, para quem só precisa do endereço. */
   enviar: async (
     arquivo: File,

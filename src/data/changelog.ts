@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.80.0',
+    data: '2026-09-24',
+    resumo: 'O vídeo no portal passou a tocar em qualidade adaptável, como no YouTube.',
+    novidades: [
+      'Quem aprova pelo celular recebe a resolução que a conexão aguenta, em vez do arquivo original inteiro. Quem transcodifica é o Google, pelo player dele.',
+    ],
+    melhorias: [
+      'Para isso, o vídeo daquela peça fica acessível por link enquanto está em aprovação — e a liberação é retirada quando a peça vai ao ar ou é excluída. Só vídeo é liberado; imagem continua viajando pela miniatura.',
+      'O arquivo no seu Drive nunca é alterado nem apagado: o que o Orquesia abre, o Orquesia fecha.',
+      'O play aparece mesmo quando a cópia interna não existe — um vídeo grande demais para copiar continua assistível no portal.',
+    ],
+  },
+  {
     versao: '2.79.2',
     data: '2026-09-24',
     resumo: 'O envio em partes do vídeo era recusado pelo armazenamento.',

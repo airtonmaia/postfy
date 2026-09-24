@@ -1064,3 +1064,81 @@ describe('a cópia sobe em partes, e desiste com resposta', () => {
     expect(Object.keys(pacote.dependencies || {})).not.toContain('@aws-sdk/lib-storage');
   });
 });
+
+/**
+ * **O vídeo pesado no celular de quem aprova.**
+ *
+ * Um `<video>` apontando para o nosso balde entrega o **original**: 109 MB
+ * num arquivo comum. O player do Google transcodifica e escolhe a resolução
+ * pela conexão — é a diferença entre aprovar no 4G e gastar o pacote do mês.
+ *
+ * O preço é explícito e foi escolhido sabendo dele: enquanto a liberação
+ * existe, quem tem o endereço do arquivo assiste. **O que a torna aceitável
+ * é ela acabar** — e é isso que as guardas abaixo protegem.
+ */
+describe('o portal toca pelo player do Google, e a liberação acaba', () => {
+  const portal = semComentarios(ler('src', 'components', 'portal', 'ClientPortalView.tsx'));
+  const drive = semComentarios(ler('api', '_lib', 'googleDrive.ts'));
+
+  it('o vídeo do Drive toca pelo player do Google', () => {
+    const player = portal.slice(portal.indexOf('const VideoComCapa'));
+    expect(player.slice(0, 1200)).toMatch(/drive\.google\.com\/file\/d\//);
+    expect(player.slice(0, 1200)).toMatch(/\/preview/);
+  });
+
+  it('o play aparece mesmo sem a cópia no balde', () => {
+    /*
+      A cópia serve à **publicação** — é dela que a Meta baixa a mídia. O
+      player do Drive não precisa dela: um vídeo grande demais para copiar, ou
+      cuja cópia falhou, continua assistível no portal.
+    */
+    expect(portal).toMatch(/idDeVideoNoDrive\(/);
+    expect(portal, 'o play voltou a depender da cópia').toMatch(/video \|\| idNoDrive/);
+  });
+
+  it('a liberação é de leitura, nunca de escrita', () => {
+    // O cliente assiste; ele não mexe no arquivo da agência.
+    const liberar = drive.slice(drive.indexOf('export const liberarPorLink'));
+    expect(liberar.slice(0, 700)).toMatch(/role: 'reader'/);
+    expect(liberar.slice(0, 700)).not.toMatch(/role: 'writer'/);
+  });
+
+  it('só vídeo é liberado', () => {
+    /*
+      Imagem já viaja pela miniatura, que é um arquivo nosso de alguns
+      kilobytes. Liberar o que não precisa é exposição sem contrapartida.
+    */
+    const preparar = semComentarios(ler('src', 'lib', 'midiaParaPublicar.ts'));
+    expect(preparar).toMatch(/ehDoDrive\(u\) && ehVideo\(u\)/);
+  });
+
+  it('a liberação é retirada quando a peça vai ao ar', () => {
+    const cron = semComentarios(ler('api', 'publicar.ts'));
+    const limpeza = cron.slice(cron.indexOf('const limparCopiaDoDrive'));
+
+    expect(cron, 'o destrancar sumiu do agendador').toMatch(/const trancarVideosDoDrive/);
+    expect(limpeza.slice(0, 1200), 'a peça publicada continua liberada por link').toMatch(
+      /trancarVideosDoDrive\(/
+    );
+  });
+
+  it('a liberação é retirada quando a peça é excluída', () => {
+    // Peça excluída não é aprovada por ninguém — e o acesso que nós abrimos
+    // é nosso para fechar.
+    const limpeza = semComentarios(ler('src', 'lib', 'midiaDaPeca.ts'));
+    expect(limpeza).toMatch(/acessoNoDrive\(job\.workspaceId, videos, false\)/);
+  });
+
+  it('o arquivo do Drive continua sendo da agência', () => {
+    /*
+      O que sai é o **acesso que nós abrimos**, nunca o arquivo. Apagar um
+      arquivo do Drive de quem usa o produto seria o produto mexendo no
+      acervo dela.
+    */
+    expect(drive, 'entrou uma exclusão de arquivo no Drive').not.toMatch(
+      /method: 'DELETE'[\s\S]{0,200}\/files\/\$\{encodeURIComponent\(fileId\)\}['"`]/
+    );
+    const trancar = drive.slice(drive.indexOf('export const trancarPorLink'));
+    expect(trancar.slice(0, 600)).toMatch(/permissions\/anyoneWithLink/);
+  });
+});

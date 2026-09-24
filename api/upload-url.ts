@@ -19,7 +19,12 @@ import {
   enviarEmPartes,
   TempoEsgotadoNoEnvio,
 } from './_lib/r2.js';
-import { credenciaisDoGoogle, renovarAcesso } from './_lib/googleDrive.js';
+import {
+  credenciaisDoGoogle,
+  renovarAcesso,
+  liberarPorLink,
+  trancarPorLink,
+} from './_lib/googleDrive.js';
 
 
 /**
@@ -136,6 +141,14 @@ async function handler(request: Request): Promise<Response> {
     // navegador ele morre antes do primeiro byte.
     if (espiada?.acao === 'copiar-do-drive') {
       return copiarDoDrive(request, usuario.id);
+    }
+    // E a liberação por link, que é o que faz o player do Google tocar no
+    // portal — ele transcodifica, o nosso `<video>` entrega o original.
+    if (espiada?.acao === 'liberar-no-drive') {
+      return acessoPorLinkNoDrive(request, usuario.id, true);
+    }
+    if (espiada?.acao === 'trancar-no-drive') {
+      return acessoPorLinkNoDrive(request, usuario.id, false);
     }
   }
 
@@ -436,6 +449,60 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
     console.warn('[upload] cópia do drive', motivo);
     return json({ url: null, motivo });
   }
+};
+
+/**
+ * Libera (ou tranca) por link os arquivos do Drive de uma peça.
+ *
+ * **É o que faz o portal tocar sem gastar o celular do cliente.** O player do
+ * Google transcodifica e escolhe a resolução pela conexão; o nosso `<video>`
+ * apontando para o balde entrega o original — 109 MB num vídeo comum.
+ *
+ * A liberação é retirada quando a peça sai de aprovação, e é isso que torna
+ * a exposição aceitável: enquanto ela existe, quem tiver o endereço do
+ * arquivo assiste.
+ *
+ * Os ids vêm do corpo, e a agência é conferida antes — mas repare que a
+ * conferência que importa é outra: o token é **da agência**, e `drive.file`
+ * só alcança os arquivos que aquele app recebeu pelo seletor. Um id de
+ * arquivo alheio simplesmente não é alcançável, mesmo que alguém o mande.
+ */
+const acessoPorLinkNoDrive = async (
+  request: Request,
+  userId: string,
+  liberar: boolean
+): Promise<Response> => {
+  let corpo: any;
+  try {
+    corpo = await request.json();
+  } catch {
+    return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
+  }
+
+  const { workspaceId, fileIds } = corpo || {};
+  if (!textoValido(workspaceId, 64) || !Array.isArray(fileIds) || !fileIds.length) {
+    return json({ error: 'Agência ou arquivos não informados.' }, 400);
+  }
+
+  const membro = await papelNaAgencia(request, workspaceId, userId);
+  if (!membro) return json({ error: 'Você não pertence a esta agência.' }, 403);
+
+  const acesso = await acessoDoDrive(workspaceId);
+  if (!acesso.token) return json({ ok: false, motivo: acesso.motivo });
+
+  let feitos = 0;
+  // Dez por chamada: uma peça tem no máximo dez artes, e um número solto
+  // aqui viraria uma varredura do Drive inteiro no dia em que alguém
+  // mandasse uma lista grande.
+  for (const fileId of fileIds.slice(0, 10)) {
+    if (!textoValido(fileId, 200)) continue;
+    const deuCerto = liberar
+      ? await liberarPorLink(fileId, acesso.token)
+      : await trancarPorLink(fileId, acesso.token);
+    if (deuCerto) feitos += 1;
+  }
+
+  return json({ ok: true, feitos });
 };
 
 const miniaturaDoDrive = async (request: Request, userId: string): Promise<Response> => {

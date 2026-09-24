@@ -116,6 +116,19 @@ export const videoParaTocar = (url?: string, copia?: string): string | null => {
   return ehDoDrive(url) ? copia || null : url;
 };
 
+/**
+ * O id do arquivo quando a arte é um **vídeo** que mora no Drive.
+ *
+ * É por ele que o portal monta o player do Google — o que transcodifica e
+ * escolhe a resolução pela conexão. Ele não depende da cópia no balde: um
+ * vídeo grande demais para copiar, ou cuja cópia falhou, continua tocando
+ * pelo Drive. A cópia serve à **publicação**, que é outra coisa.
+ */
+export const idDeVideoNoDrive = (url?: string): string | null => {
+  if (!url || !ehDoDrive(url) || !ehVideo(url)) return null;
+  return dadosDoDrive(url)?.id || null;
+};
+
 /** Quantas artes desta peça ainda estão só no Drive. */
 export const quantasNoDrive = (...listas: (string[] | undefined)[]): number =>
   listas.flatMap((l) => l || []).filter(ehDoDrive).length;

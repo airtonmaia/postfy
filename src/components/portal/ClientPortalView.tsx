@@ -67,7 +67,7 @@ import {
   DialogBody,
   DialogFooter,
 } from '../ui/dialog';
-import { urlDeExibicao, videoParaTocar } from '../../lib/midiaDoDrive';
+import { urlDeExibicao, videoParaTocar, idDeVideoNoDrive } from '../../lib/midiaDoDrive';
 
 /** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
 const QUADROS_DO_CRIATIVO = [
@@ -132,12 +132,37 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  *
  * Depois do clique ele toca sozinho — a pessoa acabou de pedir isso.
  */
-const VideoComCapa: React.FC<{ src: string; capa?: string; rotulo: string }> = ({
-  src,
-  capa,
-  rotulo,
-}) => {
+const VideoComCapa: React.FC<{
+  src: string;
+  capa?: string;
+  rotulo: string;
+  /**
+   * O arquivo no Drive, quando a arte veio de lá.
+   *
+   * **Com ele, quem toca é o player do Google** — e isso é a diferença entre
+   * o celular de quem aprova baixar o original inteiro ou receber a
+   * resolução que a conexão aguenta. O Google transcodifica; nós não temos
+   * como, e um vídeo de 109 MB numa aprovação pelo celular é a conta do mês
+   * de alguém.
+   *
+   * Sem ele — arte enviada do computador — segue o `<video>` apontando para
+   * o nosso balde, que é o que sempre foi.
+   */
+  noDrive?: string | null;
+}> = ({ src, capa, rotulo, noDrive }) => {
   const [tocando, setTocando] = useState(false);
+
+  if (tocando && noDrive) {
+    return (
+      <iframe
+        src={`https://drive.google.com/file/d/${noDrive}/preview`}
+        title={`Vídeo do ${rotulo}`}
+        allow="autoplay; fullscreen"
+        allowFullScreen
+        className="w-full h-full border-0"
+      />
+    );
+  }
 
   if (tocando) {
     return (
@@ -206,6 +231,12 @@ const CriativoDeFeedEStory: React.FC<{
   const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
   const url = arteDoQuadro[emTela.chave];
   const video = videoParaTocar(url, copias?.[emTela.chave]);
+  /*
+    O player do Drive não precisa da cópia: um vídeo grande demais para
+    copiar, ou cuja cópia falhou, continua tocando. Por isso o que decide
+    mostrar o play é **qualquer um dos dois**.
+  */
+  const idNoDrive = idDeVideoNoDrive(url);
 
   /**
    * Dois irmãos, não um bloco: a arte vai de borda a borda e o seletor fica
@@ -220,11 +251,12 @@ const CriativoDeFeedEStory: React.FC<{
           : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
       }
     >
-      {video ? (
+      {video || idNoDrive ? (
         <VideoComCapa
-          src={video}
+          src={video || ''}
           capa={urlDeExibicao(url || '') || undefined}
           rotulo={emTela.rotulo}
+          noDrive={idNoDrive}
         />
       ) : url ? (
         <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
@@ -927,13 +959,15 @@ export const ClientPortalView: React.FC = () => {
                           /* Vídeo toca; imagem é imagem. Antes tudo era
                              desenhado como imagem, então quem aprovava um
                              Reels decidia sobre um quadro vazio. */
-                          videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ? (
+                          videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ||
+                          idDeVideoNoDrive(job.mediaUrls[0]) ? (
                             <VideoComCapa
                               src={
-                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) as string
+                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) || ''
                               }
                               capa={urlDeExibicao(job.mediaUrls[0]) || undefined}
                               rotulo="conteúdo"
+                              noDrive={idDeVideoNoDrive(job.mediaUrls[0])}
                             />
                           ) : (
                             <img

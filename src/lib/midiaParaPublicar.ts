@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { arquivosApi } from './api';
-import { dadosDoDrive, ehDoDrive } from './midiaDoDrive';
+import { dadosDoDrive, ehDoDrive, ehVideo } from './midiaDoDrive';
 import { excluirArquivo } from './biblioteca';
 
 /**
@@ -98,6 +98,26 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
   }
 
   /*
+    A liberação por link do que é vídeo, para o **player do Google** tocar no
+    portal. Ele transcodifica e escolhe a resolução pela conexão; o nosso
+    `<video>` apontando para o balde entregaria o original — 109 MB no
+    celular de quem está aprovando.
+
+    Só vídeo: uma imagem já viaja pela miniatura, e liberar o que não precisa
+    é exposição sem contrapartida.
+
+    A cópia no balde **continua existindo** e não é redundante: é dela que a
+    Meta baixa a mídia na hora de publicar, e o Google não serve arquivo para
+    quem não tem sessão.
+  */
+  const videosNoDrive = [...doFeed, ...doStory]
+    .filter((u) => ehDoDrive(u) && ehVideo(u))
+    .map((u) => dadosDoDrive(u)?.id)
+    .filter(Boolean) as string[];
+
+  await arquivosApi.acessoNoDrive(job.workspace_id, videosNoDrive, true);
+
+  /*
     Já copiado é não fazer nada. Esta função é chamada ao criar a peça, ao
     trocar a mídia e ao abrir o conteúdo — sem esta saída, o mesmo vídeo
     seria baixado e enviado de novo a cada vez, deixando um arquivo órfão no
@@ -155,6 +175,7 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
 
   const feed = await resolver(doFeed);
   const story = await resolver(doStory);
+
 
   /*
     Nada é gravado se alguma cópia falhou: uma `midia_publicavel` pela metade

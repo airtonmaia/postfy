@@ -11,6 +11,7 @@ import { rota } from './_lib/rota.js';
 import { publicarNoInstagram, renovarToken, buscarMetricas, ErroDaMeta } from './_lib/instagram.js';
 import { publicarNoFacebook, publicarStoryNoFacebook, dadosDaPagina } from './_lib/facebook.js';
 import { apagarObjeto } from './_lib/r2.js';
+import { credenciaisDoGoogle, renovarAcesso, trancarPorLink } from './_lib/googleDrive.js';
 import { esvaziarFilaDeEmail } from './_lib/emails.js';
 import { empurrarNotificacoes } from './_lib/push.js';
 
@@ -738,6 +739,57 @@ const atualizarSeguidoresDasPaginas = async (supabase: any): Promise<number> => 
  * desperdício, e derrubar a passada por causa dele seria trocar centavos por
  * uma publicação atrasada.
  */
+/**
+ * Retira a liberação por link dos vídeos do Drive de uma peça.
+ *
+ * O portal toca vídeo pelo **player do Google**, que transcodifica e escolhe
+ * a resolução pela conexão — e para isso o arquivo precisa estar liberado
+ * por link. O que torna essa exposição aceitável é ela **acabar**: quando a
+ * peça vai ao ar, ninguém precisa mais assisti-la no portal.
+ *
+ * Nunca lança. A peça já está publicada; uma liberação que resistiu é um
+ * problema para a próxima passada, não motivo para derrubar esta.
+ */
+const trancarVideosDoDrive = async (
+  supabase: any,
+  jobId: string,
+  midia?: string[] | null,
+  midiaDoStory?: string[] | null
+): Promise<void> => {
+  try {
+    const ids = [...(midia || []), ...(midiaDoStory || [])]
+      .filter((u) => typeof u === 'string' && u.startsWith('drive://'))
+      .map((u) => u.slice('drive://'.length).split('?')[0])
+      .filter(Boolean);
+
+    if (!ids.length) return;
+
+    const { data: agencia } = await supabase
+      .from('jobs')
+      .select('workspace_id')
+      .eq('id', jobId)
+      .maybeSingle();
+
+    if (!agencia?.workspace_id) return;
+
+    const { id, segredo } = credenciaisDoGoogle();
+    if (!id || !segredo) return;
+
+    const { data: credencial } = await supabase
+      .from('drive_credenciais')
+      .select('refresh_token')
+      .eq('workspace_id', agencia.workspace_id)
+      .maybeSingle();
+
+    if (!credencial?.refresh_token) return;
+
+    const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
+    for (const fileId of ids) await trancarPorLink(fileId, acesso);
+  } catch (erro) {
+    console.warn('[publicar] trancar no drive', erro instanceof Error ? erro.message : erro);
+  }
+};
+
 const limparCopiaDoDrive = async (supabase: any, jobId: string): Promise<void> => {
   try {
     const { data: restantes } = await supabase
@@ -751,9 +803,16 @@ const limparCopiaDoDrive = async (supabase: any, jobId: string): Promise<void> =
 
     const { data: job } = await supabase
       .from('jobs')
-      .select('midia_publicavel')
+      .select('midia_publicavel, media_urls, story_media_urls')
       .eq('id', jobId)
       .maybeSingle();
+
+    /*
+      A liberação por link sai **junto com a cópia**, e é isso que torna a
+      exposição aceitável: ela dura o tempo da aprovação, não para sempre.
+      Uma peça publicada não precisa mais ser assistida no portal.
+    */
+    await trancarVideosDoDrive(supabase, jobId, job?.media_urls, job?.story_media_urls);
 
     const chaves: string[] = job?.midia_publicavel?.chaves || [];
     if (!chaves.length) return;
