@@ -519,3 +519,49 @@ describe('a miniatura que não veio diz por que não veio', () => {
     expect(corpo).toMatch(/for \(const comToken of \[true, false\]\)/);
   });
 });
+
+/**
+ * **O seletor precisa dizer de qual projeto ele é, senão não concede nada.**
+ *
+ * Com escopo `drive.file`, o Google registra a concessão do arquivo
+ * escolhido **por app**. Sem `setAppId` no seletor, a escolha acontece — o
+ * arquivo entra na peça, com nome e tudo — e toda leitura depois volta
+ * **404**. Foi assim que a miniatura falhou; a cópia na hora de agendar
+ * falharia igual, já com a data marcada e o cliente esperando.
+ *
+ * É a família que este projeto mais registra: o passo que falta não dá erro
+ * onde foi omitido, e sim longe dali.
+ */
+describe('o seletor concede acesso ao app', () => {
+  const google = semComentarios(ler('src', 'lib', 'google.ts'));
+
+  it('o seletor é construído com o id do projeto', () => {
+    const seletor = google.slice(google.indexOf('export const abrirSeletorDoDrive'));
+    expect(seletor, 'o seletor parou de informar o id do projeto — as leituras voltam 404')
+      .toMatch(/\.setAppId\(/);
+  });
+
+  it('o id do projeto vem do servidor, junto do token', () => {
+    /*
+      Derivado do `client_id` (o número antes do hífen), e não de uma
+      variável nova: mais uma variável é mais uma coisa para cadastrar
+      errado, e ela repetiria um número que já está no `client_id`.
+    */
+    const connect = semComentarios(ler('api', 'social-connect.ts'));
+    const modo = connect.slice(
+      connect.indexOf('const tokenDoDrive'),
+      connect.indexOf('async function handler')
+    );
+
+    expect(modo).toMatch(/const appId = id\.split\('-'\)\[0\]/);
+
+    // As duas saídas do modo devolvem o id: a que reaproveita o token
+    // guardado e a que renova. Uma delas sem ele deixaria o seletor sem
+    // concessão de vez em quando — o pior tipo de intermitência.
+    const saidas = modo.match(/json\(\{ token: [^}]*\}\)/g) || [];
+    expect(saidas.length).toBeGreaterThan(1);
+    for (const saida of saidas) {
+      expect(saida, 'uma saída do token não devolve o id do projeto').toMatch(/appId/);
+    }
+  });
+});

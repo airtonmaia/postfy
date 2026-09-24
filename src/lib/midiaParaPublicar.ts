@@ -76,7 +76,7 @@ export const prepararMidiaDoDrive = async (jobId: string): Promise<PreparoDaMidi
     abria aqui — no meio do "Agendar", depois de a pessoa já ter escolhido o
     arquivo horas antes.
   */
-  const acesso = await tokenDoDrive(job.workspace_id);
+  const { token: acesso } = await tokenDoDrive(job.workspace_id);
   const falhas: PreparoDaMidia['falhas'] = [];
   const chaves: string[] = [];
   let copiados = 0;

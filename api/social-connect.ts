@@ -189,7 +189,21 @@ const tokenDoDrive = async (
     credencial.expira_em &&
     new Date(credencial.expira_em).getTime() - MARGEM_DO_TOKEN_MS > Date.now();
 
-  if (aindaVale) return json({ token: credencial.access_token });
+  /**
+   * O id do projeto vai junto, e ele é obrigatório no seletor.
+   *
+   * Com escopo `drive.file`, o Google só registra a concessão do arquivo
+   * escolhido quando o seletor é construído com o id do projeto. Sem ele a
+   * escolha acontece e **toda leitura depois volta 404** — a miniatura, e a
+   * cópia na hora de agendar, já com a data marcada.
+   *
+   * Derivado do `client_id` em vez de uma variável nova: o id do projeto é o
+   * número antes do hífen, e mais uma variável é mais uma coisa para
+   * cadastrar errado.
+   */
+  const appId = id.split('-')[0];
+
+  if (aindaVale) return json({ token: credencial.access_token, appId });
 
   try {
     const { acesso, expiraEm } = await renovarAcesso(credencial.refresh_token, id, segredoDoGoogle);
@@ -203,7 +217,7 @@ const tokenDoDrive = async (
       })
       .eq('workspace_id', workspaceId);
 
-    return json({ token: acesso });
+    return json({ token: acesso, appId });
   } catch {
     /*
       O refresh token morreu — a pessoa revogou o acesso na conta dela, ou o

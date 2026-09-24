@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.75.3',
+    data: '2026-09-24',
+    resumo: 'O seletor do Drive não concedia acesso ao arquivo escolhido.',
+    corrigido: [
+      'A escolha no Drive acontecia, o arquivo entrava na peça, e qualquer leitura depois falhava: o seletor não informava de qual projeto ele era, e sem isso o Google não registra a concessão. Era a causa da prévia vazia — e a cópia na hora de agendar falharia igual, já com a data marcada.',
+    ],
+    melhorias: [
+      'Artes escolhidas antes desta correção precisam ser adicionadas de novo: a concessão daquelas não existe do lado do Google.',
+    ],
+  },
+  {
     versao: '2.75.2',
     data: '2026-09-23',
     resumo: 'Quando a prévia do arquivo do Drive não vem, a tela diz por quê.',

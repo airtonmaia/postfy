@@ -85,7 +85,9 @@ export const desconectarDrive = async (workspaceId: string): Promise<void> => {
  * o console. O servidor guarda o token curto enquanto ele vale, então esta
  * chamada quase sempre não fala com o Google.
  */
-export const tokenDoDrive = async (workspaceId: string): Promise<string> => {
+export const tokenDoDrive = async (
+  workspaceId: string
+): Promise<{ token: string; appId: string }> => {
   const { data: sessao } = await supabase.auth.getSession();
   const sessaoToken = sessao.session?.access_token;
   if (!sessaoToken) throw new ApiError('Faça login para usar o Drive.', 401);
@@ -101,5 +103,10 @@ export const tokenDoDrive = async (workspaceId: string): Promise<string> => {
     throw new ApiError(payload?.error || `Falha na requisição (${resposta.status}).`, resposta.status, payload?.code);
   }
 
-  return payload.token as string;
+  /*
+    O id do projeto vem junto porque o seletor precisa dele para o
+    `drive.file` valer — sem ele a escolha acontece e toda leitura depois
+    volta 404. Ver `abrirSeletorDoDrive`.
+  */
+  return { token: payload.token as string, appId: payload.appId as string };
 };
