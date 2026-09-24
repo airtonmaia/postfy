@@ -44,21 +44,46 @@ describe('hooks vêm antes de qualquer return de guarda', () => {
     for (const caminho of arquivosDeComponente(RAIZ)) {
       const linhas = readFileSync(caminho, 'utf-8').split('\n');
 
-      // `  if (...) return null;` — exatamente dois espaços: o corpo do
-      // componente, não um callback aninhado.
-      const guarda = linhas.findIndex((l) => /^ {2}if \(.*\)\s*return null;/.test(l));
-      if (guarda === -1) continue;
+      /*
+        **O corte para no fim do componente**, e a varredura olha todos eles.
 
-      const depois = linhas.slice(guarda + 1);
-      const infrator = depois.findIndex(
-        (l) => HOOK.test(l) && !l.trimStart().startsWith('//') && !l.trimStart().startsWith('*')
-      );
+        A versão anterior pegava o **primeiro** `return null` do arquivo e
+        varria daí até o fim — atravessando a fronteira entre componentes. Num
+        arquivo com vários, um componente pequeno com saída antecipada fazia a
+        guarda acusar o hook de outro, que está correto. Guarda que reprova
+        código certo ensina a ignorá-la, e este projeto já registra isso três
+        vezes.
+
+        Consertar o recorte a tornou mais forte: antes ela olhava uma guarda
+        por arquivo, agora olha todas.
+      */
+      const infratores: string[] = [];
+
+      linhas.forEach((linha, i) => {
+        // `  if (...) return null;` — exatamente dois espaços: o corpo do
+        // componente, não um callback aninhado.
+        if (!/^ {2}if \(.*\)\s*return null;/.test(linha)) return;
+
+        // O componente termina na primeira linha que fecha na coluna zero.
+        let fim = linhas.findIndex((l, j) => j > i && /^\};?$/.test(l));
+        if (fim === -1) fim = linhas.length;
+
+        for (let j = i + 1; j < fim; j += 1) {
+          const l = linhas[j];
+          if (!HOOK.test(l) || l.trimStart().startsWith('//') || l.trimStart().startsWith('*')) {
+            continue;
+          }
+          infratores.push(
+            `${caminho.replace(RAIZ, 'src')}:${j + 1} declara hook depois do ` +
+              `\`return null\` da linha ${i + 1}`
+          );
+        }
+      });
 
       expect(
-        infrator,
-        `${caminho.replace(RAIZ, 'src')}:${guarda + infrator + 2} declara hook depois do ` +
-          `\`return null\` da linha ${guarda + 1} — o React derruba a árvore com o erro #310`
-      ).toBe(-1);
+        infratores,
+        'hook depois de um `return null` de guarda — o React derruba a árvore com o erro #310'
+      ).toEqual([]);
     }
   });
 });
