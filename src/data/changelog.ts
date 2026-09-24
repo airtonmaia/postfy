@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.82.1',
+    data: '2026-09-24',
+    resumo: 'O botão de baixar mudou para o canto inferior direito.',
+    corrigido: [
+      'Ele dividia o canto superior com a etiqueta de versão e, em card estreito, cobria o "v1" — que é o que diz ao cliente que a peça mudou desde a última vez que ele olhou.',
+    ],
+  },
+  {
     versao: '2.82.0',
     data: '2026-09-24',
     resumo: 'No portal, o cliente vê todas as páginas do carrossel e pode baixar cada arte.',
