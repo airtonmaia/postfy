@@ -76,6 +76,7 @@ import {
 import { carregarAcessoDaAgencia, type AcessoDaAgencia } from '../lib/assinatura';
 import { definirFusoDaAgencia } from '../lib/fusoHorario';
 import { prepararMidiaDoDrive } from '../lib/midiaParaPublicar';
+import { apagarMidiaDaPeca } from '../lib/midiaDaPeca';
 import {
   carregarPortal,
   aprovarPeloPortal,
@@ -1624,43 +1625,50 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       void dispararAutomacoes('conteudo_aguardando_aprovacao', {
         jobId: newJob.id, jobTitle: newJob.title,
       });
-      // A arte do Drive precisa existir num endereço que o portal abra. Ver
-      // `garantirMidiaParaOPortal` — ela espera a peça chegar ao banco.
-      garantirMidiaParaOPortal(newJob.id, newJob.status);
     }
+
+    // A arte do Drive vem para o R2 agora, com a peça recém-criada — ver
+    // `garantirMidiaDoDrive`, que espera a linha chegar ao banco.
+    garantirMidiaDoDrive(newJob.id);
 
     return newJob;
   };
   
   /**
-   * A arte do Drive precisa existir num endereço que o **portal** abra.
+   * A arte do Drive vem para o R2 **assim que a peça existe**.
    *
-   * O portal do cliente é anônimo por definição, e nenhum endereço do Google
-   * abre sem login: quem aprova via a miniatura e mais nada — o que basta
-   * para uma arte, e não basta para um Reels, onde o movimento e o áudio são
+   * O arquivo precisa estar num endereço que o navegador abra — e o portal
+   * do cliente é anônimo por definição, então nenhum endereço do Google
+   * serve. Sem a cópia, quem aprova vê a miniatura e mais nada: basta para
+   * uma arte, não basta para um Reels, onde o movimento e o áudio são
    * metade da peça.
    *
-   * Então a cópia para o R2, que já acontecia ao agendar, passa a acontecer
-   * também **ao mandar para aprovação**. Ela é apagada depois de a peça ir ao
-   * ar, como sempre foi: o balde segue guardando só o que está em trânsito.
+   * **A cópia acontece na criação, e não na aprovação.** Amarrá-la a um
+   * status fazia a peça passar horas sem vídeo nenhum — o tempo em que ela é
+   * produzida, revisada internamente e conferida na prévia. Quem monta a
+   * peça é o primeiro a precisar vê-la rodando.
    *
-   * **Mora aqui, e não nas telas, porque são quatro caminhos para o mesmo
-   * status**: o botão do cadastro, o do detalhe, o seletor do card e o
-   * arrasto no quadro. Repetir a chamada em cada um garante esquecer um — e
-   * esquecer aqui não quebra nada visível: o cliente aprova sem ver o vídeo.
+   * Ela é apagada depois de a peça ir ao ar, e o que fica é a imagem de capa:
+   * o balde segue guardando só o que está em uso.
+   *
+   * **Mora aqui, e não nas telas**, porque são quatro caminhos que mexem na
+   * mídia de uma peça — o cadastro, o detalhe, e os dois uploaders dentro
+   * deles. Repetir a chamada em cada um garante esquecer um, e esquecer aqui
+   * não quebra nada visível: o vídeo simplesmente não toca.
    *
    * Não bloqueia e não avisa quando falha. A peça segue com a miniatura, que
    * é exatamente o que ela tinha antes desta função existir.
    */
-  const garantirMidiaParaOPortal = (jobId: string, status?: JobStatus) => {
-    if (status !== 'for_approval') return;
+  const garantirMidiaDoDrive = (jobId: string) => {
     void prepararMidiaDoDrive(jobId).catch(() => {
       /* Ver acima: sem a cópia, o portal mostra a miniatura. */
     });
   };
 
   const updateJob = (jobId: string, updates: Partial<Job>) => {
-    garantirMidiaParaOPortal(jobId, updates.status);
+    // Mídia trocada é o gatilho, não o status: acrescentar um vídeo do Drive
+    // a uma peça que já existe precisa da cópia do mesmo jeito.
+    if (updates.mediaUrls || updates.storyMediaUrls) garantirMidiaDoDrive(jobId);
     setAllJobs(prev => prev.map(job => {
       if (job.id === jobId) {
         const updated = { ...job, ...updates };
@@ -1677,6 +1685,23 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const jobToDelete = jobs.find(j => j.id === jobId);
     if (jobToDelete) {
       logActivity('Excluiu o conteúdo', `Job: ${jobToDelete.title}`);
+
+      /*
+        A arte sai junto — mas só a que **era desta peça**. Deixá-la no balde
+        é a sobra que ninguém vê crescer: a Biblioteca passa a listar arquivo
+        de conteúdo que não existe mais, e a agência paga por um acervo que
+        acha que apagou.
+
+        `apagarMidiaDaPeca` confere o uso no banco antes de cada exclusão. A
+        mesma arte pode servir a dois conteúdos — é por isso que a Biblioteca
+        conta usos —, e apagar sem conferir tiraria a imagem de um post que
+        continua no ar.
+
+        Em segundo plano e sem bloquear: a exclusão do conteúdo já aconteceu,
+        e um erro de limpeza não pode virar uma mensagem de falha sobre algo
+        que deu certo.
+      */
+      void apagarMidiaDaPeca(jobToDelete);
     }
     setAllJobs(prev => prev.filter(j => j.id !== jobId));
     if (selectedJob?.id === jobId) {
