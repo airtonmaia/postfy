@@ -3,6 +3,10 @@ import {
   ListObjectsV2Command,
   DeleteObjectsCommand,
   DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 
 /**
@@ -162,4 +166,122 @@ export const apagarObjeto = async (chave: string): Promise<void> => {
   await clienteR2().send(
     new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: chave })
   );
+};
+
+/**
+ * Envia um fluxo para o balde em partes, sem carregá-lo inteiro na memória.
+ *
+ * **O `PutObject` simples obriga a ter o arquivo todo na mão.** Com um vídeo
+ * de 109 MB isso é um `Buffer` de 109 MB dentro de uma função serverless —
+ * e foi por isso que a cópia tinha um teto de 100 MB, que é justamente o
+ * tamanho de um Reels comum. O teto não era uma decisão de produto; era a
+ * memória.
+ *
+ * Em partes, o pico de memória é o tamanho de uma parte. O arquivo pode ser
+ * muito maior que a função.
+ *
+ * **Sem dependência nova**: o `@aws-sdk/client-s3` já está aqui, e
+ * `@aws-sdk/lib-storage` traria um pacote a mais e os dois lockfiles para
+ * atualizar — o CI instala com `--frozen-lockfile`, e este projeto já
+ * quebrou uma vez exatamente assim.
+ *
+ * O `abort` no erro não é zelo: parte enviada e não concluída **fica no
+ * balde ocupando espaço**, invisível na listagem, e a Cloudflare cobra por
+ * ela até alguém limpar.
+ */
+const TAMANHO_DA_PARTE = 8 * 1024 * 1024;
+
+/**
+ * Quando o envio desiste por tempo.
+ *
+ * Lançar um erro qualquer aqui daria "falha desconhecida" a quem está
+ * olhando a tela. O nome existe para a resposta poder dizer o que houve e o
+ * que fazer.
+ */
+export class TempoEsgotadoNoEnvio extends Error {
+  constructor(public enviados: number) {
+    super('Tempo esgotado no envio.');
+    this.name = 'TempoEsgotadoNoEnvio';
+  }
+}
+
+export const enviarEmPartes = async (
+  chave: string,
+  corpo: ReadableStream<Uint8Array>,
+  tipo: string,
+  /**
+   * Quando parar, em milissegundos desde o início da função.
+   *
+   * **Sem isto, o arquivo grande demais mata a função sem resposta** — e a
+   * tela volta ao silêncio que custou três rodadas de diagnóstico. É o mesmo
+   * `ORCAMENTO_MS` do agendador, pela mesma razão: estourar no meio é o pior
+   * desfecho, porque não sobra nem o motivo.
+   */
+  orcamentoMs = 45_000
+): Promise<void> => {
+  const comecou = Date.now();
+  const cliente = clienteR2();
+  const Bucket = process.env.R2_BUCKET;
+
+  const inicio = await cliente.send(
+    new CreateMultipartUploadCommand({ Bucket, Key: chave, ContentType: tipo })
+  );
+  const UploadId = inicio.UploadId;
+
+  try {
+    const leitor = corpo.getReader();
+    const partes: { ETag?: string; PartNumber: number }[] = [];
+    let acumulado: Uint8Array[] = [];
+    let acumuladoBytes = 0;
+    let enviadosAoTodo = 0;
+    let numero = 1;
+
+    const enviarParte = async () => {
+      if (!acumuladoBytes) return;
+      const dados = Buffer.concat(acumulado.map((c) => Buffer.from(c)), acumuladoBytes);
+      const resposta = await cliente.send(
+        new UploadPartCommand({ Bucket, Key: chave, UploadId, PartNumber: numero, Body: dados })
+      );
+      partes.push({ ETag: resposta.ETag, PartNumber: numero });
+      numero += 1;
+      enviadosAoTodo += acumuladoBytes;
+      acumulado = [];
+      acumuladoBytes = 0;
+    };
+
+    for (;;) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      if (!value) continue;
+
+      acumulado.push(value);
+      acumuladoBytes += value.byteLength;
+
+      if (Date.now() - comecou > orcamentoMs) {
+        throw new TempoEsgotadoNoEnvio(enviadosAoTodo + acumuladoBytes);
+      }
+
+      // O S3 exige pelo menos 5 MB por parte, menos na última. Juntar até 8
+      // dá folga e mantém o pico de memória pequeno.
+      if (acumuladoBytes >= TAMANHO_DA_PARTE) await enviarParte();
+    }
+
+    await enviarParte();
+
+    await cliente.send(
+      new CompleteMultipartUploadCommand({
+        Bucket,
+        Key: chave,
+        UploadId,
+        MultipartUpload: { Parts: partes },
+      })
+    );
+  } catch (erro) {
+    await cliente
+      .send(new AbortMultipartUploadCommand({ Bucket, Key: chave, UploadId }))
+      .catch(() => {
+        /* Já falhou uma vez; não há a quem contar a segunda. */
+      });
+    throw erro;
+  }
 };

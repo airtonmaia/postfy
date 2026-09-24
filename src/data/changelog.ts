@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.79.1',
+    data: '2026-09-24',
+    resumo: 'Vídeo acima de 100 MB passou a ser copiado.',
+    corrigido: [
+      'O limite de 100 MB cortava o tamanho de um Reels comum — o primeiro arquivo real a esbarrar nele tinha 109 MB. O envio para o armazenamento passou a ser em partes, o arquivo não precisa mais caber na memória, e o limite subiu para 500 MB.',
+    ],
+    melhorias: [
+      'Se a cópia não terminar no tempo disponível, a mensagem diz quantos megabytes foram enviados antes de parar, em vez de a operação morrer sem resposta.',
+    ],
+  },
+  {
     versao: '2.79.0',
     data: '2026-09-24',
     resumo: 'O vídeo do Drive passou a ser copiado pelo servidor, e a falha deixou de ser muda.',

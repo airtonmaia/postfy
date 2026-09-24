@@ -11,7 +11,14 @@ import {
   textoValido,
   excedeuLimite,
 } from './_lib/auth.js';
-import { r2Configurado, clienteR2, listarObjetos, apagarObjeto } from './_lib/r2.js';
+import {
+  r2Configurado,
+  clienteR2,
+  listarObjetos,
+  apagarObjeto,
+  enviarEmPartes,
+  TempoEsgotadoNoEnvio,
+} from './_lib/r2.js';
 import { credenciaisDoGoogle, renovarAcesso } from './_lib/googleDrive.js';
 
 
@@ -318,7 +325,22 @@ const acessoDoDrive = async (
  * estoura o tempo no meio deixaria a função morta sem resposta, que é o
  * mesmo silêncio de antes com outro nome.
  */
-const LIMITE_DA_COPIA = 100 * 1024 * 1024;
+/**
+ * O teto da cópia.
+ *
+ * Era 100 MB porque o arquivo inteiro ia para a memória da função — e o
+ * primeiro vídeo real a esbarrar nele tinha **109 MB**, que é o tamanho de
+ * um Reels comum. O teto não descrevia uma decisão de produto; descrevia o
+ * `PutObject` simples.
+ *
+ * Com o envio em partes, o pico de memória é o tamanho de uma parte. O que
+ * limita agora é **tempo**: a função tem 60 segundos para baixar do Google e
+ * subir para o balde. 500 MB é o que cabe nessa janela com folga em conexão
+ * de datacenter, e acima disso a resposta diz o tamanho em vez de deixar a
+ * função morrer sem responder — que é o mesmo silêncio que custou três
+ * rodadas de diagnóstico.
+ */
+const LIMITE_DA_COPIA = 500 * 1024 * 1024;
 
 const copiarDoDrive = async (request: Request, userId: string): Promise<Response> => {
   let corpo: any;
@@ -381,26 +403,35 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
       return json({ url: null, motivo: `o Google recusou o download (${conteudo.status})` });
     }
 
-    const bytes = Buffer.from(await conteudo.arrayBuffer());
     const tipo = dados.mimeType || conteudo.headers.get('content-type') || 'application/octet-stream';
     const chave = `${workspaceId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${nomeSeguro(
       dados.name || `${fileId}.mp4`
     )}`;
 
-    await clienteR2().send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET,
-        Key: chave,
-        Body: bytes,
-        ContentType: tipo,
-      })
-    );
+    if (!conteudo.body) return json({ url: null, motivo: 'o Google não devolveu conteúdo' });
+
+    /*
+      Em partes, e não `arrayBuffer()`: o buffer inteiro na memória é o que
+      obrigava o teto de 100 MB, e o primeiro vídeo real a esbarrar nele
+      tinha 109. Aqui o pico é o tamanho de uma parte.
+    */
+    await enviarEmPartes(chave, conteudo.body as ReadableStream<Uint8Array>, tipo);
 
     const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
     if (!base) return json({ url: null, motivo: 'falta R2_PUBLIC_BASE_URL no servidor' });
 
     return json({ url: `${base}/${chave}`, chave });
   } catch (erro) {
+    if (erro instanceof TempoEsgotadoNoEnvio) {
+      const mb = Math.round(erro.enviados / 1024 / 1024);
+      return json({
+        url: null,
+        motivo:
+          `o tempo de cópia acabou depois de ${mb} MB — o arquivo é grande ou a ` +
+          'conexão com o Google está lenta. Tente de novo, ou use uma versão mais leve',
+      });
+    }
+
     const motivo = erro instanceof Error ? erro.message : 'falha desconhecida';
     console.warn('[upload] cópia do drive', motivo);
     return json({ url: null, motivo });
