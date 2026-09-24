@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.82.0',
+    data: '2026-09-24',
+    resumo: 'No portal, o cliente vê todas as páginas do carrossel e pode baixar cada arte.',
+    novidades: [
+      'Peça com mais de uma arte vira carrossel no portal: arraste, setas e bolinhas mostrando quantas páginas existem. Antes só a primeira aparecia, e o cliente aprovava sem ver as outras.',
+      'Toda arte tem um botão de baixar, inclusive vídeo. O arquivo do Google Drive baixa em qualidade original, direto do Google.',
+    ],
+    melhorias: [
+      'O carrossel não dá a volta sozinho: voltar ao começo sem aviso faria a pessoa perder a conta de quantas páginas já viu.',
+      'A prévia do calendário no portal também mostra todas as páginas.',
+    ],
+  },
+  {
     versao: '2.81.0',
     data: '2026-09-24',
     resumo: 'A agência pode conectar mais de uma conta do Google Drive.',

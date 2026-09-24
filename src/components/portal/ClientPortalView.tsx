@@ -68,6 +68,15 @@ import {
   DialogFooter,
 } from '../ui/dialog';
 import { urlDeExibicao, videoParaTocar, idDeVideoNoDrive } from '../../lib/midiaDoDrive';
+import { baixarArquivo } from '../../lib/baixar';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  CarouselDots,
+} from '../ui/carousel';
 
 /** Os dois enquadramentos de "Feed + Story", na ordem em que a peça sai. */
 const QUADROS_DO_CRIATIVO = [
@@ -147,6 +156,39 @@ type QuadroDoCriativo = (typeof QUADROS_DO_CRIATIVO)[number]['chave'];
  * abrir a aba montaria o player de todos de uma vez. Assim só o que está à
  * vista carrega — e o que carrega é a casca do player, não o vídeo.
  */
+/**
+ * O botão de baixar a arte, por cima dela.
+ *
+ * O cliente aprova, e depois quer o arquivo — para o site, para uma
+ * impressão, para guardar. Sem o botão o caminho era pedir à agência por
+ * WhatsApp, que é trabalho para os dois lados por causa de um arquivo que
+ * já está na tela.
+ *
+ * **Por cima e no canto**, não abaixo: a arte ocupa o card inteiro, e um
+ * botão fora dela empurraria a legenda e os botões de decisão para baixo da
+ * dobra — e a decisão é o que a tela existe para receber.
+ *
+ * Fica visível sempre, e não só no `hover`: no celular não há `hover`, e é
+ * no celular que o cliente aprova.
+ */
+const BotaoBaixar: React.FC<{ url: string }> = ({ url }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      // A arte inteira costuma ser clicável (abre a prévia, troca o quadro).
+      // Sem isto, baixar também dispararia o que estiver por baixo.
+      e.stopPropagation();
+      e.preventDefault();
+      void baixarArquivo(url);
+    }}
+    title="Baixar este arquivo"
+    aria-label="Baixar este arquivo"
+    className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/75 text-white flex items-center justify-center backdrop-blur-xs transition-colors"
+  >
+    <Download className="w-4 h-4" />
+  </button>
+);
+
 const PlayerDoDrive: React.FC<{ id: string; rotulo: string }> = ({ id, rotulo }) => (
   <iframe
     src={`https://drive.google.com/file/d/${id}/preview`}
@@ -204,6 +246,78 @@ const VideoComCapa: React.FC<{
   );
 };
 
+/**
+ * Uma arte da peça: o player certo para o que ela é, com o botão de baixar.
+ *
+ * As três formas moram aqui porque a escolha entre elas é a mesma em toda
+ * tela do portal — o card de aprovação, a prévia do calendário, os dois
+ * quadros de feed+story. Repetir o ternário em cada uma é como uma delas
+ * fica sem o player do Drive, ou sem o botão de baixar.
+ */
+const MidiaDaPeca: React.FC<{ url: string; copia?: string; rotulo: string }> = ({
+  url,
+  copia,
+  rotulo,
+}) => {
+  const idNoDrive = idDeVideoNoDrive(url);
+  const video = videoParaTocar(url, copia);
+
+  return (
+    <div className="relative w-full h-full">
+      {idNoDrive ? (
+        <PlayerDoDrive id={idNoDrive} rotulo={rotulo} />
+      ) : video ? (
+        <VideoComCapa src={video} capa={urlDeExibicao(url) || undefined} rotulo={rotulo} />
+      ) : (
+        <img
+          src={urlDeExibicao(url)}
+          alt={`Arte do ${rotulo}`}
+          className="w-full h-full object-cover"
+        />
+      )}
+
+      <BotaoBaixar url={url} />
+    </div>
+  );
+};
+
+/**
+ * As páginas da peça, com o arraste para ver as demais.
+ *
+ * **O portal mostrava só a primeira.** Um carrossel de cinco páginas era
+ * aprovado com uma vista — e as outras quatro iam ao ar sem ninguém ter
+ * olhado, que é exatamente o que esta tela existe para impedir.
+ *
+ * Com uma arte só, nada de carrossel: setas e bolinhas sobre uma imagem
+ * única são ruído, e sugerem uma página que não existe.
+ */
+const GaleriaDaPeca: React.FC<{
+  urls: string[];
+  copias?: string[];
+  rotulo: string;
+}> = ({ urls, copias, rotulo }) => {
+  if (!urls.length) return null;
+  if (urls.length === 1) {
+    return <MidiaDaPeca url={urls[0]} copia={copias?.[0]} rotulo={rotulo} />;
+  }
+
+  return (
+    <Carousel className="w-full h-full">
+      <CarouselContent className="h-full">
+        {urls.map((url, i) => (
+          <CarouselItem key={`${url}-${i}`} className="h-full">
+            <MidiaDaPeca url={url} copia={copias?.[i]} rotulo={rotulo} />
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+
+      <CarouselPrevious />
+      <CarouselNext />
+      <CarouselDots />
+    </Carousel>
+  );
+};
+
 const CriativoDeFeedEStory: React.FC<{
   feed?: string;
   story?: string;
@@ -231,13 +345,6 @@ const CriativoDeFeedEStory: React.FC<{
   const arteDoQuadro: Record<QuadroDoCriativo, string | undefined> = { feed, story };
   const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
   const url = arteDoQuadro[emTela.chave];
-  const video = videoParaTocar(url, copias?.[emTela.chave]);
-  /*
-    O player do Drive não precisa da cópia: um vídeo grande demais para
-    copiar, ou cuja cópia falhou, continua tocando. Por isso o que decide
-    mostrar o play é **qualquer um dos dois**.
-  */
-  const idNoDrive = idDeVideoNoDrive(url);
 
   /**
    * Dois irmãos, não um bloco: a arte vai de borda a borda e o seletor fica
@@ -252,16 +359,8 @@ const CriativoDeFeedEStory: React.FC<{
           : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
       }
     >
-      {idNoDrive ? (
-        <PlayerDoDrive id={idNoDrive} rotulo={emTela.rotulo} />
-      ) : video ? (
-        <VideoComCapa
-          src={video}
-          capa={urlDeExibicao(url || '') || undefined}
-          rotulo={emTela.rotulo}
-        />
-      ) : url ? (
-        <img src={urlDeExibicao(url)} alt={`Arte do ${emTela.rotulo}`} className="w-full h-full object-cover" />
+      {url ? (
+        <MidiaDaPeca url={url} copia={copias?.[emTela.chave]} rotulo={emTela.rotulo} />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 text-[11px] text-center px-2">
           <Layers className="w-6 h-6" />
@@ -958,29 +1057,16 @@ export const ClientPortalView: React.FC = () => {
                       {definicaoDoTipo(job.tipo).pedeArte &&
                         job.format !== 'feed_story' &&
                         (job.mediaUrls && job.mediaUrls.length > 0 ? (
-                          /* Vídeo toca; imagem é imagem. Antes tudo era
-                             desenhado como imagem, então quem aprovava um
-                             Reels decidia sobre um quadro vazio. */
-                          idDeVideoNoDrive(job.mediaUrls[0]) ? (
-                            <PlayerDoDrive
-                              id={idDeVideoNoDrive(job.mediaUrls[0]) as string}
-                              rotulo="conteúdo"
-                            />
-                          ) : videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) ? (
-                            <VideoComCapa
-                              src={
-                                videoParaTocar(job.mediaUrls[0], job.midiaPublicavel?.feed?.[0]) as string
-                              }
-                              capa={urlDeExibicao(job.mediaUrls[0]) || undefined}
-                              rotulo="conteúdo"
-                            />
-                          ) : (
-                            <img
-                              src={urlDeExibicao(job.mediaUrls[0])}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          )
+                          /* **Todas as páginas, não só a primeira.** Um
+                             carrossel de cinco era aprovado com uma vista, e
+                             as outras quatro iam ao ar sem ninguém ter
+                             olhado — o oposto do que esta tela existe para
+                             fazer. */
+                          <GaleriaDaPeca
+                            urls={job.mediaUrls}
+                            copias={job.midiaPublicavel?.feed}
+                            rotulo="conteúdo"
+                          />
                         ) : (
                           <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
                             <Layers className="w-8 h-8" />
@@ -1961,10 +2047,18 @@ export const ClientPortalView: React.FC = () => {
                   <CriativoDeFeedEStory
                     feed={calendarPreviewJob.mediaUrls?.[0]}
                     story={calendarPreviewJob.storyMediaUrls?.[0]}
+                    copias={{
+                      feed: calendarPreviewJob.midiaPublicavel?.feed?.[0],
+                      story: calendarPreviewJob.midiaPublicavel?.story?.[0],
+                    }}
                     encaixe="caber"
                   />
                 ) : calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
-                  <img src={urlDeExibicao(calendarPreviewJob.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
+                  <GaleriaDaPeca
+                    urls={calendarPreviewJob.mediaUrls}
+                    copias={calendarPreviewJob.midiaPublicavel?.feed}
+                    rotulo="conteúdo"
+                  />
                 ) : (
                   <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
                     <Layers className="w-8 h-8" />

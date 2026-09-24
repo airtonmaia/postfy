@@ -1319,3 +1319,102 @@ describe('a agência pode ter mais de uma conta do Drive', () => {
     );
   });
 });
+
+/**
+ * **O portal mostrava só a primeira página do carrossel.**
+ *
+ * Um conteúdo de cinco artes era aprovado com uma vista, e as outras quatro
+ * iam ao ar sem ninguém ter olhado — o oposto do que a tela de aprovação
+ * existe para fazer. É a armadilha 9 na direção mais cara: quem é enganado
+ * não é o dono do produto, é o cliente de quem paga por ele.
+ *
+ * E o cliente que aprova quer o arquivo depois — para o site, para uma
+ * impressão, para guardar. Sem o botão, o caminho era pedir à agência por
+ * WhatsApp um arquivo que já estava na tela.
+ */
+describe('o portal mostra a peça inteira, e deixa baixar', () => {
+  const portal = semComentarios(ler('src', 'components', 'portal', 'ClientPortalView.tsx'));
+
+  it('todas as páginas da peça chegam à tela', () => {
+    expect(portal, 'o portal voltou a mostrar só a primeira arte').toMatch(
+      /urls=\{job\.mediaUrls\}/
+    );
+    expect(portal).toMatch(/<GaleriaDaPeca/);
+  });
+
+  it('com uma arte só, não há carrossel', () => {
+    /*
+      Setas e bolinhas sobre uma imagem única são ruído, e sugerem uma página
+      que não existe.
+    */
+    const galeria = portal.slice(portal.indexOf('const GaleriaDaPeca'));
+    expect(galeria.slice(0, 900)).toMatch(/urls\.length === 1/);
+  });
+
+  it('a contagem de páginas fica à vista', () => {
+    /*
+      As bolinhas não são enfeite: são elas que dizem **quantas páginas
+      existem**, e é isso que o cliente usa para saber se viu a peça inteira
+      antes de aprovar.
+    */
+    const carrossel = semComentarios(ler('src', 'components', 'ui', 'carousel.tsx'));
+    expect(portal).toMatch(/<CarouselDots \/>/);
+    expect(carrossel).toMatch(/total <= 1/);
+  });
+
+  it('o carrossel não volta ao começo sozinho', () => {
+    /*
+      Numa lista de páginas, dar a volta sem aviso faz a pessoa perder a
+      conta de quantas já viu — e a conta é o que ela usa para decidir.
+    */
+    const carrossel = semComentarios(ler('src', 'components', 'ui', 'carousel.tsx'));
+    expect(carrossel).toMatch(/loop = false/);
+  });
+
+  it('toda arte tem o botão de baixar', () => {
+    /*
+      Ele mora no componente que desenha **uma** arte, e não em cada tela:
+      repetido por fora, a próxima tela nasceria sem ele.
+    */
+    const midia = portal.slice(portal.indexOf('const MidiaDaPeca'), portal.indexOf('const GaleriaDaPeca'));
+
+    expect(midia.length).toBeGreaterThan(200);
+    expect(midia, 'a arte perdeu o botão de baixar').toMatch(/<BotaoBaixar url=\{url\} \/>/);
+  });
+
+  it('baixar não dispara o que está embaixo', () => {
+    /*
+      A arte costuma ser clicável — abre a prévia, troca o quadro. Sem parar
+      a propagação, baixar também abriria a peça, e a pessoa acharia que
+      clicou errado.
+    */
+    const botao = portal.slice(portal.indexOf('const BotaoBaixar'), portal.indexOf('const PlayerDoDrive'));
+    expect(botao).toMatch(/stopPropagation\(\)/);
+  });
+
+  it('arquivo do Drive baixa pelo Google', () => {
+    /*
+      O original mora lá, e a peça já está liberada por link enquanto está em
+      aprovação — a mesma permissão que faz o player tocar. Baixar a nossa
+      cópia entregaria um arquivo que some depois da publicação.
+    */
+    const baixar = semComentarios(ler('src', 'lib', 'baixar.ts'));
+    expect(baixar).toMatch(/uc\?export=download/);
+    expect(baixar).toMatch(/if \(ehDoDrive\(url\)\)/);
+  });
+
+  it('o download de outro domínio não confia no atributo', () => {
+    /*
+      `download` só vale para o mesmo domínio. A arte mora no balde, que é
+      outro — ali o navegador ignora o atributo e **abre** o arquivo. Por isso
+      os bytes são buscados e entregues como arquivo, com a abertura da aba
+      como recuo quando a leitura não é permitida.
+    */
+    const baixar = semComentarios(ler('src', 'lib', 'baixar.ts'));
+    expect(baixar).toMatch(/URL\.createObjectURL/);
+    expect(baixar, 'o blob fica na memória da aba até ela fechar').toMatch(
+      /URL\.revokeObjectURL/
+    );
+    expect(baixar).toMatch(/window\.open\(url/);
+  });
+});
