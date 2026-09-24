@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.79.2',
+    data: '2026-09-24',
+    resumo: 'O envio em partes do vídeo era recusado pelo armazenamento.',
+    corrigido: [
+      'As partes saíam com tamanhos ligeiramente diferentes, e o Cloudflare R2 exige que todas tenham exatamente o mesmo tamanho — só a última pode ser menor. O erro só aparecia em arquivo grande o bastante para ter mais de uma parte, que são justamente os que o envio em partes veio atender.',
+    ],
+  },
+  {
     versao: '2.79.1',
     data: '2026-09-24',
     resumo: 'Vídeo acima de 100 MB passou a ser copiado.',
