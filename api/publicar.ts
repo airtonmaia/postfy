@@ -757,12 +757,24 @@ const trancarVideosDoDrive = async (
   midiaDoStory?: string[] | null
 ): Promise<void> => {
   try {
-    const ids = [...(midia || []), ...(midiaDoStory || [])]
-      .filter((u) => typeof u === 'string' && u.startsWith('drive://'))
-      .map((u) => u.slice('drive://'.length).split('?')[0])
-      .filter(Boolean);
+    /*
+      Cada arte pode ter vindo de uma conta diferente — a agência costuma ter
+      o Drive dela e o do cliente —, e o token de uma não alcança o arquivo
+      da outra. Por isso a lista é agrupada por conta, e não por arquivo.
 
-    if (!ids.length) return;
+      Referência antiga não traz a conta: ela cai na mais antiga da agência,
+      que é a única que existia quando ela foi escrita.
+    */
+    const porConta = new Map<string, string[]>();
+    for (const u of [...(midia || []), ...(midiaDoStory || [])]) {
+      if (typeof u !== 'string' || !u.startsWith('drive://')) continue;
+      const [alvo, consulta] = u.slice('drive://'.length).split('?');
+      if (!alvo) continue;
+      const conta = new URLSearchParams(consulta || '').get('conta') || '';
+      porConta.set(conta, [...(porConta.get(conta) || []), alvo]);
+    }
+
+    if (!porConta.size) return;
 
     const { data: agencia } = await supabase
       .from('jobs')
@@ -775,16 +787,29 @@ const trancarVideosDoDrive = async (
     const { id, segredo } = credenciaisDoGoogle();
     if (!id || !segredo) return;
 
-    const { data: credencial } = await supabase
-      .from('drive_credenciais')
-      .select('refresh_token')
-      .eq('workspace_id', agencia.workspace_id)
-      .maybeSingle();
+    for (const [contaId, arquivos] of porConta) {
+      const consulta = supabase
+        .from('drive_contas')
+        .select('id')
+        .eq('workspace_id', agencia.workspace_id);
 
-    if (!credencial?.refresh_token) return;
+      const { data: conta } = contaId
+        ? await consulta.eq('id', contaId).maybeSingle()
+        : await consulta.order('conectado_em').limit(1).maybeSingle();
 
-    const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
-    for (const fileId of ids) await trancarPorLink(fileId, acesso);
+      if (!conta) continue;
+
+      const { data: credencial } = await supabase
+        .from('drive_contas_credenciais')
+        .select('refresh_token')
+        .eq('conta_id', conta.id)
+        .maybeSingle();
+
+      if (!credencial?.refresh_token) continue;
+
+      const { acesso } = await renovarAcesso(credencial.refresh_token, id, segredo);
+      for (const fileId of arquivos) await trancarPorLink(fileId, acesso);
+    }
   } catch (erro) {
     console.warn('[publicar] trancar no drive', erro instanceof Error ? erro.message : erro);
   }

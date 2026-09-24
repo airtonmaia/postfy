@@ -130,7 +130,9 @@ const MARGEM_DO_TOKEN_MS = 2 * 60_000;
 const tokenDoDrive = async (
   request: Request,
   userId: string,
-  workspaceId: unknown
+  workspaceId: unknown,
+  /** Qual conta do Drive. Ausente, a mais antiga da agência. */
+  contaId?: string
 ): Promise<Response> => {
   if (!textoValido(workspaceId, 64)) {
     return json({ error: 'Agência não informada.' }, 400);
@@ -166,18 +168,40 @@ const tokenDoDrive = async (
     return json({ error: 'Armazenamento de credenciais não configurado.' }, 503);
   }
 
+  /*
+    A conta é conferida **contra a agência de quem pediu**, e não aceita como
+    veio: um id de conta de outra agência daria acesso ao Drive dela. Sem
+    `contaId`, cai na mais antiga — que é a única que existia quando as
+    referências sem esse campo foram gravadas.
+  */
+  const consulta = supabase.from('drive_contas').select('id').eq('workspace_id', workspaceId);
+  const { data: conta } = contaId
+    ? await consulta.eq('id', contaId).maybeSingle()
+    : await consulta.order('conectado_em').limit(1).maybeSingle();
+
+  if (!conta) {
+    return json(
+      {
+        error: contaId
+          ? 'Esta conta do Google Drive não pertence à agência.'
+          : 'Esta agência ainda não conectou um Google Drive. Faça isso em ' +
+            'Configurações → Integrações.',
+        code: 'DRIVE_SEM_CONEXAO',
+      },
+      409
+    );
+  }
+
   const { data: credencial } = await supabase
-    .from('drive_credenciais')
+    .from('drive_contas_credenciais')
     .select('refresh_token, access_token, expira_em')
-    .eq('workspace_id', workspaceId)
+    .eq('conta_id', conta.id)
     .maybeSingle();
 
   if (!credencial?.refresh_token) {
     return json(
       {
-        error:
-          'Esta agência ainda não conectou um Google Drive. Faça isso em ' +
-          'Configurações → Integrações.',
+        error: 'Esta conta do Google Drive perdeu a credencial. Reconecte em Configurações → Integrações.',
         code: 'DRIVE_SEM_CONEXAO',
       },
       409
@@ -209,13 +233,13 @@ const tokenDoDrive = async (
     const { acesso, expiraEm } = await renovarAcesso(credencial.refresh_token, id, segredoDoGoogle);
 
     await supabase
-      .from('drive_credenciais')
+      .from('drive_contas_credenciais')
       .update({
         access_token: acesso,
         expira_em: new Date(Date.now() + expiraEm * 1000).toISOString(),
         atualizado_em: new Date().toISOString(),
       })
-      .eq('workspace_id', workspaceId);
+      .eq('conta_id', conta.id);
 
     return json({ token: acesso, appId });
   } catch {
@@ -271,7 +295,12 @@ async function handler(request: Request): Promise<Response> {
    * tabela sem política nenhuma.
    */
   if (corpoDaRede?.acao === 'token-do-drive') {
-    return await tokenDoDrive(request, usuario.id, corpoDaRede?.workspaceId);
+    return await tokenDoDrive(
+      request,
+      usuario.id,
+      corpoDaRede?.workspaceId,
+      corpoDaRede?.contaId
+    );
   }
 
   const doGoogle = credenciaisDoGoogle();

@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { arquivosApi, ApiError } from '../../lib/api';
 import { googleConfigurado, faltaDoGoogle, abrirSeletorDoDrive } from '../../lib/google';
-import { tokenDoDrive } from '../../lib/driveDaAgencia';
+import { tokenDoDrive, contasDoDrive, type ContaDoDrive } from '../../lib/driveDaAgencia';
 import {
   ehDoDrive,
   ehVideo,
@@ -101,7 +101,24 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
    * E o token é o **da agência**: conectado uma vez em Configurações →
    * Integrações, não pedido a cada peça.
    */
-  const escolherNoDrive = async () => {
+  /**
+   * As contas do Drive da agência, para escolher **antes** de abrir o
+   * seletor.
+   *
+   * Uma agência costuma ter o Drive dela e o do cliente. Com uma conta só
+   * isso era implícito; com duas, abrir o seletor sem perguntar faria a
+   * pessoa procurar no lugar errado — e o arquivo escolhido carregaria a
+   * conta errada para sempre, porque é dela que saem a miniatura, a cópia e
+   * a liberação.
+   */
+  const [contas, setContas] = useState<ContaDoDrive[]>([]);
+
+  useEffect(() => {
+    if (!currentWorkspace?.id || !googleConfigurado()) return;
+    void contasDoDrive(currentWorkspace.id).then(setContas);
+  }, [currentWorkspace?.id]);
+
+  const escolherNoDrive = async (conta?: ContaDoDrive) => {
     setUploadError(null);
 
     const vagas = maxFiles - mediaUrls.length;
@@ -112,7 +129,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     if (!currentWorkspace?.id) return;
 
     try {
-      const { token, appId } = await tokenDoDrive(currentWorkspace.id);
+      const { token, appId } = await tokenDoDrive(currentWorkspace.id, conta?.id);
       const escolhidos = await abrirSeletorDoDrive(token, vagas, appId);
       if (!escolhidos.length) return;
 
@@ -127,7 +144,11 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           do primeiro byte. Sem miniatura a peça continua válida, e o cartão
           mostra o nome do arquivo.
         */
-        const busca = await arquivosApi.miniaturaDoDrive(currentWorkspace.id, arquivo.id);
+        const busca = await arquivosApi.miniaturaDoDrive(
+          currentWorkspace.id,
+          arquivo.id,
+          conta?.id
+        );
 
         /*
           O motivo aparece na tela. "Sem miniatura" é um desfecho válido, mas
@@ -138,7 +159,15 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           semMiniatura.push(`${arquivo.nome}: ${busca.motivo}`);
         }
 
-        referencias.push(referenciaDoDrive({ ...arquivo, miniatura: busca.url ?? undefined }));
+        /*
+          A conta vai **na referência**. Tudo o que o servidor faz com o
+          arquivo depois — miniatura, cópia, liberar e trancar por link —
+          precisa do token dela, e com duas contas usar a errada devolve 404:
+          o mesmo sintoma do arquivo sem concessão.
+        */
+        referencias.push(
+          referenciaDoDrive({ ...arquivo, miniatura: busca.url ?? undefined, conta: conta?.id })
+        );
       }
 
       onChange([...mediaUrls, ...referencias]);
@@ -364,28 +393,65 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                   variável**: a mesma regra da aba Integrações. Botão que abre
                   e falha é pior que botão ausente.
                 */}
-                <Button variant="ghost"
-                  type="button"
-                  disabled={!googleConfigurado() || enviando}
-                  title={
-                    googleConfigurado()
-                      ? 'Escolher no seu Google Drive'
-                      : `Falta configurar ${faltaDoGoogle().join(' e ')}`
-                  }
-                  onClick={() => {
-                    setMenuAberto(false);
-                    void escolherNoDrive();
-                  }}
-                  className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
-                >
-                  <ExternalLink className="w-4 h-4 text-slate-400" />
-                  <span className="flex-1 text-left">Google Drive</span>
-                  {!googleConfigurado() && (
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                      falta configurar
-                    </span>
-                  )}
-                </Button>
+                {/*
+                  **Uma entrada por conta quando há mais de uma.** A agência
+                  costuma ter o Drive dela e o do cliente, e abrir o seletor
+                  sem perguntar faria a pessoa procurar no lugar errado — e o
+                  arquivo escolhido carregaria a conta errada para sempre.
+
+                  Com uma conta só, não há o que escolher: perguntar o óbvio
+                  é ruído, e custaria um clique em toda escolha do caso mais
+                  comum. É a mesma regra da Página do Facebook.
+                */}
+                {contas.length > 1 ? (
+                  contas.map((conta) => (
+                    <Button
+                      key={conta.id}
+                      variant="ghost"
+                      type="button"
+                      disabled={enviando}
+                      title={`Escolher no Drive de ${conta.email || 'uma conta conectada'}`}
+                      onClick={() => {
+                        setMenuAberto(false);
+                        void escolherNoDrive(conta);
+                      }}
+                      className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                    >
+                      <ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="flex-1 text-left min-w-0">
+                        <span className="block truncate">Google Drive</span>
+                        {/* O e-mail é o que distingue as duas — sem ele, duas
+                            linhas iguais não ajudam a escolher. */}
+                        <span className="block text-[10px] text-slate-400 truncate">
+                          {conta.email || 'conta conectada'}
+                        </span>
+                      </span>
+                    </Button>
+                  ))
+                ) : (
+                  <Button variant="ghost"
+                    type="button"
+                    disabled={!googleConfigurado() || enviando}
+                    title={
+                      googleConfigurado()
+                        ? 'Escolher no seu Google Drive'
+                        : `Falta configurar ${faltaDoGoogle().join(' e ')}`
+                    }
+                    onClick={() => {
+                      setMenuAberto(false);
+                      void escolherNoDrive(contas[0]);
+                    }}
+                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                  >
+                    <ExternalLink className="w-4 h-4 text-slate-400" />
+                    <span className="flex-1 text-left">Google Drive</span>
+                    {!googleConfigurado() && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        falta configurar
+                      </span>
+                    )}
+                  </Button>
+                )}
 
                 {origens.length > 0 && (
                   <div className="my-1 border-t border-slate-100 dark:border-slate-800" />

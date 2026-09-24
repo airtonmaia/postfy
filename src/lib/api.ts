@@ -166,13 +166,16 @@ export const arquivosApi = {
    */
   miniaturaDoDrive: async (
     workspaceId: string,
-    fileId: string
+    fileId: string,
+    /** De qual conta do Drive o arquivo veio. Ausente, a mais antiga. */
+    contaId?: string
   ): Promise<{ url: string | null; motivo?: string }> => {
     try {
       return await chamar<{ url: string | null; motivo?: string }>('/api/upload-url', {
         acao: 'miniatura-do-drive',
         workspaceId,
         fileId,
+        contaId,
       });
     } catch (erro) {
       /*

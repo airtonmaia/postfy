@@ -41,6 +41,21 @@ export interface ArquivoDoDrive {
   tipo: string;
   /** A miniatura que o Google devolve. Pode não vir. */
   miniatura?: string;
+  /**
+   * De **qual conta** do Drive este arquivo veio.
+   *
+   * A agência pode ter duas — a dela e a do cliente —, e tudo o que o
+   * servidor faz com o arquivo depois (buscar a miniatura, copiar para o
+   * balde, liberar e trancar por link) precisa do token daquela conta. Com
+   * uma conta só isso era implícito; com duas, usar a errada devolve 404 —
+   * que é o mesmo sintoma do arquivo sem concessão, e levaria de novo a
+   * três rodadas de diagnóstico.
+   *
+   * Referência gravada antes de existir mais de uma conta não tem o campo, e
+   * o servidor cai na conta mais antiga da agência — que é a única que
+   * existia quando ela foi escrita.
+   */
+  conta?: string;
 }
 
 export const ehDoDrive = (url: string): boolean =>
@@ -50,6 +65,7 @@ export const ehDoDrive = (url: string): boolean =>
 export const referenciaDoDrive = (arquivo: ArquivoDoDrive): string => {
   const campos = new URLSearchParams({ nome: arquivo.nome, tipo: arquivo.tipo });
   if (arquivo.miniatura) campos.set('miniatura', arquivo.miniatura);
+  if (arquivo.conta) campos.set('conta', arquivo.conta);
   return `${PREFIXO_DO_DRIVE}${arquivo.id}?${campos.toString()}`;
 };
 
@@ -67,8 +83,13 @@ export const dadosDoDrive = (url: string): ArquivoDoDrive | null => {
     nome: campos.get('nome') || 'arquivo do Drive',
     tipo: campos.get('tipo') || '',
     miniatura: campos.get('miniatura') || undefined,
+    conta: campos.get('conta') || undefined,
   };
 };
+
+/** De qual conta do Drive veio esta arte. Nulo em referência antiga. */
+export const contaDoDrive = (url?: string): string | undefined =>
+  url ? dadosDoDrive(url)?.conta : undefined;
 
 /**
  * O que um `<img src>` pode receber.
