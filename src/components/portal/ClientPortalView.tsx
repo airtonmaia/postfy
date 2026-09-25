@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { copyToClipboard, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
+import { copyToClipboard, formatCurrency, safeDateFormat, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
 import { 
   CheckCircle2,
   Key,
@@ -1498,7 +1498,7 @@ export const ClientPortalView: React.FC = () => {
 
                   <div className="flex items-center gap-4">
                     <span className="font-bold font-mono text-slate-900 dark:text-white">
-                      R$ {inv.value.toLocaleString('pt-BR')}
+                      {formatCurrency(inv.value)}
                     </span>
                     <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md ${
                       inv.status === 'pago' 

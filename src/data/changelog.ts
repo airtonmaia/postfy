@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.85.0',
+    data: '2026-09-25',
+    resumo: 'Termos e privacidade de verdade, senha para quem entra pelo Google, e dinheiro com as duas casas.',
+    novidades: [
+      'Os links de Termos de Serviço e Política de Privacidade na tela de entrada agora abrem os documentos — antes eram âncoras que não levavam a lugar nenhum.',
+      '"Esqueci minha senha" passou a ter tela: o link do e-mail abre onde a senha nova é definida. Até aqui ele só abria o produto, e a senha continuava a antiga.',
+      'Quem entrou pelo Google pode criar uma senha em Sua conta, por um link enviado ao e-mail — os dois acessos passam a funcionar.',
+    ],
+    melhorias: [
+      'Todo valor em reais aparece com as duas casas: R$ 1.200,50 no lugar de R$ 1.200,5, inclusive no corpo do contrato e no portal do cliente.',
+      'Campo de dinheiro em branco vale zero, em vez de mostrar "R$ undefined" ou derrubar a tela.',
+      'As duas tabelas antigas do Google Drive saíram do banco, depois de conferido que as contas foram todas migradas.',
+    ],
+  },
+  {
     versao: '2.84.0',
     data: '2026-09-24',
     resumo: 'Entrar com a conta do Google, em cima do formulário de login.',

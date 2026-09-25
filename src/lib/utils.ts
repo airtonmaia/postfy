@@ -54,11 +54,34 @@ export function formatDateTime(dateString: string): string {
   }
 }
 
-export function formatCurrency(value: number): string {
+/**
+ * Dinheiro em real, com as duas casas sempre.
+ *
+ * **Esta função existia e não tinha um único chamador.** Os treze lugares que
+ * mostram valor escreviam `R$ {valor.toLocaleString('pt-BR')}` à mão — e esse
+ * formato **não força as casas decimais**: R$ 1.200,50 sai como
+ * `R$ 1.200,5`, e R$ 1.200,05 sai como `R$ 1.200,05` só por sorte do
+ * arredondamento. Dois deles nem passavam por formatação: `R$ {plan.price}`
+ * escreve o número cru, com **ponto** decimal, no meio de uma tela em
+ * português.
+ *
+ * O pior lugar em que isso aparecia é o corpo do **contrato** que a agência
+ * manda para o cliente dela — a mesma regra do alcance em Relatórios: quem é
+ * enganado não é o dono do produto, é o cliente de quem paga por ele.
+ *
+ * **Valor ausente vale zero, e isso é decisão.** Antes, metade dos pontos
+ * escrevia `(valor || 0)` e a outra metade confiava no número: `null` ali
+ * derruba a tela com `TypeError`, e `undefined` imprimia a palavra
+ * "undefined" ao lado do cifrão. Um campo de dinheiro em branco neste produto
+ * é um lead sem valor estimado ou um plano sem preço — zero é a leitura certa,
+ * e é melhor que as três saídas que existiam.
+ */
+export function formatCurrency(value: number | null | undefined): string {
+  const numero = typeof value === "number" && Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value);
+  }).format(numero);
 }
 
 export function safeTimeFormat(dateInput?: string | number | Date, options?: Intl.DateTimeFormatOptions): string {

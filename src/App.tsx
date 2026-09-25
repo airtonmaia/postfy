@@ -42,6 +42,7 @@ import { SearchModal } from './components/modals/SearchModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoginView } from './components/auth/LoginView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
+import { TelaDeNovaSenha } from './components/auth/TelaDeNovaSenha';
 import { ChangelogModal } from './components/modals/ChangelogModal';
 import { BotaoDoPortal } from './components/common/BotaoDoPortal';
 import { Avatar } from './components/common/Avatar';
@@ -159,6 +160,22 @@ const MainLayout: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  /**
+   * O link de recuperação vem **antes** da barreira, e isso é a entrega.
+   *
+   * Quem clica no link chega **autenticado** — o SDK troca o código da URL
+   * por sessão sozinho. Então a barreira o deixa passar e ele cai no app
+   * normal: o produto abre, tudo funciona, e a senha continua a antiga. Era
+   * exatamente o que acontecia, e o pior desfecho possível para um caminho de
+   * recuperação, porque parece que deu certo.
+   *
+   * Vem depois do `isAuthLoading` de propósito: a tela precisa saber se há
+   * sessão para escolher entre pedir a senha nova e dizer que o link caducou.
+   */
+  if (!isClientPortalOpen && new URLSearchParams(window.location.search).has('recuperar')) {
+    return <TelaDeNovaSenha />;
   }
 
   // Barreira de autenticação

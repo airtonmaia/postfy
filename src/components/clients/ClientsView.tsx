@@ -23,6 +23,7 @@ import { CAMINHOS, clienteDoCaminho, urlDoCliente } from '../../lib/rotas';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
+import { formatCurrency } from '../../lib/utils';
 
 export const ClientsView: React.FC = () => {
   const {
@@ -333,7 +334,7 @@ export const ClientsView: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Investimento Mensal</span>
                     <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                      R$ {(totalMonthly || 0).toLocaleString('pt-BR')} /mês
+                      {formatCurrency(totalMonthly)} /mês
                     </span>
                   </div>
                   <div className="text-right">

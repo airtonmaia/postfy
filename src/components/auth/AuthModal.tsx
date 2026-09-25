@@ -7,7 +7,13 @@ import {
 import { Avatar } from '../common/Avatar';
 import { RecorteQuadrado } from '../ui/recorte-quadrado';
 import { arquivosApi } from '../../lib/api';
-import { salvarPerfil, alterarSenha, pedirTrocaDeEmail } from '../../lib/perfil';
+import {
+  salvarPerfil,
+  alterarSenha,
+  pedirTrocaDeEmail,
+  temSenhaDeAcesso,
+  pedirLinkParaCriarSenha,
+} from '../../lib/perfil';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
@@ -76,6 +82,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [novaSenha, setNovaSenha] = useState('');
   const [verSenha, setVerSenha] = useState(false);
 
+  /**
+   * Esta conta tem senha?
+   *
+   * `null` enquanto a resposta não chega, e a seção não pinta campo nenhum
+   * nesse meio-tempo: mostrar "senha atual" e trocá-lo meio segundo depois
+   * faria o formulário se reorganizar embaixo de quem já começou a digitar.
+   *
+   * Quem entrou pelo Google não tem senha, e a seção pedia a atual para
+   * confirmar quem está ali — uma pergunta sem resposta possível: qualquer
+   * coisa digitada volta como "a senha atual não confere", e a pessoa conclui
+   * que esqueceu uma senha que nunca criou.
+   */
+  const [temSenha, setTemSenha] = useState<boolean | null>(null);
+  const [linkEnviadoPara, setLinkEnviadoPara] = useState<string | null>(null);
+
   // Reabrir a modal tem que trazer o que está gravado, e não o rascunho que
   // ficou de uma edição abandonada.
   useEffect(() => {
@@ -87,7 +108,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setNovaSenha('');
     setMensagem(null);
     setErro(null);
+    setLinkEnviadoPara(null);
   }, [isOpen, currentUser?.name, currentUser?.avatar]);
+
+  // A pergunta vai ao servidor a cada abertura: ligar o Google (ou criar a
+  // senha pelo link) muda a resposta sem esta aba saber.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelado = false;
+    void temSenhaDeAcesso().then((tem) => {
+      if (!cancelado) setTemSenha(tem);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [isOpen]);
 
 
   const avisar = (texto: string) => {
@@ -263,6 +298,58 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </Secao>
 
           <Secao titulo="Senha">
+            {/* Enquanto a resposta não chega, nada de campo: ver "senha atual"
+                e ele ser trocado meio segundo depois reorganiza o formulário
+                embaixo de quem já começou a digitar. */}
+            {temSenha === null && (
+              <p className="text-[11px] text-slate-400">Verificando como esta conta entra...</p>
+            )}
+
+            {/*
+              Conta criada pelo Google: não há senha para conferir, e por isso
+              a criação passa pelo e-mail.
+
+              `updateUser({ password })` aceitaria a senha nova aqui mesmo, sem
+              conferência — e essa é justamente a porta que a exigência da
+              senha atual fecha. Quem senta numa aba esquecida aberta criaria
+              uma senha e passaria a entrar **depois de a sessão morrer**; hoje,
+              sem senha nenhuma, fechar a aba é o fim do acesso dele. O link
+              repõe a prova que a senha atual daria: a caixa de entrada.
+            */}
+            {temSenha === false && (
+              <>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Esta conta entra pelo Google e ainda não tem senha. Mandamos um link
+                  para o seu e-mail — é por ele que a senha é criada, porque não há uma
+                  atual para confirmar que é você.
+                </p>
+
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={ocupado || Boolean(linkEnviadoPara)}
+                  onClick={() =>
+                    executar(async () => {
+                      const destino = await pedirLinkParaCriarSenha();
+                      setLinkEnviadoPara(destino);
+                      return `Link enviado para ${destino}. Abra-o para criar a senha.`;
+                    })
+                  }
+                  className="w-full text-slate-700 dark:text-slate-200"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  {linkEnviadoPara ? 'Link enviado' : 'Criar senha de acesso'}
+                </Button>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Criar uma senha não desliga o acesso pelo Google — os dois passam a
+                  funcionar.
+                </p>
+              </>
+            )}
+
+            {temSenha === true && (
+              <>
             <div className="relative">
               <input
                 type={verSenha ? 'text' : 'password'}
@@ -312,6 +399,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <KeyRound className="w-3.5 h-3.5" />
               Alterar senha
             </Button>
+              </>
+            )}
           </Secao>
 
           <Secao titulo="E-mail">

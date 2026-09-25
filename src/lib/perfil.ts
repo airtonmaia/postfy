@@ -68,6 +68,61 @@ export const salvarPerfil = async (dados: DadosDoPerfil): Promise<{ vinculos: nu
 };
 
 /**
+ * Esta conta tem senha?
+ *
+ * Quem entrou pelo Google **não tem nenhuma**: o Supabase cria o usuário com
+ * a identidade do provedor e `encrypted_password` vazio. A tela precisa saber
+ * disso porque a seção de senha pede a atual para confirmar quem está ali — e
+ * para essa conta não existe atual: qualquer coisa digitada volta como "a
+ * senha atual não confere", que faz a pessoa concluir que esqueceu uma senha
+ * que ela nunca criou.
+ *
+ * A resposta sai de `identities`, que é a lista de como aquela conta
+ * consegue entrar. O provedor `email` é o que a senha representa; quem tem os
+ * dois (criou com senha e depois ligou o Google) continua no caminho normal.
+ *
+ * Na dúvida — sessão expirada, rede oscilando — devolve `true`, que mantém a
+ * tela no caminho que exige a senha atual. Errar para o lado de pedir uma
+ * confirmação a mais é barato; errar para o outro abriria a troca sem
+ * conferência nenhuma.
+ */
+export const temSenhaDeAcesso = async (): Promise<boolean> => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return true;
+
+  const identidades = data.user.identities;
+  if (!identidades || identidades.length === 0) return true;
+
+  return identidades.some((i) => i.provider === 'email');
+};
+
+/**
+ * Manda o link para criar a primeira senha.
+ *
+ * **Por que um link, e não um campo aqui mesmo.** `updateUser({ password })`
+ * funciona sem a senha atual quando não há nenhuma, e essa é justamente a
+ * porta que a conferência da senha atual existe para fechar: quem senta numa
+ * aba esquecida aberta criaria uma senha e passaria a entrar na conta **depois
+ * de a sessão morrer** — hoje, sem senha, fechar a aba é o fim do acesso dele.
+ *
+ * O e-mail repõe a prova que a senha atual daria: quem recebe o link tem a
+ * caixa de entrada, e quem está na aba esquecida não tem. É a mesma porta do
+ * "esqueci minha senha", alcançável de dentro da conta — que é onde a pessoa
+ * está quando percebe que quer uma senha.
+ */
+export const pedirLinkParaCriarSenha = async (): Promise<string> => {
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email;
+  if (!email) throw new Error('Sua sessão expirou. Entre de novo para criar a senha.');
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/?recuperar=1`,
+  });
+  if (error) throw new Error(error.message);
+  return email;
+};
+
+/**
  * Troca a senha, exigindo a atual.
  *
  * O Supabase deixa trocar só com a sessão aberta, sem pedir a senha antiga.

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Client, ClientPassword, ClientInvoice, ClientFile, ClientBriefing } from '../../types';
 import { BotaoDoPortal } from '../common/BotaoDoPortal';
 import { usePostfy } from '../../context/PostfyContext';
-import { copyToClipboard } from '../../lib/utils';
+import { copyToClipboard, formatCurrency } from '../../lib/utils';
 import {
   User, FolderOpen, Key, Receipt, FileText, Upload, Plus,
   ExternalLink, Eye, EyeOff, Copy, Trash2, Check, ArrowLeft,
@@ -1254,7 +1254,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
 
                   <div className="flex items-center gap-4">
                     <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
-                      R$ {inv.value.toLocaleString('pt-BR')}
+                      {formatCurrency(inv.value)}
                     </span>
                     <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md ${
                       inv.status === 'pago' 

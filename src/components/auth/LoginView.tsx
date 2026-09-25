@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MarcaOrquesia } from '../common/MarcaOrquesia';
 import { LogoDoGoogle } from '../common/LogoDoGoogle';
 import { entrarComGoogle } from '../../lib/authSupabase';
+import { URL_DOS_TERMOS, URL_DA_PRIVACIDADE } from '../../lib/legal';
 import { gerarSlug } from '../../lib/slug';
 import { usePostfy } from '../../context/PostfyContext';
 import { Role, User } from '../../types';
@@ -484,8 +485,29 @@ export const LoginView: React.FC = () => {
           <div className="pt-3 border-t border-slate-100 text-center">
             <p className="text-[11px] text-slate-400 leading-snug">
               Ao continuar, você concorda com nossos{' '}
-              <a href="#terms" className="underline hover:text-slate-600">Termos de Serviço</a> &{' '}
-              <a href="#privacy" className="underline hover:text-slate-600">Política de Privacidade</a>.
+              {/* `target="_blank"` porque a pessoa está no meio de entrar: abrir
+                  o documento na mesma aba descartaria o e-mail e a senha já
+                  digitados. `rel="noreferrer"` vai junto por hábito — o
+                  `noopener` que importa está implícito nos navegadores atuais,
+                  e escrevê-lo não custa nada. */}
+              <a
+                href={URL_DOS_TERMOS}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-slate-600"
+              >
+                Termos de Serviço
+              </a>{' '}
+              &{' '}
+              <a
+                href={URL_DA_PRIVACIDADE}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-slate-600"
+              >
+                Política de Privacidade
+              </a>
+              .
             </p>
           </div>
         </div>
