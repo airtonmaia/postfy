@@ -67,7 +67,9 @@ vi.mock('@aws-sdk/client-s3', () => {
   };
 });
 
-const { enviarEmPartes, TempoEsgotadoNoEnvio } = await import('../api/_lib/r2');
+const { abrirEnvio, continuarEnvio } = await import('../api/_lib/r2');
+
+const PARTE = 8 * 1024 * 1024;
 
 /**
  * Um fluxo que entrega pedaços de tamanhos irregulares, como a rede entrega.
@@ -111,16 +113,23 @@ beforeEach(() => {
   process.env.R2_BUCKET = 'balde';
 });
 
+/** O caminho de sempre: abre, consome o fluxo inteiro e fecha. */
+const enviarDeUmaVez = async (chave: string, fluxo: ReadableStream<Uint8Array>, tipo: string) => {
+  const envio = await abrirEnvio(chave, tipo);
+  return continuarEnvio(envio, fluxo, 60_000);
+};
+
 describe('todas as partes menos a última têm o mesmo tamanho', () => {
   it('um arquivo de 30 MB em pedaços irregulares', async () => {
     // 30 MB não é múltiplo de 8: sobra uma última parte menor, que é a única
     // que pode ser diferente.
-    await enviarEmPartes(
+    const { concluido: fechou } = await enviarDeUmaVez(
       'ws/video.mp4',
       fluxoIrregular(30 * 1024 * 1024, 900_000),
       'video/mp4'
     );
 
+    expect(fechou).toBe(true);
     expect(concluido).toBe(true);
     expect(enviadas.length).toBeGreaterThan(1);
 
@@ -136,7 +145,7 @@ describe('todas as partes menos a última têm o mesmo tamanho', () => {
   });
 
   it('arquivo menor que uma parte sai numa parte só', async () => {
-    await enviarEmPartes('ws/foto.jpg', fluxoIrregular(300_000, 64_000), 'image/jpeg');
+    await enviarDeUmaVez('ws/foto.jpg', fluxoIrregular(300_000, 64_000), 'image/jpeg');
 
     expect(enviadas.length).toBe(1);
     expect(enviadas[0].tamanho).toBe(300_000);
@@ -149,23 +158,103 @@ describe('todas as partes menos a última têm o mesmo tamanho', () => {
       múltiplo do tamanho da parte, uma versão ingênua manda uma parte de
       zero byte no fim — e o R2 recusa parte vazia.
     */
-    await enviarEmPartes('ws/certo.mp4', fluxoIrregular(16 * 1024 * 1024, 1_100_000), 'video/mp4');
+    await enviarDeUmaVez('ws/certo.mp4', fluxoIrregular(16 * 1024 * 1024, 1_100_000), 'video/mp4');
 
     expect(enviadas.length).toBe(2);
     expect(enviadas.every((p) => p.tamanho > 0)).toBe(true);
   });
 });
 
-describe('o envio desiste com resposta, e não deixa lixo', () => {
-  it('estourar o orçamento lança o erro que a tela sabe explicar', async () => {
-    const promessa = enviarEmPartes(
-      'ws/grande.mp4',
-      fluxoIrregular(40 * 1024 * 1024, 1_000_000),
-      'video/mp4',
-      -1 // orçamento já vencido: a primeira leitura passa do limite
+/**
+ * A cópia que continua na chamada seguinte.
+ *
+ * **O tempo da função era um teto de tamanho disfarçado**: 45 segundos a
+ * ~3,5 MB/s dão uns 160 MB, e o vídeo maior que isso falhava *sempre* — a
+ * tentativa seguinte refazia o mesmo percurso e parava no mesmo lugar,
+ * enquanto a tela mandava "tentar de novo".
+ *
+ * O que este bloco exercita é o que nenhuma guarda de fonte pegaria: se o
+ * ponto de retomada não bater com o que já subiu, o arquivo fica
+ * **corrompido com o tamanho certo** — bytes repetidos ou faltando no meio
+ * do vídeo, sem erro em lugar nenhum.
+ */
+describe('o envio continua de onde parou', () => {
+  it('pausar não aborta, e para num múltiplo exato da parte', async () => {
+    const envio = await abrirEnvio('ws/grande.mp4', 'video/mp4');
+
+    /*
+      Pedaços de 9 MB: a primeira leitura já fecha uma parte inteira, e só
+      então o orçamento vencido interrompe. Com pedaços menores a pausa
+      aconteceria antes da primeira parte, e o teste não diria nada sobre o
+      alinhamento — que é justamente o que ele existe para medir.
+    */
+    const resultado = await continuarEnvio(
+      envio,
+      fluxoIrregular(40 * 1024 * 1024, 9 * 1024 * 1024),
+      -1
     );
 
-    await expect(promessa).rejects.toBeInstanceOf(TempoEsgotadoNoEnvio);
+    expect(resultado.concluido).toBe(false);
+    expect(concluido, 'fechou um envio que não terminou').toBe(false);
+    expect(abortado, 'pausar jogou fora o que já tinha subido').toBe(false);
+
+    /*
+      O que sobrou da leitura é descartado de propósito: o próximo `Range`
+      sai deste número, e um pedaço incompleto contado aqui deslocaria o
+      arquivo inteiro a partir da emenda.
+    */
+    expect(resultado.envio.copiados % PARTE).toBe(0);
+    expect(resultado.envio.copiados).toBeGreaterThan(0);
+    expect(resultado.envio.copiados).toBe(enviadas.reduce((s, p) => s + p.tamanho, 0));
+  });
+
+  it('a segunda chamada fecha o arquivo, sem byte repetido nem faltando', async () => {
+    const TOTAL = 40 * 1024 * 1024;
+
+    const envio = await abrirEnvio('ws/grande.mp4', 'video/mp4');
+    const primeira = await continuarEnvio(envio, fluxoIrregular(TOTAL, 9 * 1024 * 1024), -1);
+    expect(primeira.concluido).toBe(false);
+
+    /*
+      O fluxo da segunda chamada é o que o `Range` devolve: **só o que
+      falta**. É aqui que um ponto de retomada errado apareceria — o total
+      deixaria de fechar com o tamanho do arquivo.
+    */
+    const restante = TOTAL - primeira.envio.copiados;
+    const segunda = await continuarEnvio(
+      primeira.envio,
+      fluxoIrregular(restante, 1_100_000),
+      60_000
+    );
+
+    expect(segunda.concluido).toBe(true);
+    expect(concluido).toBe(true);
+    expect(segunda.envio.copiados).toBe(TOTAL);
+
+    // Nenhum byte a mais nem a menos, somando as duas chamadas.
+    expect(enviadas.reduce((s, p) => s + p.tamanho, 0)).toBe(TOTAL);
+
+    // A numeração continua de onde parou: parte repetida sobrescreve a
+    // anterior no balde, e o arquivo sai com um buraco no meio.
+    expect(enviadas.map((p) => p.numero)).toEqual(enviadas.map((_, i) => i + 1));
+
+    // E a regra do R2 continua valendo **através da emenda**: só a última
+    // pode ter tamanho diferente.
+    const semAUltima = enviadas.slice(0, -1).map((p) => p.tamanho);
+    expect(new Set(semAUltima).size, 'a emenda quebrou o tamanho das partes').toBe(1);
+    expect(semAUltima[0]).toBe(PARTE);
+  });
+
+  it('erro de verdade aborta e não deixa lixo no balde', async () => {
+    const envio = await abrirEnvio('ws/ruim.mp4', 'video/mp4');
+
+    const fluxoQueQuebra = new ReadableStream<Uint8Array>({
+      pull() {
+        throw new Error('a conexão caiu');
+      },
+    });
+
+    await expect(continuarEnvio(envio, fluxoQueQuebra, 60_000)).rejects.toThrow('a conexão caiu');
     expect(abortado, 'a parte pendente ficou no balde ocupando espaço').toBe(true);
     expect(concluido).toBe(false);
   });

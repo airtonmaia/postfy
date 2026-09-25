@@ -938,21 +938,37 @@ describe('a cópia do Drive acontece no servidor, e avisa quando falha', () => {
     expect(membro, 'a rota fala com o Google antes de saber quem pediu').toBeLessThan(google);
   });
 
-  it('há um teto de tamanho, e ele é dito', () => {
+  it('há um teto de tamanho, e ele é dito com o número que vale', () => {
     /*
-      A função tem 60 segundos e memória finita. Estourar no meio deixa a
-      função morta sem resposta — o mesmo silêncio de antes com outro nome.
+      A função tem memória finita, e há um limite acima do qual nem a cópia em
+      rodadas compensa esperar.
+
+      **O número é derivado, nunca escrito à mão na frase.** Ele já ficou para
+      trás uma vez: o teto subiu de 100 para 500 MB e a mensagem continuou
+      dizendo 100 — a pessoa comprimia o vídeo para caber num limite que não
+      existia mais. Guarda que aceita o literal aprova exatamente esse
+      descompasso.
     */
     expect(corpo).toMatch(/LIMITE_DA_COPIA/);
-    expect(corpo, 'o teto virou um erro mudo').toMatch(/limite de cópia é 100 MB/);
+    expect(corpo, 'o teto virou um erro mudo').toMatch(/limite de cópia é/);
+    expect(corpo, 'o número do limite voltou a ser escrito à mão na frase').not.toMatch(
+      /limite de cópia é \d/
+    );
   });
 
-  it('toda saída sem cópia carrega o motivo', () => {
+  /**
+   * Saída sem cópia diz por quê — **ou diz que ainda não acabou**.
+   *
+   * A pausa não é falha: o envio continua aberto no balde e a chamada
+   * seguinte retoma. Ela volta com `pendente` e sem `motivo` de propósito —
+   * um motivo ali viraria aviso na tela para algo que está em andamento.
+   */
+  it('toda saída sem cópia carrega o motivo, ou o estado de quem vai continuar', () => {
     const mudas: string[] = [];
     for (let i = corpo.indexOf('url: null'); i >= 0; i = corpo.indexOf('url: null', i + 1)) {
       const fim = corpo.indexOf('}', i);
       const objeto = corpo.slice(i, fim < 0 ? i + 140 : fim);
-      if (!/motivo/.test(objeto)) mudas.push(objeto.split('\n')[0]);
+      if (!/motivo|pendente/.test(objeto)) mudas.push(objeto.split('\n')[0]);
     }
 
     expect(mudas, 'voltou uma saída sem cópia que não diz por quê').toEqual([]);
@@ -1022,7 +1038,7 @@ describe('a cópia sobe em partes, e desiste com resposta', () => {
     expect(copia, 'a cópia voltou a carregar o arquivo inteiro na memória').not.toMatch(
       /arrayBuffer\(\)/
     );
-    expect(copia).toMatch(/enviarEmPartes\(/);
+    expect(copia).toMatch(/continuarEnvio\(/);
   });
 
   it('parte não concluída é abortada', () => {
@@ -1030,24 +1046,35 @@ describe('a cópia sobe em partes, e desiste com resposta', () => {
       Parte enviada e não concluída **fica no balde ocupando espaço**,
       invisível na listagem, e a Cloudflare cobra por ela até alguém limpar.
     */
-    const envio = r2.slice(r2.indexOf('export const enviarEmPartes'));
-    expect(envio).toMatch(/AbortMultipartUploadCommand/);
-    expect(envio, 'o aborto saiu do caminho de erro').toMatch(/catch \(erro\)[\s\S]{0,200}Abort/);
+    const envio = r2.slice(r2.indexOf('export const continuarEnvio'));
+    expect(r2).toMatch(/AbortMultipartUploadCommand/);
+    expect(envio, 'o aborto saiu do caminho de erro').toMatch(
+      /catch \(erro\)[\s\S]{0,200}abortarEnvio/
+    );
   });
 
-  it('há orçamento de tempo, e ele responde em vez de morrer', () => {
-    /*
-      Estourar o tempo da função no meio é o pior desfecho: não sobra nem o
-      motivo. É o mesmo `ORCAMENTO_MS` do agendador, pela mesma razão.
-    */
-    const envio = r2.slice(r2.indexOf('export const enviarEmPartes'));
+  /**
+   * **O orçamento pausa; ele não desiste.**
+   *
+   * Estourar o tempo da função no meio é o pior desfecho — não sobra nem o
+   * motivo —, e a versão anterior resolvia isso lançando um erro: a cópia
+   * cabia numa invocação ou não acontecia. A 3,5 MB/s, 45 segundos dão uns
+   * 160 MB, e o vídeo maior falhava **sempre no mesmo lugar**, com a tela
+   * mandando tentar de novo. Era o único conselho que não podia funcionar.
+   */
+  it('o orçamento devolve o que já subiu, em vez de jogar fora', () => {
+    const envio = r2.slice(r2.indexOf('export const continuarEnvio'));
     expect(envio).toMatch(/orcamentoMs/);
-    expect(envio).toMatch(/TempoEsgotadoNoEnvio/);
-
-    expect(rota, 'o tempo esgotado voltou a virar "falha desconhecida"').toMatch(
-      /erro instanceof TempoEsgotadoNoEnvio/
+    expect(envio, 'o orçamento voltou a abortar o que já tinha subido').toMatch(
+      /concluido: false[\s\S]{0,120}copiados/
     );
-    expect(rota).toMatch(/o tempo de cópia acabou depois de/);
+
+    // E a rota devolve esse estado a quem chamou, senão ele morre com a
+    // invocação e a rodada seguinte recomeça do zero.
+    expect(rota).toMatch(/pendente: resultado\.envio/);
+    // Retomar sem `Range` faria cada rodada rebaixar o arquivo inteiro para
+    // chegar ao ponto certo — e nunca terminar.
+    expect(rota).toMatch(/Range: `bytes=/);
   });
 
   it('o teto subiu junto com a capacidade', () => {
@@ -1416,5 +1443,114 @@ describe('o portal mostra a peça inteira, e deixa baixar', () => {
       /URL\.revokeObjectURL/
     );
     expect(baixar).toMatch(/window\.open\(url/);
+  });
+});
+
+/**
+ * A cópia que atravessa mais de uma invocação.
+ *
+ * **O tempo da função era um teto de tamanho disfarçado.** A 3,5 MB/s, 45
+ * segundos dão uns 160 MB — e o vídeo maior que isso falhava *sempre*, com a
+ * tela dizendo "tente de novo": a tentativa seguinte refazia o mesmo percurso
+ * e parava no mesmo lugar. O relato que trouxe isto tinha 160 MB e um nome:
+ * "Efeitos colaterais da caneta".
+ *
+ * O que estas guardas protegem não é o mecanismo, são as três coisas que, se
+ * saírem, não quebram nada visível: a conferência da agência antes de gravar,
+ * a recusa de emendar um `Range` que o Google não honrou, e a limpeza do
+ * envio abandonado.
+ */
+describe('a cópia continua na chamada seguinte', () => {
+  const rota = semComentarios(ler('api', 'upload-url.ts'));
+  const api = semComentarios(ler('src', 'lib', 'api.ts'));
+
+  const copia = rota.slice(
+    rota.indexOf('const copiarDoDrive'),
+    rota.indexOf('const miniaturaDoDrive', rota.indexOf('const copiarDoDrive'))
+  );
+
+  /**
+   * **A conferência que não pode sair.**
+   *
+   * O estado da cópia viaja pelo navegador e volta, então a chave vem de
+   * fora. Sem exigir que ela comece pelo `workspaceId` de quem chamou, quem
+   * tem uma agência qualquer manda a chave de outra e passa a gravar dentro
+   * dela — a checagem de membro logo acima vira enfeite. É a mesma lição da
+   * exclusão na Biblioteca, onde `abc` casava com `abcdef/`.
+   */
+  it('a chave que volta do navegador é conferida contra a agência', () => {
+    expect(copia).toMatch(/startsWith\(`\$\{workspaceId\}\/`\)/);
+
+    const confere = copia.indexOf('startsWith(`${workspaceId}/`)');
+    const grava = copia.indexOf('continuarEnvio(');
+    expect(confere, 'a rota grava antes de conferir de quem é a chave').toBeLessThan(grava);
+  });
+
+  /**
+   * Retomar sem o Google ter honrado o `Range` grava o começo do vídeo no
+   * meio dele: **um arquivo corrompido com o tamanho certo**, que nada
+   * acusa. Recomeçar custa uma rodada; emendar errado custa o post.
+   */
+  it('só emenda quando o Google devolveu o pedaço pedido', () => {
+    expect(copia).toMatch(/status !== 206/);
+    expect(copia, 'o envio errado ficou aberto no balde').toMatch(
+      /status !== 206[\s\S]{0,300}abortarEnvio/
+    );
+  });
+
+  it('quem desiste limpa o que já subiu', () => {
+    // Parte enviada e não concluída fica no balde, invisível na listagem, e
+    // é cobrada até alguém limpar. O balde não adivinha que ninguém volta.
+    expect(copia).toMatch(/if \(desistir\)/);
+    expect(api, 'o navegador desiste sem avisar o balde').toMatch(/desistir: true/);
+  });
+
+  /**
+   * O laço tem fim, e ele existe para a espera acabar — não para proteger o
+   * servidor. Sem teto, uma conexão lenta prende quem agenda para sempre.
+   */
+  it('o navegador insiste, mas não para sempre', () => {
+    const copiar = api.slice(api.indexOf('copiarDoDrive:'), api.indexOf('acessoNoDrive:'));
+    expect(copiar).toMatch(/TETO_DE_RODADAS/);
+    expect(copiar, 'o estado não volta para a rodada seguinte').toMatch(/continuar: pendente/);
+  });
+});
+
+/**
+ * O que a faixa diz quando a cópia falha.
+ *
+ * Ela dizia *"a peça segue com a imagem de capa, e o cliente não consegue
+ * assistir"* — e isso **deixou de ser verdade** quando o portal passou a
+ * montar o player do Google para vídeo do Drive. O cliente assiste; quem fica
+ * sem arquivo é a publicação automática, porque a rede social baixa a mídia
+ * de um endereço nosso.
+ *
+ * Mensagem que descreve um estrago que não existe custa duas vezes: manda
+ * procurar o que está certo, e esconde o que está errado.
+ */
+describe('a falha da cópia nomeia a consequência certa', () => {
+  const contexto = semComentarios(ler('src', 'context', 'PostfyContext.tsx'));
+
+  it('não afirma que o cliente ficou sem assistir', () => {
+    expect(contexto).not.toMatch(/não consegue assistir/);
+  });
+
+  it('nomeia a publicação, que é o que fica sem arquivo', () => {
+    const aviso = contexto.slice(contexto.indexOf('O vídeo do Google Drive não foi copiado'));
+    expect(aviso.slice(0, 600)).toMatch(/publicação automática/);
+  });
+
+  /**
+   * E a faixa não pode abrir com "uma alteração não chegou ao banco": o
+   * conteúdo **está** salvo, e mandar recarregar faz procurar um estrago
+   * inexistente enquanto o de verdade passa batido.
+   */
+  it('a faixa ganha o título da falha, em vez do da gravação', () => {
+    expect(contexto).toMatch(/TITULO_DA_MIDIA/);
+
+    const app = semComentarios(ler('src', 'App.tsx'));
+    expect(app, 'a faixa voltou a afirmar a frase da gravação para toda falha').toMatch(
+      /\{syncTitulo \|\|/
+    );
   });
 });

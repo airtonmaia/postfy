@@ -192,25 +192,68 @@ export const apagarObjeto = async (chave: string): Promise<void> => {
 const TAMANHO_DA_PARTE = 8 * 1024 * 1024;
 
 /**
- * Quando o envio desiste por tempo.
+ * Um envio aberto no balde, que pode continuar noutra chamada.
  *
- * Lançar um erro qualquer aqui daria "falha desconhecida" a quem está
- * olhando a tela. O nome existe para a resposta poder dizer o que houve e o
- * que fazer.
+ * **O tempo da função era um teto de tamanho disfarçado.** O envio cabia em
+ * uma invocação ou não acontecia: 45 segundos a ~3,5 MB/s dão uns 160 MB, e
+ * um vídeo maior que isso falhava *sempre* — tentar de novo repetia o mesmo
+ * percurso e parava no mesmo lugar. A mensagem dizia "tente de novo", que
+ * era o único conselho que não podia funcionar.
+ *
+ * Aqui o envio é um estado: o que já subiu fica no balde, e a chamada
+ * seguinte retoma do byte onde a anterior parou. O limite deixa de ser o
+ * tempo de uma função e passa a ser a paciência de quem espera.
+ *
+ * O estado viaja pelo navegador e volta, então ele **não é credencial**: a
+ * rota reconfere a agência e exige que a chave comece pelo `workspaceId`
+ * antes de escrever qualquer byte — sem isso, quem tem uma agência qualquer
+ * mandaria a chave de outra e gravaria dentro dela. É a mesma conferência da
+ * exclusão na Biblioteca, pelo mesmo motivo.
  */
-export class TempoEsgotadoNoEnvio extends Error {
-  constructor(public enviados: number) {
-    super('Tempo esgotado no envio.');
-    this.name = 'TempoEsgotadoNoEnvio';
-  }
+export interface EnvioEmCurso {
+  chave: string;
+  uploadId: string;
+  partes: { ETag?: string; PartNumber: number }[];
+  /**
+   * Bytes já fechados em partes — e **só** eles.
+   *
+   * É deste número que a próxima chamada pede o `Range` ao Google, então ele
+   * não pode contar o que ficou na sobra: o pedaço incompleto é descartado ao
+   * pausar e vem de novo na chamada seguinte. Isso custa no máximo uma parte
+   * de download repetido, e é o que mantém toda parte com o tamanho exato —
+   * a regra do R2 que já custou uma entrega inteira.
+   */
+  copiados: number;
 }
 
-export const enviarEmPartes = async (
-  chave: string,
+export const abrirEnvio = async (chave: string, tipo: string): Promise<EnvioEmCurso> => {
+  const inicio = await clienteR2().send(
+    new CreateMultipartUploadCommand({
+      Bucket: process.env.R2_BUCKET,
+      Key: chave,
+      ContentType: tipo,
+    })
+  );
+  return { chave, uploadId: inicio.UploadId!, partes: [], copiados: 0 };
+};
+
+/**
+ * Consome o fluxo enquanto couber no orçamento.
+ *
+ * Devolve `concluido: true` quando o fluxo terminou — e aí o envio já foi
+ * fechado no balde. `false` significa que o orçamento acabou antes, e o
+ * envio continua **aberto**, esperando a chamada seguinte com o mesmo estado.
+ *
+ * **Pausar não aborta**, e é essa a diferença para a versão anterior. O
+ * abort só acontece em erro de verdade ou quando alguém desiste: parte
+ * enviada e não concluída fica no balde ocupando espaço, invisível na
+ * listagem, e a Cloudflare cobra por ela até alguém limpar.
+ */
+export const continuarEnvio = async (
+  envio: EnvioEmCurso,
   corpo: ReadableStream<Uint8Array>,
-  tipo: string,
   /**
-   * Quando parar, em milissegundos desde o início da função.
+   * Quando parar, em milissegundos desde agora.
    *
    * **Sem isto, o arquivo grande demais mata a função sem resposta** — e a
    * tela volta ao silêncio que custou três rodadas de diagnóstico. É o mesmo
@@ -218,30 +261,26 @@ export const enviarEmPartes = async (
    * desfecho, porque não sobra nem o motivo.
    */
   orcamentoMs = 45_000
-): Promise<void> => {
+): Promise<{ concluido: boolean; envio: EnvioEmCurso }> => {
   const comecou = Date.now();
   const cliente = clienteR2();
   const Bucket = process.env.R2_BUCKET;
+  const { chave: Key, uploadId: UploadId } = envio;
 
-  const inicio = await cliente.send(
-    new CreateMultipartUploadCommand({ Bucket, Key: chave, ContentType: tipo })
-  );
-  const UploadId = inicio.UploadId;
+  const partes = [...envio.partes];
+  let copiados = envio.copiados;
 
   try {
     const leitor = corpo.getReader();
-    const partes: { ETag?: string; PartNumber: number }[] = [];
     let sobra = Buffer.alloc(0);
-    let enviadosAoTodo = 0;
-    let numero = 1;
 
     const enviarParte = async (dados: Buffer) => {
+      const numero = partes.length + 1;
       const resposta = await cliente.send(
-        new UploadPartCommand({ Bucket, Key: chave, UploadId, PartNumber: numero, Body: dados })
+        new UploadPartCommand({ Bucket, Key, UploadId, PartNumber: numero, Body: dados })
       );
       partes.push({ ETag: resposta.ETag, PartNumber: numero });
-      numero += 1;
-      enviadosAoTodo += dados.length;
+      copiados += dados.length;
     };
 
     for (;;) {
@@ -250,10 +289,6 @@ export const enviarEmPartes = async (
       if (!value) continue;
 
       sobra = Buffer.concat([sobra, Buffer.from(value)]);
-
-      if (Date.now() - comecou > orcamentoMs) {
-        throw new TempoEsgotadoNoEnvio(enviadosAoTodo + sobra.length);
-      }
 
       /**
        * **Partes de tamanho exato, e não "pelo menos tanto".**
@@ -272,6 +307,20 @@ export const enviarEmPartes = async (
         await enviarParte(sobra.subarray(0, TAMANHO_DA_PARTE));
         sobra = sobra.subarray(TAMANHO_DA_PARTE);
       }
+
+      /*
+        A conferência vem **depois** de fechar as partes inteiras, e não
+        antes: parando com 8 MB acumulados na mão, esse pedaço seria baixado
+        de novo sem precisar. E ela vem depois de ler, não no topo do laço,
+        porque é a leitura que demora — é ela que o orçamento mede.
+      */
+      if (Date.now() - comecou > orcamentoMs) {
+        // A sobra morre aqui de propósito: ver `copiados`, acima.
+        await leitor.cancel().catch(() => {
+          /* O fluxo já pode ter morrido junto com a conexão. */
+        });
+        return { concluido: false, envio: { ...envio, partes, copiados } };
+      }
     }
 
     // A última parte é o que sobrou, de qualquer tamanho. Arquivo menor que
@@ -281,17 +330,37 @@ export const enviarEmPartes = async (
     await cliente.send(
       new CompleteMultipartUploadCommand({
         Bucket,
-        Key: chave,
+        Key,
         UploadId,
         MultipartUpload: { Parts: partes },
       })
     );
+
+    return { concluido: true, envio: { ...envio, partes, copiados } };
   } catch (erro) {
-    await cliente
-      .send(new AbortMultipartUploadCommand({ Bucket, Key: chave, UploadId }))
-      .catch(() => {
-        /* Já falhou uma vez; não há a quem contar a segunda. */
-      });
+    await abortarEnvio(envio);
     throw erro;
   }
+};
+
+/**
+ * Desiste do envio e limpa o que já subiu.
+ *
+ * Não é zelo: parte enviada e não concluída **fica no balde ocupando
+ * espaço**, invisível na listagem, e a Cloudflare cobra por ela até alguém
+ * limpar. Como o envio agora sobrevive entre chamadas, quem desiste precisa
+ * dizer — o balde não tem como saber que ninguém vai voltar.
+ */
+export const abortarEnvio = async (envio: EnvioEmCurso): Promise<void> => {
+  await clienteR2()
+    .send(
+      new AbortMultipartUploadCommand({
+        Bucket: process.env.R2_BUCKET,
+        Key: envio.chave,
+        UploadId: envio.uploadId,
+      })
+    )
+    .catch(() => {
+      /* Já falhou uma vez; não há a quem contar a segunda. */
+    });
 };

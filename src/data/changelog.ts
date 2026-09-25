@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.86.0',
+    data: '2026-09-25',
+    resumo: 'Vídeo grande do Drive agora é copiado até o fim, e o aviso de falha diz a verdade.',
+    novidades: [
+      'A cópia do vídeo do Google Drive continua de onde parou, em várias etapas — o tamanho do arquivo deixou de ser um limite.',
+    ],
+    melhorias: [
+      'O aviso de falha na cópia não diz mais que o cliente ficou sem assistir: ele assiste pelo player do Google. O que fica pendente é a publicação automática, e agora é isso que a faixa diz.',
+      'A faixa amarela deixou de afirmar "uma alteração não chegou ao banco" para falhas que não são de gravação — nesses casos o conteúdo está salvo, e recarregar não resolve nada.',
+      'A recusa por tamanho passou a dizer o limite que vale de verdade; ela ainda falava em 100 MB depois de o teto subir para 500 MB.',
+    ],
+  },
+  {
     versao: '2.85.0',
     data: '2026-09-25',
     resumo: 'Termos e privacidade de verdade, senha para quem entra pelo Google, e dinheiro com as duas casas.',

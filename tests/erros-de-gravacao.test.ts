@@ -33,6 +33,7 @@ describe('o sucesso de uma coleção não apaga o erro de outra', () => {
     expect(acendeu).toEqual({
       estado: 'error',
       mensagem: 'violates check constraint "jobs_format_check"',
+      titulo: null,
     });
 
     // 2. o log da criação, logo atrás na mesma fila, grava sem problema
@@ -56,7 +57,7 @@ describe('o sucesso de uma coleção não apaga o erro de outra', () => {
     expect(painel.abertos, 'vizinhas bem-sucedidas limparam o erro alheio').toBe(1);
 
     const apagou = painel.deuCerto('jobs');
-    expect(apagou).toEqual({ estado: 'saved', mensagem: null });
+    expect(apagou).toEqual({ estado: 'saved', mensagem: null, titulo: null });
     expect(painel.abertos).toBe(0);
   });
 
@@ -70,7 +71,11 @@ describe('o sucesso de uma coleção não apaga o erro de outra', () => {
     expect(aindaUma?.estado, 'uma falha resolvida apagou a outra').toBe('error');
     expect(aindaUma?.mensagem).toBe('cliente recusado');
 
-    expect(painel.deuCerto('clients')).toEqual({ estado: 'saved', mensagem: null });
+    expect(painel.deuCerto('clients')).toEqual({
+      estado: 'saved',
+      mensagem: null,
+      titulo: null,
+    });
   });
 
   it('o mesmo motivo em duas coleções não vira texto repetido', () => {
@@ -85,7 +90,57 @@ describe('o sucesso de uma coleção não apaga o erro de outra', () => {
   it('gravação bem-sucedida sem erro nenhum em aberto confirma o estado salvo', () => {
     // O caminho normal: nada falhou, e a faixa continua apagada.
     const painel = criarPainelDeErros();
-    expect(painel.deuCerto('jobs')).toEqual({ estado: 'saved', mensagem: null });
+    expect(painel.deuCerto('jobs')).toEqual({ estado: 'saved', mensagem: null, titulo: null });
+  });
+});
+
+/**
+ * A faixa afirma a consequência, e nem toda falha tem a mesma.
+ *
+ * A frase padrão é a da **gravação recusada**: "uma alteração não chegou ao
+ * banco... recarregue para ver o que foi gravado de verdade". Ela afirma que
+ * o trabalho pode ter se perdido e manda conferir.
+ *
+ * A cópia de um vídeo que não coube no tempo da função **não perdeu alteração
+ * nenhuma** — o conteúdo está salvo. Usar aquela frase ali mandava a pessoa
+ * procurar um estrago inexistente, enquanto o problema de verdade (a peça
+ * chegar à data sem arquivo para a rede baixar) passava batido.
+ */
+describe('o título da faixa é o da falha, não da faixa', () => {
+  it('a falha sem título usa a frase padrão da gravação', () => {
+    const painel = criarPainelDeErros();
+    expect(painel.falhou('jobs', 'recusado')?.titulo).toBeNull();
+  });
+
+  it('a falha com título carrega o dela', () => {
+    const painel = criarPainelDeErros();
+    const r = painel.falhou('midia-do-drive', 'o vídeo não subiu', 'A publicação é que fica sem arquivo.');
+    expect(r?.titulo).toBe('A publicação é que fica sem arquivo.');
+  });
+
+  /**
+   * **A asserção que importa.** Com as duas em aberto, a frase mais grave
+   * tem de vencer: uma gravação recusada pode ter perdido trabalho, e
+   * escondê-la atrás de um aviso mais brando faria a pessoa não recarregar
+   * para conferir.
+   */
+  it('com origens diferentes em aberto, volta a frase padrão', () => {
+    const painel = criarPainelDeErros();
+    painel.falhou('midia-do-drive', 'o vídeo não subiu', 'A publicação é que fica sem arquivo.');
+    const r = painel.falhou('jobs', 'recusado pelo banco');
+
+    expect(r?.titulo, 'o aviso brando escondeu a gravação recusada').toBeNull();
+    expect(r?.mensagem).toContain('recusado pelo banco');
+    expect(r?.mensagem).toContain('o vídeo não subiu');
+  });
+
+  it('resolvida a gravação, sobra o título da que continua aberta', () => {
+    const painel = criarPainelDeErros();
+    painel.falhou('midia-do-drive', 'o vídeo não subiu', 'A publicação é que fica sem arquivo.');
+    painel.falhou('jobs', 'recusado pelo banco');
+
+    const r = painel.deuCerto('jobs');
+    expect(r?.titulo).toBe('A publicação é que fica sem arquivo.');
   });
 });
 
