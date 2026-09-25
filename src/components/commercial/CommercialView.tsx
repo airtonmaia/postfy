@@ -26,6 +26,7 @@ import {
 import { Lead, LeadStage, Proposal, Contract } from '../../types';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { formatCurrency } from '../../lib/utils';
 
 export const CommercialView: React.FC = () => {
   const { 
@@ -165,7 +166,7 @@ export const CommercialView: React.FC = () => {
           <div className="text-right px-4 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 rounded-xl">
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">Total em Negociação</span>
             <span className="text-base font-extrabold text-purple-950 dark:text-purple-200 font-mono">
-              R$ {(totalPipelineValue || 0).toLocaleString('pt-BR')} /mês
+              {formatCurrency(totalPipelineValue)} /mês
             </span>
           </div>
 
@@ -254,7 +255,7 @@ export const CommercialView: React.FC = () => {
                   <div>
                     <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 block">{st.title}</span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                      R$ {(sumVal || 0).toLocaleString('pt-BR')} &bull; {stageLeads.length} leads
+                      {formatCurrency(sumVal)} &bull; {stageLeads.length} leads
                     </span>
                   </div>
                 </div>
@@ -272,7 +273,7 @@ export const CommercialView: React.FC = () => {
                           <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{lead.name}</span>
                         </div>
                         <span className="text-[11px] font-bold font-mono text-purple-600 dark:text-purple-400">
-                          R$ {lead.estimatedValue.toLocaleString('pt-BR')}
+                          {formatCurrency(lead.estimatedValue)}
                         </span>
                       </div>
 
@@ -389,7 +390,7 @@ export const CommercialView: React.FC = () => {
                           <span className="text-[11px] text-slate-400">{item.description}</span>
                         </div>
                         <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
-                          R$ {item.monthlyValue.toLocaleString('pt-BR')} /mês
+                          {formatCurrency(item.monthlyValue)} /mês
                         </span>
                       </div>
                     ))}
@@ -400,7 +401,7 @@ export const CommercialView: React.FC = () => {
                   <div>
                     <span className="text-[10px] text-slate-400 block">Total Mensal</span>
                     <strong className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
-                      R$ {prop.totalMonthlyValue.toLocaleString('pt-BR')} /mês
+                      {formatCurrency(prop.totalMonthlyValue)} /mês
                     </strong>
                   </div>
 
@@ -484,7 +485,7 @@ export const CommercialView: React.FC = () => {
                   <div>
                     <span className="text-[10px] text-slate-400 block">Mensalidade</span>
                     <strong className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
-                      R$ {(contract.monthlyValue || 0).toLocaleString('pt-BR')} /mês
+                      {formatCurrency(contract.monthlyValue)} /mês
                     </strong>
                   </div>
 
@@ -791,7 +792,7 @@ export const CommercialView: React.FC = () => {
 
                   <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 2ª - DO VALOR E FORMA DE PAGAMENTO</h5>
                   <p>
-                    Pela prestação dos serviços contratados, a CONTRATANTE pagará à CONTRATADA o valor mensal fixo e irreajustável pelo período de 12 meses de <strong>R$ {viewingContract.monthlyValue.toLocaleString('pt-BR')}</strong> (mensal recorrente), com vencimento todo dia 10 de cada mês subsequente via boleto bancário ou Pix com emissão de NFS-e.
+                    Pela prestação dos serviços contratados, a CONTRATANTE pagará à CONTRATADA o valor mensal fixo e irreajustável pelo período de 12 meses de <strong>{formatCurrency(viewingContract.monthlyValue)}</strong> (mensal recorrente), com vencimento todo dia 10 de cada mês subsequente via boleto bancário ou Pix com emissão de NFS-e.
                   </p>
 
                   <h5 className="font-bold text-xs uppercase text-slate-900 dark:text-white font-sans">CLÁUSULA 3ª - DA VIGÊNCIA</h5>
@@ -867,7 +868,7 @@ export const CommercialView: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-slate-400">Valor Recorrente Mensal:</span>
                   <span className="font-mono font-extrabold text-purple-600 text-sm">
-                    R$ {viewingProposal.totalMonthlyValue.toLocaleString('pt-BR')} /mês
+                    {formatCurrency(viewingProposal.totalMonthlyValue)} /mês
                   </span>
                 </div>
               </div>

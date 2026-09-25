@@ -5,6 +5,7 @@ import { novoId } from '../../lib/sincronizacao';
 import { Crown, Check, Plus, Edit2, Trash2, Shield, DollarSign, Users } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { formatCurrency } from '../../lib/utils';
 
 interface Plan {
   id: string;
@@ -190,7 +191,7 @@ export const AdminPlanosView: React.FC = () => {
 
               <div className="my-5">
                 <span className="text-3xl font-black text-slate-900 dark:text-white">
-                  R$ {plan.price}
+                  {formatCurrency(plan.price)}
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
                   /mês

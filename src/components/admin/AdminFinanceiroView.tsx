@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { safeDateFormat } from '../../lib/utils';
+import { formatCurrency, safeDateFormat } from '../../lib/utils';
 import { usePostfy } from '../../context/PostfyContext';
 import { DollarSign, Building2, Clock, AlertTriangle, Plug, CreditCard } from 'lucide-react';
 import { carregarNumerosDeCobranca, type NumerosDeCobranca } from '../../lib/numerosDoSaas';
@@ -42,9 +42,15 @@ const formatarData = (iso?: string | null): string => {
     : safeDateFormat(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-/** Centavos → "R$ 1.234,56". Zero é zero, e é dito assim. */
-const emReais = (centavos: number): string =>
-  (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+/**
+ * Centavos → "R$ 1.234,56". Zero é zero, e é dito assim.
+ *
+ * O formato sai de `formatCurrency`, que é o mesmo das outras treze telas: o
+ * que mora aqui é só a conversão de centavos, que é o que esta tela tem de
+ * diferente. Duas cópias do formato divergem na primeira pressa — foi assim
+ * que o produto ficou com treze pontos mostrando `R$ 1.200,5`.
+ */
+const emReais = (centavos: number): string => formatCurrency(centavos / 100);
 
 export const AdminFinanceiroView: React.FC = () => {
   const { workspaces } = usePostfy();

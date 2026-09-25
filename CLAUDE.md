@@ -1576,6 +1576,100 @@ onde ligar, em vez de deixar quem clicou concluir que o produto quebrou.
 Protegido por `tests/entrar-com-google.test.ts`, conferido ao contrário:
 tirando o trecho da agência de `recarregarSessao`, duas asserções reprovam.
 
+#### O link de "esqueci minha senha" não tinha tela
+
+Entrar pelo Google trouxe à tona um buraco que já existia para todo mundo.
+`enviarRecuperacaoDeSenha` mandava o link desde sempre, apontando para
+`/?recuperar=1` — **um endereço que o app não lia**. `redefinirSenha` estava
+no contexto sem nenhum chamador: a função pronta, a rota sem tela.
+
+O desfecho é o pior possível para um caminho de recuperação, porque ele
+*parece* funcionar. O SDK troca o código da URL por sessão sozinho
+(`detectSessionInUrl`), então o link **abre o produto e entra**: a pessoa
+conclui que deu certo e segue trabalhando, com a senha antiga intacta. Na
+próxima vez que precisar dela, está trancada de novo — e o único outro
+caminho, "alterar senha" em *Sua conta*, pede a senha atual, que é
+exatamente a que ela não tem.
+
+Três decisões:
+
+- **A tela vem antes da barreira de autenticação em `App.tsx`.** Quem chega
+  pelo link está autenticado, então depois da barreira ela nunca montaria —
+  a guarda compara as duas posições, e é a asserção que mais importa ali.
+- **Sem sessão, o link caducou** (ele vale uma vez), e a tela pede outro em
+  vez de virar um beco. Mandar a pessoa de volta ao login para procurar
+  "esqueci minha senha" é onde ela desiste.
+- **A saída é `window.location.replace('/')`,** e não troca de estado: quem
+  decide montar a tela lê a URL, e sair dela por estado criaria duas fontes
+  para a mesma resposta. A sessão sobrevive à recarga.
+
+#### Conta do Google não tem senha, e a tela pedia a atual
+
+*Sua conta* pedia a senha atual antes de trocar — regra certa, e ela fica: sem
+ela, quem senta numa aba esquecida aberta troca a senha e toma a conta.
+
+Só que **conta criada pelo Google não tem senha nenhuma**: o Supabase grava a
+identidade do provedor e `encrypted_password` vazio. Qualquer coisa digitada
+ali volta como "a senha atual não confere", e a pessoa conclui que esqueceu
+uma senha que nunca criou. `temSenhaDeAcesso()` pergunta isso a
+`identities` — o provedor `email` é o que a senha representa —, e devolve
+`true` na dúvida: errar para o lado de pedir uma confirmação a mais é barato,
+errar para o outro abriria a troca sem conferência.
+
+**E a primeira senha é criada por link no e-mail, não por um campo ali.**
+`updateUser({ password })` aceitaria a senha nova sem conferir nada, e essa é
+justamente a porta que a exigência da senha atual fecha: a aba esquecida
+criaria uma senha e passaria a entrar **depois de a sessão morrer** — hoje,
+sem senha, fechar a aba é o fim do acesso dela. O e-mail repõe a prova que a
+senha atual daria, que é a caixa de entrada.
+
+#### Os documentos legais existem, e agora os links vão até eles
+
+A tela de entrada sempre disse *"ao continuar, você concorda com nossos Termos
+de Serviço & Política de Privacidade"*, com os dois `href` em `#terms` e
+`#privacy` — âncoras que não existem em página nenhuma. Armadilha 9 no pior
+lugar dela: sobre o acordo que a pessoa está sendo convidada a aceitar.
+
+Os endereços moram em `src/lib/legal.ts`, como **constante e não coluna de
+`saas_settings`**: `aparencia_do_saas` é função de lista fechada, e uma coluna
+nova ali exige migração, entrada na função, campo na tela de Design e valor
+padrão — esquecendo qualquer passo, o campo salva no banco e nunca aparece.
+Com um dono só do produto, a constante diz a verdade com uma linha; com o
+segundo, ela vira coluna.
+
+Vale registrar que isso deixou de ser só dívida quando o Google entrou: a tela
+de consentimento **exige** uma URL de política de privacidade que responda
+para o app sair do modo de teste.
+
+### Dinheiro tem duas casas, e a função existia sem chamador
+
+`formatCurrency` estava em `utils.ts` desde sempre, com **zero chamadores**,
+enquanto treze lugares escreviam `R$ {valor.toLocaleString('pt-BR')}` à mão —
+e esse formato **não força as casas decimais**: R$ 1.200,50 sai como
+`R$ 1.200,5`. Dois deles nem formatavam (`R$ {plan.price}` imprime o número
+cru, com ponto decimal, numa tela em português).
+
+Nada local acusa: `tsc` compila, o vitest não monta componente, o build não lê
+texto de tela. E o pior lugar em que aparecia é o corpo do **contrato** que a
+agência manda para o cliente dela — a mesma regra do alcance em Relatórios:
+quem é enganado não é o dono do produto, é o cliente de quem paga por ele.
+
+Duas decisões:
+
+- **Valor ausente vale zero.** Metade dos pontos escrevia `(valor || 0)` e a
+  outra confiava no número: `null` derrubava a tela com `TypeError` e
+  `undefined` imprimia a palavra ao lado do cifrão. Campo de dinheiro em
+  branco aqui é lead sem valor estimado ou plano sem preço.
+- **A guarda mede o efeito**: nenhum `R$` colado numa expressão em
+  `src/components`, lido sem os comentários — este arquivo registra
+  `R$ 1.200,5` na explicação, e sem a limpeza a guarda acusaria a própria
+  memória do bug. Do outro lado ela exige que `formatCurrency` tenha leitor,
+  senão voltaria a ser a armadilha do `trial_ends_at`.
+
+`tests/dinheiro.test.ts` e `tests/entrada-e-senha.test.ts`, conferidos ao
+contrário: recolocando o `toLocaleString` numa tela, a âncora `#terms` no
+rodapé e o desvio da recuperação depois da barreira, três asserções reprovam.
+
 ---
 
 ## Como verificar cada camada
@@ -2896,6 +2990,8 @@ src/lib/sincronizacao.ts   diferenciar() e novoId()
 src/lib/errosDeGravacao.ts quem falhou ao gravar; o sucesso de um não apaga o erro do outro
 src/lib/permissions.ts     papéis dentro da agência
 src/lib/senhas.ts          a senha que a agência gera para o cliente entrar no portal
+src/lib/legal.ts           os endereços dos termos e da política de privacidade
+src/components/auth/TelaDeNovaSenha.tsx  o link do e-mail chega aqui; define a senha
 src/components/ui/button.tsx    primitivo shadcn com as cores do projeto
 src/components/ui/alert-dialog.tsx  confirmação e aviso; useConfirmacao/useAviso
 src/components/ui/sidebar.tsx   item de menu das duas cascas, sem o provider

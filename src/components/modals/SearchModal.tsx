@@ -5,6 +5,7 @@ import { PlatformBadge, StatusBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { formatCurrency } from '../../lib/utils';
 
 export const SearchModal: React.FC = () => {
   const { 
@@ -185,7 +186,7 @@ export const SearchModal: React.FC = () => {
                         </span>
                       </div>
                       <span className="text-emerald-600 font-bold text-[11px]">
-                        R$ {lead.estimatedValue}/mês
+                        {formatCurrency(lead.estimatedValue)}/mês
                       </span>
                     </button>
                   ))}
