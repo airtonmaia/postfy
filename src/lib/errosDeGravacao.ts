@@ -32,12 +32,29 @@
  * forma.
  */
 
-/** O que a faixa deve mostrar. `null` significa **não mexa no estado**. */
-export type Repintura = { estado: 'saved' | 'error'; mensagem: string | null } | null;
+/**
+ * O que a faixa deve mostrar. `null` significa **não mexa no estado**.
+ *
+ * `titulo` em `null` é a frase padrão — "uma alteração não chegou ao banco",
+ * que é a consequência de uma gravação recusada. Nem toda falha que acende
+ * esta faixa é isso, e afirmar que foi é pior que não dizer nada: a cópia de
+ * um vídeo que não coube no tempo da função **não perdeu alteração nenhuma**,
+ * e mandar recarregar para "ver o que foi gravado" faz a pessoa procurar um
+ * estrago que não existe, enquanto o problema de verdade — a publicação sem
+ * arquivo — passa batido.
+ */
+export type Repintura =
+  | { estado: 'saved' | 'error'; mensagem: string | null; titulo?: string | null }
+  | null;
 
 export interface PainelDeErros {
-  /** Uma origem falhou. Devolve sempre uma repintura: o aviso tem de acender. */
-  falhou(origem: string, mensagem: string): Repintura;
+  /**
+   * Uma origem falhou. Devolve sempre uma repintura: o aviso tem de acender.
+   *
+   * `titulo` é opcional porque o caso comum é o da gravação, e repeti-lo em
+   * cada chamada seria o convite para uma delas divergir.
+   */
+  falhou(origem: string, mensagem: string, titulo?: string): Repintura;
   /** Uma origem voltou a gravar. */
   deuCerto(origem: string): Repintura;
   /** Quantas origens estão com erro em aberto. */
@@ -45,18 +62,35 @@ export interface PainelDeErros {
 }
 
 export const criarPainelDeErros = (): PainelDeErros => {
-  const erros = new Map<string, string>();
+  const erros = new Map<string, { mensagem: string; titulo?: string }>();
 
   const repintar = (): Repintura => {
-    const mensagens = [...erros.values()];
-    if (!mensagens.length) return { estado: 'saved', mensagem: null };
+    const abertos = [...erros.values()];
+    if (!abertos.length) return { estado: 'saved', mensagem: null, titulo: null };
+
+    /*
+      **Com origens diferentes em aberto, vale a frase padrão.**
+
+      Uma delas sem título é uma gravação recusada, e essa é a afirmação mais
+      grave das duas: o trabalho pode não estar no banco. Deixar o título da
+      outra no lugar esconderia isso atrás de um aviso mais brando — e a
+      pessoa não recarregaria para conferir. Títulos diferentes entre si caem
+      no mesmo lugar, pela mesma razão: na dúvida, a frase que manda conferir.
+    */
+    const titulos = new Set(abertos.map((e) => e.titulo));
+    const titulo = titulos.size === 1 ? [...titulos][0] ?? null : null;
+
     // Duas coleções que falham pelo mesmo motivo não repetem o texto.
-    return { estado: 'error', mensagem: [...new Set(mensagens)].join(' ') };
+    return {
+      estado: 'error',
+      mensagem: [...new Set(abertos.map((e) => e.mensagem))].join(' '),
+      titulo,
+    };
   };
 
   return {
-    falhou(origem, mensagem) {
-      erros.set(origem, mensagem);
+    falhou(origem, mensagem, titulo) {
+      erros.set(origem, { mensagem, titulo });
       return repintar();
     },
 

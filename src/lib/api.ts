@@ -199,16 +199,89 @@ export const arquivosApi = {
    *
    * Devolve o motivo quando não dá, porque "sem cópia" é um desfecho válido e
    * silencioso ele é indistinguível de defeito.
+   *
+   * ### A cópia acontece em rodadas, e é isso que tirou o teto de tamanho
+   *
+   * Uma função serverless vive um minuto. A 3,5 MB/s isso dá uns 160 MB, e
+   * era exatamente aí que o vídeo grande parava — **sempre no mesmo lugar**,
+   * com a tela mandando "tentar de novo", que é o único conselho que não
+   * podia funcionar: a tentativa seguinte refazia o mesmo percurso.
+   *
+   * Agora o servidor devolve o que já subiu (`pendente`) e esta função torna
+   * a chamar, continuando do byte onde parou. O limite deixou de ser o tempo
+   * de uma função e passou a ser a paciência de quem espera — daí o teto de
+   * rodadas: ele não existe para proteger o servidor, mas para a espera ter
+   * fim quando a conexão está lenta demais para aquele arquivo.
    */
   copiarDoDrive: async (
     workspaceId: string,
-    fileId: string
+    fileId: string,
+    aoAndar?: (copiados: number, total: number | null) => void
   ): Promise<{ url: string | null; chave?: string; motivo?: string }> => {
+    /*
+      Doze rodadas a ~160 MB dão margem de sobra para o limite de 500 MB da
+      rota, e ainda assim fecham a espera quando a conexão é o problema.
+    */
+    const TETO_DE_RODADAS = 12;
+    let pendente: any = null;
+
     try {
-      return await chamar<{ url: string | null; chave?: string; motivo?: string }>(
-        '/api/upload-url',
-        { acao: 'copiar-do-drive', workspaceId, fileId }
-      );
+      for (let rodada = 0; rodada < TETO_DE_RODADAS; rodada += 1) {
+        const resposta = await chamar<{
+          url: string | null;
+          chave?: string;
+          motivo?: string;
+          pendente?: any;
+          total?: number | null;
+          recomecar?: boolean;
+        }>('/api/upload-url', {
+          acao: 'copiar-do-drive',
+          workspaceId,
+          fileId,
+          continuar: pendente,
+        });
+
+        if (resposta.url) return { url: resposta.url, chave: resposta.chave };
+
+        /*
+          O Google não honrou o `Range`: o servidor já abortou o envio pela
+          metade, e a rodada seguinte recomeça do zero. Não conta como
+          desistência — conta como uma rodada gasta.
+        */
+        if (resposta.recomecar) {
+          pendente = null;
+          continue;
+        }
+
+        if (!resposta.pendente) return { url: null, motivo: resposta.motivo };
+
+        pendente = resposta.pendente;
+        aoAndar?.(pendente.copiados || 0, resposta.total ?? null);
+      }
+
+      /*
+        Desistindo, o envio aberto precisa ser abortado: parte enviada e não
+        concluída fica no balde, invisível na listagem, e é cobrada até
+        alguém limpar. Quem desiste é quem sabe — o balde não tem como
+        adivinhar que ninguém vai voltar.
+      */
+      await chamar('/api/upload-url', {
+        acao: 'copiar-do-drive',
+        workspaceId,
+        fileId,
+        continuar: pendente,
+        desistir: true,
+      }).catch(() => {
+        /* Abortar é limpeza; falhar aqui não muda o que dizer a quem espera. */
+      });
+
+      const mb = Math.round((pendente?.copiados || 0) / 1024 / 1024);
+      return {
+        url: null,
+        motivo:
+          `a cópia parou em ${mb} MB depois de ${TETO_DE_RODADAS} tentativas — a conexão ` +
+          'com o Google está lenta demais para um arquivo deste tamanho',
+      };
     } catch (erro) {
       return { url: null, motivo: erro instanceof Error ? erro.message : 'falha desconhecida' };
     }

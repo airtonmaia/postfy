@@ -16,8 +16,10 @@ import {
   clienteR2,
   listarObjetos,
   apagarObjeto,
-  enviarEmPartes,
-  TempoEsgotadoNoEnvio,
+  abrirEnvio,
+  continuarEnvio,
+  abortarEnvio,
+  type EnvioEmCurso,
 } from './_lib/r2.js';
 import {
   credenciaisDoGoogle,
@@ -398,7 +400,7 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
     return json({ error: 'Corpo da requisição não é um JSON válido.' }, 400);
   }
 
-  const { workspaceId, fileId, contaId } = corpo || {};
+  const { workspaceId, fileId, contaId, continuar, desistir } = corpo || {};
   if (!textoValido(workspaceId, 64) || !textoValido(fileId, 200)) {
     return json({ error: 'Agência ou arquivo não informado.' }, 400);
   }
@@ -408,6 +410,49 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
 
   if (!r2Configurado()) {
     return json({ error: 'Armazenamento não configurado.', code: 'NOT_CONFIGURED' }, 503);
+  }
+
+  /**
+   * O estado de uma cópia em andamento, conferido antes de valer qualquer
+   * coisa.
+   *
+   * Ele viaja pelo navegador e volta, então **não é credencial**. A chave tem
+   * de começar pelo `workspaceId` de quem está chamando: sem isso, quem tem
+   * uma agência qualquer manda a chave de outra e passa a gravar dentro dela.
+   * É a mesma conferência da exclusão na Biblioteca, onde ela já está
+   * registrada como o que separa a checagem de membro de um enfeite.
+   */
+  const emCurso = (bruto: any): EnvioEmCurso | null => {
+    if (!bruto || typeof bruto !== 'object') return null;
+    const { chave, uploadId, partes, copiados } = bruto;
+
+    if (!textoValido(chave, 300) || !textoValido(uploadId, 300)) return null;
+    if (!chave.startsWith(`${workspaceId}/`)) return null;
+    if (!Array.isArray(partes) || partes.length > 10_000) return null;
+    if (typeof copiados !== 'number' || !Number.isFinite(copiados) || copiados < 0) return null;
+
+    return {
+      chave,
+      uploadId,
+      copiados,
+      partes: partes.map((p: any, i: number) => ({
+        ETag: String(p?.ETag || ''),
+        PartNumber: Number(p?.PartNumber) || i + 1,
+      })),
+    };
+  };
+
+  /*
+    Desistir é um modo, e ele existe por dinheiro: o envio agora sobrevive
+    entre chamadas, então parte enviada e não concluída fica no balde —
+    invisível na listagem, e cobrada pela Cloudflare até alguém limpar. Quem
+    para de tentar precisa dizer, porque o balde não tem como saber que
+    ninguém vai voltar.
+  */
+  if (desistir) {
+    const envio = emCurso(continuar);
+    if (envio) await abortarEnvio(envio);
+    return json({ url: null, motivo: 'cópia cancelada' });
   }
 
   const acesso = await acessoDoDrive(workspaceId, contaId);
@@ -437,49 +482,101 @@ const copiarDoDrive = async (request: Request, userId: string): Promise<Response
       const mb = Math.round(tamanho / 1024 / 1024);
       return json({
         url: null,
-        motivo: `o arquivo tem ${mb} MB e o limite de cópia é 100 MB`,
+        /*
+          O número sai da constante, e isso não é estilo: ele estava escrito à
+          mão e **ficou para trás** quando o teto subiu de 100 para 500 MB. Um
+          arquivo de 600 MB era recusado dizendo que o limite era 100 — a
+          pessoa comprimia o vídeo para 200 MB, que já passava desde sempre, e
+          o produto respondia com um número que ninguém mais usava.
+        */
+        motivo: `o arquivo tem ${mb} MB e o limite de cópia é ${Math.round(
+          LIMITE_DA_COPIA / 1024 / 1024
+        )} MB`,
       });
     }
 
+    const tipo = dados.mimeType || 'application/octet-stream';
+    const retomando = emCurso(continuar);
+
+    /*
+      Retomando, o download recomeça **do byte onde o envio parou** — não do
+      começo. Sem o `Range`, cada chamada baixaria o arquivo inteiro de novo
+      para chegar ao ponto certo, e a cópia nunca terminaria: cada rodada
+      gastaria o orçamento inteiro repetindo o que a anterior já fez.
+    */
     const conteudo = await fetch(
       `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}` +
         '?alt=media&supportsAllDrives=true',
-      { headers: { Authorization: `Bearer ${acesso.token}` } }
+      {
+        headers: {
+          Authorization: `Bearer ${acesso.token}`,
+          ...(retomando?.copiados ? { Range: `bytes=${retomando.copiados}-` } : {}),
+        },
+      }
     );
 
     if (!conteudo.ok) {
       return json({ url: null, motivo: `o Google recusou o download (${conteudo.status})` });
     }
 
-    const tipo = dados.mimeType || conteudo.headers.get('content-type') || 'application/octet-stream';
-    const chave = `${workspaceId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${nomeSeguro(
-      dados.name || `${fileId}.mp4`
-    )}`;
+    /*
+      **Retomar só vale se o Google honrou o `Range`.** Ele responde 206 com
+      o pedaço pedido; um 200 significa que veio o arquivo inteiro, e
+      continuar dali gravaria o começo do vídeo no meio dele — um arquivo
+      corrompido que nada acusa, porque o tamanho fecha. Melhor recomeçar do
+      zero e gastar uma rodada.
+    */
+    if (retomando?.copiados && conteudo.status !== 206) {
+      await abortarEnvio(retomando);
+      return json({
+        url: null,
+        motivo: 'o Google não aceitou continuar de onde parou; a cópia recomeça do início',
+        recomecar: true,
+      });
+    }
 
     if (!conteudo.body) return json({ url: null, motivo: 'o Google não devolveu conteúdo' });
+
+    const envio =
+      retomando ||
+      (await abrirEnvio(
+        `${workspaceId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${nomeSeguro(
+          dados.name || `${fileId}.mp4`
+        )}`,
+        tipo
+      ));
 
     /*
       Em partes, e não `arrayBuffer()`: o buffer inteiro na memória é o que
       obrigava o teto de 100 MB, e o primeiro vídeo real a esbarrar nele
       tinha 109. Aqui o pico é o tamanho de uma parte.
     */
-    await enviarEmPartes(chave, conteudo.body as ReadableStream<Uint8Array>, tipo);
+    const resultado = await continuarEnvio(
+      envio,
+      conteudo.body as ReadableStream<Uint8Array>
+    );
+
+    /*
+      Não acabou: o envio fica **aberto** no balde e o estado volta para quem
+      chamou, que torna a pedir. O tempo de uma função deixa de ser um teto de
+      tamanho — era ele que fazia o vídeo de 160 MB falhar sempre, com a
+      mensagem mandando "tentar de novo", que é o único conselho que não podia
+      funcionar: a tentativa seguinte refazia o mesmo percurso e parava no
+      mesmo lugar.
+    */
+    if (!resultado.concluido) {
+      return json({
+        url: null,
+        pendente: resultado.envio,
+        total: tamanho || null,
+      });
+    }
 
     const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
     if (!base) return json({ url: null, motivo: 'falta R2_PUBLIC_BASE_URL no servidor' });
 
-    return json({ url: `${base}/${chave}`, chave });
+    return json({ url: `${base}/${resultado.envio.chave}`, chave: resultado.envio.chave });
   } catch (erro) {
-    if (erro instanceof TempoEsgotadoNoEnvio) {
-      const mb = Math.round(erro.enviados / 1024 / 1024);
-      return json({
-        url: null,
-        motivo:
-          `o tempo de cópia acabou depois de ${mb} MB — o arquivo é grande ou a ` +
-          'conexão com o Google está lenta. Tente de novo, ou use uma versão mais leve',
-      });
-    }
-
     const motivo = erro instanceof Error ? erro.message : 'falha desconhecida';
     console.warn('[upload] cópia do drive', motivo);
     return json({ url: null, motivo });

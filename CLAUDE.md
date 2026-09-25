@@ -1528,6 +1528,74 @@ Conferido ao contrário, era exatamente isso que acontecia. É a mesma falha das
 três versões da guarda de formato; o recorte agora para no terminador da
 função.
 
+### O tempo da função era um teto de tamanho disfarçado
+
+A cópia do vídeo do Drive para o R2 cabia numa invocação ou **não acontecia**.
+A 3,5 MB/s, os 45 segundos de orçamento dão uns 160 MB — e o arquivo maior
+falhava *sempre*, no mesmo lugar, com a tela dizendo **"tente de novo"**. Era
+o único conselho que não podia funcionar: a tentativa seguinte refazia o mesmo
+percurso e parava no mesmo byte.
+
+Agora o envio é um **estado**: `abrirEnvio` / `continuarEnvio` / `abortarEnvio`
+em `api/_lib/r2.ts`. O que já subiu fica no balde, a rota devolve `pendente`, e
+o navegador chama de novo com o `Range` a partir dali. O limite deixou de ser o
+tempo de uma função e passou a ser a paciência de quem espera — daí o teto de
+rodadas, que fecha a espera quando a conexão é o problema.
+
+Quatro coisas que não são detalhe:
+
+- **A sobra é descartada ao pausar.** `copiados` conta só os bytes fechados em
+  partes, porque é dele que sai o próximo `Range`. Contar o pedaço incompleto
+  deslocaria o arquivo inteiro a partir da emenda — e o R2 exige que toda parte
+  menos a última tenha o mesmo tamanho, regra que já custou uma entrega.
+- **Retomar exige 206.** Se o Google devolver 200, veio o arquivo inteiro:
+  emendar aquilo grava o começo do vídeo no meio dele. O resultado é um arquivo
+  **corrompido com o tamanho certo**, que nada acusa. Recomeçar custa uma
+  rodada; emendar errado custa o post.
+- **A chave volta do navegador, então ela é conferida.** `chave.startsWith(
+  workspaceId + '/')` antes de gravar um byte — sem isso, quem tem uma agência
+  qualquer manda a chave de outra e passa a gravar dentro dela, e a checagem de
+  membro logo acima vira enfeite. Mesma lição da exclusão na Biblioteca.
+- **Pausar não aborta, desistir sim.** Parte enviada e não concluída fica no
+  balde, invisível na listagem, e a Cloudflare cobra por ela — o balde não tem
+  como saber que ninguém vai voltar. Por isso `desistir` é um modo da rota, e o
+  laço do navegador o chama quando esgota as rodadas.
+
+`tests/envio-em-partes.test.ts` exercita a emenda com o cliente do R2 trocado
+por um que anota o que recebeu: duas chamadas, e a soma tem de fechar com o
+tamanho do arquivo, com a numeração contínua e todas as partes menos a última
+do mesmo tamanho. Guarda de fonte não pegaria isso — o ponto de retomada errado
+produz um arquivo com o tamanho certo.
+
+#### E o aviso dizia a consequência errada
+
+A faixa dizia *"a peça segue com a imagem de capa, e o cliente não consegue
+assistir"*. Era verdade quando foi escrita e **deixou de ser** quando o portal
+passou a montar o player do Google para vídeo do Drive: ele toca com a
+liberação por link, que acontece **antes** de qualquer cópia, escolhe a
+resolução pela conexão e não depende do balde.
+
+Quem depende da cópia é a rede social — a Meta baixa a mídia de um endereço
+público, e o Google não serve arquivo para quem não tem sessão. Então a falha
+custa a **publicação automática**, não a aprovação.
+
+E a faixa abria com *"uma alteração não chegou ao banco — recarregue para ver o
+que foi gravado de verdade"*, que é a frase da **gravação recusada**. O conteúdo
+estava salvo: recarregar mandava procurar um estrago que não existe, enquanto o
+de verdade passava batido. `Repintura` ganhou `titulo`, e a regra com duas
+origens em aberto é *volta a frase padrão* — uma gravação recusada pode ter
+perdido trabalho, e escondê-la atrás de um aviso mais brando é pior que
+repetir o alarme.
+
+**Mensagem que descreve um estrago inexistente custa duas vezes**: manda
+procurar o que está certo e esconde o que está errado. É a armadilha 9 na
+camada dos avisos, e a regra que fica é a de sempre — a tela afirma o que
+mediu.
+
+A recusa por tamanho tinha o mesmo defeito em miniatura: o teto subiu de 100
+para 500 MB e a frase continuou dizendo 100. O número agora é derivado da
+constante, e a guarda reprova qualquer dígito escrito à mão ali.
+
 ### Entrar com Google: o botão é a parte fácil, a volta é a que custa
 
 O login por provedor externo **não termina numa chamada**. `signInWithOAuth`

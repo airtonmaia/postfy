@@ -355,6 +355,8 @@ interface PostfyContextType {
   // Sincronização com o servidor
   syncState: SyncState;
   syncError: string | null;
+  /** A frase de cima da faixa; null usa a padrão, a da gravação recusada. */
+  syncTitulo: string | null;
   forceSync: () => Promise<{ success: boolean; message: string }>;
 
   // Aviso de cota do armazenamento local
@@ -1201,6 +1203,14 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  /**
+   * A frase de cima da faixa, quando a falha não é uma gravação recusada.
+   *
+   * `null` é o padrão — "uma alteração não chegou ao banco". Nem toda falha
+   * que acende a faixa é isso, e afirmar que foi manda a pessoa procurar um
+   * estrago que não existe, enquanto o problema de verdade passa batido.
+   */
+  const [syncTitulo, setSyncTitulo] = useState<string | null>(null);
 
   const hidratado = useRef(false);
 
@@ -1377,6 +1387,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!r) return;
     setSyncState(r.estado);
     setSyncError(r.mensagem);
+    setSyncTitulo(r.titulo ?? null);
   };
 
   const relatarErro = (erro: unknown, acao: string, origem: string = acao) => {
@@ -1556,6 +1567,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     hidratado.current = true;
     setSyncState('saved');
     setSyncError(null);
+    setSyncTitulo(null);
   };
 
   useEffect(() => {
@@ -1732,16 +1744,24 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   /**
    * A arte do Drive vem para o R2 **assim que a peça existe**.
    *
-   * O arquivo precisa estar num endereço que o navegador abra — e o portal
-   * do cliente é anônimo por definição, então nenhum endereço do Google
-   * serve. Sem a cópia, quem aprova vê a miniatura e mais nada: basta para
-   * uma arte, não basta para um Reels, onde o movimento e o áudio são
-   * metade da peça.
+   * **Ela serve à publicação, e não mais ao portal** — e esta frase corrige
+   * o que estava escrito aqui. O texto antigo dizia que sem a cópia o cliente
+   * via "a miniatura e mais nada", o que era verdade quando ele foi escrito e
+   * deixou de ser quando o portal passou a montar o **player do Google** para
+   * vídeo do Drive (`idDeVideoNoDrive`): ele toca com a liberação por link,
+   * que `prepararMidiaDoDrive` faz antes de qualquer cópia, escolhe a
+   * resolução pela conexão e não depende do balde.
+   *
+   * Quem depende da cópia é a rede social: a Meta **baixa** a mídia de um
+   * endereço público na hora de publicar, e o Google não serve arquivo para
+   * quem não tem sessão. Sem a cópia, o que não acontece é a publicação
+   * automática — e era isso que a faixa de erro precisava dizer, em vez de
+   * anunciar que o cliente não conseguia assistir.
    *
    * **A cópia acontece na criação, e não na aprovação.** Amarrá-la a um
-   * status fazia a peça passar horas sem vídeo nenhum — o tempo em que ela é
-   * produzida, revisada internamente e conferida na prévia. Quem monta a
-   * peça é o primeiro a precisar vê-la rodando.
+   * status fazia a peça chegar à data de publicação sem arquivo nenhum
+   * pronto, e o problema aparecia no pior momento — na hora de agendar, com
+   * a data em cima. Aqui ele aparece enquanto ainda dá para trocar o vídeo.
    *
    * Ela é apagada depois de a peça ir ao ar, e o que fica é a imagem de capa:
    * o balde segue guardando só o que está em uso.
@@ -1754,6 +1774,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * Não bloqueia e não avisa quando falha. A peça segue com a miniatura, que
    * é exatamente o que ela tinha antes desta função existir.
    */
+  const TITULO_DA_MIDIA =
+    'O vídeo não foi copiado para a publicação automática. O conteúdo está salvo.';
+
   const garantirMidiaDoDrive = (jobId: string) => {
     void (async () => {
       try {
@@ -1772,7 +1795,10 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               'midia-do-drive',
               'O vídeo do Google Drive não foi copiado: ' +
                 preparo.falhas.map((f) => `"${f.nome}" (${f.motivo})`).join('; ') +
-                '. A peça segue com a imagem de capa, e o cliente não consegue assistir.'
+                '. O conteúdo está salvo e o cliente assiste normalmente no portal, ' +
+                'pelo player do Google. O que não sai é a publicação automática, ' +
+                'porque a rede social precisa baixar o arquivo de um endereço nosso.',
+              TITULO_DA_MIDIA
             )
           );
           return;
@@ -1785,7 +1811,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             'midia-do-drive',
             erro instanceof Error
               ? `O vídeo do Google Drive não foi copiado: ${erro.message}`
-              : 'O vídeo do Google Drive não foi copiado.'
+              : 'O vídeo do Google Drive não foi copiado.',
+            TITULO_DA_MIDIA
           )
         );
       }
@@ -2895,6 +2922,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         syncWithSupabase,
         syncState,
         syncError,
+        syncTitulo,
         forceSync,
       }}
     >

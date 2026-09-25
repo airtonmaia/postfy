@@ -123,6 +123,7 @@ const MainLayout: React.FC = () => {
     setSidebarRecolhida,
     syncState,
     syncError,
+    syncTitulo,
     isPlatformAdmin,
       isProfileModalOpen,
     setIsProfileModalOpen,
@@ -758,9 +759,21 @@ const MainLayout: React.FC = () => {
           <div className="shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
+              {/*
+                O título é da falha, não da faixa.
+
+                A frase abaixo é a da **gravação recusada**, e ela afirma duas
+                coisas fortes: que algo pode não ter sido salvo, e que vale
+                recarregar para conferir. Nem toda falha que acende esta faixa
+                é isso — a cópia de um vídeo que não coube no tempo da função
+                não perdeu alteração nenhuma, e mandar recarregar fazia a
+                pessoa procurar um estrago inexistente enquanto o problema de
+                verdade (publicar sem arquivo) passava batido.
+              */}
               <p className="text-xs font-bold text-amber-900 dark:text-amber-200 leading-snug">
-                Uma alteração não chegou ao banco. O que está na tela pode não
-                estar salvo — recarregue para ver o que foi gravado de verdade.
+                {syncTitulo ||
+                  'Uma alteração não chegou ao banco. O que está na tela pode não ' +
+                    'estar salvo — recarregue para ver o que foi gravado de verdade.'}
               </p>
               <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed mt-0.5 break-words">
                 {syncError}
