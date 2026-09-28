@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.87.0',
+    data: '2026-09-28',
+    resumo: 'O cliente vê como o feed do Instagram vai ficar, antes de aprovar.',
+    novidades: [
+      'Nova aba "Feed" no portal do cliente: as artes montadas na grade do Instagram, da mais recente para a mais antiga, como vão aparecer no perfil.',
+      'Tocar numa arte da grade abre a peça, com legenda e data — e com aprovar e pedir ajuste, quando ela ainda está aguardando.',
+    ],
+    melhorias: [
+      'A grade mostra só o que vai ao Instagram, e nunca o que está na coluna Ideias — pauta em estudo não é promessa de publicação.',
+      'Cada miniatura é 4:5, como o perfil recorta hoje: numa grade quadrada o topo e a base da arte sumiriam só na simulação e voltariam no perfil de verdade.',
+      'A moldura é maior que a do simulador interno: quem está decidindo precisa ver a arte, não a maquete.',
+    ],
+    corrigido: [
+      'A prévia que abre ao tocar numa peça mostrava a arte deitada, recortada em cima e embaixo: uma arte de 1080×1440 aparecia como uma faixa. Agora ela abre na proporção da peça — e o corte que o cliente via existia só ali, não no perfil.',
+      'A arte da prévia ocupa a largura inteira da janela, sem as tarjas escuras dos lados: ela rola junto com a legenda, e os botões de aprovar e pedir ajuste ficam fixos embaixo, sempre à vista.',
+      'A janela da prévia tinha dois botões de fechar empilhados no mesmo canto, e o de cima era um X cinza que sumia sobre a arte.',
+    ],
+  },
+  {
     versao: '2.86.0',
     data: '2026-09-25',
     resumo: 'Vídeo grande do Drive agora é copiado até o fim, e o aviso de falha diz a verdade.',

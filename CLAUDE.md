@@ -2439,6 +2439,92 @@ campanha, público e funil. A subtração vale para **todos os papéis**: o edit
 
 Protegido por `tests/revisoes-do-cliente.test.ts`.
 
+#### O cliente aprova uma peça de cada vez; o perfil dele não é uma peça de cada vez
+
+O portal mostrava a peça sozinha, grande, com legenda e botões. É o que a
+aprovação precisa — e não é o que o perfil é. Duas artes escuras seguidas,
+três fundos iguais na mesma linha, a foto que some ao lado da vizinha: nada
+disso aparece numa peça isolada, e aparece no dia em que as três estão
+publicadas, quando não volta.
+
+A simulação de grade **já existia para a agência** (`InstagramGridModal`), e
+não para quem aprova. A aba Feed é ela do outro lado, com três decisões:
+
+- **Ideia não entra.** A coluna Ideias é rascunho da agência — pauta anotada,
+  tema em estudo, o que saiu da reunião e pode não virar nada. No feed do
+  cliente ela vira promessa de publicação que ninguém decidiu fazer: é a
+  família do `feed_story` e da fila sem produtor, *a tela oferecendo mais do
+  que o servidor honra*.
+- **A ordem é a do Instagram, não a do quadro**: mais recente no canto
+  superior esquerdo, descendo pela data. Uma grade em outra ordem mostra uma
+  harmonia que o perfil não vai ter, que é o oposto do que ela existe para
+  fazer. A comparação é de **instantes** e por isso não passa por fuso — o
+  fuso decide como a data é escrita (armadilha 8.2), não quem vem antes.
+- **Só o que vai ao Instagram.** A moldura é um perfil do Instagram; uma peça
+  de LinkedIn no meio do grid afirmaria uma publicação que não acontece.
+
+**E dois pedaços do simulador interno não vieram junto, de propósito.** Ele
+escreve `14.8k` seguidores e `482` seguindo à mão, e monta o arroba com
+`nome.toLowerCase()`. Num painel interno isso passa como enfeite de maquete;
+no portal, não — **o cliente conhece o número dele e o arroba dele**, e ver os
+dois inventados no próprio perfil é a armadilha 9 na frente de quem sabe a
+resposta. A grade mostra a contagem de peças, que é a única que sai de um
+lugar onde ela existe.
+
+A regra do que entra mora em `src/lib/feedDoInstagram.ts`, fora do componente,
+para ser exercitada em vez de descrita — `tests/feed-do-portal.test.ts` roda o
+filtro e a ordem com peças de verdade, e guarda os dois números inventados
+para eles não voltarem por cópia.
+
+##### Proporção e teto de altura no mesmo elemento não dão proporção nenhuma
+
+A prévia que a grade abre — a do calendário, que também aprova — mostrava um
+carrossel de 1080×1440 como uma **faixa deitada**, recortada em cima e embaixo.
+A classe estava escrita assim:
+
+```
+aspect-[4/5] max-h-72      // ❌ não é 4:5 coisa nenhuma
+```
+
+Os dois juntos se anulam: a largura continua vindo do pai (a modal inteira,
+512px), o teto corta a altura em 288px, e o `object-cover` recorta a arte para
+caber no que sobrou. O resultado tem `aspect-ratio` declarado e 510×288 na
+tela — medido no Chromium.
+
+**O que torna isso caro é o lugar.** O corte existia *só na prévia*: no perfil
+a arte volta inteira. Quem aprova decidia sobre um enquadramento que não vai ao
+ar, que é o oposto do que uma prévia existe para fazer — e ninguém desconfia,
+porque a tela mostra uma imagem bem desenhada.
+
+A regra que fica: **quem dirige o quadro é a largura, e o que cede é a
+rolagem.** `w-full` mais a proporção, e o bloco cresce na altura que a peça
+pedir — o mesmo que o card da aba Aprovações já fazia.
+
+A saída fácil é a errada, e ela tinha nome aqui: `encaixe="caber"`, um segundo
+modo de `CriativoDeFeedEStory` que ajustava a arte a uma altura fixa para o
+resto caber na tela sem rolar. O preço era tarja escura dos dois lados de toda
+peça 4:5 — a arte **menor do que a modal comporta**, justamente na tela em que
+ela é o assunto. É a conclusão a que esta seção já tinha chegado uma vez, no
+card com abas: *o custo real ficou do lado errado — quem abre esta tela vem
+julgar a arte*.
+
+O que a rolagem exige em troca é uma coisa só, e ela não é opcional: **a barra
+de decisão fica fora dela.** A arte a 4:5 na largura do diálogo passa de 600px,
+e "Aprovar Agora" embaixo dela seria trocar um problema por outro pior — a
+modal existe para receber a decisão. Então a modal é `flex flex-col`, a arte e
+o texto vão juntos num filho `flex-1 min-h-0 overflow-y-auto`, e o rodapé é
+irmão dele, `shrink-0`. O `min-h-0` é o que faz o filho encolher em vez de
+empurrar o rodapé para fora (o `min-height: auto` do flex), e a falta dele não
+parece um bug: só aparece com legenda longa, numa tela baixa.
+
+O fechar acompanhou: ele mora fora da rolagem e é nosso, com `semFechar` no
+`DialogContent`. O do primitivo é `ghost`, pensado para faixa branca de
+cabeçalho — sobre a arte, um X cinza sobre foto some. Eram dois botões
+empilhados no mesmo canto, e o de cima era justamente o que não dava para ver.
+
+As guardas são de efeito: proporção não divide elemento com teto de altura, a
+arte está dentro da área que rola, e há um fechar só.
+
 #### Uma lista só em Arquivos, e mudar de coluna é mudar de lado
 
 A aba Arquivos tinha **duas listas empilhadas** — "Arquivos e Pastas" e
@@ -3079,6 +3165,8 @@ src/components/jobs/PainelDeRevisoes.tsx      pedido do cliente, conversa e vers
 src/components/jobs/PainelDeCompartilhamento.tsx  link do portal e mensagem pronta
 src/components/jobs/PainelDeTimesheet.tsx    horas na peça; só o que é medido
 src/components/portal/ConversaComAAgencia.tsx  o chat do cliente, na tela de aprovação
+src/components/portal/FeedDoInstagram.tsx    o perfil montado, para o cliente ver o conjunto
+src/lib/feedDoInstagram.ts o que entra na grade do feed, e em que ordem
 src/components/ui/accordion.tsx  primitivo shadcn, com o canto traduzido
 src/lib/aparencia.ts       marca, paleta, banners e SEO do produto (saas_settings)
 src/lib/numerosDoSaas.ts   contagens do produto inteiro e por agência, via RPC de admin

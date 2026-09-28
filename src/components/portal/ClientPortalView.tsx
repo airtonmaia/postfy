@@ -35,6 +35,7 @@ import {
   Users,
   Plus,
   Save,
+  Grid3X3,
   X
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge, TipoBadge } from '../common/Badges';
@@ -53,6 +54,7 @@ import {
 } from '../../lib/portal';
 import { ClientPortalLogin } from './ClientPortalLogin';
 import { ConversaComAAgencia } from './ConversaComAAgencia';
+import { FeedDoInstagram } from './FeedDoInstagram';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
@@ -327,17 +329,6 @@ const CriativoDeFeedEStory: React.FC<{
   feed?: string;
   story?: string;
   /**
-   * `preencher` — a arte ocupa a largura toda e o card cresce com ela. É o
-   * card da aba Aprovações, onde a arte é o assunto da tela.
-   *
-   * `caber` — a arte se ajusta a uma altura máxima. É a prévia do calendário,
-   * que abre **dentro de uma modal**: ali o story a 9:16 na largura do
-   * diálogo passaria de 800px de altura e empurraria a legenda e os botões
-   * para fora da tela. Preencher e caber não são a mesma decisão porque o
-   * espaço disponível não é o mesmo.
-   */
-  encaixe?: 'preencher' | 'caber';
-  /**
    * A cópia no R2 de cada quadro, quando a arte mora no Google Drive.
    *
    * É ela que **toca** aqui: o portal é anônimo e nenhum endereço do Google
@@ -345,7 +336,7 @@ const CriativoDeFeedEStory: React.FC<{
    * não basta para um Reels, onde o movimento e o áudio são metade da peça.
    */
   copias?: { feed?: string; story?: string };
-}> = ({ feed, story, encaixe = 'preencher', copias }) => {
+}> = ({ feed, story, copias }) => {
   const [quadro, setQuadro] = useState<QuadroDoCriativo>('feed');
   const arteDoQuadro: Record<QuadroDoCriativo, string | undefined> = { feed, story };
   const emTela = QUADROS_DO_CRIATIVO.find((q) => q.chave === quadro) ?? QUADROS_DO_CRIATIVO[0];
@@ -355,15 +346,23 @@ const CriativoDeFeedEStory: React.FC<{
    * Dois irmãos, não um bloco: a arte vai de borda a borda e o seletor fica
    * na faixa branca do card, embaixo dela. Envolvê-los num container só
    * obrigaria a escolher entre emoldurar a arte e cobrir a manchete dela.
+   *
+   * **E a arte ocupa a largura inteira, na proporção dela — nos dois lugares.**
+   *
+   * Havia um segundo encaixe, `caber`, para a prévia que abre em modal: lá a
+   * arte era ajustada a uma altura fixa, e a largura sobrava dos dois lados em
+   * tarja escura. O motivo escrito era que o story a 9:16 na largura do
+   * diálogo passaria de 800px e empurraria a legenda e os botões de decisão
+   * para fora da tela — e isso deixou de ser verdade quando a modal passou a
+   * rolar a arte junto com o texto, com a barra de decisão fora da rolagem.
+   *
+   * O custo do encaixe ficava do lado errado, que é a mesma conclusão a que
+   * este arquivo já tinha chegado no card de aprovação: quem abre esta tela
+   * vem **julgar a arte**, e ela estava menor e emoldurada para poupar uma
+   * rolagem.
    */
   const arte = (
-    <div
-      className={
-        encaixe === 'preencher'
-          ? `w-full ${emTela.proporcao} overflow-hidden bg-slate-900`
-          : `h-full ${emTela.proporcao} overflow-hidden bg-slate-900`
-      }
-    >
+    <div className={`w-full ${emTela.proporcao} overflow-hidden bg-slate-900`}>
       {url ? (
         <MidiaDaPeca url={url} copia={copias?.[emTela.chave]} rotulo={emTela.rotulo} />
       ) : (
@@ -379,11 +378,7 @@ const CriativoDeFeedEStory: React.FC<{
 
   return (
     <>
-      {encaixe === 'preencher' ? (
-        arte
-      ) : (
-        <div className="h-72 flex items-center justify-center bg-slate-900">{arte}</div>
-      )}
+      {arte}
 
       <div className="flex justify-center py-2 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
         <Tabs value={quadro} onValueChange={(v) => setQuadro(v as QuadroDoCriativo)}>
@@ -545,6 +540,7 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
 
 type AbaDoPortal =
   | 'approvals'
+  | 'feed'
   | 'calendar'
   | 'arquivos'
   | 'senhas'
@@ -556,6 +552,12 @@ type AbaDoPortal =
 /** Ordem e rótulo das abas do portal. O papel decide quais aparecem. */
 const ABAS_DO_PORTAL: { id: AbaDoPortal; rotulo: string; icone: typeof CheckCircle2 }[] = [
   { id: 'approvals', rotulo: 'Aprovações', icone: CheckCircle2 },
+  /*
+    O Feed fica ao lado de Aprovações porque é a outra metade da mesma
+    decisão: ali o cliente julga a peça sozinha, aqui ele vê o que ela faz com
+    o conjunto. Longe uma da outra, a segunda vira uma tela que ninguém abre.
+  */
+  { id: 'feed', rotulo: 'Feed', icone: Grid3X3 },
   { id: 'calendar', rotulo: 'Cronograma', icone: CalendarIcon },
   { id: 'arquivos', rotulo: 'Arquivos', icone: FolderOpen },
   { id: 'senhas', rotulo: 'Senhas', icone: Key },
@@ -635,7 +637,10 @@ export const ClientPortalView: React.FC = () => {
   const abasVisiveis = useMemo(
     () =>
       ABAS_DO_PORTAL.filter((a) => {
-        if (ehAprovador) return a.id === 'approvals' || a.id === 'calendar';
+        // O aprovador vê o Feed: ele é quem decide sobre a peça, e o conjunto
+        // é parte dessa decisão. E não há dado novo ali — a grade é montada
+        // com as mesmas peças que ele já recebe do banco.
+        if (ehAprovador) return a.id === 'approvals' || a.id === 'feed' || a.id === 'calendar';
         if (a.id === 'usuarios') return portalUsuario?.papel === 'editor';
         return true;
       }),
@@ -1161,7 +1166,16 @@ export const ClientPortalView: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* Tab 2: Calendar */}
+        {/* Tab 2: Feed — o perfil montado, para o cliente ver o conjunto */}
+        <TabsContent value="feed">
+          <FeedDoInstagram
+            cliente={client}
+            jobs={clientJobs}
+            aoEscolher={setCalendarPreviewJob}
+          />
+        </TabsContent>
+
+        {/* Tab 3: Calendar */}
         <TabsContent value="calendar">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2028,10 +2042,24 @@ export const ClientPortalView: React.FC = () => {
       {/* `z-[60]`: abre por cima da casca do portal, que é `z-50`. */}
       <Dialog open={!!calendarPreviewJob} onOpenChange={(aberto) => !aberto && setCalendarPreviewJob(null)}>
         {calendarPreviewJob && (
-          <DialogContent tamanho="formulario" className="z-[60] p-0 gap-0">
+          <DialogContent tamanho="formulario" className="z-[60] p-0 gap-0" semFechar>
             {/* A prévia abre mostrando a arte, sem faixa de título. O nome
                 existe para quem usa leitor de tela. */}
             <DialogTitle className="sr-only">{calendarPreviewJob.title}</DialogTitle>
+
+            {/*
+              **A arte rola junto com o texto, e a barra de decisão fica fora
+              da rolagem.**
+
+              Antes a arte era espremida numa altura fixa para o resto caber na
+              tela sem rolar, e o preço era tarja escura dos dois lados de uma
+              peça 4:5 — a arte menor do que a modal comporta, justamente na
+              tela em que ela é o assunto. Rolando, ela ocupa a largura inteira
+              na proporção real, e "Aprovar Agora" e "Pedir Ajuste" continuam
+              visíveis o tempo todo porque não entram na rolagem. Esconder a
+              decisão embaixo da arte seria trocar um problema por outro pior.
+            */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {/*
                 **A prévia do calendário também aprova**, e por isso ela
                 precisa das duas artes tanto quanto o card. Ela mostrava
@@ -2042,10 +2070,10 @@ export const ClientPortalView: React.FC = () => {
                 aprovação daqui é o menos usado.
               */}
               <div
-                className={`relative bg-slate-900 overflow-hidden shrink-0 ${
+                className={`relative bg-slate-900 overflow-hidden ${
                   calendarPreviewJob.format === 'feed_story'
                     ? 'flex flex-col'
-                    : `flex items-center justify-center ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)} max-h-72`
+                    : `w-full ${proporcaoDoCriativo(calendarPreviewJob.platform, calendarPreviewJob.format)}`
                 }`}
               >
                 {calendarPreviewJob.format === 'feed_story' ? (
@@ -2056,7 +2084,6 @@ export const ClientPortalView: React.FC = () => {
                       feed: calendarPreviewJob.midiaPublicavel?.feed?.[0],
                       story: calendarPreviewJob.midiaPublicavel?.story?.[0],
                     }}
-                    encaixe="caber"
                   />
                 ) : calendarPreviewJob.mediaUrls && calendarPreviewJob.mediaUrls.length > 0 ? (
                   <GaleriaDaPeca
@@ -2065,7 +2092,7 @@ export const ClientPortalView: React.FC = () => {
                     rotulo="conteúdo"
                   />
                 ) : (
-                  <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
+                  <div className="text-slate-400 flex flex-col items-center justify-center h-full gap-2 text-xs">
                     <Layers className="w-8 h-8" />
                     <span>Preview do Criativo</span>
                   </div>
@@ -2074,15 +2101,9 @@ export const ClientPortalView: React.FC = () => {
                   <PlatformBadge platform={calendarPreviewJob.platform} />
                   <FormatBadge format={calendarPreviewJob.format} />
                 </div>
-                <Button size="icon-sm"
-                  onClick={() => setCalendarPreviewJob(null)}
-                  className="absolute top-3 right-3 bg-slate-900/70 text-white hover:bg-slate-900"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
               </div>
 
-              <div className="p-5 space-y-3 overflow-y-auto">
+              <div className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
                     {calendarPreviewJob.title}
@@ -2109,6 +2130,23 @@ export const ClientPortalView: React.FC = () => {
                   </strong>
                 </div>
               </div>
+            </div>
+
+            {/*
+              O fechar mora **fora da rolagem**, e por isso ele não é o do
+              primitivo (`semFechar`): aquele é `ghost`, pensado para uma faixa
+              branca de cabeçalho, e aqui ele cai sobre a arte — um X cinza
+              sobre uma foto some. Este tem fundo próprio. Eram dois botões
+              empilhados no mesmo canto antes disto.
+            */}
+            <Button
+              size="icon-sm"
+              aria-label="Fechar"
+              onClick={() => setCalendarPreviewJob(null)}
+              className="absolute top-3 right-3 z-10 bg-slate-900/70 text-white hover:bg-slate-900"
+            >
+              <X className="w-4 h-4" />
+            </Button>
 
               <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
                 {calendarPreviewJob.status === 'for_approval' ? (
