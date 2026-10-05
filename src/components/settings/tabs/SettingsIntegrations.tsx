@@ -106,10 +106,16 @@ export const SettingsIntegrations: React.FC = () => (
       ))}
     </div>
 
+    {/* A nota citava só o Instagram, e o Facebook passou a conectar aqui. Cada
+        rede tem a **sua** revisão na Meta — `instagram_business_content_publish`
+        de um lado, `pages_manage_posts` do outro —, e omitir a segunda faria a
+        agência conectar a Página e descobrir o limite na data da publicação. */}
     <p className="text-[11px] text-slate-400 dark:text-slate-500">
       <Instagram className="w-3 h-3 inline mr-1 -mt-0.5" />
-      Publicar no Instagram depende de aprovação do app na Meta, que é um processo
-      externo e leva algumas semanas. A conexão já pode ser feita e testada antes disso.
+      Publicar em conta de cliente depende de aprovação do app na Meta, uma revisão
+      por rede (Instagram e Facebook são apps e permissões separados), que é um
+      processo externo e leva algumas semanas. A conexão já pode ser feita e testada
+      antes disso, nas contas e Páginas que você mesmo administra.
     </p>
   </div>
 );

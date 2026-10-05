@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { relativoAoRepo } from './util/caminhos';
 
 /**
  * As abas vêm de um componente só, e nenhuma expressão vaza para a tela.
@@ -28,7 +29,7 @@ function listarFontes(dir: string, saida: string[] = []): string[] {
 }
 
 const fontes = listarFontes(join(RAIZ, 'src')).map((caminho) => ({
-  caminho: caminho.replace(`${RAIZ}/`, ''),
+  caminho: relativoAoRepo(caminho, RAIZ),
   texto: semComentarios(readFileSync(caminho, 'utf-8')),
 }));
 
@@ -197,7 +198,7 @@ describe('o rascunho nunca é publicado', () => {
       const texto = semComentarios(readFileSync(caminho, 'utf-8'));
       expect(
         texto,
-        `${caminho.replace(`${RAIZ}/`, '')} passou a ler o rascunho — ele é o texto ` +
+        `${relativoAoRepo(caminho, RAIZ)} passou a ler o rascunho — ele é o texto ` +
           `que a agência descartou, e ia para o perfil do cliente`
       ).not.toMatch(/\bdraft\b/);
     }

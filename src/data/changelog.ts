@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.88.0',
+    data: '2026-10-05',
+    resumo: 'O Facebook aparece em Integrações: dá para conectar a Página e ver qual rede é cada conta.',
+    novidades: [
+      'Configurações → Integrações passa a conectar Facebook, não só Instagram: escolha o cliente, escolha a rede e autorize. Antes a Página só dava para ligar pela ficha do cliente, em Conexões do perfil.',
+      'Antes de autorizar, a tela diz o que falta naquela rede — publicar em Página de cliente depende da revisão de pages_manage_posts na Meta. Descobrir isso depois de digitar a senha é tarde.',
+    ],
+    melhorias: [
+      'A lista de redes a conectar é derivada da fonte única: a próxima rede com fluxo pronto aparece aqui sozinha, em vez de ficar de fora sem ninguém notar.',
+      'A nota do rodapé deixou de citar só o Instagram: cada rede tem app e revisão próprios na Meta.',
+    ],
+    corrigido: [
+      'Cada conta conectada mostra a rede dela. O ícone era fixo no Instagram, então uma Página do Facebook aparecia nessa lista com cara de Instagram — a tela afirmando uma rede que não era a da conexão, no lugar em que o engano custa um post no perfil errado.',
+    ],
+  },
+  {
     versao: '2.87.0',
     data: '2026-09-28',
     resumo: 'O cliente vê como o feed do Instagram vai ficar, antes de aprovar.',

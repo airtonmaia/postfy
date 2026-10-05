@@ -1867,6 +1867,36 @@ pareça inocente. `tests/rotas.test.ts` acusa antes do deploy — mas quem vai
 precisar de rota nova avisa a outra máquina primeiro, porque a solução é
 sempre juntar duas que já existem, e isso é decisão de desenho.
 
+#### A guarda também roda na outra máquina, e seis não rodavam
+
+Uma das duas máquinas é Windows, e lá **seis guardas reprovavam com o código
+intacto** enquanto o CI (`ubuntu-latest`) ficava verde. Nenhuma acusava bug:
+as três causas são do ambiente, e cada uma é uma classe inteira.
+
+- **CRLF.** `core.autocrlf=true` escreve CRLF no disco, e os objetos do git
+  são LF. Guarda que procura um trecho com quebra de linha dentro do literal
+  — `indexOf("'story'\n    );")` — devolve **-1**. Medido no mesmo arquivo:
+  lido do objeto, 2329; lido do disco, -1. `.gitattributes` com
+  `* text=auto eol=lf` faz a cópia de trabalho ser igual à do CI, e a classe
+  some. Nada no histórico muda: os objetos já eram LF.
+- **Separador de caminho.** `arquivo.replace(`${RAIZ}/`, '')` não casa com o
+  `\` que o `join()` monta: sobra o caminho absoluto, e a comparação com uma
+  lista escrita `src/App.tsx` falha em **todos** os itens — uma guarda
+  acusava vinte arquivos corretos de uma vez. O lugar disso é
+  `tests/util/caminhos.ts`, não a décima terceira cópia à mão.
+- **Tempo.** `ids` abria um `git check-ignore` por arquivo, trezentos
+  processos. Cabe nos 5 s do vitest no Linux; no Windows, não. Uma chamada
+  com `--stdin` responde o mesmo em 352 ms.
+
+**O custo não é diagnosticar uma vez.** Suíte vermelha numa das máquinas o
+tempo todo é como a falha de verdade chega no meio do ruído — é a lição que
+este arquivo já registra três vezes sobre guarda que reprova código correto:
+*ela ensina a ignorá-la*. Com seis assim, a suíte tinha deixado de ser lida.
+
+E a recíproca, que é o lado mais perigoso: **CI verde não prova que a guarda
+roda em todo lugar**. Guarda nova que leia caminho, fim de linha ou relógio
+merece uma passada na outra máquina antes do merge.
+
 ### Uma linha visual só: o desenho do dashboard
 
 **Tela nova copia o desenho que já existe. Não invente nada.** Nem raio de

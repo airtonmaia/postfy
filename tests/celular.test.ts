@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { relativoAoRepo } from './util/caminhos';
 
 /**
  * O produto é usado no celular, e nada local acusa quando ele quebra lá.
@@ -365,7 +366,7 @@ describe('as modais usam a tela inteira no celular', () => {
         // fica sem nome nenhum no telefone.
         if (!/hidden sm:inline/.test(botao)) continue;
         if (/aria-label=/.test(botao)) continue;
-        semNome.push(`${caminho.replace(`${RAIZ}/`, '')}: ${botao.slice(0, 80)}`);
+        semNome.push(`${relativoAoRepo(caminho, RAIZ)}: ${botao.slice(0, 80)}`);
       }
     }
 
