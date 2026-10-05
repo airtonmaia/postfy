@@ -283,3 +283,54 @@ describe('esperar a mídia ficar pronta', () => {
     expect(fonte).toMatch(/status_code === 'EXPIRED'/);
   });
 });
+
+/**
+ * O que foi concedido fica à vista, porque a Meta deixa de mostrar.
+ *
+ * A tela de consentimento do Instagram tem duas versões, e a **curta** —
+ * *"você conectou anteriormente este app, deseja continuar?"* — é a que
+ * aparece para toda conta que já autorizou uma vez. Ela não lista permissão
+ * nenhuma, e por isso, depois da primeira conexão, não havia em lugar nenhum
+ * como conferir o que o app recebeu.
+ *
+ * Escopo faltando **não derruba a conexão**: ela fecha normalmente, e a falha
+ * aparece só na hora de publicar. É a mesma família do token do usuário
+ * guardado no lugar do token da Página — a conexão parece pronta e não está.
+ */
+describe('as permissões concedidas chegam à tela', () => {
+  const fonte = semComentarios(
+    readFileSync(join(__dirname, '..', 'api', '_lib', 'instagram.ts'), 'utf-8')
+  );
+  const callback = semComentarios(
+    readFileSync(join(__dirname, '..', 'api', 'social-callback.ts'), 'utf-8')
+  );
+
+  it('a troca do código não joga fora o campo permissions', () => {
+    // Ele vem de graça na resposta que já é lida. Descartá-lo é o que fazia a
+    // informação não existir em lugar nenhum.
+    expect(fonte, 'o campo permissions voltou a ser descartado').toMatch(
+      /curto\.permissions/
+    );
+    expect(fonte).toMatch(/permissoes/);
+  });
+
+  it('lista e string separada por vírgula são aceitas', () => {
+    /*
+      A documentação da Meta escreve `"<LIST_OF_GRANTED_PERMISSIONS>"` sem
+      fixar o formato, e ele varia por versão. Supor um e errar faria a tela
+      omitir as permissões numa conexão que funciona — a ausência passaria por
+      "não concedeu".
+    */
+    expect(fonte).toMatch(/Array\.isArray\(cru\)/);
+    expect(fonte).toMatch(/cru\.split\(','\)/);
+  });
+
+  it('a tela de retorno mostra o que veio, e cala quando não veio', () => {
+    // Lista vazia escrita como "nenhuma permissão" afirmaria uma recusa que
+    // não houve: ausência é "não sei", nunca "nenhuma".
+    expect(callback).toMatch(/Permissões concedidas/);
+    expect(callback, 'a tela passou a afirmar sobre uma lista vazia').toMatch(
+      /trocado\.permissoes\.length/
+    );
+  });
+});

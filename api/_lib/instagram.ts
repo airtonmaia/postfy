@@ -121,7 +121,29 @@ export const trocarCodigoPorToken = async (
   redirectUri: string,
   appId: string,
   appSecret: string
-): Promise<{ token: string; expiraEm: number | null; accountId: string | null }> => {
+): Promise<{
+  token: string;
+  expiraEm: number | null;
+  accountId: string | null;
+  /**
+   * As permissões que a pessoa **de fato** concedeu.
+   *
+   * A Meta devolve isto na troca do código, e o produto jogava fora. Parece
+   * supérfluo e não é: a tela de consentimento do Instagram tem duas versões,
+   * e a **curta** — *"você conectou anteriormente este app, deseja
+   * continuar?"* — é a que aparece para toda conta que já autorizou uma vez.
+   * Ela não lista permissão nenhuma.
+   *
+   * Então, depois da primeira conexão, **não há lugar nenhum onde conferir o
+   * que foi concedido**: nem na tela da Meta, nem no Orquesia. E escopo
+   * faltando aqui não dá erro na conexão — ela fecha normalmente, e a falha
+   * aparece só na hora de publicar, que é tarde. É a mesma família do token
+   * do usuário guardado no lugar do token da Página.
+   *
+   * Vazio quando a Meta não mandou: ausência é "não sei", nunca "nenhuma".
+   */
+  permissoes: string[];
+}> => {
   // Form-encoded, e por POST: este endpoint não aceita os parâmetros na query.
   const corpo = new URLSearchParams({
     client_id: appId,
@@ -143,11 +165,25 @@ export const trocarCodigoPorToken = async (
       `&access_token=${encodeURIComponent(curto.access_token)}`
   );
 
+  /*
+    `permissions` vem ora como lista, ora como string separada por vírgula,
+    dependendo da versão — a documentação mostra `"<LIST_OF_GRANTED_PERMISSIONS>"`
+    sem fixar o formato. Tratar os dois custa uma linha; supor um e errar
+    deixaria a tela afirmando "nenhuma permissão" numa conexão que funciona.
+  */
+  const cru = curto.permissions;
+  const permissoes: string[] = Array.isArray(cru)
+    ? cru.map(String)
+    : typeof cru === 'string'
+      ? cru.split(',').map((p: string) => p.trim())
+      : [];
+
   return {
     token: longo.access_token,
     expiraEm: typeof longo.expires_in === 'number' ? longo.expires_in : null,
     // A troca já devolve de quem é o token; poupa uma chamada.
     accountId: curto.user_id ? String(curto.user_id) : null,
+    permissoes: permissoes.filter(Boolean),
   };
 };
 
