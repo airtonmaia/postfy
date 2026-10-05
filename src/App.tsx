@@ -5,7 +5,6 @@ import {
   Sun,
   Moon,
   LayoutDashboard, 
-  Calendar as CalendarIcon, 
   Kanban, 
   Images,
   Users,
@@ -196,7 +195,10 @@ const MainLayout: React.FC = () => {
 
   const todasAsAbas: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
+    // O calendário não está aqui de propósito: ele virou uma visão do
+    // WorkFlow, alternada por `AlternarVisaoDoWorkflow`. A aba continua
+    // existindo em `TabType`, nas permissões e em `/calendario` — tirar a
+    // rota quebraria o favorito de quem já usa o endereço.
     { id: 'producao', label: 'WorkFlow', icon: Kanban },
     { id: 'biblioteca', label: 'Biblioteca', icon: Images },
     { id: 'clientes', label: 'Clientes (360°)', icon: Users },
@@ -355,7 +357,12 @@ const MainLayout: React.FC = () => {
             <SidebarMenu>
               {navItems.map(item => {
                 const Icon = item.icon;
-                const isActive = activeTab === item.id;
+                // O WorkFlow acende também no calendário: são duas visões de
+                // um item só, e um menu apagado com a tela aberta faria a
+                // pessoa procurar onde ela está.
+                const isActive =
+                  activeTab === item.id ||
+                  (item.id === 'producao' && activeTab === 'calendario');
                 const temBadge = item.badge !== undefined && item.badge > 0;
 
                 return (

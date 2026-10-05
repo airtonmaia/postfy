@@ -22,12 +22,13 @@ import {
   Clapperboard,
   MailCheck
 } from 'lucide-react';
-import { Job, JobStatus, Client, JobTipo } from '../../types';
+import { Job, JobStatus, Client, JobTipo, JobPlatform } from '../../types';
 import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
 import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
+import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { ClientesDoQuadro } from './ClientesDoQuadro';
 import { FiltrosDoQuadro } from './FiltrosDoQuadro';
 import {
@@ -35,6 +36,7 @@ import {
   dentroDoPeriodo,
   dataQueOrdena,
   ORDEM_PADRAO,
+  type IntervaloDeDias,
   PERIODO_PADRAO,
   type ChaveDeOrdem,
   type Periodo,
@@ -127,7 +129,8 @@ export const KanbanBoard: React.FC = () => {
     updateJob,
     setSelectedJob, 
     openCreateJobModal,
-    currentWorkspace
+    currentWorkspace,
+    users
   } = usePostfy();
 
   const [search, setSearch] = useState('');
@@ -142,6 +145,29 @@ export const KanbanBoard: React.FC = () => {
    */
   const [ordem, setOrdem] = useState<ChaveDeOrdem>(ORDEM_PADRAO);
   const [periodo, setPeriodo] = useState<Periodo>(PERIODO_PADRAO);
+
+  /*
+    As duas pontas do período personalizado, em `YYYY-MM-DD`.
+
+    Dia, nunca instante: é o que `<input type="date">` entrega e o que
+    `dentroDoPeriodo` compara. Guardar `Date` aqui reabriria a armadilha 8.2
+    — o mesmo intervalo recortaria conteúdo diferente para dois membros da
+    equipe em estados diferentes, sem nada parecer errado em tela.
+  */
+  const [intervalo, setIntervalo] = useState<IntervaloDeDias>({});
+
+  /*
+    Formato e responsável ficam no estado da tela, como a ordem e a janela —
+    e **não** no contexto, onde moram cliente e rede.
+
+    A diferença não é estilo: cliente e rede estão no contexto porque o
+    calendário também os honra. Pôr formato e responsável lá daria um estado
+    compartilhado que só uma das duas visões lê — a mesma classe do
+    `trial_ends_at`, um campo que parece uma regra e não é. Quando o
+    calendário filtrar por eles, eles sobem junto.
+  */
+  const [formato, setFormato] = useState<string>('todos');
+  const [responsavel, setResponsavel] = useState<string>('todos');
 
   /** O id do que está sendo arrastado. `null` quando nada está. */
   const [arrastando, setArrastando] = useState<string | null>(null);
@@ -252,7 +278,41 @@ export const KanbanBoard: React.FC = () => {
   // Filter jobs
   const antesDoPeriodo = jobs.filter(job => {
     if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
-    if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
+
+    /*
+      **A rede olha `canais`, e não só `platform`.** Comparar com
+      `job.platform` sozinho escondia toda peça multicanal cuja rede
+      principal não fosse a filtrada — uma peça marcada para Instagram e
+      Facebook sumia do filtro "Facebook", com o quadro afirmando que não há
+      nada para publicar lá. `platform` é o primeiro de `canais`, então a
+      peça antiga, sem `canais`, continua valendo.
+    */
+    if (platformFilter !== 'all') {
+      const canais = job.canais?.length ? job.canais : [job.platform];
+      if (!canais.includes(platformFilter as JobPlatform)) return false;
+    }
+
+    if (formato !== 'todos' && job.format !== formato) return false;
+
+    /*
+      **A peça não tem um responsável: tem três.** `designerId`,
+      `copywriterId` e `socialMediaId` são papéis diferentes na mesma peça,
+      e quem filtra por si mesmo quer tudo em que aparece — não só o que caiu
+      num papel específico. Casar com um campo só esconderia do designer a
+      peça em que ele é o designer, se ela também tivesse copywriter.
+
+      `ninguem` é a fila do que ninguém pegou, e é provavelmente o recorte
+      mais útil dos três: sem ele, peça sem dono só aparece misturada no meio
+      de todas as outras.
+    */
+    if (responsavel !== 'todos') {
+      const papeis = [job.designerId, job.copywriterId, job.socialMediaId].filter(Boolean);
+      if (responsavel === 'ninguem') {
+        if (papeis.length > 0) return false;
+      } else if (!papeis.includes(responsavel)) {
+        return false;
+      }
+    }
     if (search) {
       const q = search.toLowerCase();
       if (!job.title.toLowerCase().includes(q) && !job.caption.toLowerCase().includes(q)) return false;
@@ -260,7 +320,9 @@ export const KanbanBoard: React.FC = () => {
     return true;
   });
 
-  const filteredJobs = antesDoPeriodo.filter((job) => dentroDoPeriodo(job, periodo));
+  const filteredJobs = antesDoPeriodo.filter((job) =>
+    dentroDoPeriodo(job, periodo, new Date(), undefined, intervalo)
+  );
 
   /**
    * Quantas peças a janela escondeu **por não terem data**.
@@ -412,6 +474,10 @@ export const KanbanBoard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Quadro ou Calendário: a mesma tela, duas leituras. Vem primeiro
+              porque é a escolha que muda o que tudo o mais filtra. */}
+          <AlternarVisaoDoWorkflow />
+
           {/* Search */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -441,6 +507,15 @@ export const KanbanBoard: React.FC = () => {
             aoMudarOrdem={setOrdem}
             periodo={periodo}
             aoMudarPeriodo={setPeriodo}
+            intervalo={intervalo}
+            aoMudarIntervalo={setIntervalo}
+            formato={formato}
+            aoMudarFormato={setFormato}
+            rede={platformFilter}
+            aoMudarRede={setPlatformFilter}
+            responsavel={responsavel}
+            aoMudarResponsavel={setResponsavel}
+            equipe={users}
             fixados={fixados}
             aoSoltarTodos={soltarTodos}
           />

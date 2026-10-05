@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { CalendarViewMode } from '../../types';
+import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { InstagramGridModal } from './InstagramGridModal';
 import { Button } from '../ui/button';
 
@@ -111,6 +112,10 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             ))}
           </select>
         </div>
+
+        {/* Quadro ou Calendário, antes do seletor de visão do próprio
+            calendário: um escolhe a tela, o outro o recorte dentro dela. */}
+        <AlternarVisaoDoWorkflow />
 
         {/* View Switcher: Month, Week, Day, List */}
         <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
