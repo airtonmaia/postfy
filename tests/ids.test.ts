@@ -126,10 +126,29 @@ describe('nada do código-fonte fica de fora do git', () => {
   it('nenhum arquivo de src ou api está ignorado', () => {
     const fontes = [...varrer('src'), ...varrer('api')];
 
-    const ignorados = fontes.filter((arquivo) => {
-      const r = spawnSync('git', ['check-ignore', '-q', arquivo]);
-      return r.status === 0;
+    /*
+      **Uma chamada só, e não uma por arquivo.** A versão anterior fazia um
+      `spawnSync` por fonte — trezentos processos. No Linux do CI isso cabe
+      nos 5 s do vitest; no Windows, onde abrir processo custa dez vezes
+      mais, a guarda **estourava o tempo** e reprovava com o código intacto.
+
+      Guarda que reprova código correto numa das duas máquinas ensina a
+      ignorar a suíte inteira, que é como a falha de verdade passa
+      despercebida. `--stdin` recebe a lista pela entrada e devolve em
+      `stdout` só o que está ignorado — mesma pergunta, um processo.
+
+      O código de saída **não** serve aqui: `git check-ignore` devolve 1
+      quando nada casa, que é justamente o caso feliz desta guarda.
+    */
+    const r = spawnSync('git', ['check-ignore', '--stdin'], {
+      input: fontes.join('\n'),
+      encoding: 'utf-8',
     });
+
+    const ignorados = (r.stdout || '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
 
     expect(ignorados).toEqual([]);
   });

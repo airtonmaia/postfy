@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { relativoAoRepo } from './util/caminhos';
 
 /**
  * As variáveis do shadcn, e a ponte entre elas e a cor da agência.
@@ -226,7 +227,7 @@ describe('as variáveis do shadcn existem e viram classe', () => {
         if (permitidos.has(passo)) continue;
         if (passo === '[40px]') continue; // a moldura do mockup
         const onde = achados.get(passo) ?? [];
-        onde.push(arquivo.replace(`${RAIZ}/`, ''));
+        onde.push(relativoAoRepo(arquivo, RAIZ));
         achados.set(passo, onde);
       }
     }
@@ -300,7 +301,7 @@ describe('as variáveis do shadcn existem e viram classe', () => {
           /\bpx-[0-9.]+\b/.test(linha) && /\bpy-(?:0\.5|1)(?![.\d])/.test(linha);
         if (!ehChip) continue;
 
-        const relativo = arquivo.replace(`${RAIZ}/`, '');
+        const relativo = relativoAoRepo(arquivo, RAIZ);
         const ehBadge = BADGES.some(
           ({ arquivo: a, trecho }) =>
             a === relativo && (trecho === null || linha.includes(trecho))

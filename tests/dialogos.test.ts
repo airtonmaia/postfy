@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentariosEEstrela as semComentarios } from './util/semComentarios';
+import { relativoAoRepo } from './util/caminhos';
 
 /**
  * Nada de `alert()` nem `window.confirm()`.
@@ -32,7 +33,7 @@ function listarFontes(dir: string, saida: string[] = []): string[] {
 }
 
 const fontes = listarFontes(join(RAIZ, 'src')).map((arquivo) => ({
-  caminho: arquivo.replace(`${RAIZ}/`, ''),
+  caminho: relativoAoRepo(arquivo, RAIZ),
   texto: semComentarios(readFileSync(arquivo, 'utf-8')),
 }));
 

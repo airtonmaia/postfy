@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { relativoAoRepo } from './util/caminhos';
 
 /**
  * Botão tem uma escala só, e ela mora no componente.
@@ -146,7 +147,7 @@ describe('botão novo passa pelo componente', () => {
         const tag = fonte.slice(m.index!, fim + 1);
         // assinatura de botão pintado à mão: padding + canto próprios
         if (/\bp[xy]?-[\d.]/.test(tag) && /\brounded/.test(tag)) {
-          achados.add(arquivo.replace(`${RAIZ}/`, ''));
+          achados.add(relativoAoRepo(arquivo, RAIZ));
         }
       }
     }
@@ -200,7 +201,7 @@ describe('botão novo passa pelo componente', () => {
         const corpo = fonte.slice(fim + 1, fecha);
         expect(
           corpo.match(/<(?:div|p|h[1-6]|img)\b/)?.[0] ?? null,
-          `${arquivo.replace(`${RAIZ}/`, '')}:${
+          `${relativoAoRepo(arquivo, RAIZ)}:${
             fonte.slice(0, m.index!).split('\n').length
           } — <Button> com conteúdo em bloco tem a altura fixa cortando o ` +
             `conteúdo. Card clicável não é Button: use <button> com as classes dele`
@@ -250,7 +251,7 @@ describe('botão novo passa pelo componente', () => {
 
         expect(
           briga,
-          `${arquivo.replace(`${RAIZ}/`, '')}:${
+          `${relativoAoRepo(arquivo, RAIZ)}:${
             fonte.slice(0, m.index!).split('\n').length
           } — <Button> com "${briga.join(' ')}": a altura vem do size e não ` +
             `cede. Ladrilho não é Button: use <button> com as classes dele`
@@ -300,7 +301,7 @@ describe('botão novo passa pelo componente', () => {
 
         expect(
           temLiteral || temTextoSolto,
-          `${arquivo.replace(`${RAIZ}/`, '')}:${
+          `${relativoAoRepo(arquivo, RAIZ)}:${
             fonte.slice(0, m.index!).split('\n').length
           } — size="icon" com rótulo: o texto escapa do quadrado de 36px. ` +
             `Use um tamanho com texto (sm, md, lg)`
@@ -350,7 +351,7 @@ describe('botão novo passa pelo componente', () => {
 
         expect(
           semFundoProprio && todosNeutros,
-          `${arquivo.replace(`${RAIZ}/`, '')}:${
+          `${relativoAoRepo(arquivo, RAIZ)}:${
             fonte.slice(0, m.index!).split('\n').length
           } — <Button> sem variant (= primary, a cor da agência) com pintura ` +
             `neutra "${cls}". Provável ghost que perdeu a variante`
@@ -379,7 +380,7 @@ describe('botão novo passa pelo componente', () => {
         // guarda acusava o próprio menu lateral.
         expect(
           tag.match(/\bbg-purple-(?:500|600)\b(?!\/)/)?.[0] ?? null,
-          `${arquivo.replace(`${RAIZ}/`, '')}: <button> à mão com o roxo de ação primária`
+          `${relativoAoRepo(arquivo, RAIZ)}: <button> à mão com o roxo de ação primária`
         ).toBeNull();
       }
     }
