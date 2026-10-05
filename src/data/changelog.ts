@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.89.0',
+    data: '2026-10-05',
+    resumo: 'Conectar o Facebook volta a oferecer a escolha de quais Páginas liberar.',
+    corrigido: [
+      'A tela da Meta não reabria a escolha de Páginas: quem liberava uma só ficava preso nela, e reconectar devolvia exatamente a mesma, sem erro nenhum.',
+      'E o aviso mandava justamente repetir esse caminho — "clique em Conectar de novo e marque todas as Páginas" —, que era o único conselho que não podia funcionar. Agora ele nomeia também as Integrações empresariais do Facebook, que é o que resolve quando a Página nem aparece no diálogo.',
+      'O aviso diz ainda o caso em que nenhum dos dois caminhos resolve: Página que pertence a um Portfólio de Negócios não é devolvida pela Meta sem uma permissão à parte.',
+    ],
+  },
+  {
     versao: '2.88.0',
     data: '2026-10-05',
     resumo: 'O Facebook aparece em Integrações: dá para conectar a Página e ver qual rede é cada conta.',

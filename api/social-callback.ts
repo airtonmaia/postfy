@@ -151,9 +151,11 @@ const paginaDeEscolha = (
          </p>
          <div style="display:flex;flex-direction:column;gap:10px">${linhas}</div>
          <p style="font-size:12px;color:#94a3b8;margin-top:20px;line-height:1.5">
-           Não está vendo todas as suas Páginas? Feche esta janela, clique em
-           Conectar de novo e marque todas na tela da Meta — é ela que decide
-           quais o Orquesia enxerga.
+           Não está vendo todas as suas Páginas? Feche esta janela e clique em
+           Conectar de novo, marcando todas na tela da Meta — é ela que decide
+           quais o Orquesia enxerga. Se ainda faltar alguma, abra o Facebook em
+           Configurações &rsaquo; Integrações empresariais, escolha o Orquesia e
+           marque as Páginas que faltam.
            <br><br>
            A autorização vale por 15 minutos. Passando disso, é só conectar de novo.
          </p>
@@ -507,9 +509,25 @@ async function handler(request: Request): Promise<Response> {
           { accountId: paginas[0].accountId, accountName: paginas[0].accountName },
           paginas[0].tokenDaPagina,
           trocado.expiraEm,
+          /*
+            **A frase antiga mandava repetir o caminho que acabara de falhar.**
+            Ela dizia "clique em Conectar de novo e marque todas as Páginas" —
+            e a Meta guarda a concessão, então a segunda tentativa devolve a
+            mesma Página. Conselho que não pode funcionar é pior que nenhum: a
+            pessoa tenta, tenta de novo, e conclui que o produto está quebrado.
+
+            Agora ela nomeia os dois caminhos que de fato mudam alguma coisa, e
+            na ordem de esforço: primeiro o seletor (que `enable_profile_selector`
+            passou a abrir), depois as Integrações empresariais do Facebook. E
+            diz o caso em que nenhum dos dois resolve, que é a Página dentro de
+            um Portfólio de Negócios.
+          */
           'Foi a única Página que o Facebook liberou para o Orquesia. Se você ' +
-            'administra outras, clique em Conectar de novo e, na tela da Meta, ' +
-            'marque todas as Páginas antes de continuar.'
+            'administra outras: clique em Conectar de novo e, na tela da Meta, ' +
+            'marque todas as Páginas. Se elas não aparecerem lá, abra o ' +
+            'Facebook em Configurações › Integrações empresariais, escolha o ' +
+            'Orquesia e marque as Páginas que faltam. Página que pertence a um ' +
+            'Portfólio de Negócios não aparece por nenhum dos dois caminhos.'
         );
       }
 
