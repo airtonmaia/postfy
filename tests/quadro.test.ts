@@ -247,3 +247,65 @@ describe('a ordem da coluna, e a posição que o arrasto grava', () => {
     );
   });
 });
+
+/**
+ * A faixa de clientes no topo do quadro.
+ *
+ * Ela não é um segundo filtro: é outro jeito de mexer no `clientFilter` que o
+ * seletor "Todos os Clientes" já usava. **Dois controles para um estado é uma
+ * coisa; dois estados para a mesma pergunta é outra**, e é a que este projeto
+ * paga caro — a tela passaria a mostrar um recorte e o seletor a afirmar
+ * outro, sem erro em lugar nenhum.
+ *
+ * Nada local acusa se isso quebrar: `tsc` aceita um `useState` a mais, o
+ * vitest não monta componente e o `vite build` não sabe o que é filtro. Só
+ * aparece clicando numa foto e vendo o seletor continuar dizendo "Todos".
+ */
+describe('a faixa de clientes filtra o quadro', () => {
+  const faixa = ler('ClientesDoQuadro.tsx');
+  const quadro = ler('KanbanBoard.tsx');
+
+  it('a seleção mora no contexto, nunca dentro da faixa', () => {
+    /*
+      Um `useState` aqui faria a faixa guardar a própria escolha. O quadro
+      continuaria lendo `clientFilter`, e clicar na foto pintaria o anel sem
+      filtrar nada — ou pior, filtraria e deixaria o seletor mentindo.
+    */
+    expect(faixa, 'a faixa passou a guardar a seleção por conta própria').not.toMatch(
+      /useState/
+    );
+    expect(faixa).toMatch(/selecionado/);
+  });
+
+  it('o quadro liga a faixa ao mesmo estado do seletor', () => {
+    // O seletor e a faixa precisam ler e escrever o mesmo par. A guarda mede
+    // o efeito: os dois identificadores chegam à faixa.
+    const uso = quadro.slice(quadro.indexOf('<ClientesDoQuadro'));
+
+    expect(uso.slice(0, 300), 'a faixa deixou de ler o filtro do quadro').toMatch(
+      /selecionado=\{clientFilter\}/
+    );
+    expect(uso.slice(0, 300), 'clicar na foto deixou de mudar o filtro').toMatch(
+      /aoSelecionar=\{setClientFilter\}/
+    );
+  });
+
+  it('a faixa lista os mesmos clientes do seletor', () => {
+    /*
+      Conjuntos diferentes nos dois controles fariam um cliente existir num e
+      não no outro — e quem não o achasse na faixa concluiria que ele saiu da
+      agência. Por isso a faixa recebe a lista pronta, sem filtrar por conta.
+    */
+    expect(quadro).toMatch(/clientes=\{clients\}/);
+    expect(faixa, 'a faixa passou a recortar a lista por conta própria').not.toMatch(
+      /clientes\.filter\(/
+    );
+  });
+
+  it('há sempre como voltar para todos', () => {
+    // Sem o item "Todos", sair de um cliente dependeria de descobrir que
+    // clicar de novo desmarca — regra que ninguém adivinha, e que deixaria a
+    // pessoa presa achando que o quadro esvaziou.
+    expect(faixa).toMatch(/id: 'all'/);
+  });
+});
