@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.92.0',
+    data: '2026-10-05',
+    resumo: 'A conexão do Instagram mostra quais permissões a conta concedeu.',
+    novidades: [
+      'Ao conectar uma conta do Instagram, a tela de retorno lista as permissões que foram concedidas de fato.',
+    ],
+    melhorias: [
+      'Isso preenche um buraco da própria Meta: a partir da segunda conexão ela mostra uma tela curta de reconsentimento, que não lista permissão nenhuma — e permissão faltando não derruba a conexão, só aparece na hora de publicar.',
+    ],
+  },
+  {
     versao: '2.91.0',
     data: '2026-10-05',
     resumo: 'O Orquesia passa a enxergar Página de cliente que está num Portfólio de Negócios.',

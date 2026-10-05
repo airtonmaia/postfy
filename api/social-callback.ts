@@ -589,7 +589,33 @@ async function handler(request: Request): Promise<Response> {
     // Uma conta por autorização: no login do Instagram é a conta que entrou.
     const conta = await contaDoToken(trocado.token);
 
-    return await guardarConexao(supabase, dados, 'instagram', conta, trocado.token, trocado.expiraEm);
+    /*
+      **As permissões concedidas ficam à vista, e isso resolve um buraco real.**
+
+      A tela de consentimento do Instagram tem duas versões, e a **curta** —
+      "você conectou anteriormente este app, deseja continuar?" — é a que
+      aparece para toda conta que já autorizou uma vez. Ela não lista
+      permissão nenhuma. Depois da primeira conexão não havia, em lugar
+      nenhum, como conferir o que foi concedido.
+
+      E escopo faltando **não derruba a conexão**: ela fecha normalmente, e a
+      falha aparece só na hora de publicar. Dizer aqui o que veio é a
+      diferença entre descobrir agora e descobrir na data agendada.
+
+      Vazio é "a Meta não mandou", e aí não há linha nenhuma — uma lista vazia
+      escrita como "nenhuma permissão" afirmaria uma recusa que não houve.
+    */
+    return await guardarConexao(
+      supabase,
+      dados,
+      'instagram',
+      conta,
+      trocado.token,
+      trocado.expiraEm,
+      trocado.permissoes.length
+        ? `Permissões concedidas: ${trocado.permissoes.join(', ')}.`
+        : undefined
+    );
   } catch (erro) {
     console.error('[social/callback]', erro instanceof Error ? erro.message : erro);
     return paginaDeRetorno('Não foi possível concluir a conexão.', true);
