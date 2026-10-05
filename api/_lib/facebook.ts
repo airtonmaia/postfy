@@ -44,6 +44,29 @@ export const ESCOPOS_FACEBOOK = [
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_posts',
+  /**
+   * **Sem ela o produto não enxerga a Página do cliente, que é o caso de uso
+   * principal — e isso foi medido, não deduzido.**
+   *
+   * `/me/accounts` **não devolve Página que pertence a um Portfólio de
+   * Negócios**. Com as três permissões acima, a mesma conta devolvia uma
+   * Página; acrescentando `business_management`, duas — a segunda estava no
+   * portfólio. Conferido no Explorador da Graph API, mesmo app, mesmo token
+   * de usuário, `v26.0`.
+   *
+   * O que torna a falta cara é o sintoma: não há erro. A lista volta curta, o
+   * produto diz "Nenhuma Página encontrada" ou conecta a única que veio, e
+   * ninguém tem como saber que a Meta omitiu o resto. Quatro rodadas de
+   * diagnóstico foram gastas aqui achando que era liberação curta na tela da
+   * autorização — e a liberação estava completa o tempo todo.
+   *
+   * E é justamente a Página de cliente que vive em portfólio: agência não
+   * administra a Página do cliente pelo perfil pessoal dela. Aprovar as
+   * outras três sem esta daria um app aprovado que não conecta ninguém.
+   *
+   * **Ela não vai no fluxo do Instagram**, como nenhum escopo daqui.
+   */
+  'business_management',
 ].join(',');
 
 export interface PaginaDoFacebook {

@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.91.0',
+    data: '2026-10-05',
+    resumo: 'O Orquesia passa a enxergar Página de cliente que está num Portfólio de Negócios.',
+    corrigido: [
+      'Página dentro de um Portfólio de Negócios não aparecia na hora de conectar o Facebook — e não havia erro nenhum: a lista voltava curta e a conexão seguia com a única que veio. É onde a Página do cliente costuma estar, então era o caso de uso principal falhando em silêncio.',
+      'A autorização passou a pedir business_management, que é o que a Meta exige para listar essas Páginas. A permissão depende de revisão dela, como as outras.',
+    ],
+  },
+  {
     versao: '2.90.0',
     data: '2026-10-05',
     resumo: 'A conexão do Facebook diz quantas Páginas a Meta devolveu, e por que algumas não entraram.',

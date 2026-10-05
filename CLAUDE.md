@@ -1270,6 +1270,41 @@ Três coisas que não são detalhe:
   sairia como "código inválido". Ela só é lida **depois** de a assinatura
   conferir.
 
+#### `/me/accounts` esconde a Página do cliente, e não avisa
+
+**`business_management` não é "mais um escopo": sem ela o produto não enxerga
+a Página que o cliente tem, que é o caso de uso inteiro.**
+
+`/me/accounts` **não devolve Página que pertence a um Portfólio de Negócios**.
+E agência não administra a Página do cliente pelo perfil pessoal dela — ela
+administra pelo portfólio. Com `pages_show_list` + `pages_read_engagement` +
+`pages_manage_posts`, a mesma conta devolveu **uma** Página; acrescentando
+`business_management`, **duas**. Medido no Explorador da Graph API, mesmo app,
+mesmo token de usuário, `v26.0`.
+
+**O que torna isso caro é que não há erro em lugar nenhum.** A lista volta
+curta, o produto conecta a única que veio e diz "Conta conectada", e ninguém
+tem como saber que a Meta omitiu o resto. O diagnóstico queimou quatro
+rodadas perseguindo a hipótese errada — liberação curta na tela da
+autorização —, enquanto a tela da Meta dizia, com todas as letras, *"Aceitou a
+totalidade de Páginas atuais e no futuro"*. **A liberação estava completa o
+tempo todo.** É a mesma família da armadilha 0: tudo verde, resposta
+incompleta.
+
+Duas lições que ficam, e a segunda vale fora da Meta:
+
+- **Antes de culpar o próprio código ou o consentimento do usuário, chame a
+  API crua.** O Explorador da Graph API responde em um minuto o que nenhuma
+  leitura de código responde: o que a Meta **de fato** devolve. Foi ele que
+  encerrou a discussão.
+- **Lista que a tela recebe filtrada precisa dizer que filtrou.**
+  `paginasDoUsuario` descartava em silêncio toda Página sem `access_token` —
+  certo em descartar, errado em calar. Hoje devolve `semPermissao` junto, e as
+  frases de recusa escolhem a explicação pelo que foi **medido**: "a Meta
+  mandou uma" e "a Meta mandou cinco e quatro vieram sem permissão" pedem
+  coisas opostas, e tratar as duas igual manda a pessoa repetir um caminho que
+  o produto já sabe que não resolve.
+
 A métrica continua só do Instagram: `buscarMetricas` fala com
 `graph.instagram.com`, e a fila de medição filtra por `platform` — medir uma
 Página por ali falharia sempre e encheria `ultimo_erro` de falha previsível,

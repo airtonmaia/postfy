@@ -93,8 +93,13 @@ export const REDES_DA_META: readonly RedeDaMeta[] = [
     // libera publicar em Página de terceiro. Botão que abre e falha depois do
     // login é pior que botão ausente — por isso a recusa vem antes, com o que
     // falta escrito.
+    // `business_management` entra na frase porque a falta dela não dá erro: a
+    // Página do cliente simplesmente **não aparece** na lista, e quem conecta
+    // conclui que o Orquesia não a encontrou. É a permissão que alcança
+    // Página dentro de Portfólio de Negócios — que é onde a Página do cliente
+    // mora, e portanto o caso de uso inteiro.
     pendencia:
-      'Publicar em Página de cliente depende da revisão de pages_manage_posts na Meta. Com o app em desenvolvimento, funciona nas Páginas que você administra.',
+      'Publicar em Página de cliente depende da revisão de pages_manage_posts e business_management na Meta — esta última é o que faz aparecer Página dentro de um Portfólio de Negócios. Com o app em desenvolvimento, funciona nas Páginas que você administra.',
   },
   {
     id: 'threads',
