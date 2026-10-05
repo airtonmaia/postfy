@@ -25,7 +25,8 @@ import {
   ClientAnnotation,
   ClientMaterial,
   TimesheetLog,
-  TabType
+  TabType,
+  AbaDoConteudo
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { aiApi, ApiError } from '../lib/api';
@@ -244,6 +245,19 @@ interface PostfyContextType {
   // Modals & Sheets
   selectedJob: Job | null;
   setSelectedJob: (job: Job | null) => void;
+  /**
+   * Em que aba a modal do conteúdo **abre**.
+   *
+   * O card do quadro tem dois caminhos para a mesma peça — "Ver histórico" e
+   * "Abrir conteúdo completo" —, e sem isto os dois caíam no formulário: quem
+   * clicou em histórico tinha de achar a aba Revisões por conta própria.
+   *
+   * É só o valor **inicial**: enquanto a modal está aberta quem manda é o
+   * estado dela. Dois estados para a mesma pergunta é como a aba acesa e o
+   * painel visível passam a discordar.
+   */
+  abaDoConteudo: AbaDoConteudo;
+  setAbaDoConteudo: (aba: AbaDoConteudo) => void;
   isCreateJobModalOpen: boolean;
   openCreateJobModal: (date?: string, tipo?: JobTipo) => void;
   closeCreateJobModal: () => void;
@@ -876,6 +890,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [abaDoConteudo, setAbaDoConteudo] = useState<AbaDoConteudo>('conteudo');
   const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState<boolean>(false);
   const [createJobPreselectedDate, setCreateJobPreselectedDate] = useState<string | null>(null);
   // Qual entrega o menu Adicionar escolheu: conteúdo, copy ou roteiro.
@@ -2877,6 +2892,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setIntervaloFiltro,
         selectedJob,
         setSelectedJob,
+        abaDoConteudo,
+        setAbaDoConteudo,
         isCreateJobModalOpen,
         openCreateJobModal,
         closeCreateJobModal,

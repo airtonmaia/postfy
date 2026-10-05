@@ -106,6 +106,46 @@ export function safeDateFormat(dateInput?: string | number | Date, options?: Int
   }
 }
 
+/**
+ * "05 out" — e "05 out 2026" com o ano.
+ *
+ * O `Intl` em pt-BR escreve `{ day, month: 'short' }` como **"05 de out."**,
+ * com preposição e ponto de abreviação; com o ano, "05 de out. de 2026".
+ * Numa linha de card, ao lado de selos e de um ícone de relógio, essas quatro
+ * letras a mais são ruído — e `'numeric'` no lugar ("05/10") troca o mês por
+ * um número que se confunde com o dia na metade do ano.
+ *
+ * Por isso a data sai de `formatToParts`: pegamos dia, mês e ano, descartamos
+ * os literais que o idioma insere e tiramos o ponto da abreviação. O mês
+ * continua vindo do `Intl`, então ele acompanha o idioma — escrever a lista
+ * dos doze à mão aqui seria congelá-lo em português.
+ *
+ * O fuso é o da agência, como em todo formatador deste arquivo.
+ */
+export function dataCompacta(
+  dateInput?: string | number | Date,
+  { comAno = false }: { comAno?: boolean } = {}
+): string {
+  if (!dateInput) return "Sem data";
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return "Sem data";
+
+    const partes = new Intl.DateTimeFormat('pt-BR', com({
+      day: '2-digit',
+      month: 'short',
+      ...(comAno ? { year: 'numeric' as const } : {}),
+    })).formatToParts(d);
+
+    return partes
+      .filter((p) => p.type === 'day' || p.type === 'month' || p.type === 'year')
+      .map((p) => (p.type === 'month' ? p.value.replace(/\.$/, '') : p.value))
+      .join(' ');
+  } catch {
+    return "Sem data";
+  }
+}
+
 export function safeDateTimeFormat(dateInput?: string | number | Date, options?: Intl.DateTimeFormatOptions): string {
   if (!dateInput) return "Sem data";
   try {

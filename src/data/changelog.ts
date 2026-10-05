@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.97.0',
+    data: '2026-10-05',
+    resumo: 'O card do quadro lê o título primeiro, avisa o prazo que está vencendo e abre uma gaveta de detalhes.',
+    novidades: [
+      'O card tem uma gaveta: etapa atual, quem entregou a última versão, data agendada e data de criação — sem precisar abrir a peça.',
+      'Selo de prazo no card: "Vence hoje", "Vence amanhã" ou "Venceu há N dias". Ele aparece só quando é hoje, amanhã ou já passou, e some em peça aprovada, agendada ou publicada.',
+      'Ações no próprio card: copiar o link do portal do cliente, duplicar e excluir, sem abrir o conteúdo.',
+      '"Ver histórico" abre a peça direto na aba Revisões, onde ficam as versões, os pedidos de ajuste e a conversa com o cliente.',
+    ],
+    melhorias: [
+      'O título da peça virou a primeira linha do card. O nome do cliente continua ali, com avatar, logo abaixo — com o quadro filtrado por um cliente, a primeira linha era a mesma palavra em todos os cards.',
+      'O seletor de etapa foi para dentro da gaveta, com o rótulo "Etapa atual". Ele continua sendo o único jeito de escolher entre Aprovado e Agendado, que o arrasto não distingue.',
+      'Excluir pelo card pergunta antes, e a pergunta diz o que some junto: versões, comentários, histórico e o disparo agendado.',
+      'A data no card virou "05 out" no lugar de "26/09" — com o mês por extenso não há como confundir dia e mês na metade do ano.',
+      'O botão que abre a gaveta ganhou fundo cinza: sem ele, "Detalhes" lia como rótulo, e rótulo ninguém clica.',
+    ],
+  },
+  {
     versao: '2.96.0',
     data: '2026-10-05',
     resumo: 'Quadro e Calendário passam a ter exatamente os mesmos filtros, na mesma barra.',
