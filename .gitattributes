@@ -1,0 +1,44 @@
+# O fim de linha é LF na cópia de trabalho, em toda máquina.
+#
+# **Isto não é preferência de estilo: sem ele, seis guardas reprovam código
+# correto no Windows e passam no CI.**
+#
+# O repositório sempre guardou LF, mas o Windows tem `core.autocrlf=true` por
+# padrão — então a cópia de trabalho de uma das duas máquinas nasce com CRLF,
+# enquanto o `ubuntu-latest` do CI vê LF. Qualquer guarda que procure um
+# trecho de código com quebra de linha dentro do literal passa a não achar
+# nada:
+#
+#     publicar.indexOf("'story'\n    );")                    // -1 no CRLF
+#     facebook.indexOf('publicarStoryNoFacebook(\n        ')  // -1 no CRLF
+#
+# `indexOf` devolve -1, a asserção reprova, e **o código está certo**. Foi
+# medido: lendo o mesmo arquivo do objeto do git (LF) os dois índices são 2329
+# e 1510; lendo do disco (CRLF) são -1 e -1.
+#
+# O custo não é o tempo de diagnosticar uma vez. É que a suíte fica vermelha
+# numa das duas máquinas o tempo todo, e aí ninguém mais olha para ela — que é
+# a mesma lição que este projeto já aprendeu duas vezes com guarda que reprova
+# código correto: *ela ensina a ignorá-la*. Com seis assim, a próxima falha de
+# verdade chega no meio do ruído.
+#
+# Consertar cada guarda para normalizar o `\r\n` ao ler seria consertar as
+# seis de hoje e deixar a sétima para a próxima pessoa. Aqui a cópia de
+# trabalho passa a ser **igual à do CI**, e a classe inteira some.
+#
+# Nada no histórico muda: os objetos do git já eram LF. O que muda é só o que
+# o checkout escreve no disco.
+* text=auto eol=lf
+
+# Binário não passa por conversão nenhuma — um `text=auto` enganado aqui
+# corromperia o arquivo em silêncio, que é o pior modo de falhar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.mp4 binary
+*.woff binary
+*.woff2 binary
