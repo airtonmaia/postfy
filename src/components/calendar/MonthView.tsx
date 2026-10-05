@@ -2,6 +2,7 @@ import React from 'react';
 import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
 import { Plus, MoreHorizontal, Clock, Sparkles } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
+import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { safeTimeFormat } from '../../lib/utils';
 import { Job, Client } from '../../types';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
@@ -20,7 +21,10 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
     clients, 
     clientFilter, 
     platformFilter, 
-    statusFilter, 
+    statusFilter,
+    formatFilter,
+    periodoFiltro,
+    intervaloFiltro, 
     setSelectedJob, 
     openCreateJobModal 
   } = usePostfy();
@@ -52,12 +56,22 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
   const semanas = totalCells / 7;
 
   // Filter jobs
-  const filteredJobs = jobs.filter(job => {
-    if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
-    if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
-    if (statusFilter !== 'all' && job.status !== statusFilter) return false;
-    return true;
-  });
+  /*
+    O mesmo recorte do quadro, pela mesma função. Eram cinco cópias deste
+    predicado — aqui e nas outras três visões — e elas já tinham divergido: o
+    filtro de formato existia só no quadro, então "o que está marcado para
+    esta semana em Reels?" tinha resposta numa tela e não na outra.
+  */
+  const filteredJobs = jobs.filter((job) =>
+    passaNosFiltros(job, {
+      cliente: clientFilter,
+      rede: platformFilter,
+      formato: formatFilter,
+      periodo: periodoFiltro,
+      intervalo: intervaloFiltro,
+      status: statusFilter,
+    })
+  );
 
   // Helper to test if a job falls on a given date (based on scheduledDate or deadlineProduction)
   const getJobsForDate = (dateObj: Date): Job[] => {

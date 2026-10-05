@@ -394,3 +394,89 @@ describe('o calendário é uma visão do WorkFlow, não um menu', () => {
     expect(alternador).toMatch(/setActiveTab\(/);
   });
 });
+
+/**
+ * O recorte do conteúdo é um só, nas cinco telas.
+ *
+ * O predicado estava escrito **cinco vezes** — no quadro e nas quatro visões
+ * do calendário — e já tinha divergido antes de alguém notar: o filtro de
+ * formato existia só no quadro, então "o que está marcado para esta semana em
+ * Reels?" tinha resposta numa tela e não tinha na outra.
+ *
+ * **Filtro que diverge esconde conteúdo, e conteúdo escondido não avisa que
+ * sumiu.** Quem olha conclui que a peça não existe — que é a classe de falha
+ * mais cara deste produto, e a razão de a guarda derivar a lista de telas em
+ * vez de nomeá-las: tela nova que filtre conteúdo precisa cair aqui sozinha.
+ */
+describe('o filtro de conteúdo é o mesmo nas cinco telas', () => {
+  const TELAS = [
+    join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'),
+    ...readdirSync(join(RAIZ, 'src', 'components', 'calendar'))
+      .filter((n) => /View\.tsx$/.test(n))
+      .map((n) => join(RAIZ, 'src', 'components', 'calendar', n)),
+  ];
+
+  it('nenhuma tela escreve o próprio predicado', () => {
+    /*
+      A guarda mede o **efeito**: a comparação crua com `platformFilter` ou
+      `clientFilter` é a assinatura da cópia. Exigir o nome da função deixaria
+      passar uma sexta cópia escrita ao lado da chamada.
+    */
+    for (const arquivo of TELAS) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      if (!/clientFilter|platformFilter/.test(fonte)) continue;
+
+      expect(
+        fonte,
+        `${arquivo}: voltou a comparar o filtro à mão em vez de usar passaNosFiltros`
+      ).not.toMatch(/if \(\s*(?:clientFilter|platformFilter) !== 'all'/);
+    }
+  });
+
+  it('toda tela que filtra conteúdo chama a função única', () => {
+    const comFiltro = TELAS.filter((a) =>
+      /clientFilter|platformFilter/.test(semComentarios(readFileSync(a, 'utf-8')))
+    );
+
+    // Cinco: o quadro e as quatro visões. Menos que isso significa que uma
+    // delas parou de filtrar — e aí ela mostra o que o filtro recortou fora.
+    expect(comFiltro.length).toBeGreaterThanOrEqual(5);
+
+    for (const arquivo of comFiltro) {
+      expect(semComentarios(readFileSync(arquivo, 'utf-8')), arquivo).toMatch(
+        /passaNosFiltros\(/
+      );
+    }
+  });
+
+  it('a barra de filtros é a mesma peça nas duas telas', () => {
+    // Duas barras divergem na primeira pressa, e divergir aqui é o bug que
+    // esta entrega veio consertar.
+    for (const arquivo of [
+      join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'),
+      join(RAIZ, 'src', 'components', 'calendar', 'CalendarHeader.tsx'),
+    ]) {
+      expect(semComentarios(readFileSync(arquivo, 'utf-8')), arquivo).toMatch(
+        /<BarraDeFiltrosDoConteudo/
+      );
+    }
+  });
+
+  it('tirar a ordenação não levou embora a saída de soltar os fixados', () => {
+    /*
+      "Soltar todos" morava dentro do menu Ordenar, que saiu da barra — e sair
+      levaria junto o **único** caminho de soltar um card fixado. Quem fixou
+      uma peça e esqueceu veria o quadro numa ordem que a data não explica,
+      concluiria que a ordenação quebrou, e a saída estaria escondida dentro de
+      cada card. "Sempre há porta de saída" é regra, e tirar um controle não
+      pode levar a única que existe.
+    */
+    const quadro = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'), 'utf-8')
+    );
+
+    expect(quadro, 'a saída para soltar os cards fixados sumiu da tela').toMatch(
+      /onClick=\{soltarTodos\}/
+    );
+  });
+});

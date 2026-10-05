@@ -80,6 +80,11 @@ import { prepararMidiaDoDrive } from '../lib/midiaParaPublicar';
 import { apagarMidiaDaPeca } from '../lib/midiaDaPeca';
 import { quantasNoDrive } from '../lib/midiaDoDrive';
 import {
+  PERIODO_PADRAO,
+  type IntervaloDeDias,
+  type Periodo,
+} from '../lib/ordemDoQuadro';
+import {
   carregarPortal,
   aprovarPeloPortal,
   pedirAjustePeloPortal,
@@ -218,6 +223,23 @@ interface PostfyContextType {
   setPlatformFilter: (filter: string) => void;
   statusFilter: string; // 'all' or status
   setStatusFilter: (filter: string) => void;
+  /**
+   * Formato e janela de datas — **compartilhados entre o quadro e o
+   * calendário**, como cliente e rede já eram.
+   *
+   * Eles nasceram no estado do `KanbanBoard`, e isso virou o bug que a barra
+   * única veio consertar: a mesma pergunta — "o que está marcado para esta
+   * semana em Reels?" — tinha resposta numa tela e não tinha na outra. As
+   * duas visões são o mesmo menu desde que o calendário deixou de ter item
+   * próprio; um filtro que some ao trocar de visão faz a pessoa concluir que
+   * o conteúdo mudou.
+   */
+  formatFilter: string; // 'todos' ou um JobFormat
+  setFormatFilter: (filter: string) => void;
+  periodoFiltro: Periodo;
+  setPeriodoFiltro: (periodo: Periodo) => void;
+  intervaloFiltro: IntervaloDeDias;
+  setIntervaloFiltro: (intervalo: IntervaloDeDias) => void;
   
   // Modals & Sheets
   selectedJob: Job | null;
@@ -848,6 +870,9 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [formatFilter, setFormatFilter] = useState<string>('todos');
+  const [periodoFiltro, setPeriodoFiltro] = useState<Periodo>(PERIODO_PADRAO);
+  const [intervaloFiltro, setIntervaloFiltro] = useState<IntervaloDeDias>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -2844,6 +2869,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setPlatformFilter,
         statusFilter,
         setStatusFilter,
+        formatFilter,
+        setFormatFilter,
+        periodoFiltro,
+        setPeriodoFiltro,
+        intervaloFiltro,
+        setIntervaloFiltro,
         selectedJob,
         setSelectedJob,
         isCreateJobModalOpen,

@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { usePostfy } from '../../context/PostfyContext';
 import {
+  Pin,
   Plus,
   Search,
   ChevronDown,
@@ -29,8 +30,9 @@ import { Button } from '../ui/button';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
+import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
+import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { ClientesDoQuadro } from './ClientesDoQuadro';
-import { FiltrosDoQuadro } from './FiltrosDoQuadro';
 import {
   ordenarColuna,
   dentroDoPeriodo,
@@ -130,10 +132,11 @@ export const KanbanBoard: React.FC = () => {
     setSelectedJob, 
     openCreateJobModal,
     currentWorkspace,
-    users
+    formatFilter,
+    periodoFiltro,
+    intervaloFiltro
   } = usePostfy();
 
-  const [search, setSearch] = useState('');
 
   /**
    * Ordem e janela vivem no estado da tela, não em `user_settings`.
@@ -143,32 +146,13 @@ export const KanbanBoard: React.FC = () => {
    * banco faria alguém abrir o quadro num dia qualquer com metade das peças
    * escondidas por um filtro que ela não lembra de ter ligado.
    */
-  const [ordem, setOrdem] = useState<ChaveDeOrdem>(ORDEM_PADRAO);
-  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_PADRAO);
-
   /*
-    As duas pontas do período personalizado, em `YYYY-MM-DD`.
-
-    Dia, nunca instante: é o que `<input type="date">` entrega e o que
-    `dentroDoPeriodo` compara. Guardar `Date` aqui reabriria a armadilha 8.2
-    — o mesmo intervalo recortaria conteúdo diferente para dois membros da
-    equipe em estados diferentes, sem nada parecer errado em tela.
+    A ordem deixou de ter controle na barra, a pedido, e por isso virou
+    constante em vez de estado: um `useState` cujo setter ninguém chama é a
+    classe do `trial_ends_at` — parece uma regra e não é. O quadro ordena
+    por data, que é o padrão e o que a coluna sugere.
   */
-  const [intervalo, setIntervalo] = useState<IntervaloDeDias>({});
-
-  /*
-    Formato e responsável ficam no estado da tela, como a ordem e a janela —
-    e **não** no contexto, onde moram cliente e rede.
-
-    A diferença não é estilo: cliente e rede estão no contexto porque o
-    calendário também os honra. Pôr formato e responsável lá daria um estado
-    compartilhado que só uma das duas visões lê — a mesma classe do
-    `trial_ends_at`, um campo que parece uma regra e não é. Quando o
-    calendário filtrar por eles, eles sobem junto.
-  */
-  const [formato, setFormato] = useState<string>('todos');
-  const [responsavel, setResponsavel] = useState<string>('todos');
-
+  const ordem: ChaveDeOrdem = ORDEM_PADRAO;
   /** O id do que está sendo arrastado. `null` quando nada está. */
   const [arrastando, setArrastando] = useState<string | null>(null);
 
@@ -276,64 +260,30 @@ export const KanbanBoard: React.FC = () => {
   ];
 
   // Filter jobs
-  const antesDoPeriodo = jobs.filter(job => {
-    if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
+  /*
+    **O recorte é o mesmo do calendário, e agora por construção.** O predicado
+    estava escrito cinco vezes — aqui e nas quatro visões do calendário — e já
+    tinha divergido: o filtro de formato existia só no quadro. Todas chamam
+    `passaNosFiltros`, então um filtro novo nasce valendo nas cinco.
+  */
+  const filtros = {
+    cliente: clientFilter,
+    rede: platformFilter,
+    formato: formatFilter,
+    periodo: periodoFiltro,
+    intervalo: intervaloFiltro,
+  };
 
-    /*
-      **A rede olha `canais`, e não só `platform`.** Comparar com
-      `job.platform` sozinho escondia toda peça multicanal cuja rede
-      principal não fosse a filtrada — uma peça marcada para Instagram e
-      Facebook sumia do filtro "Facebook", com o quadro afirmando que não há
-      nada para publicar lá. `platform` é o primeiro de `canais`, então a
-      peça antiga, sem `canais`, continua valendo.
-    */
-    if (platformFilter !== 'all') {
-      const canais = job.canais?.length ? job.canais : [job.platform];
-      if (!canais.includes(platformFilter as JobPlatform)) return false;
-    }
-
-    if (formato !== 'todos' && job.format !== formato) return false;
-
-    /*
-      **A peça não tem um responsável: tem três.** `designerId`,
-      `copywriterId` e `socialMediaId` são papéis diferentes na mesma peça,
-      e quem filtra por si mesmo quer tudo em que aparece — não só o que caiu
-      num papel específico. Casar com um campo só esconderia do designer a
-      peça em que ele é o designer, se ela também tivesse copywriter.
-
-      `ninguem` é a fila do que ninguém pegou, e é provavelmente o recorte
-      mais útil dos três: sem ele, peça sem dono só aparece misturada no meio
-      de todas as outras.
-    */
-    if (responsavel !== 'todos') {
-      const papeis = [job.designerId, job.copywriterId, job.socialMediaId].filter(Boolean);
-      if (responsavel === 'ninguem') {
-        if (papeis.length > 0) return false;
-      } else if (!papeis.includes(responsavel)) {
-        return false;
-      }
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      if (!job.title.toLowerCase().includes(q) && !job.caption.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
-
-  const filteredJobs = antesDoPeriodo.filter((job) =>
-    dentroDoPeriodo(job, periodo, new Date(), undefined, intervalo)
+  // Sem a janela de datas: é deste conjunto que sai a contagem das peças
+  // escondidas **por não terem data**, logo abaixo.
+  const antesDoPeriodo = jobs.filter((job) =>
+    passaNosFiltros(job, { ...filtros, periodo: 'todos' as Periodo })
   );
 
-  /**
-   * Quantas peças a janela escondeu **por não terem data**.
-   *
-   * A janela pergunta "o que acontece neste período", e o que não tem data não
-   * acontece em período nenhum — então ela some. Sumiço silencioso é a
-   * armadilha 9: quem filtra por "este mês" e não encontra a peça que acabou
-   * de criar conclui que ela não foi salva. O quadro diz o número.
-   */
+  const filteredJobs = antesDoPeriodo.filter((job) => passaNosFiltros(job, filtros));
+
   const semDataEscondidas =
-    periodo === 'todos'
+    periodoFiltro === 'todos'
       ? 0
       : antesDoPeriodo.filter((j) => !dataQueOrdena(j)).length;
 
@@ -471,54 +421,49 @@ export const KanbanBoard: React.FC = () => {
                 : `${semDataEscondidas} sem data, fora desta janela`}
             </span>
           )}
+
+          {/*
+            **Os cards fixados e a saída para soltá-los.**
+
+            Isto morava dentro do menu "Ordenar", que saiu da barra — e sair
+            levaria junto o **único** caminho de soltar um card fixado. Quem
+            fixou uma peça semana passada e esqueceu veria o quadro numa ordem
+            que a data não explica, concluiria que a ordenação está quebrada, e
+            a saída estaria escondida dentro de cada card.
+
+            "Sempre há porta de saída" é regra deste projeto, e tirar um
+            controle não pode levar embora a única que existe. Aqui ela fica
+            mais à vista do que estava: era preciso abrir um menu para ver que
+            havia cards fixados.
+          */}
+          {fixados > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <Pin className="w-3 h-3" />
+              {fixados === 1 ? '1 card fixado' : `${fixados} cards fixados`}
+              <button
+                type="button"
+                onClick={soltarTodos}
+                className="font-bold text-purple-700 dark:text-purple-300 hover:underline cursor-pointer"
+              >
+                Soltar
+              </button>
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Quadro ou Calendário: a mesma tela, duas leituras. Vem primeiro
-              porque é a escolha que muda o que tudo o mais filtra. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/*
+            Cliente, formato, rede e data — a mesma barra que o calendário usa.
+            Ela lê e escreve no contexto, então o recorte sobrevive à troca de
+            visão: filtrar por Reels no quadro e encontrar o calendário sem o
+            filtro é a tela escondendo conteúdo sem dizer que escondeu.
+          */}
+          <BarraDeFiltrosDoConteudo />
+
+          {/* A troca de visão fica colada no Adicionar, à direita: ela não é
+              um filtro, é a escolha de qual tela se está olhando. No meio dos
+              filtros, lia como mais um recorte do mesmo conteúdo. */}
           <AlternarVisaoDoWorkflow />
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar no quadro..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-purple-500 w-48"
-            />
-          </div>
-
-          {/* Client Filter */}
-          <select
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-            className="text-xs p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 font-medium"
-          >
-            <option value="all">Todos os Clientes</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
-          <FiltrosDoQuadro
-            ordem={ordem}
-            aoMudarOrdem={setOrdem}
-            periodo={periodo}
-            aoMudarPeriodo={setPeriodo}
-            intervalo={intervalo}
-            aoMudarIntervalo={setIntervalo}
-            formato={formato}
-            aoMudarFormato={setFormato}
-            rede={platformFilter}
-            aoMudarRede={setPlatformFilter}
-            responsavel={responsavel}
-            aoMudarResponsavel={setResponsavel}
-            equipe={users}
-            fixados={fixados}
-            aoSoltarTodos={soltarTodos}
-          />
 
           {/* Adicionar: a agência escolhe qual das três entregas vai criar. */}
           <div className="relative">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
+import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { safeDateFormat, safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { 
@@ -23,7 +24,10 @@ export const ListView: React.FC = () => {
     clients, 
     clientFilter, 
     platformFilter, 
-    statusFilter, 
+    statusFilter,
+    formatFilter,
+    periodoFiltro,
+    intervaloFiltro, 
     setSelectedJob, 
     approveJob 
   } = usePostfy();
@@ -32,9 +36,24 @@ export const ListView: React.FC = () => {
 
   // Filter jobs
   const filteredJobs = jobs.filter(job => {
-    if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
-    if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
-    if (statusFilter !== 'all' && job.status !== statusFilter) return false;
+    /*
+      O mesmo recorte do quadro, pela mesma função. A **data da grade** fica
+      aqui embaixo de propósito: a casinha do calendário é rótulo, não
+      instante (armadilha 8.2), e o dia que esta visão desenha não é o mesmo
+      recorte que a janela de datas faz.
+    */
+    if (
+      !passaNosFiltros(job, {
+        cliente: clientFilter,
+        rede: platformFilter,
+        formato: formatFilter,
+        periodo: periodoFiltro,
+        intervalo: intervaloFiltro,
+        status: statusFilter,
+      })
+    ) {
+      return false;
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();

@@ -1,6 +1,7 @@
 import React from 'react';
 import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
 import { usePostfy } from '../../context/PostfyContext';
+import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { safeTimeFormat } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, StatusBadge, PriorityBadge } from '../common/Badges';
 import { Plus, Clock, CheckCircle2, MessageSquare, AlertCircle, ArrowRight } from 'lucide-react';
@@ -19,7 +20,10 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
     clients, 
     clientFilter, 
     platformFilter, 
-    statusFilter, 
+    statusFilter,
+    formatFilter,
+    periodoFiltro,
+    intervaloFiltro, 
     setSelectedJob, 
     openCreateJobModal,
     approveJob,
@@ -39,9 +43,24 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate }) => {
 
   // Filter jobs for this day
   const dayJobs = jobs.filter(job => {
-    if (clientFilter !== 'all' && job.clientId !== clientFilter) return false;
-    if (platformFilter !== 'all' && job.platform !== platformFilter) return false;
-    if (statusFilter !== 'all' && job.status !== statusFilter) return false;
+    /*
+      O mesmo recorte do quadro, pela mesma função. A **data da grade** fica
+      aqui embaixo de propósito: a casinha do calendário é rótulo, não
+      instante (armadilha 8.2), e o dia que esta visão desenha não é o mesmo
+      recorte que a janela de datas faz.
+    */
+    if (
+      !passaNosFiltros(job, {
+        cliente: clientFilter,
+        rede: platformFilter,
+        formato: formatFilter,
+        periodo: periodoFiltro,
+        intervalo: intervaloFiltro,
+        status: statusFilter,
+      })
+    ) {
+      return false;
+    }
 
     // Pelo dia da agência, não pelo do dispositivo — ver MonthView.
     return (
