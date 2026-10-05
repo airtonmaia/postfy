@@ -373,15 +373,28 @@ describe('a lista de Páginas não chega cortada', () => {
 
   it('a autorização pede a escolha das Páginas de novo', () => {
     /*
-      A Meta guarda quais Páginas foram liberadas. Sem `auth_type=rerequest`,
-      uma segunda tentativa **pula o diálogo** e devolve exatamente a mesma
-      Página: reconectar não conserta uma liberação curta, e não há erro que
-      explique isso.
+      A Meta guarda quais Páginas foram liberadas, e uma segunda tentativa
+      **pula o diálogo**: reconectar não conserta uma liberação curta, e não há
+      erro que explique isso.
+
+      **`auth_type=rerequest` não é o parâmetro que resolve, e achar que era
+      custou um teste inteiro.** A documentação da Meta o define para
+      *"re-requesting a declined permission"* — permissão **recusada**, que não
+      é o caso de quem liberou uma Página só. Quem reabre a escolha é
+      `enable_profile_selector`, definido como *"prompt the user to grant
+      permission for one or more Pages"*.
+
+      Os dois são exigidos: o primeiro continua certo para o caso dele.
     */
     const url = semCom.slice(semCom.indexOf('export const urlDeAutorizacao'));
-    expect(url.slice(0, 700), 'a autorização voltou a reaproveitar a liberação anterior').toMatch(
+    expect(url.slice(0, 900), 'a autorização voltou a reaproveitar a liberação anterior').toMatch(
       /auth_type=rerequest/
     );
+    expect(
+      url.slice(0, 900),
+      'sem enable_profile_selector a escolha de Páginas não reabre, e a tela ' +
+        'volta a mandar repetir um caminho que não muda nada'
+    ).toMatch(/enable_profile_selector=true/);
   });
 
   it('uma Página só diz que foi a única que a Meta liberou', () => {
@@ -394,6 +407,21 @@ describe('a lista de Páginas não chega cortada', () => {
     const ramo = semComCallback.slice(semComCallback.indexOf('paginas.length === 1'));
 
     expect(ramo.slice(0, 900)).toMatch(/única Página que o Facebook liberou/);
+
+    /*
+      **E ela não pode mandar só repetir o caminho que acabou de falhar.** Era
+      "clique em Conectar de novo e marque todas as Páginas", e mais nada —
+      conselho que não podia funcionar, da mesma família do "tente de novo" que
+      a cópia do Drive dava antes de refazer o mesmo percurso e parar no mesmo
+      byte.
+
+      A guarda mede o **efeito**: a frase precisa nomear o caminho que resolve
+      quando o diálogo da Meta já não oferece a Página.
+    */
+    expect(
+      ramo.slice(0, 900),
+      'a frase voltou a mandar só repetir a conexão, sem o caminho que resolve'
+    ).toMatch(/Integrações empresariais/);
   });
 
   it('a tela de escolha diz o que fazer quando falta Página', () => {

@@ -98,21 +98,41 @@ export const urlDeAutorizacao = (
   `&response_type=code` +
   `&scope=${encodeURIComponent(ESCOPOS_FACEBOOK)}` +
   /**
-   * **`rerequest` é o que faz a tela de escolha de Páginas aparecer de novo.**
+   * **`rerequest` sozinho não reabre a escolha de Páginas, e isto já custou
+   * um teste inteiro.**
    *
    * A autorização do Facebook tem um passo em que a pessoa marca **quais
    * Páginas** o app pode ver. Quem passa rápido por ele libera uma só — e a
-   * partir daí a Meta guarda essa concessão: uma segunda tentativa **pula o
-   * diálogo inteiro** e devolve exatamente a mesma Página, porque do ponto de
-   * vista dela nada mudou. O sintoma é reconectar e obter o mesmo resultado
+   * partir daí a Meta guarda a concessão: a tentativa seguinte **pula o
+   * diálogo** e devolve exatamente a mesma Página, porque do ponto de vista
+   * dela nada mudou. O sintoma é reconectar e obter o mesmo resultado
    * quantas vezes se tente, sem erro em lugar nenhum.
    *
-   * Com `rerequest`, o diálogo é mostrado outra vez e a escolha das Páginas
-   * volta a ser feita. Custa um passo a quem já tinha liberado tudo, e é o
-   * único caminho de dentro do produto para consertar uma liberação curta —
-   * a alternativa é a pessoa achar as Integrações empresariais no Facebook.
+   * O comentário que estava aqui dizia que `rerequest` resolvia isso. **Não
+   * resolve**: a documentação da Meta o define como *"when re-requesting a
+   * declined permission"* — ele vale para permissão **recusada**, e uma
+   * liberação curta de Páginas não é recusa de permissão nenhuma. Ele fica
+   * porque continua certo para o caso dele.
+   *
+   * Quem reabre a escolha é `enable_profile_selector`, que a mesma
+   * documentação define como *"prompt the user to grant permission for one or
+   * more Pages"* — é literalmente este passo.
+   *
+   * **O custo de ter errado não foi o parâmetro, foi a frase.** A tela dizia
+   * "clique em Conectar de novo e marque todas as Páginas", e esse conselho
+   * não podia funcionar: a pessoa repete o caminho e cai no mesmo lugar, como
+   * o "tente de novo" da cópia do Drive que refazia o mesmo percurso e parava
+   * no mesmo byte. Agora o caminho manual (Integrações empresariais) vai
+   * escrito junto, porque ele é o que resolve quando nem o seletor basta.
+   *
+   * **E há um caso que nenhum parâmetro resolve:** Página que pertence a um
+   * Portfólio de Negócios não sai em `/me/accounts` sem `business_management`
+   * — outra permissão, com revisão própria. Pedi-la aqui invalidaria a
+   * submissão em análise, então ela não entra; o que entra é a tela dizer que
+   * essa possibilidade existe.
    */
   `&auth_type=rerequest` +
+  `&enable_profile_selector=true` +
   `&state=${encodeURIComponent(estado)}`;
 
 /**
