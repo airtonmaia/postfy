@@ -28,6 +28,7 @@ import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
+import { ClientesDoQuadro } from './ClientesDoQuadro';
 import { FiltrosDoQuadro } from './FiltrosDoQuadro';
 import {
   ordenarColuna,
@@ -491,6 +492,15 @@ export const KanbanBoard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Os clientes em faixa, logo abaixo do cabeçalho: clicar na foto filtra
+          o quadro. Ela mexe no mesmo `clientFilter` do seletor acima — dois
+          controles, um estado só, então eles não têm como divergir. */}
+      <ClientesDoQuadro
+        clientes={clients}
+        selecionado={clientFilter}
+        aoSelecionar={setClientFilter}
+      />
 
       {avisoDoLote && (
         <div

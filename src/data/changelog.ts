@@ -31,6 +31,19 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.94.0',
+    data: '2026-10-05',
+    resumo: 'Os clientes aparecem em faixa no topo do quadro: clicar na foto filtra o conteúdo.',
+    novidades: [
+      'O WorkFlow passou a mostrar os clientes da agência em faixa, logo abaixo do cabeçalho. Clicar na foto deixa no quadro só o conteúdo daquele cliente.',
+      'Clicar no cliente já selecionado volta para todos, e o item Todos está sempre lá para quem preferir.',
+    ],
+    melhorias: [
+      'A faixa e o seletor Todos os Clientes mexem no mesmo filtro: mudar por um lado move o outro na hora, então eles não têm como divergir.',
+      'Cliente sem foto aparece com as iniciais numa cor estável, a mesma que o card do quadro já usa — o olho reconhece o cliente pela cor antes de ler o nome.',
+    ],
+  },
+  {
     versao: '2.93.0',
     data: '2026-10-05',
     resumo: 'A conta conectada aparece com foto, nome e números do perfil — não só o arroba.',
