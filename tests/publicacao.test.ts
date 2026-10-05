@@ -261,6 +261,34 @@ describe('a conta conectada pertence a um cliente', () => {
     expect(conexoes).toMatch(/disabled=\{conectando \|\| !clienteAlvo\}/);
     expect(conexoes).toContain('Escolha de qual cliente é esta conta');
   });
+
+  it('a rede a conectar é escolhida, nunca fixa no código', () => {
+    /*
+      Era `conectarConta(ws, cliente, 'instagram')` — literal. O Facebook
+      ganhou fluxo próprio, entrou em `REDES_QUE_PUBLICAM` e continuou
+      inalcançável por esta tela: quem só passa por Configurações não tinha
+      como conectar uma Página.
+
+      A asserção mede o **efeito**: nenhuma rede escrita à mão na chamada.
+      Exigir o nome da variável obrigaria a editar a guarda junto com o
+      código, e é assim que ela deixa de guardar.
+    */
+    expect(conexoes).not.toMatch(/conectarConta\([^)]*['"](?:instagram|facebook)['"]/);
+    // E o que é oferecido deriva da fonte única, senão a próxima rede entra
+    // em `REDES_DA_META` e fica de fora daqui outra vez, sem erro nenhum.
+    expect(conexoes).toMatch(/REDES_DA_META\.filter\(\(?\w+\)? => \w+\.disponivel\)/);
+  });
+
+  it('cada linha mostra a rede da própria conexão', () => {
+    /*
+      O ícone era um `<Instagram>` fixo: uma Página do Facebook aparecia nesta
+      lista **com cara de Instagram**. A tela afirmando uma rede que não é a da
+      conexão é a armadilha 9 no lugar em que ela custa um post no perfil
+      errado — e nada local acusa, porque o ícone é só um componente.
+    */
+    expect(conexoes).toContain('platform={conta.platform}');
+    expect(conexoes).not.toMatch(/<Instagram\b/);
+  });
 });
 
 /**

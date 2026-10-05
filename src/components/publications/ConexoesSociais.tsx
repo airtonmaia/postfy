@@ -1,8 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Radio, Plus, Trash2, AlertCircle, CheckCircle2, Instagram } from 'lucide-react';
+import { Radio, Plus, Trash2, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
-import { listarContas, conectarConta, desconectarConta, type ContaConectada } from '../../lib/redes';
+import {
+  listarContas,
+  conectarConta,
+  desconectarConta,
+  REDES_DA_META,
+  type ContaConectada,
+  type RedeDaMeta,
+} from '../../lib/redes';
 import { ApiError } from '../../lib/api';
+import { PlatformBadge } from '../common/Badges';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 
@@ -13,16 +21,37 @@ import { useConfirmacao } from '../ui/alert-dialog';
  * conectado, com uma fileira de rótulos "não conectado" para cinco redes.
  * Agora ele mostra o que existe de fato, e conecta.
  *
- * Só Instagram por enquanto, e a tela diz isso: cada rede exige revisão de
- * app própria, e prometer LinkedIn e TikTok num rótulo seria o mesmo tipo de
- * promessa vazia que o aviso antigo fazia.
- *
  * **A conta é de um cliente, não da agência.** Uma agência atende muitos
  * clientes, cada um com o seu perfil, e quem publica precisa saber em qual
  * deles postar. A coluna `client_id` existia desde o começo sem ninguém
  * escrever: toda conexão nascia órfã, e por isso nenhum conteúdo achava onde
  * ir. Escolher o cliente aqui, antes de autorizar, é o que fecha esse elo.
+ *
+ * **Esta tela conectava só Instagram, e a lista mentia sobre o resto.** O
+ * Facebook ganhou fluxo próprio na 2.56.0 (`api/_lib/facebook.ts`) e entrou em
+ * `REDES_QUE_PUBLICAM`, mas aqui o botão continuou fixo em "Conectar
+ * Instagram" — e, pior, cada linha da lista desenhava o ícone do Instagram
+ * independentemente de `conta.platform`. Uma Página do Facebook conectada pela
+ * ficha do cliente aparecia **nesta lista com cara de Instagram**: a tela
+ * afirmando uma rede que não era a da conexão, que é a armadilha 9 no lugar
+ * onde ela custa um post no perfil errado.
+ *
+ * As duas pontas agora **derivam** do mesmo lugar: o seletor sai de
+ * `REDES_DA_META` filtrado por `disponivel`, e o selo de cada linha sai de
+ * `conta.platform`. Rede nova fica oferecida e desenhada sem ninguém editar
+ * esta tela — lista literal aqui é o que obriga a editar dois arquivos para
+ * uma decisão só, e foi assim que o Facebook ficou de fora por três versões.
  */
+
+/**
+ * As redes que dá para conectar hoje — derivadas, nunca escritas à mão.
+ *
+ * `disponivel` é o que diz se o fluxo de OAuth existe. Threads e WhatsApp
+ * ficam de fora porque não têm, e oferecer um botão que abre e falha depois
+ * do login é pior que botão ausente: gasta o clique, gasta a senha digitada,
+ * e o erro não nomeia a causa.
+ */
+const REDES_QUE_CONECTAM: readonly RedeDaMeta[] = REDES_DA_META.filter((r) => r.disponivel);
 
 export const ConexoesSociais: React.FC = () => {
   const { currentWorkspace, clients } = usePostfy();
@@ -33,6 +62,7 @@ export const ConexoesSociais: React.FC = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
   const [clienteAlvo, setClienteAlvo] = useState('');
+  const [redeAlvo, setRedeAlvo] = useState<'instagram' | 'facebook'>('instagram');
 
   // Sem cliente escolhido a conexão nasceria órfã, e conexão órfã não publica
   // nada: todo conteúdo tem cliente, e é por ele que o agendador acha o
@@ -63,6 +93,8 @@ export const ConexoesSociais: React.FC = () => {
 
   const nomeDoCliente = (id?: string) => clients.find((c) => c.id === id)?.name;
 
+  const rede = REDES_QUE_CONECTAM.find((r) => r.id === redeAlvo);
+
   const conectar = async () => {
     if (!clienteAlvo) {
       setErro('Escolha de qual cliente é esta conta antes de conectar.');
@@ -71,16 +103,16 @@ export const ConexoesSociais: React.FC = () => {
     setErro(null);
     setConectando(true);
     try {
-      // Esta tela ainda não tem seletor de rede; a escolha entre Instagram e
-      // Facebook mora na ficha do cliente (Conexões do perfil), onde cada
-      // rede é um item da lista. Prometer a escolha aqui com um botão só
-      // seria prometer tela que ninguém construiu.
-      await conectarConta(currentWorkspace.id, clienteAlvo, 'instagram');
+      // A rede vai explícita: cada uma tem app, diálogo e troca de código
+      // próprios, e os escopos `pages_*` do Facebook **invalidam** a
+      // autorização do Instagram — os dois nunca vão no mesmo pedido (ver
+      // `api/_lib/facebook.ts`).
+      await conectarConta(currentWorkspace.id, clienteAlvo, redeAlvo);
     } catch (e) {
       setConectando(false);
       setErro(
         e instanceof ApiError && e.code === 'SOCIAL_NOT_CONFIGURED'
-          ? 'Conexão com redes sociais ainda não configurada no servidor.'
+          ? 'Conexão com redes sociais ainda não configurada no servidor. Veja Admin → Integrações.'
           : e instanceof Error
           ? e.message
           : 'Falha ao iniciar a conexão.'
@@ -120,8 +152,11 @@ export const ConexoesSociais: React.FC = () => {
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
               Cada conta pertence a um cliente: é assim que o agendador sabe em qual
-              perfil publicar. Por enquanto só Instagram — cada rede exige uma revisão
-              de app própria.
+              perfil publicar. {/* A frase deriva da lista, senão ela envelhece
+              calada no dia em que uma rede entra — foi o que aconteceu com o
+              Facebook. */}
+              {REDES_QUE_CONECTAM.map((r) => r.rotulo).join(' e ')} conectam por aqui;
+              cada rede exige uma revisão de app própria na Meta.
             </p>
           </div>
         </div>
@@ -143,12 +178,28 @@ export const ConexoesSociais: React.FC = () => {
             ))}
           </select>
 
+          {/* A rede também é escolhida antes, e pelo mesmo motivo do cliente:
+              ela viaja no `state` assinado. Escolhê-la na volta faria o
+              retorno do Instagram cair no fluxo do Facebook, que bate em
+              outro endpoint com outro segredo. */}
+          <select
+            value={redeAlvo}
+            onChange={(e) => setRedeAlvo(e.target.value as 'instagram' | 'facebook')}
+            className="text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+          >
+            {REDES_QUE_CONECTAM.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.rotulo}
+              </option>
+            ))}
+          </select>
+
           <Button
             onClick={conectar}
             disabled={conectando || !clienteAlvo}
           >
             <Plus className="w-3.5 h-3.5" />
-            {conectando ? 'Aguardando autorização...' : 'Conectar Instagram'}
+            {conectando ? 'Aguardando autorização...' : `Conectar ${rede?.rotulo ?? ''}`}
           </Button>
         </div>
       </div>
@@ -160,17 +211,32 @@ export const ConexoesSociais: React.FC = () => {
         </div>
       )}
 
+      {/* O que falta na rede escolhida, **antes** do clique. É a mesma
+          `pendencia` que a ficha do cliente mostra, e ela existe para a pessoa
+          não descobrir a limitação depois de já ter digitado a senha na
+          Meta. */}
+      {rede?.pendencia && (
+        <div className="flex items-start gap-2 mt-4 text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            <strong className="text-slate-900 dark:text-white">{rede.rotulo}:</strong>{' '}
+            {rede.pendencia}
+          </span>
+        </div>
+      )}
+
       {semClientes && (
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
-          Cadastre um cliente antes de conectar: a conta do Instagram é ligada a
-          um deles, e é assim que o agendador sabe onde publicar.
+          Cadastre um cliente antes de conectar: a conta é ligada a um deles, e é
+          assim que o agendador sabe onde publicar.
         </p>
       )}
 
       {!carregando && contas.length === 0 && !erro && !semClientes && (
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
-          Nenhuma conta conectada. A conta precisa ser Profissional no Instagram e
-          estar ligada a uma página do Facebook.
+          Nenhuma conta conectada. No Instagram, a conta precisa ser Profissional e
+          estar ligada a uma página do Facebook; no Facebook, você precisa
+          administrar a Página.
         </p>
       )}
 
@@ -182,7 +248,11 @@ export const ConexoesSociais: React.FC = () => {
               className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <Instagram className="w-4 h-4 text-pink-600 shrink-0" />
+                {/* O selo sai de `conta.platform`, e é o mesmo do quadro e da
+                    fila. Era um `<Instagram>` fixo: uma Página do Facebook
+                    aparecia aqui com o ícone do Instagram, e publicar no
+                    perfil errado não tem volta. */}
+                <PlatformBadge platform={conta.platform} className="shrink-0" />
                 <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                   @{conta.accountName}
                 </span>
