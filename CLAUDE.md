@@ -2964,6 +2964,63 @@ dias, o quadro rola as colunas na horizontal —, então declaram `overflow` na
 raiz e cuidam da rolagem por dentro. Um `overflow-y-auto` ali criaria duas
 barras aninhadas.
 
+#### No celular, quem desliga a rolagem é uma classe só — e ela estava em todo card
+
+**`touch-action: none` num elemento que cobre a tela significa que a tela não
+rola.** O card do quadro tinha `touch-none`, e cards ocupam praticamente toda a
+área de uma coluna: o dedo encostava sempre num deles, e o quadro **não rolava
+no telefone** — nem na vertical, dentro da coluna, nem na horizontal, entre as
+colunas. Sem erro, sem barra, sem pista. Relatado como *"o scroll não funciona
+no mobile"*, que é exatamente o que era.
+
+O dnd-kit recomenda `touch-action: none` para arrasto que começa no toque — ali
+o navegador não pode competir com o gesto. **Com ativação por tempo a
+recomendação é outra**, `manipulation`: o navegador rola enquanto o `delay` não
+vence, e a `tolerance` cancela o arrasto justamente quando o dedo deslizou. É o
+que separa os dois gestos, e era a metade que faltava.
+
+O que torna isto caro é que **este arquivo afirmava o contrário**. A seção do
+arrasto dizia, havia meses: *"Com `delay: 250`, deslizar rola e segurar
+arrasta; medido no Chromium: toque curto chama `setSelectedJob`, segurar 400 ms
+e mover levanta o overlay."* As duas medições estão certas e **nenhuma mediu a
+rolagem** — a frase descrevia o que se pretendia, e a verificação cobria só o
+lado do arrasto. Documentação que afirma o comportamento não medido é a
+armadilha 9 na memória do projeto.
+
+`touch-none` continua certo em **um** lugar nomeado: o recorte de imagem
+(`ui/recorte-quadrado.tsx`), onde o gesto é manipulação direta, sem `delay`, e
+a área é pequena e deliberada.
+
+#### Painel de largura fixa no celular não fica apertado — fica inalcançável
+
+A barra lateral do calendário é `w-64`: **256px de uma tela de 390**. Como o
+`<main>` do `App.tsx` é `overflow-hidden`, a grade do mês não ganhava barra de
+rolagem — ela era **cortada**, sete colunas espremidas em 134px, sem nada
+indicando que havia mês ali. O mesmo valia para o cabeçalho: título do mês,
+navegação e quatro filtros numa linha sem `flex-wrap` empurravam a barra de
+filtros para fora da área visível, e de novo o corte a tornava inalcançável em
+vez de apertada.
+
+A regra que fica: **largura fixa em painel de tela tem breakpoint, sempre.** E
+a conta de esconder não é só esconder:
+
+- A barra guarda o filtro de **status**, que não existe em nenhum outro lugar
+  da tela. `hidden lg:flex` sozinho tiraria um filtro sem dizer que tirou — a
+  tela recortando conteúdo por um controle que já não existe.
+- Por isso ela vira **gaveta** no celular, montando o **mesmo componente**: um
+  lugar só continua decidindo o que a barra mostra. Uma versão reduzida para o
+  telefone divergiria na primeira pressa, que é a história das doze alturas de
+  botão.
+- E o fechamento da gaveta mora **num lugar só** (`escolher`), não em cada
+  `onClick`: embrulhar handler por handler garante esquecer um, e o que se
+  esquece aqui não quebra nada visível — o filtro é aplicado e a gaveta fica
+  por cima do calendário que ela acabou de recortar, com a pessoa concluindo
+  que o clique não funcionou.
+
+Protegido por `tests/celular.test.ts`, conferido ao contrário: devolvendo o
+`touch-none`, tirando o `hidden lg:flex` da barra e o `flex-wrap` do cabeçalho,
+três asserções reprovam.
+
 #### O celular não é o desktop estreito
 
 O produto é usado no telefone, e **nada local acusa quando ele quebra lá**:

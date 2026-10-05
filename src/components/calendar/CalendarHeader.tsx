@@ -22,6 +22,8 @@ interface CalendarHeaderProps {
   onNext: () => void;
   onToday: () => void;
   onChangeDate: (date: Date) => void;
+  /** Abre a gaveta de filtros. Só existe abaixo do `lg`, onde a barra some. */
+  aoAbrirFiltros: () => void;
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -29,7 +31,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onPrev,
   onNext,
   onToday,
-  onChangeDate
+  onChangeDate,
+  aoAbrirFiltros
 }) => {
   const { 
     calendarView, 
@@ -57,9 +60,16 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   ];
 
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-3.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-      {/* Left: Month Navigation & Today */}
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-3.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+      {/*
+        Left: Month Navigation & Today
+
+        **`flex-wrap` e `min-w-0`.** Sem os dois, o título do mês, a navegação e
+        os quatro filtros disputam uma linha só: no celular a barra de filtros
+        era empurrada para fora da tela, e como o `<main>` do App corta, ela
+        ficava inalcançável em vez de apertada.
+      */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
         <div className="flex items-center">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>{currentMonthName}</span>
@@ -112,6 +122,25 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
       {/* Right: View Switcher & Action buttons */}
       <div className="flex flex-wrap items-center gap-2.5">
+        {/*
+          **A porta para o que a barra lateral guarda, e ela só existe onde a
+          barra não está.** Acima do `lg` a barra está à vista e um botão para
+          abri-la seria um segundo caminho para a mesma coisa.
+
+          O filtro de status mora só lá dentro: sem este botão, escondê-la no
+          celular tiraria um filtro sem dizer que tirou — a tela recortando
+          conteúdo por um controle que não existe mais.
+        */}
+        <Button
+          variant="secondary"
+          className="lg:hidden"
+          onClick={aoAbrirFiltros}
+          aria-label="Abrir os filtros do calendário"
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Filtros
+        </Button>
+
         {/* View Switcher: Month, Week, Day, List */}
         <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
           {viewOptions.map(view => {

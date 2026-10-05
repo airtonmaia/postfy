@@ -471,7 +471,27 @@ export const CartaoArrastavel: React.FC<{
       /* O rótulo do botão que o dnd-kit monta por baixo: sem ele, quem navega
          por teclado ouve "arrastável" e nada mais. */
       aria-label={`${job.title}. Arraste para mudar de coluna ou de posição.`}
-      className={`cursor-grab active:cursor-grabbing touch-none ${
+      /*
+        **`touch-manipulation`, nunca `touch-none` — e esta linha era o bug
+        mais caro do celular.**
+
+        `touch-action: none` desliga a rolagem do navegador **no elemento**. Os
+        cards ocupam praticamente toda a área da coluna, então o dedo encostava
+        sempre num deles: o quadro simplesmente não rolava no telefone, nem na
+        vertical nem na horizontal. Sem erro, sem barra, sem pista.
+
+        O comentário dos sensores já dizia, havia meses, que "deslizar rola e
+        segurar arrasta" — e a medição que o acompanha mediu o **arrasto**,
+        não a rolagem. Era verdade sobre metade do gesto.
+
+        `none` é a recomendação do dnd-kit para arrasto que começa no toque,
+        em que o navegador não pode competir com o gesto. Com restrição de
+        ativação por **tempo**, a recomendação é outra: `manipulation`. O
+        navegador rola enquanto o `delay` não vence — e a `tolerance` cancela
+        o arrasto justamente quando o dedo deslizou, que é o que separa os
+        dois gestos.
+      */
+      className={`cursor-grab active:cursor-grabbing touch-manipulation ${
         isDragging ? 'opacity-40' : ''
       }`}
     >

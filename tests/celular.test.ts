@@ -376,3 +376,124 @@ describe('as modais usam a tela inteira no celular', () => {
     ).toEqual([]);
   });
 });
+
+describe('o dedo rola a tela — e o que arrasta não impede isso', () => {
+  /**
+   * **`touch-action: none` num card que ocupa a coluna inteira = quadro que
+   * não rola no celular.**
+   *
+   * O dnd-kit recomenda `touch-action: none` para arrasto que começa no
+   * toque: ali o navegador não pode competir com o gesto. Mas a ativação aqui
+   * é por **tempo** — e com ela a recomendação é `manipulation`: o navegador
+   * rola enquanto o `delay` não vence, e a `tolerance` cancela o arrasto
+   * justamente quando o dedo deslizou.
+   *
+   * Com `none`, nada disso acontecia: os cards cobrem quase toda a área da
+   * coluna, então o dedo encostava sempre num deles e o quadro não rolava nem
+   * na vertical nem na horizontal. Sem erro, sem barra, sem pista — e o
+   * comentário dos sensores afirmava, havia meses, que "deslizar rola".
+   */
+  const kanban = readdirSync(join(RAIZ, 'src', 'components', 'kanban'))
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => ({ nome: f, fonte: ler('src', 'components', 'kanban', f) }));
+
+  it('a ativação do toque é por tempo', () => {
+    // A premissa da regra abaixo. Se o sensor voltar a ativar por distância,
+    // `touch-none` passa a ser o certo — e esta guarda tem de cair junto.
+    const quadro = kanban.find((a) => a.nome === 'KanbanBoard.tsx')!.fonte;
+    expect(quadro, 'o toque deixou de ativar por tempo').toMatch(
+      /TouchSensor, \{ activationConstraint: \{ delay: \d+, tolerance: \d+ \} \}/
+    );
+  });
+
+  it('nenhum card do quadro desliga a rolagem do navegador', () => {
+    const culpados = kanban
+      .filter((a) => /touch-none/.test(a.fonte))
+      .map((a) => a.nome);
+
+    expect(
+      culpados,
+      'voltou o `touch-none` no quadro: com ele o dedo não rola a coluna nem o ' +
+        'quadro, porque os cards cobrem toda a área de toque'
+    ).toEqual([]);
+
+    const cartao = kanban.find((a) => a.nome === 'CartaoDoQuadro.tsx')!.fonte;
+    expect(cartao, 'o card arrastável perdeu o `touch-manipulation`').toMatch(
+      /touch-manipulation/
+    );
+  });
+});
+
+describe('o calendário cabe na tela do celular', () => {
+  /**
+   * A barra lateral é `w-64` — 256px de uma tela de 390. E o `<main>` do App é
+   * `overflow-hidden`: o que sobrava da grade do mês não ficava apertado,
+   * ficava **cortado e inalcançável**, sete colunas espremidas em 134px, sem
+   * barra de rolagem e sem nada indicando que havia mês ali.
+   */
+  const calendario = ler('src', 'components', 'calendar', 'CalendarApp.tsx');
+  const cabecalho = ler('src', 'components', 'calendar', 'CalendarHeader.tsx');
+
+  it('a barra lateral fixa não existe abaixo do lg', () => {
+    const montagens = [...calendario.matchAll(/<CalendarSidebar[\s\S]{0,400}?\/>/g)].map(
+      (m) => m[0]
+    );
+    expect(montagens.length, 'a barra lateral do calendário sumiu do CalendarApp').toBe(2);
+
+    const fixa = montagens.find((m) => /w-64/.test(m));
+    expect(fixa, 'a barra fixa do calendário sumiu').toBeTruthy();
+    expect(
+      fixa,
+      'a barra de 256px voltou a aparecer no celular, cortando a grade do mês'
+    ).toMatch(/hidden lg:flex/);
+  });
+
+  it('e o que ela guarda continua alcançável por lá', () => {
+    /**
+     * Esconder e pronto custaria o filtro de **status**, que só existe dentro
+     * dela — e filtro que some sem aviso é a tela escondendo conteúdo. Por
+     * isso a gaveta monta a mesma barra, não uma cópia reduzida.
+     */
+    expect(
+      calendario,
+      'a gaveta de filtros do celular sumiu: o filtro de status ficou inalcançável'
+    ).toMatch(/<DialogContent className="lg:hidden[\s\S]{0,400}<CalendarSidebar/);
+    const abridor = cabecalho.slice(
+      Math.max(0, cabecalho.indexOf('aoAbrirFiltros}') - 300),
+      cabecalho.indexOf('aoAbrirFiltros}') + 200
+    );
+    expect(abridor, 'o botão que abre a gaveta sumiu').toContain('Filtros');
+    expect(
+      abridor,
+      'o botão de filtros passou a aparecer também onde a barra já está à ' +
+        'vista — dois caminhos para a mesma coisa'
+    ).toMatch(/lg:hidden/);
+  });
+
+  it('o cabeçalho do calendário quebra linha', () => {
+    /**
+     * Título do mês, navegação e quatro filtros não cabem em 390px. Sem
+     * `flex-wrap`, a barra de filtros era empurrada para fora — e, de novo,
+     * o `<main>` corta: ela ficava inalcançável em vez de apertada.
+     */
+    const barra = cabecalho.indexOf('<BarraDeFiltrosDoConteudo');
+    expect(barra, 'a barra de filtros saiu do cabeçalho do calendário').toBeGreaterThan(-1);
+
+    /*
+      A âncora é a **própria barra**, não um comentário: `semComentarios` os
+      apaga, e guarda ancorada em texto que some não guarda nada — foi o que
+      acabou de acontecer na primeira versão desta asserção.
+    */
+    const acima = cabecalho.slice(0, barra);
+    const container = acima.lastIndexOf('flex flex-wrap items-center');
+    expect(
+      container,
+      'o bloco que leva o mês, a navegação e os filtros voltou a ser uma linha só'
+    ).toBeGreaterThan(-1);
+    expect(
+      acima.slice(container, container + 80),
+      'o container dos filtros perdeu o min-w-0 e volta a empurrar a barra ' +
+        'para fora da tela'
+    ).toMatch(/min-w-0/);
+  });
+});
