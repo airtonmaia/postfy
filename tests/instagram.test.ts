@@ -384,13 +384,56 @@ describe('o perfil da conta conectada', () => {
     );
   });
 
-  it('a tela mostra foto, tipo de conta e as contagens', () => {
-    // É esta tela que a submissão à Meta nomeia como o lugar de ver o perfil
-    // conectado. Sem ela, a permissão não tem leitor.
-    expect(tela, 'a foto do perfil sumiu da tela').toMatch(/conta\?\.fotoUrl/);
-    expect(tela, 'o tipo de conta sumiu — é o que prova que é perfil profissional').toMatch(
-      /conta\?\.tipoDeConta/
+  it('as duas telas que listam conexão mostram o perfil', () => {
+    /*
+      **A guarda mede o efeito, não a string.** A primeira versão exigia
+      `conta?.fotoUrl` literal dentro da ficha do cliente — e reprovou no dia
+      em que a foto virou `AvatarDaConexao`, uma peça compartilhada. O que ela
+      protege é a decisão: quem lista conexão mostra de qual perfil é.
+
+      São duas telas porque a mesma conta aparece nas duas, e é esta que a
+      submissão à Meta nomeia como o lugar de ver o perfil conectado. Sem
+      leitor, a permissão não tem onde ser demonstrada.
+    */
+    const telas = {
+      'ConexoesDoPerfil.tsx': tela,
+      'ConexoesSociais.tsx': semComentarios(
+        readFileSync(
+          join(__dirname, '..', 'src', 'components', 'publications', 'ConexoesSociais.tsx'),
+          'utf-8'
+        )
+      ),
+    };
+
+    for (const [nome, fonte] of Object.entries(telas)) {
+      expect(fonte, `${nome}: a foto do perfil sumiu`).toMatch(/<AvatarDaConexao/);
+      expect(
+        fonte,
+        `${nome}: os números do perfil sumiram — seguidores e publicações`
+      ).toMatch(/numerosDoPerfil\(/);
+      expect(
+        fonte,
+        `${nome}: o tipo de conta sumiu, e é o que prova que o perfil é profissional`
+      ).toMatch(/tipoDeContaLegivel\(/);
+    }
+  });
+
+  it('a peça da foto é uma só, e usa a foto que foi guardada', () => {
+    // Duas cópias divergem na primeira pressa, e divergir aqui faz a mesma
+    // conta ler diferente em duas telas — quem confere acha que são conexões
+    // diferentes.
+    const avatar = semComentarios(
+      readFileSync(
+        join(__dirname, '..', 'src', 'components', 'common', 'AvatarDaConexao.tsx'),
+        'utf-8'
+      )
     );
-    expect(tela).toMatch(/publicacoes/);
+
+    expect(avatar).toMatch(/fotoUrl/);
+    // Sem foto o ícone da rede ocupa o lugar: um círculo cinza vazio leria
+    // como falha de carregamento, e não como "não foi medido".
+    expect(avatar, 'a conexão sem foto perdeu o recuo para o ícone da rede').toMatch(
+      /if \(!fotoUrl\)/
+    );
   });
 });

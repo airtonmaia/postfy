@@ -36,7 +36,7 @@ export const CHANGELOG: EntradaDoChangelog[] = [
     resumo: 'A conta conectada aparece com foto, nome e números do perfil — não só o arroba.',
     novidades: [
       'Conexões do perfil, na ficha do cliente, passa a mostrar a foto da conta conectada, o nome de exibição, o tipo de conta, os seguidores e quantas publicações o perfil tem.',
-      'A foto também aparece na lista de Configurações › Integrações.',
+      'A lista de Configurações › Integrações mostra o mesmo: foto, nome do perfil, tipo de conta, seguidores e publicações, em cada conta conectada.',
     ],
     melhorias: [
       'O arroba sozinho não responde "é esta conta mesmo?" para quem administra perfis de nomes parecidos — e conectar o errado só aparece quando o post do cliente sai no lugar errado.',

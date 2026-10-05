@@ -6,11 +6,14 @@ import {
   conectarConta,
   desconectarConta,
   REDES_DA_META,
+  numerosDoPerfil,
+  tipoDeContaLegivel,
   type ContaConectada,
   type RedeDaMeta,
 } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
 import { PlatformBadge } from '../common/Badges';
+import { AvatarDaConexao } from '../common/AvatarDaConexao';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 
@@ -247,39 +250,55 @@ export const ConexoesSociais: React.FC = () => {
               key={conta.id}
               className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                {/* A foto do perfil conectado, quando existe: ela responde "é
-                    esta conta mesmo?" antes de qualquer texto. Conexão feita
-                    antes de a foto ser guardada simplesmente não tem — e aí a
-                    linha fica como estava, sem buraco. */}
-                {conta.fotoUrl && (
-                  <img
-                    src={conta.fotoUrl}
-                    alt=""
-                    className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                  />
-                )}
+              <div className="flex items-center gap-3 min-w-0">
+                {/* A foto responde "é esta conta mesmo?" antes de qualquer
+                    texto, e o selo da rede vai nela — a peça é a mesma da
+                    ficha do cliente, para as duas telas não lerem diferente. */}
+                <AvatarDaConexao
+                  platform={conta.platform}
+                  fotoUrl={conta.fotoUrl}
+                  tamanho="sm"
+                />
 
-                {/* O selo sai de `conta.platform`, e é o mesmo do quadro e da
-                    fila. Era um `<Instagram>` fixo: uma Página do Facebook
-                    aparecia aqui com o ícone do Instagram, e publicar no
-                    perfil errado não tem volta. */}
-                <PlatformBadge platform={conta.platform} className="shrink-0" />
-                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  @{conta.accountName}
-                </span>
-                {/* De quem é a conta, à vista: publicar no perfil errado não
-                    tem volta, e "conta da agência" não publica conteúdo de
-                    cliente nenhum. */}
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
-                  {conta.clientId
-                    ? nomeDoCliente(conta.clientId) ?? 'cliente removido'
-                    : 'sem cliente — não publica'}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Conectada
-                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* O selo sai de `conta.platform`. Era um `<Instagram>`
+                        fixo: uma Página do Facebook aparecia aqui com o ícone
+                        do Instagram, e publicar no perfil errado não volta. */}
+                    <PlatformBadge platform={conta.platform} className="shrink-0" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      @{conta.accountName}
+                    </span>
+                    {/* O nome de exibição não é o arroba: "Go7 Agência Digital"
+                        e @go7digital são campos diferentes, e é o primeiro que
+                        a pessoa reconhece. */}
+                    {conta.nomeDoPerfil && conta.nomeDoPerfil !== conta.accountName && (
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {conta.nomeDoPerfil}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Conectada
+                    </span>
+                  </div>
+
+                  {/* Segunda linha: de quem é a conta, e o que se mediu do
+                      perfil. Cada pedaço entra só se existir — nulo é "não
+                      medi", e `0 seguidores` numa leitura que falhou faria a
+                      agência concluir que conectou uma conta morta. */}
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    {[
+                      conta.clientId
+                        ? nomeDoCliente(conta.clientId) ?? 'cliente removido'
+                        : 'sem cliente — não publica',
+                      tipoDeContaLegivel(conta.tipoDeConta),
+                      ...numerosDoPerfil(conta),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
               </div>
 
               <Button variant="destructive" size="icon-sm"

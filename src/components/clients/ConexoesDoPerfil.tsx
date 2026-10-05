@@ -18,12 +18,15 @@ import {
   desconectarConta,
   listarContas,
   REDES_DA_META,
+  numerosDoPerfil,
+  tipoDeContaLegivel,
   type ContaConectada,
   type RedeDaMeta,
 } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
 import { safeDateFormat } from '../../lib/utils';
 import { ComTooltip } from '../ui/tooltip';
+import { AvatarDaConexao } from '../common/AvatarDaConexao';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 
@@ -178,19 +181,16 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                       O ícone da rede acompanha, pequeno, no canto: sem ele a
                       linha perderia de qual rede é a conexão, que é a primeira
                       informação da lista. */}
-                  {conta?.fotoUrl ? (
-                    <div className="relative shrink-0">
-                      <img
-                        src={conta.fotoUrl}
-                        alt=""
-                        className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                      />
-                      <span
-                        className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full bg-white dark:bg-slate-900 ${CORES[rede.id]}`}
-                      >
-                        <Icone className="w-3 h-3" />
-                      </span>
-                    </div>
+                  {/* Conectada, a peça é a mesma da lista de Integrações: a
+                      mesma conta lida de dois jeitos faz quem confere achar
+                      que são conexões diferentes.
+
+                      Threads e WhatsApp não conectam, então não têm conta nem
+                      foto — e a peça só conhece as redes que conectam. Para
+                      elas fica o ícone da rede, que é o que a linha sempre
+                      mostrou. */}
+                  {conta ? (
+                    <AvatarDaConexao platform={conta.platform} fotoUrl={conta.fotoUrl} />
                   ) : (
                     <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 shrink-0 ${CORES[rede.id]}`}>
                       <Icone className="w-4 h-4" />
@@ -230,9 +230,9 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                         perfil é profissional**, que é a condição para publicar
                         pela API. Sem ele, descobrir que a conta é pessoal
                         acontece na hora da publicação. */}
-                    {conta?.tipoDeConta && (
+                    {tipoDeContaLegivel(conta?.tipoDeConta) && (
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-1">
-                        {conta.tipoDeConta.replace(/_/g, ' ')}
+                        {tipoDeContaLegivel(conta?.tipoDeConta)}
                       </p>
                     )}
 
@@ -244,19 +244,18 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                         número sozinho afirmaria o de hoje com o dado de quando
                         a conexão foi criada. Ausente é "não medi", e aí não há
                         linha nenhuma — zero seria uma Página sem ninguém. */}
-                    {(conta?.seguidores != null || conta?.publicacoes != null) && (
+                    {/* Os números saem de `numerosDoPerfil`, a mesma função
+                        que a lista de Integrações usa: cada um só aparece se
+                        existir, porque nulo é "não medi" e `0 seguidores` numa
+                        leitura que falhou faria a agência concluir que
+                        conectou uma conta morta.
+
+                        A data vai junto porque seguidor muda todo dia: o
+                        número sozinho afirmaria o de hoje com o dado de quando
+                        a conexão foi criada. */}
+                    {conta && numerosDoPerfil(conta).length > 0 && (
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                        {/* Cada número só aparece se existir: nulo é "não
-                            medi", e escrever 0 faria uma leitura que falhou
-                            parecer um perfil sem ninguém e sem nada. */}
-                        {[
-                          conta.seguidores != null &&
-                            `${conta.seguidores.toLocaleString('pt-BR')} seguidores`,
-                          conta.publicacoes != null &&
-                            `${conta.publicacoes.toLocaleString('pt-BR')} publicações`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
+                        {numerosDoPerfil(conta).join(' · ')}
                         {conta.seguidoresEm ? ` · medido em ${safeDateFormat(conta.seguidoresEm)}` : ''}
                       </p>
                     )}
