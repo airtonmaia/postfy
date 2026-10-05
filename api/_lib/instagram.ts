@@ -66,7 +66,29 @@ export const ESCOPOS_INSTAGRAM = [
 
 export interface ContaDoInstagram {
   accountId: string;
+  /** O `@usuário`. */
   accountName: string;
+  /**
+   * O resto do perfil, e ele tem duas razões para existir.
+   *
+   * A primeira é de produto: o arroba sozinho não responde *"é esta conta
+   * mesmo?"* para quem administra vários perfis parecidos, e conectar o
+   * errado só aparece quando o post do cliente sai no lugar errado — tarde.
+   * É a mesma decisão dos seguidores da Página do Facebook.
+   *
+   * A segunda é a análise da Meta: `instagram_business_basic` exige que o app
+   * **exiba** informação do perfil profissional conectado, e o Orquesia
+   * mostrava só o arroba. Pedir uma permissão e não ter onde mostrar o que ela
+   * traz é, do lado de lá, indistinguível de não usá-la.
+   *
+   * Todos opcionais: a leitura não pode derrubar a conexão, e **ausente é
+   * "não medi"** — nunca zero, que seria um perfil sem nada.
+   */
+  nome?: string;
+  fotoUrl?: string;
+  tipoDeConta?: string;
+  seguidores?: number;
+  publicacoes?: number;
 }
 
 export class ErroDaMeta extends Error {
@@ -209,8 +231,14 @@ export const renovarToken = async (
 
 /** De quem é o token. */
 export const contaDoToken = async (token: string): Promise<ContaDoInstagram> => {
+  /*
+    Os campos do perfil vêm **nesta mesma chamada**, e é o que torna a decisão
+    barata: nenhuma requisição a mais, nenhum tempo a mais na conexão. Todos
+    são de `instagram_business_basic`, que já é pedida.
+  */
   const eu = await chamar(
-    `${GRAPH}/me?fields=user_id,username,name&access_token=${encodeURIComponent(token)}`
+    `${GRAPH}/me?fields=user_id,username,name,account_type,profile_picture_url,` +
+      `followers_count,media_count&access_token=${encodeURIComponent(token)}`
   );
 
   // `user_id` é o id que publica. `id` vem junto e costuma ser o mesmo; fica
@@ -220,9 +248,23 @@ export const contaDoToken = async (token: string): Promise<ContaDoInstagram> => 
     throw new ErroDaMeta('O Instagram não disse de quem é a conta autorizada.');
   }
 
+  /*
+    `?? undefined` e nunca `?? 0`: ausente é "a Meta não mandou", e zero seria
+    "o perfil não tem nenhum". Escrever zero aqui faria a tela afirmar, com
+    cara de medido, um número que ninguém mediu — a regra que vale para o
+    alcance em Relatórios e para os seguidores da Página.
+  */
+  const numero = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
   return {
     accountId,
     accountName: eu.username || eu.name || accountId,
+    nome: typeof eu.name === 'string' ? eu.name : undefined,
+    fotoUrl: typeof eu.profile_picture_url === 'string' ? eu.profile_picture_url : undefined,
+    tipoDeConta: typeof eu.account_type === 'string' ? eu.account_type : undefined,
+    seguidores: numero(eu.followers_count),
+    publicacoes: numero(eu.media_count),
   };
 };
 

@@ -248,6 +248,18 @@ export const ConexoesSociais: React.FC = () => {
               className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800"
             >
               <div className="flex items-center gap-2.5 min-w-0">
+                {/* A foto do perfil conectado, quando existe: ela responde "é
+                    esta conta mesmo?" antes de qualquer texto. Conexão feita
+                    antes de a foto ser guardada simplesmente não tem — e aí a
+                    linha fica como estava, sem buraco. */}
+                {conta.fotoUrl && (
+                  <img
+                    src={conta.fotoUrl}
+                    alt=""
+                    className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                  />
+                )}
+
                 {/* O selo sai de `conta.platform`, e é o mesmo do quadro e da
                     fila. Era um `<Instagram>` fixo: uma Página do Facebook
                     aparecia aqui com o ícone do Instagram, e publicar no

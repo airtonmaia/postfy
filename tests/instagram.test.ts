@@ -334,3 +334,63 @@ describe('as permissões concedidas chegam à tela', () => {
     );
   });
 });
+
+/**
+ * O perfil conectado é lido e **mostrado**.
+ *
+ * `instagram_business_basic` exige que o app exiba informação do perfil
+ * profissional conectado, e o Orquesia mostrava só o arroba. Pedir uma
+ * permissão e não ter onde mostrar o que ela traz é, do lado de lá,
+ * indistinguível de não usá-la.
+ *
+ * A razão de produto vale sozinha: o arroba não responde *"é esta conta
+ * mesmo?"* para quem administra perfis de nomes parecidos, e conectar o errado
+ * só aparece quando o post do cliente sai no lugar errado.
+ */
+describe('o perfil da conta conectada', () => {
+  const fonte = semComentarios(
+    readFileSync(join(__dirname, '..', 'api', '_lib', 'instagram.ts'), 'utf-8')
+  );
+  const tela = semComentarios(
+    readFileSync(
+      join(__dirname, '..', 'src', 'components', 'clients', 'ConexoesDoPerfil.tsx'),
+      'utf-8'
+    )
+  );
+
+  it('a leitura da conta traz os campos do perfil', () => {
+    // Todos vêm na mesma chamada que já existia: nenhuma requisição a mais, e
+    // todos são de `instagram_business_basic`, que já é pedida.
+    for (const campo of [
+      'account_type',
+      'profile_picture_url',
+      'followers_count',
+      'media_count',
+    ]) {
+      expect(fonte, `${campo} saiu da leitura do perfil`).toContain(campo);
+    }
+  });
+
+  it('número ausente vira undefined, nunca zero', () => {
+    /*
+      `?? 0` faria uma leitura que falhou parecer um perfil sem ninguém e sem
+      nada — e a tela afirmaria, com cara de medido, um número que ninguém
+      mediu. É a regra do alcance em Relatórios.
+    */
+    expect(fonte).not.toMatch(/followers_count\s*\?\?\s*0/);
+    expect(fonte).not.toMatch(/media_count\s*\?\?\s*0/);
+    expect(fonte, 'a conversão que protege do zero sumiu').toMatch(
+      /Number\.isFinite\(v\) \? v : undefined/
+    );
+  });
+
+  it('a tela mostra foto, tipo de conta e as contagens', () => {
+    // É esta tela que a submissão à Meta nomeia como o lugar de ver o perfil
+    // conectado. Sem ela, a permissão não tem leitor.
+    expect(tela, 'a foto do perfil sumiu da tela').toMatch(/conta\?\.fotoUrl/);
+    expect(tela, 'o tipo de conta sumiu — é o que prova que é perfil profissional').toMatch(
+      /conta\?\.tipoDeConta/
+    );
+    expect(tela).toMatch(/publicacoes/);
+  });
+});

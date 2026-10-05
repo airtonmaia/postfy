@@ -139,6 +139,21 @@ export interface ContaConectada {
    */
   seguidores?: number;
   seguidoresEm?: string;
+  /**
+   * O perfil conectado, para a tela mostrar **qual conta é**.
+   *
+   * O arroba sozinho não responde isso para quem administra perfis de nomes
+   * parecidos, e conectar o errado só aparece quando o post do cliente sai no
+   * lugar errado — tarde. É a mesma razão dos seguidores.
+   *
+   * Todos opcionais, e ausente é **"não medi"**: conexão feita antes desta
+   * entrega não tem nada disso guardado, e um zero no lugar afirmaria um
+   * perfil vazio que ninguém conferiu.
+   */
+  fotoUrl?: string;
+  nomeDoPerfil?: string;
+  tipoDeConta?: string;
+  publicacoes?: number;
 }
 
 export interface ItemDaFila {
@@ -169,6 +184,10 @@ export const listarContas = async (): Promise<ContaConectada[]> => {
     createdAt: l.created_at,
     seguidores: l.seguidores ?? undefined,
     seguidoresEm: l.seguidores_em ?? undefined,
+    fotoUrl: l.foto_url ?? undefined,
+    nomeDoPerfil: l.nome_do_perfil ?? undefined,
+    tipoDeConta: l.tipo_de_conta ?? undefined,
+    publicacoes: l.publicacoes ?? undefined,
   }));
 };
 

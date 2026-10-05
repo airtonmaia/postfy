@@ -169,9 +169,33 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                 className="flex items-center justify-between gap-3 p-3.5 bg-white dark:bg-slate-900"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 shrink-0 ${CORES[rede.id]}`}>
-                    <Icone className="w-4 h-4" />
-                  </div>
+                  {/* A foto do perfil conectado no lugar do ícone da rede, e
+                      só quando ela existe. Ela responde "é esta conta mesmo?"
+                      antes de qualquer texto — quem administra perfis de nomes
+                      parecidos reconhece a foto primeiro —, e conectar o errado
+                      só aparece quando o post do cliente sai no lugar errado.
+
+                      O ícone da rede acompanha, pequeno, no canto: sem ele a
+                      linha perderia de qual rede é a conexão, que é a primeira
+                      informação da lista. */}
+                  {conta?.fotoUrl ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={conta.fotoUrl}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                      />
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full bg-white dark:bg-slate-900 ${CORES[rede.id]}`}
+                      >
+                        <Icone className="w-3 h-3" />
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 shrink-0 ${CORES[rede.id]}`}>
+                      <Icone className="w-4 h-4" />
+                    </div>
+                  )}
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -197,8 +221,20 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                     </div>
 
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                      {conta ? `@${conta.accountName}` : rede.pendencia || 'Nenhuma conta ligada a este perfil.'}
+                      {conta
+                        ? `@${conta.accountName}${conta.nomeDoPerfil ? ` · ${conta.nomeDoPerfil}` : ''}`
+                        : rede.pendencia || 'Nenhuma conta ligada a este perfil.'}
                     </p>
+
+                    {/* **O tipo de conta não é enfeite: é o que prova que o
+                        perfil é profissional**, que é a condição para publicar
+                        pela API. Sem ele, descobrir que a conta é pessoal
+                        acontece na hora da publicação. */}
+                    {conta?.tipoDeConta && (
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-1">
+                        {conta.tipoDeConta.replace(/_/g, ' ')}
+                      </p>
+                    )}
 
                     {/* Os seguidores são o que distingue duas Páginas de nome
                         parecido — e conectar a errada só aparece quando o post
@@ -208,9 +244,19 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                         número sozinho afirmaria o de hoje com o dado de quando
                         a conexão foi criada. Ausente é "não medi", e aí não há
                         linha nenhuma — zero seria uma Página sem ninguém. */}
-                    {conta?.seguidores != null && (
+                    {(conta?.seguidores != null || conta?.publicacoes != null) && (
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                        {conta.seguidores.toLocaleString('pt-BR')} seguidores
+                        {/* Cada número só aparece se existir: nulo é "não
+                            medi", e escrever 0 faria uma leitura que falhou
+                            parecer um perfil sem ninguém e sem nada. */}
+                        {[
+                          conta.seguidores != null &&
+                            `${conta.seguidores.toLocaleString('pt-BR')} seguidores`,
+                          conta.publicacoes != null &&
+                            `${conta.publicacoes.toLocaleString('pt-BR')} publicações`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                         {conta.seguidoresEm ? ` · medido em ${safeDateFormat(conta.seguidoresEm)}` : ''}
                       </p>
                     )}

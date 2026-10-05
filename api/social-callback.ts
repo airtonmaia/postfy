@@ -177,7 +177,23 @@ const guardarConexao = async (
   supabase: any,
   dados: { workspaceId: string; userId: string; clientId?: string },
   rede: 'instagram' | 'facebook',
-  conta: { accountId: string; accountName: string },
+  /**
+   * A conta, e o que se sabe do perfil dela.
+   *
+   * Os campos de perfil são opcionais porque cada rede traz um conjunto: o
+   * Instagram devolve tudo em `/me`, a Página do Facebook traz a foto em
+   * `/me/accounts` e os seguidores na leitura dela. Ausente é **"não medi"**,
+   * e vira `null` na coluna — nunca zero.
+   */
+  conta: {
+    accountId: string;
+    accountName: string;
+    nome?: string;
+    fotoUrl?: string;
+    tipoDeConta?: string;
+    seguidores?: number;
+    publicacoes?: number;
+  },
   token: string,
   expiraEm: number | null,
   /** O que a pessoa precisa saber depois de dar certo. Ver `paginaDeRetorno`. */
@@ -216,8 +232,26 @@ const guardarConexao = async (
         // Nulo é "não medi". Escrever 0 faria uma leitura falha parecer uma
         // Página sem ninguém, e `seguidores_em` é o que torna o número
         // honesto: seguidor muda todo dia.
-        seguidores: daPagina.seguidores ?? null,
-        seguidores_em: daPagina.seguidores === undefined ? null : new Date().toISOString(),
+        /*
+          A leitura da Página vence a do `/me/accounts` quando existe, e a da
+          conta do Instagram é a única no fluxo dele. `??` em cadeia, e o
+          último elo é `null`: a coluna fica vazia quando ninguém mediu.
+        */
+        seguidores: daPagina.seguidores ?? conta.seguidores ?? null,
+        seguidores_em:
+          daPagina.seguidores === undefined && conta.seguidores === undefined
+            ? null
+            : new Date().toISOString(),
+        /*
+          **O perfil fica guardado porque a tela precisa mostrá-lo.** O arroba
+          sozinho não responde "é esta conta mesmo?" para quem administra
+          perfis de nomes parecidos — e conectar o errado só aparece quando o
+          post do cliente sai no lugar errado.
+        */
+        foto_url: conta.fotoUrl ?? null,
+        nome_do_perfil: conta.nome ?? null,
+        tipo_de_conta: conta.tipoDeConta ?? null,
+        publicacoes: conta.publicacoes ?? null,
       },
       { onConflict: 'workspace_id,platform,account_id' }
     )
@@ -454,7 +488,12 @@ async function handler(request: Request): Promise<Response> {
         supabase,
         dados,
         'facebook',
-        { accountId: escolhida.accountId, accountName: escolhida.accountName },
+        {
+          accountId: escolhida.accountId,
+          accountName: escolhida.accountName,
+          // A foto vem de `/me/accounts`; é a mesma que a tela de escolha mostrou.
+          fotoUrl: escolhida.fotoUrl,
+        },
         escolhida.tokenDaPagina,
         guardada.expira_em ?? null
       );
@@ -520,7 +559,11 @@ async function handler(request: Request): Promise<Response> {
           supabase,
           dados,
           'facebook',
-          { accountId: paginas[0].accountId, accountName: paginas[0].accountName },
+          {
+            accountId: paginas[0].accountId,
+            accountName: paginas[0].accountName,
+            fotoUrl: paginas[0].fotoUrl,
+          },
           paginas[0].tokenDaPagina,
           trocado.expiraEm,
           /*
