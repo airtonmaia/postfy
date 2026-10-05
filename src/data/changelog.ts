@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.90.0',
+    data: '2026-10-05',
+    resumo: 'A conexão do Facebook diz quantas Páginas a Meta devolveu, e por que algumas não entraram.',
+    corrigido: [
+      'Página que a Meta devolve sem permissão de publicar era descartada em silêncio: quem administrava várias e recebia uma só não tinha como saber se a Meta mandou uma, ou se mandou várias e o Orquesia pulou o resto.',
+      'Agora o aviso separa as duas causas, que pedem coisas opostas: liberação curta se resolve refazendo a autorização; falta de papel na Página, não — e mandar refazer nesse caso é o conselho que não pode funcionar.',
+    ],
+  },
+  {
     versao: '2.89.0',
     data: '2026-10-05',
     resumo: 'Conectar o Facebook volta a oferecer a escolha de quais Páginas liberar.',

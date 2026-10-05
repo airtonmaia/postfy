@@ -404,9 +404,25 @@ describe('a lista de Páginas não chega cortada', () => {
       outras — foi exatamente essa a conclusão de quem usou primeiro.
     */
     const semComCallback = semComentarios(callback);
-    const ramo = semComCallback.slice(semComCallback.indexOf('paginas.length === 1'));
+    const ramo = semComCallback.slice(
+      semComCallback.indexOf('paginas.length === 1'),
+      semComCallback.indexOf('const id = randomUUID()')
+    );
 
-    expect(ramo.slice(0, 900)).toMatch(/única Página que o Facebook liberou/);
+    expect(ramo).toMatch(/única Página que o Facebook liberou/);
+
+    /*
+      **E a frase é outra quando a causa é conhecida.** "A Meta liberou uma
+      só" e "a Meta mandou cinco e quatro vieram sem permissão de publicar"
+      pedem coisas opostas: a primeira é refazer a autorização, a segunda é
+      papel na Página — refazer ali não muda nada. Sem o desvio, a tela manda
+      a pessoa repetir um caminho que o produto já sabe que não resolve.
+    */
+    expect(
+      ramo,
+      'a tela voltou a dar a mesma explicação para as duas causas'
+    ).toMatch(/semPermissao > 0/);
+    expect(ramo).toMatch(/sem permissão de publicar/);
 
     /*
       **E ela não pode mandar só repetir o caminho que acabou de falhar.** Era
@@ -419,9 +435,28 @@ describe('a lista de Páginas não chega cortada', () => {
       quando o diálogo da Meta já não oferece a Página.
     */
     expect(
-      ramo.slice(0, 900),
+      ramo,
       'a frase voltou a mandar só repetir a conexão, sem o caminho que resolve'
     ).toMatch(/Integrações empresariais/);
+  });
+
+  it('a Página descartada por falta de token é contada, nunca sumida', () => {
+    /*
+      A filtragem pula toda Página sem `access_token` — certo, porque sem ele
+      ela não publica. **Errado era o silêncio:** quem administra cinco e
+      recebe uma não tinha como distinguir "a Meta mandou uma" de "a Meta
+      mandou cinco e quatro não vieram com permissão", e as duas situações
+      pedem coisas opostas.
+
+      É a mesma regra do alcance em Relatórios: a tela afirma o que mediu.
+      Lista filtrada apresentada como a lista inteira é a armadilha 9.
+    */
+    const corpo = semCom.slice(semCom.indexOf('export const paginasDoUsuario'));
+
+    expect(corpo, 'o descarte voltou a ser silencioso').toMatch(/semPermissao \+= 1/);
+    expect(corpo, 'a contagem não chega a quem chamou').toMatch(
+      /return \{ paginas, semPermissao \}/
+    );
   });
 
   it('a tela de escolha diz o que fazer quando falta Página', () => {

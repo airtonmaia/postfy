@@ -435,7 +435,7 @@ async function handler(request: Request): Promise<Response> {
         return paginaDeRetorno('Autorização inválida ou expirada. Tente novamente.', true);
       }
 
-      const paginas = await paginasDoUsuario(guardada.access_token);
+      const { paginas } = await paginasDoUsuario(guardada.access_token);
       const escolhida = paginas.find((p) => p.accountId === paginaEscolhida);
 
       if (!escolhida) {
@@ -480,11 +480,25 @@ async function handler(request: Request): Promise<Response> {
        * insuficiente" depois de a conexão já parecer pronta — o pior momento
        * para descobrir.
        */
-      const paginas = await paginasDoUsuario(trocado.token);
+      const { paginas, semPermissao } = await paginasDoUsuario(trocado.token);
+
+      /*
+        **A frase muda conforme o que foi medido, e essa é a decisão.** "Nenhuma
+        Página encontrada" é verdade quando a Meta não listou nada, e vira
+        mentira quando ela listou cinco e nenhuma veio com token: aí o problema
+        não é falta de Página, é o papel que você tem nelas — e mandar a pessoa
+        criar uma Página que já existe é o conselho que não pode funcionar.
+      */
       if (!paginas.length) {
         return paginaDeRetorno(
-          'Nenhuma Página encontrada nesta conta do Facebook. Publicar exige ' +
-            'ser administrador de uma Página.',
+          semPermissao > 0
+            ? `O Facebook listou ${semPermissao} ${
+                semPermissao === 1 ? 'Página' : 'Páginas'
+              }, mas nenhuma veio com permissão de publicar. Isso costuma ser ` +
+                'papel insuficiente: peça para ser administrador da Página, ou ' +
+                'acesso de tarefa de conteúdo no Portfólio de Negócios dela.'
+            : 'Nenhuma Página encontrada nesta conta do Facebook. Publicar exige ' +
+                'ser administrador de uma Página.',
           true
         );
       }
@@ -522,12 +536,26 @@ async function handler(request: Request): Promise<Response> {
             diz o caso em que nenhum dos dois resolve, que é a Página dentro de
             um Portfólio de Negócios.
           */
-          'Foi a única Página que o Facebook liberou para o Orquesia. Se você ' +
-            'administra outras: clique em Conectar de novo e, na tela da Meta, ' +
-            'marque todas as Páginas. Se elas não aparecerem lá, abra o ' +
-            'Facebook em Configurações › Integrações empresariais, escolha o ' +
-            'Orquesia e marque as Páginas que faltam. Página que pertence a um ' +
-            'Portfólio de Negócios não aparece por nenhum dos dois caminhos.'
+          semPermissao > 0
+            ? /*
+                **Este caso tem causa conhecida, então a frase para de listar
+                hipóteses.** A Meta mandou mais Páginas; elas vieram sem token
+                de publicação. Repetir a autorização não muda nada aqui — o que
+                muda é o papel na Página, e é só isso que vale dizer.
+              */
+              `O Facebook listou mais ${semPermissao} ${
+                semPermissao === 1 ? 'Página' : 'Páginas'
+              }, mas sem permissão de publicar, então ${
+                semPermissao === 1 ? 'ela não entrou' : 'elas não entraram'
+              } na lista. Reconectar não resolve: peça para ser administrador ` +
+              'da Página, ou acesso de tarefa de conteúdo no Portfólio de ' +
+              'Negócios dela.'
+            : 'Foi a única Página que o Facebook liberou para o Orquesia. Se você ' +
+              'administra outras: clique em Conectar de novo e, na tela da Meta, ' +
+              'marque todas as Páginas. Se elas não aparecerem lá, abra o ' +
+              'Facebook em Configurações › Integrações empresariais, escolha o ' +
+              'Orquesia e marque as Páginas que faltam. Página que pertence a um ' +
+              'Portfólio de Negócios não aparece por nenhum dos dois caminhos.'
         );
       }
 
