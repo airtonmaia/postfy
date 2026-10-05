@@ -18,12 +18,15 @@ import {
   desconectarConta,
   listarContas,
   REDES_DA_META,
+  numerosDoPerfil,
+  tipoDeContaLegivel,
   type ContaConectada,
   type RedeDaMeta,
 } from '../../lib/redes';
 import { ApiError } from '../../lib/api';
 import { safeDateFormat } from '../../lib/utils';
 import { ComTooltip } from '../ui/tooltip';
+import { AvatarDaConexao } from '../common/AvatarDaConexao';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 
@@ -169,9 +172,30 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                 className="flex items-center justify-between gap-3 p-3.5 bg-white dark:bg-slate-900"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 shrink-0 ${CORES[rede.id]}`}>
-                    <Icone className="w-4 h-4" />
-                  </div>
+                  {/* A foto do perfil conectado no lugar do ícone da rede, e
+                      só quando ela existe. Ela responde "é esta conta mesmo?"
+                      antes de qualquer texto — quem administra perfis de nomes
+                      parecidos reconhece a foto primeiro —, e conectar o errado
+                      só aparece quando o post do cliente sai no lugar errado.
+
+                      O ícone da rede acompanha, pequeno, no canto: sem ele a
+                      linha perderia de qual rede é a conexão, que é a primeira
+                      informação da lista. */}
+                  {/* Conectada, a peça é a mesma da lista de Integrações: a
+                      mesma conta lida de dois jeitos faz quem confere achar
+                      que são conexões diferentes.
+
+                      Threads e WhatsApp não conectam, então não têm conta nem
+                      foto — e a peça só conhece as redes que conectam. Para
+                      elas fica o ícone da rede, que é o que a linha sempre
+                      mostrou. */}
+                  {conta ? (
+                    <AvatarDaConexao platform={conta.platform} fotoUrl={conta.fotoUrl} />
+                  ) : (
+                    <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 shrink-0 ${CORES[rede.id]}`}>
+                      <Icone className="w-4 h-4" />
+                    </div>
+                  )}
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -197,8 +221,20 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                     </div>
 
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                      {conta ? `@${conta.accountName}` : rede.pendencia || 'Nenhuma conta ligada a este perfil.'}
+                      {conta
+                        ? `@${conta.accountName}${conta.nomeDoPerfil ? ` · ${conta.nomeDoPerfil}` : ''}`
+                        : rede.pendencia || 'Nenhuma conta ligada a este perfil.'}
                     </p>
+
+                    {/* **O tipo de conta não é enfeite: é o que prova que o
+                        perfil é profissional**, que é a condição para publicar
+                        pela API. Sem ele, descobrir que a conta é pessoal
+                        acontece na hora da publicação. */}
+                    {tipoDeContaLegivel(conta?.tipoDeConta) && (
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-1">
+                        {tipoDeContaLegivel(conta?.tipoDeConta)}
+                      </p>
+                    )}
 
                     {/* Os seguidores são o que distingue duas Páginas de nome
                         parecido — e conectar a errada só aparece quando o post
@@ -208,9 +244,18 @@ export const ConexoesDoPerfil: React.FC<{ clientId: string; clientName: string }
                         número sozinho afirmaria o de hoje com o dado de quando
                         a conexão foi criada. Ausente é "não medi", e aí não há
                         linha nenhuma — zero seria uma Página sem ninguém. */}
-                    {conta?.seguidores != null && (
+                    {/* Os números saem de `numerosDoPerfil`, a mesma função
+                        que a lista de Integrações usa: cada um só aparece se
+                        existir, porque nulo é "não medi" e `0 seguidores` numa
+                        leitura que falhou faria a agência concluir que
+                        conectou uma conta morta.
+
+                        A data vai junto porque seguidor muda todo dia: o
+                        número sozinho afirmaria o de hoje com o dado de quando
+                        a conexão foi criada. */}
+                    {conta && numerosDoPerfil(conta).length > 0 && (
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                        {conta.seguidores.toLocaleString('pt-BR')} seguidores
+                        {numerosDoPerfil(conta).join(' · ')}
                         {conta.seguidoresEm ? ` · medido em ${safeDateFormat(conta.seguidoresEm)}` : ''}
                       </p>
                     )}

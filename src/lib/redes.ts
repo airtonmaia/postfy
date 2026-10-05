@@ -139,7 +139,69 @@ export interface ContaConectada {
    */
   seguidores?: number;
   seguidoresEm?: string;
+  /**
+   * O perfil conectado, para a tela mostrar **qual conta é**.
+   *
+   * O arroba sozinho não responde isso para quem administra perfis de nomes
+   * parecidos, e conectar o errado só aparece quando o post do cliente sai no
+   * lugar errado — tarde. É a mesma razão dos seguidores.
+   *
+   * Todos opcionais, e ausente é **"não medi"**: conexão feita antes desta
+   * entrega não tem nada disso guardado, e um zero no lugar afirmaria um
+   * perfil vazio que ninguém conferiu.
+   */
+  fotoUrl?: string;
+  nomeDoPerfil?: string;
+  tipoDeConta?: string;
+  publicacoes?: number;
 }
+
+/**
+ * Os números do perfil, prontos para a tela — **só os que existem**.
+ *
+ * É pura e mora aqui, fora do componente, porque duas telas a usam e porque
+ * assim a regra é **exercitada**, não descrita: nulo é "não medi", e nenhuma
+ * das duas pode escrever zero no lugar.
+ *
+ * O zero importa de verdade aqui. `0 seguidores` num perfil que o Orquesia não
+ * conseguiu ler é a armadilha 9 na ficha que a agência abre para conferir se
+ * conectou a conta certa — e ela conclui que conectou uma conta morta. Por isso
+ * a comparação é `!= null`, e não a verdade do valor: `seguidores: 0` é uma
+ * leitura legítima de um perfil novo, e precisa aparecer.
+ */
+export const numerosDoPerfil = (conta: ContaConectada): string[] => {
+  const partes: string[] = [];
+
+  if (conta.seguidores != null) {
+    partes.push(`${conta.seguidores.toLocaleString('pt-BR')} seguidores`);
+  }
+  if (conta.publicacoes != null) {
+    partes.push(`${conta.publicacoes.toLocaleString('pt-BR')} publicações`);
+  }
+
+  return partes;
+};
+
+/**
+ * `MEDIA_CREATOR` não é o que se lê numa tela em português.
+ *
+ * O valor vem da Meta em caixa alta com sublinhado, e ele **não é enfeite**: é
+ * o que prova que a conta é profissional, que é a condição para publicar pela
+ * API. Mostrá-lo cru entregaria à agência um rótulo de banco de dados; omiti-lo
+ * esconderia a única prova que a tela tem.
+ */
+export const tipoDeContaLegivel = (tipo?: string): string | undefined => {
+  if (!tipo) return undefined;
+
+  const conhecidos: Record<string, string> = {
+    BUSINESS: 'Conta comercial',
+    MEDIA_CREATOR: 'Criador de conteúdo',
+  };
+
+  // Rótulo desconhecido vira texto legível em vez de sumir: categoria nova da
+  // Meta aparecendo como "Media Creator" é melhor que a linha inteira sumindo.
+  return conhecidos[tipo.toUpperCase()] ?? tipo.replace(/_/g, ' ');
+};
 
 export interface ItemDaFila {
   id: string;
@@ -169,6 +231,10 @@ export const listarContas = async (): Promise<ContaConectada[]> => {
     createdAt: l.created_at,
     seguidores: l.seguidores ?? undefined,
     seguidoresEm: l.seguidores_em ?? undefined,
+    fotoUrl: l.foto_url ?? undefined,
+    nomeDoPerfil: l.nome_do_perfil ?? undefined,
+    tipoDeConta: l.tipo_de_conta ?? undefined,
+    publicacoes: l.publicacoes ?? undefined,
   }));
 };
 

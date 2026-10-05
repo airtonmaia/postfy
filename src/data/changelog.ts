@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.93.0',
+    data: '2026-10-05',
+    resumo: 'A conta conectada aparece com foto, nome e números do perfil — não só o arroba.',
+    novidades: [
+      'Conexões do perfil, na ficha do cliente, passa a mostrar a foto da conta conectada, o nome de exibição, o tipo de conta, os seguidores e quantas publicações o perfil tem.',
+      'A lista de Configurações › Integrações mostra o mesmo: foto, nome do perfil, tipo de conta, seguidores e publicações, em cada conta conectada.',
+    ],
+    melhorias: [
+      'O arroba sozinho não responde "é esta conta mesmo?" para quem administra perfis de nomes parecidos — e conectar o errado só aparece quando o post do cliente sai no lugar errado.',
+      'O tipo de conta é o que prova que o perfil é profissional, que é a condição para publicar pela API. Antes isso só se descobria na hora de publicar.',
+      'Número ausente fica ausente: a tela nunca escreve zero no lugar de algo que não foi medido.',
+    ],
+  },
+  {
     versao: '2.92.0',
     data: '2026-10-05',
     resumo: 'A conexão do Instagram mostra quais permissões a conta concedeu.',
