@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.95.0',
+    data: '2026-10-05',
+    resumo: 'Calendário e Quadro viraram um menu só, e a barra do WorkFlow ganhou três filtros.',
+    novidades: [
+      'O Calendário saiu da barra lateral e virou uma visão do WorkFlow: um alternador no topo troca entre Quadro e Calendário, sem sair da tela.',
+      'Três filtros novos na barra do quadro: formato da peça, rede e quem está com ela — inclusive "Sem responsável", que é a fila do que ninguém pegou.',
+      'A janela de datas ganhou Hoje, Mês anterior, Próximos 30 dias e Próximos 3 meses, além de um período personalizado com data inicial e final.',
+    ],
+    melhorias: [
+      'Os dois endereços continuam valendo: /kanban abre no quadro e /calendario abre no calendário, com o WorkFlow aceso na barra lateral nos dois.',
+      'No período personalizado, uma ponta só é um filtro legítimo — "de março em diante" — e a tela diz qual está valendo.',
+    ],
+    corrigido: [
+      'O filtro de rede escondia peça multicanal: um conteúdo marcado para Instagram e Facebook sumia do filtro "Facebook" quando o Instagram era a rede principal, com o quadro afirmando que não havia nada para publicar lá.',
+    ],
+  },
+  {
     versao: '2.94.0',
     data: '2026-10-05',
     resumo: 'Os clientes aparecem em faixa no topo do quadro: clicar na foto filtra o conteúdo.',

@@ -309,3 +309,88 @@ describe('a faixa de clientes filtra o quadro', () => {
     expect(faixa).toMatch(/id: 'all'/);
   });
 });
+
+/**
+ * Calendário e Quadro são um menu só.
+ *
+ * Eram dois itens na barra lateral, e isso era a pergunta errada: não são
+ * lugares diferentes, são a mesma fila de conteúdo desenhada por etapa ou por
+ * data. Quem queria ver o que sai na terça e quem queria ver o que está parado
+ * em aprovação abriam menus diferentes para olhar o mesmo dado — cada um com
+ * os filtros do outro invisíveis.
+ *
+ * **Tirar um menu mexe em sete lugares**, e este arquivo já registra a conta.
+ * Aqui o cuidado é o oposto do de Aprovações: a aba **não** foi apagada. Ela
+ * continua em `TabType`, nas permissões e em `/calendario` — porque o endereço
+ * está em favorito de quem trabalha aqui, e o F5 nele tem de continuar
+ * abrindo o calendário.
+ */
+describe('o calendário é uma visão do WorkFlow, não um menu', () => {
+  const app = semComentarios(readFileSync(join(RAIZ, 'src', 'App.tsx'), 'utf-8'));
+  const permissoes = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'lib', 'permissions.ts'), 'utf-8')
+  );
+  const rotas = semComentarios(readFileSync(join(RAIZ, 'src', 'lib', 'rotas.ts'), 'utf-8'));
+
+  it('a barra lateral não tem item de Calendário', () => {
+    // A lista de menus é a única coisa que some. O resto da fiação fica.
+    expect(app, 'o Calendário voltou a ser um item da barra lateral').not.toMatch(
+      /\{\s*id:\s*'calendario'\s*,\s*label:/
+    );
+  });
+
+  it('mas a aba continua existindo, e a URL dela continua respondendo', () => {
+    /*
+      Apagar a aba quebraria `/calendario` — um endereço que está em favorito.
+      É o lado oposto do erro de Aprovações: lá a URL ficou respondendo sem
+      menu nenhum; aqui ela responde **de propósito**, e o menu que a acende é
+      o WorkFlow.
+    */
+    expect(app, 'o calendário deixou de ser montado').toMatch(
+      /activeTab === 'calendario' && <CalendarApp/
+    );
+    expect(rotas).toMatch(/calendario: '\/calendario'/);
+    expect(permissoes, 'o papel perdeu acesso ao calendário e a URL passa a recusar').toContain(
+      "'calendario'"
+    );
+  });
+
+  it('o WorkFlow fica aceso nas duas visões', () => {
+    // Menu apagado com a tela aberta faz a pessoa procurar onde ela está.
+    expect(app, 'o item do menu voltou a apagar no calendário').toMatch(
+      /item\.id === 'producao' && activeTab === 'calendario'/
+    );
+  });
+
+  it('as duas telas trazem o alternador', () => {
+    // Sem ele numa das duas, a visão vira um beco: dá para entrar e não dá
+    // para voltar sem a barra lateral.
+    for (const arquivo of [
+      join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'),
+      join(RAIZ, 'src', 'components', 'calendar', 'CalendarHeader.tsx'),
+    ]) {
+      expect(semComentarios(readFileSync(arquivo, 'utf-8')), arquivo).toMatch(
+        /<AlternarVisaoDoWorkflow/
+      );
+    }
+  });
+
+  it('a troca mexe no activeTab, nunca num estado de visão à parte', () => {
+    /*
+      Um estado novo de "visão" daria duas verdades para a mesma pergunta: a
+      URL diria `/kanban` e a tela mostraria o calendário, ou o contrário. É o
+      mesmo raciocínio da faixa de clientes — dois controles, um estado.
+    */
+    const alternador = semComentarios(
+      readFileSync(
+        join(RAIZ, 'src', 'components', 'common', 'AlternarVisaoDoWorkflow.tsx'),
+        'utf-8'
+      )
+    );
+
+    expect(alternador, 'o alternador passou a guardar a visão por conta própria').not.toMatch(
+      /useState/
+    );
+    expect(alternador).toMatch(/setActiveTab\(/);
+  });
+});

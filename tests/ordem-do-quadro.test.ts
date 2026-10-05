@@ -310,3 +310,93 @@ describe('a janela de datas', () => {
     expect(dentroDoPeriodo(em('2026-12-20T08:00:00Z'), 'mes_que_vem', dezembro, FUSO)).toBe(false);
   });
 });
+
+/**
+ * Os atalhos novos e o período personalizado.
+ *
+ * Tudo aqui é comparação de **dia no fuso da agência**, em `YYYY-MM-DD`, e é
+ * por isso que o teste fixa `HOJE` e `FUSO`: a armadilha 8.2 é exatamente o
+ * caso em que o filtro parece certo na máquina de quem escreveu e recorta
+ * diferente para o colega em outro estado.
+ */
+describe('os atalhos de data', () => {
+  const em = (iso: string) => job({ id: iso, scheduledDate: iso });
+
+  // HOJE é 22/09/2026 às 12h UTC, que é 09h em São Paulo.
+  it('"hoje" é o dia da agência, não as 24h a partir de agora', () => {
+    expect(dentroDoPeriodo(em('2026-09-22T23:30:00Z'), 'hoje', HOJE, FUSO)).toBe(true);
+    expect(dentroDoPeriodo(em('2026-09-23T12:00:00Z'), 'hoje', HOJE, FUSO)).toBe(false);
+    expect(dentroDoPeriodo(em('2026-09-21T12:00:00Z'), 'hoje', HOJE, FUSO)).toBe(false);
+  });
+
+  it('as três janelas à frente contam do mesmo jeito, só com números diferentes', () => {
+    /*
+      Elas saem de uma tabela justamente para não divergirem: três blocos
+      copiados é como dois deles passariam a contar a partir de ontem numa
+      correção feita só no primeiro.
+    */
+    const daquiA = (dias: number) =>
+      em(new Date(HOJE.getTime() + dias * 86400000).toISOString());
+
+    expect(dentroDoPeriodo(daquiA(3), 'proximos_7', HOJE, FUSO)).toBe(true);
+    expect(dentroDoPeriodo(daquiA(20), 'proximos_7', HOJE, FUSO)).toBe(false);
+    expect(dentroDoPeriodo(daquiA(20), 'proximos_30', HOJE, FUSO)).toBe(true);
+    expect(dentroDoPeriodo(daquiA(60), 'proximos_30', HOJE, FUSO)).toBe(false);
+    expect(dentroDoPeriodo(daquiA(60), 'proximos_90', HOJE, FUSO)).toBe(true);
+  });
+
+  it('"mês anterior" vira o ano para trás', () => {
+    // Janeiro tem dezembro do ano passado atrás. Um `mes - 1` sem a virada
+    // devolveria `2026-00`, que não casa com mês nenhum — e o filtro voltaria
+    // vazio, em silêncio, só em janeiro.
+    const janeiro = new Date('2026-01-15T12:00:00.000Z');
+    expect(dentroDoPeriodo(em('2025-12-20T12:00:00Z'), 'mes_anterior', janeiro, FUSO)).toBe(true);
+    expect(dentroDoPeriodo(em('2026-01-10T12:00:00Z'), 'mes_anterior', janeiro, FUSO)).toBe(false);
+  });
+});
+
+describe('o período personalizado', () => {
+  const em = (iso: string) => job({ id: iso, scheduledDate: iso });
+
+  it('sem nenhuma ponta escolhida, não esconde nada — nem o que não tem data', () => {
+    /*
+      **É a asserção que mais importa aqui.** A saída vem antes da checagem de
+      data: depois dela, a peça sem data sumiria do quadro no instante em que
+      alguém *abrisse* o período personalizado, antes de escolher qualquer
+      dia. O filtro ainda não existe, e esconder conteúdo por um filtro que
+      ninguém terminou de preencher é o pior sumiço — a pessoa não ligou nada.
+    */
+    expect(dentroDoPeriodo(em('2020-01-01T12:00:00Z'), 'personalizado', HOJE, FUSO, {})).toBe(true);
+    expect(dentroDoPeriodo(job({ id: 'sem' }), 'personalizado', HOJE, FUSO, {})).toBe(true);
+  });
+
+  it('as duas datas entram no período', () => {
+    const intervalo = { de: '2026-09-10', ate: '2026-09-20' };
+    expect(dentroDoPeriodo(em('2026-09-10T12:00:00Z'), 'personalizado', HOJE, FUSO, intervalo)).toBe(true);
+    expect(dentroDoPeriodo(em('2026-09-20T12:00:00Z'), 'personalizado', HOJE, FUSO, intervalo)).toBe(true);
+    expect(dentroDoPeriodo(em('2026-09-21T12:00:00Z'), 'personalizado', HOJE, FUSO, intervalo)).toBe(false);
+    expect(dentroDoPeriodo(em('2026-09-09T12:00:00Z'), 'personalizado', HOJE, FUSO, intervalo)).toBe(false);
+  });
+
+  it('uma ponta só é um filtro legítimo', () => {
+    // "De março em diante" e "tudo até o fim do mês" são perguntas de
+    // verdade. Exigir as duas datas transformaria metade preenchida em filtro
+    // quebrado, e a tela diz qual das duas está valendo.
+    expect(dentroDoPeriodo(em('2026-12-01T12:00:00Z'), 'personalizado', HOJE, FUSO, { de: '2026-10-01' })).toBe(true);
+    expect(dentroDoPeriodo(em('2026-09-01T12:00:00Z'), 'personalizado', HOJE, FUSO, { de: '2026-10-01' })).toBe(false);
+    expect(dentroDoPeriodo(em('2026-01-01T12:00:00Z'), 'personalizado', HOJE, FUSO, { ate: '2026-02-01' })).toBe(true);
+    expect(dentroDoPeriodo(em('2026-03-01T12:00:00Z'), 'personalizado', HOJE, FUSO, { ate: '2026-02-01' })).toBe(false);
+  });
+
+  it('a ponta é lida no fuso da agência, não no do dispositivo', () => {
+    /*
+      `2026-09-21T02:00:00Z` é 20/09 às 23h em São Paulo. Um intervalo que
+      termina em 20/09 **tem** de incluí-la — e um que começa em 21/09, não.
+      Comparar o dia em UTC inverteria as duas, e o colega em outro estado
+      veria um quadro diferente com o mesmo filtro.
+    */
+    const virada = em('2026-09-21T02:00:00Z');
+    expect(dentroDoPeriodo(virada, 'personalizado', HOJE, FUSO, { ate: '2026-09-20' })).toBe(true);
+    expect(dentroDoPeriodo(virada, 'personalizado', HOJE, FUSO, { de: '2026-09-21' })).toBe(false);
+  });
+});

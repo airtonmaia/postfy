@@ -520,7 +520,14 @@ export const textoDoAgendamento = (
   return { ok: r.enfileiradas.length > 0, texto: partes.join(' ') };
 };
 
-const NOME_DA_REDE: Record<JobPlatform, string> = {
+/**
+ * O nome de cada rede em tela.
+ *
+ * Exportado porque o filtro do quadro precisa da mesma lista: uma segunda
+ * tabela de nomes divergiria na primeira rede nova, e aí a mesma peça seria
+ * "X / Twitter" num lugar e "Twitter" no outro.
+ */
+export const NOME_DA_REDE: Record<JobPlatform, string> = {
   instagram: 'Instagram',
   facebook: 'Facebook',
   linkedin: 'LinkedIn',

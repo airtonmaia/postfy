@@ -39,16 +39,47 @@ export const ORDEM_PADRAO: ChaveDeOrdem = 'data';
 export type Periodo =
   | 'todos'
   | 'atrasados'
+  | 'hoje'
   | 'proximos_7'
+  | 'proximos_30'
+  | 'proximos_90'
+  | 'mes_anterior'
   | 'este_mes'
-  | 'mes_que_vem';
+  | 'mes_que_vem'
+  | 'personalizado';
 
-export const PERIODOS: { valor: Periodo; rotulo: string }[] = [
+/**
+ * Um intervalo escrito como **dia**, não como instante.
+ *
+ * `YYYY-MM-DD` e nada mais: é o que `<input type="date">` entrega, é o que
+ * `diaNoFuso` devolve, e é o que `dentroDoPeriodo` compara. Guardar `Date`
+ * aqui reabriria a armadilha 8.2 inteira — o mesmo intervalo recortaria
+ * conteúdo diferente para dois membros da equipe em estados diferentes, sem
+ * nada parecer errado em tela.
+ */
+export interface IntervaloDeDias {
+  de?: string;
+  ate?: string;
+}
+
+/**
+ * Os atalhos, na ordem em que a pergunta aparece.
+ *
+ * `passado` separa o que já aconteceu do que vai acontecer, e é o que permite
+ * ao menu desenhar os dois grupos: numa lista corrida, "Já passou" no meio de
+ * "Próximos 30 dias" obriga a ler item por item.
+ */
+export const PERIODOS: { valor: Periodo; rotulo: string; passado?: boolean }[] = [
   { valor: 'todos', rotulo: 'Qualquer data' },
-  { valor: 'atrasados', rotulo: 'Já passou' },
+  { valor: 'atrasados', rotulo: 'Já passou', passado: true },
+  { valor: 'mes_anterior', rotulo: 'Mês anterior', passado: true },
+  { valor: 'hoje', rotulo: 'Hoje' },
   { valor: 'proximos_7', rotulo: 'Próximos 7 dias' },
+  { valor: 'proximos_30', rotulo: 'Próximos 30 dias' },
+  { valor: 'proximos_90', rotulo: 'Próximos 3 meses' },
   { valor: 'este_mes', rotulo: 'Este mês' },
   { valor: 'mes_que_vem', rotulo: 'Mês que vem' },
+  { valor: 'personalizado', rotulo: 'Período personalizado' },
 ];
 
 export const PERIODO_PADRAO: Periodo = 'todos';
@@ -133,6 +164,15 @@ const mesSeguinte = (dia: string): string => {
     : `${ano}-${String(mes + 1).padStart(2, '0')}`;
 };
 
+/** A virada do ano para trás: janeiro de 2026 tem dezembro de 2025 atrás. */
+const mesAnterior = (dia: string): string => {
+  const ano = Number(dia.slice(0, 4));
+  const mes = Number(dia.slice(5, 7));
+  return mes === 1
+    ? `${ano - 1}-12`
+    : `${ano}-${String(mes - 1).padStart(2, '0')}`;
+};
+
 /**
  * A peça cabe na janela escolhida?
  *
@@ -156,9 +196,21 @@ export const dentroDoPeriodo = (
   job: Job,
   periodo: Periodo,
   agora: Date = new Date(),
-  fuso?: string
+  fuso?: string,
+  /** Só vale para `personalizado`. Ver `IntervaloDeDias`. */
+  intervalo?: IntervaloDeDias
 ): boolean => {
   if (periodo === 'todos') return true;
+
+  /*
+    **"Personalizado" sem nenhuma ponta preenchida não filtra nada.** A saída
+    vem antes da checagem de data, e isso é a decisão: depois dela, a peça sem
+    data sumiria do quadro no instante em que alguém *abrisse* o período
+    personalizado, antes de escolher qualquer dia. O filtro ainda não existe —
+    e esconder conteúdo por um filtro que ninguém terminou de preencher é a
+    pior forma de sumiço, porque a pessoa não ligou nada ainda.
+  */
+  if (periodo === 'personalizado' && !intervalo?.de && !intervalo?.ate) return true;
 
   const iso = dataQueOrdena(job);
   if (instante(iso) === SEM_DATA) return false;
@@ -167,14 +219,36 @@ export const dentroDoPeriodo = (
   const hoje = diaNoFuso(agora, fuso);
   if (!dia || !hoje) return false;
 
-  if (periodo === 'atrasados') return dia < hoje;
+  if (periodo === 'personalizado') {
+    // Comparação de texto `YYYY-MM-DD`, como o resto da função: o dia no fuso
+    // da agência é texto, e texto compara sem reabrir a questão do instante.
+    if (intervalo?.de && dia < intervalo.de) return false;
+    if (intervalo?.ate && dia > intervalo.ate) return false;
+    return true;
+  }
 
-  if (periodo === 'proximos_7') {
-    const limite = diaNoFuso(new Date(agora.getTime() + 7 * DIA_MS), fuso);
+  if (periodo === 'atrasados') return dia < hoje;
+  if (periodo === 'hoje') return dia === hoje;
+
+  /*
+    Os três "próximos N" são a mesma conta com outro número, e por isso saem
+    de uma tabela: repetir o bloco três vezes é como dois deles passariam a
+    contar a partir de ontem numa correção feita só no primeiro.
+  */
+  const DIAS_A_FRENTE: Partial<Record<Periodo, number>> = {
+    proximos_7: 7,
+    proximos_30: 30,
+    proximos_90: 90,
+  };
+
+  const janela = DIAS_A_FRENTE[periodo];
+  if (janela) {
+    const limite = diaNoFuso(new Date(agora.getTime() + janela * DIA_MS), fuso);
     return dia >= hoje && dia < limite;
   }
 
   if (periodo === 'este_mes') return mesDo(dia) === mesDo(hoje);
+  if (periodo === 'mes_anterior') return mesDo(dia) === mesAnterior(hoje);
 
   return mesDo(dia) === mesSeguinte(hoje);
 };
