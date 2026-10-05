@@ -2504,6 +2504,71 @@ campanha, público e funil. A subtração vale para **todos os papéis**: o edit
 
 Protegido por `tests/revisoes-do-cliente.test.ts`.
 
+#### O histórico da peça: quem mexeu, quando, e quanto ela ficou parada
+
+"Esta peça está parada em aprovação há quanto tempo, e quem a mandou para lá?"
+— as duas metades da pergunta que decide a conversa com o cliente, e o produto
+não respondia nenhuma. `jobs.status` é o estado de agora, `updated_at` é a
+última edição de qualquer campo (inclusive de uma vírgula na legenda), e
+**ninguém guardava o autor da mudança**.
+
+`activity_logs` chega perto e não serve: ela grava `Moveu status para X`, mas o
+alvo é o **texto** `'Job: <título>'`, sem id. Ligar por título quebra no dia em
+que alguém renomeia a peça — e quebra em silêncio, mostrando o histórico de
+outra.
+
+`historico_de_etapas` é uma linha por entrada em etapa. Cinco decisões:
+
+- **Quem escreve é o gatilho, nunca o app.** É a mesma razão de
+  `jobs.updated_at`: o status muda do seletor do card, do arrasto do quadro, da
+  modal, das RPCs do portal e do cron de publicação. Registrar em cada um
+  garantiria esquecer um, e esquecer aqui **não quebra nada visível** — a linha
+  do tempo fica com um buraco, e buraco parece "ficou parado", que é o contrário
+  do que aconteceu.
+- **A tabela não tem política de escrita para sessão autenticada.** Uma política
+  de insert deixaria o navegador afirmar que a peça ficou dois dias em produção
+  quando ficou duas horas, e esse número existe justamente para ser mostrado ao
+  cliente. Mesma regra de `post_metrics` e `subscriptions`.
+- **A duração é derivada, nunca gravada.** O banco guarda só *quando* a peça
+  entrou; a duração é a diferença para a linha seguinte. Gravá-la exigiria
+  fechar a linha anterior a cada mudança — duas escritas onde cabe uma, e a
+  segunda podendo falhar sozinha: o resultado seria uma etapa *aberta para
+  sempre*, com a tela somando um tempo que não passou.
+- **`origem` separa equipe, portal e agendador**, e isso não é detalhe: os três
+  chegam com `auth.uid()` nulo nos dois últimos casos. Sem a coluna, a tela teria
+  de escolher entre calar sobre quem fez e inventar um autor — e *"Aprovado"* sem
+  dizer que foi **o cliente** é exatamente a informação que faz a agência abrir o
+  histórico. O papel da sessão os distingue: o cron fala com a chave de serviço,
+  o portal é anônimo. (`auth.uid()` lê o JWT da sessão mesmo dentro de uma
+  função `security definer` — ser dono da função não troca a sessão.)
+- **Não há backfill, e isso é decisão.** Uma linha por conteúdo existente com
+  `created_at` e o status atual seria mentira duas vezes: a peça não entrou na
+  etapa de hoje no dia em que foi criada, e a tela afirmaria uma duração que
+  ninguém mediu. O acervo começa sem histórico e **a tela diz isso**.
+
+**A lista é de acontecimentos, não um resumo por etapa.** A primeira versão
+somava as visitas — uma linha por etapa, com o tempo total gasto nela. Lê bem e
+**apaga o que importa**: "voltou para ajuste três vezes" vira "ficou 6h em
+ajuste", e o vaivém, que é a história da peça, desaparece.
+
+E a primeira linha é **a criação**, nunca "voltou para ideias": o gatilho dispara
+no insert, então o primeiro evento é sempre o nascimento, e dizer "voltou" sobre
+algo que acabou de nascer manda procurar um histórico anterior que não existe.
+
+**Ele mora na aba Revisões**, junto da conversa e das versões. "Histórico" tinha
+duas respostas no produto, e cada uma conta metade da mesma história: a v2 existe
+porque o cliente pediu ajuste no dia 3, e o tempo parado em aprovação explica por
+que o ajuste só veio no dia 7. É a lição das duas listas em Arquivos e das cinco
+abas que viraram três.
+
+Os eventos **não entram** em `carregarTudo` nem em `useColecaoSincronizada`: sem
+política de escrita, o diff tentaria gravar de volta o que acabou de ler e
+levaria `42501` em silêncio, dentro da fila.
+
+Protegido por `tests/historico-de-etapas.test.ts`, conferido ao contrário:
+tirando a saída antecipada do gatilho, abrindo uma política de insert, somando as
+visitas e apagando a distinção de origem, sete asserções reprovam.
+
 #### O cliente aprova uma peça de cada vez; o perfil dele não é uma peça de cada vez
 
 O portal mostrava a peça sozinha, grande, com legenda e botões. É o que a
