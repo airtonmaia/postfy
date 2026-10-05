@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -8,13 +8,12 @@ import {
   Layers,
   Columns,
   List,
-  Clock,
-  Instagram
+  Clock
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { CalendarViewMode } from '../../types';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
-import { InstagramGridModal } from './InstagramGridModal';
+import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
 import { Button } from '../ui/button';
 
 interface CalendarHeaderProps {
@@ -41,7 +40,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     openCreateJobModal
   } = usePostfy();
 
-  const [isGridModalOpen, setIsGridModalOpen] = useState(false);
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -94,29 +92,26 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+
+        {/*
+          A mesma barra do quadro — cliente, formato, rede e data.
+
+          Ela fica **ao lado da navegação do mês**, e não junto dos botões da
+          direita: ali ela divide a linha com o seletor de visão, o Grid e o
+          Novo Conteúdo, e num notebook a linha quebra em duas. À esquerda o
+          espaço estava vazio, e o agrupamento lê melhor — de um lado o que
+          recorta o conteúdo, do outro o que muda a tela e cria peça.
+
+          O seletor de clientes que morava na direita saiu junto: eram dois
+          controles para o mesmo filtro, com desenhos diferentes, e o daqui não
+          tinha formato nem janela de datas. Filtro que existe numa visão e não
+          na outra é a tela escondendo conteúdo sem dizer que escondeu.
+        */}
+        <BarraDeFiltrosDoConteudo />
       </div>
 
-      {/* Right: Client selector, View Switcher & Action button */}
+      {/* Right: View Switcher & Action buttons */}
       <div className="flex flex-wrap items-center gap-2.5">
-        {/* Client quick filter */}
-        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300">
-          <Filter className="w-3.5 h-3.5 text-slate-400" />
-          <select
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-            className="bg-transparent text-xs font-medium text-slate-800 dark:text-slate-200 outline-none cursor-pointer pr-1"
-          >
-            <option value="all">Todos os Clientes</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Quadro ou Calendário, antes do seletor de visão do próprio
-            calendário: um escolhe a tela, o outro o recorte dentro dela. */}
-        <AlternarVisaoDoWorkflow />
-
         {/* View Switcher: Month, Week, Day, List */}
         <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
           {viewOptions.map(view => {
@@ -139,16 +134,10 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           })}
         </div>
 
-        {/* Instagram Visual Grid Preview Button */}
-        <Button
-          id="btn-header-instagram-grid"
-          onClick={() => setIsGridModalOpen(true)}
-          className="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 hover:opacity-95"
-          title="Simulador visual de feed 3x3 do Instagram"
-        >
-          <Instagram className="w-3.5 h-3.5" />
-          <span>Grid Instagram</span>
-        </Button>
+        {/* A troca de visão fica colada no botão de criar, à direita: ela não
+            é um filtro, é a escolha de qual tela se está olhando. No meio dos
+            filtros, lia como mais um recorte do mesmo conteúdo. */}
+        <AlternarVisaoDoWorkflow />
 
         {/* Add Content Button */}
         <Button
@@ -160,11 +149,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </Button>
       </div>
 
-      <InstagramGridModal
-        isOpen={isGridModalOpen}
-        onClose={() => setIsGridModalOpen(false)}
-        initialClientId={clientFilter !== 'all' ? clientFilter : undefined}
-      />
     </div>
   );
 };

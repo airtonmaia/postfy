@@ -31,6 +31,24 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.96.0',
+    data: '2026-10-05',
+    resumo: 'Quadro e Calendário passam a ter exatamente os mesmos filtros, na mesma barra.',
+    novidades: [
+      'A barra de filtros é a mesma nas duas visões: cliente, formato, rede e janela de datas. Filtrar no quadro e trocar para o calendário mantém o recorte.',
+    ],
+    melhorias: [
+      'O seletor de clientes ficou mais estreito — o nome do cliente já aparece na faixa de fotos logo abaixo.',
+      'A troca entre Quadro e Calendário foi para junto do botão de criar: ela não é um filtro, é a escolha de qual tela se está olhando.',
+      'Saiu a busca do quadro: o cabeçalho do produto já tem um campo de busca fixo, que procura em jobs, clientes e leads.',
+      'Saíram o filtro por responsável e o seletor de ordenação. Os cards fixados e a opção de soltá-los, que moravam dentro da ordenação, agora ficam à vista no topo do quadro.',
+      'O simulador de feed saiu do calendário.',
+    ],
+    corrigido: [
+      'O calendário não filtrava por formato: a mesma pergunta — o que está marcado para esta semana em Reels? — tinha resposta no quadro e não tinha no calendário. O recorte passou a ser calculado num lugar só, para as cinco telas.',
+    ],
+  },
+  {
     versao: '2.95.0',
     data: '2026-10-05',
     resumo: 'Calendário e Quadro viraram um menu só, e a barra do WorkFlow ganhou três filtros.',
