@@ -621,3 +621,13 @@ export interface TimesheetLog {
   createdAt: string;
 }
 
+
+/**
+ * As abas da modal de conteúdo.
+ *
+ * Mora aqui, e não dentro da modal, porque quem **escolhe** a aba de abertura
+ * é outro arquivo — o card do quadro, pelo "Ver histórico". Um literal
+ * repetido nos dois lados divergiria na primeira aba nova, e o sintoma seria
+ * uma modal que abre no formulário sem nada explicando.
+ */
+export type AbaDoConteudo = 'conteudo' | 'revisoes' | 'compartilhamento';

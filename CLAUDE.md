@@ -3276,3 +3276,19 @@ supabase/migrations/       schema é a fonte de verdade; 50 migrações
   conferido de ponta a ponta.
 - **Variáveis de ambiente na Vercel** — veja `.env.example`. A aba Integrações
   mostra quais estão faltando, lendo do servidor.
+- **"Responsável" na modal de conteúdo mostra `currentUser.name`** — ou seja,
+  quem está **olhando** a tela, não quem fez a peça. Encontrado escrevendo a
+  gaveta do card do quadro. `jobs.designerId`, `copywriterId` e
+  `socialMediaId` existem desde a primeira migração, são mapeados em
+  `mappers.ts` e **nada no produto escreve ou lê os três** — a família do
+  `trial_ends_at`, agora com um rótulo em cima. É a armadilha 9 numa tela que
+  a equipe inteira usa: numa agência de quatro pessoas, cada uma abre a mesma
+  peça e lê o próprio nome como responsável.
+
+  O card novo contornou isso mostrando `versions[].submittedBy`, que é
+  carimbado de verdade, e **não mostrando nada** quando ninguém entregou. A
+  correção de verdade é uma das duas: ou os três campos ganham quem os
+  escreva (seletor no formulário) e a modal passa a lê-los, ou o rótulo some
+  da modal. Enquanto não for nenhuma das duas, a tela afirma o que não mediu.
+  Protegido pelo lado do card em `tests/cartao-do-quadro.test.ts`, que reprova
+  qualquer `currentUser` ali dentro.

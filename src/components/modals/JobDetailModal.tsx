@@ -24,7 +24,7 @@ import {
   Save,
   RotateCcw,
 } from 'lucide-react';
-import { JobStatus, Job } from '../../types';
+import { JobStatus, Job, AbaDoConteudo } from '../../types';
 import { AiCopyModal } from './AiCopyModal';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
@@ -115,6 +115,8 @@ export const JobDetailModal: React.FC = () => {
   const {
     selectedJob,
     setSelectedJob,
+    abaDoConteudo,
+    setAbaDoConteudo,
     clients,
     moveJobStatus,
     approveJob,
@@ -134,7 +136,7 @@ export const JobDetailModal: React.FC = () => {
     depois da guarda faz a modal rodar dois conjuntos diferentes e derruba a
     árvore com o erro #310, que em produção chega minificado (armadilha 8.1).
   */
-  const [aba, setAba] = useState<'conteudo' | 'revisoes' | 'compartilhamento'>('conteudo');
+  const [aba, setAba] = useState<AbaDoConteudo>('conteudo');
   const [dados, setDados] = useState<RascunhoDoConteudo | null>(null);
   const [original, setOriginal] = useState<string>('');
   const [salvando, setSalvando] = useState(false);
@@ -165,7 +167,14 @@ export const JobDetailModal: React.FC = () => {
     const inicial = doJob(selectedJob);
     setDados(inicial);
     setOriginal(JSON.stringify(inicial));
-    setAba('conteudo');
+    /*
+      A aba de abertura vem de quem mandou abrir — o "Ver histórico" do card
+      cai em Revisões. E volta para o padrão na mesma passada: sem isso, o
+      próximo conteúdo aberto de qualquer outro lugar herdaria a escolha do
+      anterior, e a modal abriria numa aba que ninguém pediu.
+    */
+    setAba(abaDoConteudo);
+    setAbaDoConteudo('conteudo');
     setResultado(null);
     setAjustando(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
