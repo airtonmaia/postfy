@@ -9,6 +9,7 @@ import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { FileUpload } from '../ui/file-upload';
+import { HistoricoDeEtapas } from './HistoricoDeEtapas';
 
 /**
  * Revisões: o que o cliente pediu, a conversa sobre isso e o que já foi
@@ -129,6 +130,17 @@ export const PainelDeRevisoes: React.FC<{ job: Job }> = ({ job }) => {
           )}
         </div>
       )}
+
+      {/*
+        **A linha do tempo vem primeiro, e é o motivo de ela morar aqui.**
+
+        "Histórico" tinha duas respostas no produto: por onde a peça passou, e
+        o que foi pedido e entregue. Separadas, cada uma conta metade — a v2
+        existe porque o cliente pediu ajuste, e o tempo parado em aprovação é o
+        que explica por que o ajuste demorou. Juntas, e nesta ordem, elas
+        respondem "por que esta peça levou o tempo que levou".
+      */}
+      <HistoricoDeEtapas job={job} />
 
       {/* A conversa */}
       <div className={`${cartao} p-4 sm:p-5 flex flex-col`}>

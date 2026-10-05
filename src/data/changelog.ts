@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.98.0',
+    data: '2026-10-05',
+    resumo: 'O conteúdo passa a ter histórico: quem mexeu, quando, e quanto tempo ficou em cada etapa.',
+    novidades: [
+      'Histórico de etapas na aba Revisões: cada passo da peça com o autor e o horário — "Criado por Mariany", "Enviado para aprovação por Airton Maia", "Aprovado pelo cliente, no portal".',
+      'Cada passo mostra quanto tempo a peça ficou ali, e o que está correndo aparece como "Em andamento". No rodapé, o tempo total registrado.',
+      'As etapas que a peça ainda não alcançou ficam listadas apagadas, para o quanto falta não sumir de vista.',
+      'O vaivém aparece: voltar para ajuste duas vezes são duas linhas, não uma soma.',
+    ],
+    melhorias: [
+      'O "Ver histórico" do card do quadro leva direto para lá.',
+      'O cliente que aprova pelo portal e o agendador que publica aparecem como tal, em vez de virarem uma mudança sem autor.',
+    ],
+  },
+  {
     versao: '2.97.0',
     data: '2026-10-05',
     resumo: 'O card do quadro lê o título primeiro, avisa o prazo que está vencendo e abre uma gaveta de detalhes.',

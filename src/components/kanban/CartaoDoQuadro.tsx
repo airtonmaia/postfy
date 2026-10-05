@@ -25,6 +25,7 @@ import { useConfirmacao } from '../ui/alert-dialog';
 import { usePostfy } from '../../context/PostfyContext';
 import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { prazoDoCard } from '../../lib/prazoDoCard';
+import { ETAPAS_DO_CONTEUDO, rotuloDaEtapa } from '../../lib/etapasDoConteudo';
 import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
@@ -57,16 +58,6 @@ import { urlDeExibicao } from '../../lib/midiaDoDrive';
  * fechada porque card alto é coluna curta.
  */
 
-/** O rótulo de cada etapa dentro do seletor. */
-const ETAPAS: { valor: JobStatus; rotulo: string }[] = [
-  { valor: 'ideas', rotulo: 'Ideias' },
-  { valor: 'in_production', rotulo: 'Produção' },
-  { valor: 'for_approval', rotulo: 'Aprovação' },
-  { valor: 'in_adjustment', rotulo: 'Ajuste' },
-  { valor: 'approved', rotulo: 'Aprovado' },
-  { valor: 'scheduled', rotulo: 'Agendado' },
-  { valor: 'published', rotulo: 'Publicado' },
-];
 
 const dataCurta = (iso?: string) => (iso ? dataCompacta(iso, { comAno: true }) : 'sem data');
 
@@ -350,7 +341,7 @@ export const CartaoDoQuadro: React.FC<{
                       aria-label="Etapa atual do conteúdo"
                       className="text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-1.5 py-0.5 text-purple-700 dark:text-purple-300 font-semibold cursor-pointer"
                     >
-                      {ETAPAS.map((etapa) => (
+                      {ETAPAS_DO_CONTEUDO.map((etapa) => (
                         <option key={etapa.valor} value={etapa.valor}>
                           {etapa.rotulo}
                         </option>
@@ -359,7 +350,7 @@ export const CartaoDoQuadro: React.FC<{
                   </div>
                 ) : (
                   <span className="font-semibold text-purple-700 dark:text-purple-300">
-                    {ETAPAS.find((etapa) => etapa.valor === job.status)?.rotulo ?? job.status}
+                    {rotuloDaEtapa(job.status)}
                   </span>
                 )}
               </div>

@@ -18,6 +18,7 @@ import type {
   Notification, ActivityLog, ClientMaterial, TimesheetLog, Workspace,
   ClientUser,
 } from '../types';
+import type { EventoDeEtapa } from './historicoDeEtapas';
 
 /**
  * Acesso ao banco.
@@ -208,6 +209,41 @@ export const buscarJobsDoPeriodo = async (
     .order('scheduled_date', { ascending: false });
   if (error) throw traduzirErro(error);
   return (data || []).map(jobDaLinha);
+};
+
+/**
+ * As entradas em etapa de **um** conteúdo.
+ *
+ * **Sob demanda, e fora da carga inicial de propósito.** `carregarTudo` já
+ * puxa jobs, logs, materiais e apontamentos; uma agência com 5.000 conteúdos
+ * tem dezenas de milhares de linhas aqui, e todas elas para desenhar a linha
+ * do tempo de **uma** peça que talvez ninguém abra. É a mesma regra da janela
+ * de 90 dias: o gargalo é o que se carrega.
+ *
+ * Também não entra em `useColecaoSincronizada`: a tabela não tem política de
+ * escrita para sessão autenticada — quem grava é o gatilho —, então o diff
+ * tentaria gravar de volta o que acabou de ler e levaria `42501` em silêncio,
+ * dentro da fila.
+ *
+ * A RLS recorta por agência; o `job_id` não precisa ser conferido aqui.
+ */
+export const buscarEtapasDoJob = async (jobId: string): Promise<EventoDeEtapa[]> => {
+  const { data, error } = await supabase
+    .from('historico_de_etapas')
+    .select('id, status, entrou_em, por_nome, origem')
+    .eq('job_id', jobId)
+    .order('entrou_em', { ascending: true });
+  if (error) throw traduzirErro(error);
+
+  return (data || []).map((l: Record<string, unknown>) => ({
+    id: String(l.id),
+    status: l.status as EventoDeEtapa['status'],
+    entrouEm: String(l.entrou_em),
+    porNome: (l.por_nome as string) || undefined,
+    // O recuo é `equipe` porque é o caso que tem nome: uma linha sem origem
+    // com `por_nome` preenchido veio de alguém da agência.
+    origem: ((l.origem as EventoDeEtapa['origem']) || 'equipe') as EventoDeEtapa['origem'],
+  }));
 };
 
 /**
