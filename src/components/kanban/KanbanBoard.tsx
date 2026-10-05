@@ -402,8 +402,8 @@ export const KanbanBoard: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-100 dark:bg-slate-800 overflow-hidden">
       {/* Top Filter Bar */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Quadro de Conteúdos (Kanban)</h3>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
             {filteredJobs.length} jobs ativos
@@ -551,7 +551,7 @@ export const KanbanBoard: React.FC = () => {
         onDragCancel={() => setArrastando(null)}
         onDragEnd={aoTerminarArrasto}
       >
-        <div className="flex-1 flex overflow-x-auto p-6 gap-4 items-start min-h-0">
+        <div className="flex-1 flex overflow-x-auto p-4 sm:p-6 gap-4 items-start min-h-0">
           {columns.map(col => {
             const colJobs = jobsPorColuna.get(col.id) ?? [];
 

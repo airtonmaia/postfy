@@ -162,7 +162,7 @@ export const ClientsView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto p-6 space-y-6">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Gestão 360°</span>
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">Clientes da Agência</h3>

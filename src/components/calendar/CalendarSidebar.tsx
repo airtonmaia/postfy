@@ -19,9 +19,25 @@ import { Button } from '../ui/button';
 interface CalendarSidebarProps {
   currentDate: Date;
   onSelectDate: (date: Date) => void;
+  /**
+   * As classes de **caixa** da barra: largura, borda e quando ela aparece.
+   *
+   * Elas saíram daqui porque esta barra passou a ter dois lugares — fixa à
+   * esquerda no computador, dentro de uma gaveta no celular — e o que muda
+   * entre os dois é só a caixa. Com a largura escrita aqui dentro, a gaveta
+   * herdava os 256px e sobrava faixa branca ao lado do conteúdo.
+   */
+  className?: string;
+  /** Fecha a gaveta depois de escolher. Ausente na barra fixa. */
+  aoEscolher?: () => void;
 }
 
-export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, onSelectDate }) => {
+export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({
+  currentDate,
+  onSelectDate,
+  className = 'w-64 border-r border-slate-200 dark:border-slate-800 shrink-0',
+  aoEscolher,
+}) => {
   const { 
     clients, 
     clientFilter, 
@@ -105,16 +121,34 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
     { id: 'published', label: 'Publicados', color: 'bg-teal-600' },
   ];
 
+  /**
+   * Toda escolha fecha a gaveta — e o fechamento mora **num lugar só**.
+   *
+   * Embrulhar cada `onClick` com o fechar garantiria esquecer um, e o que
+   * se esquece aqui não quebra nada visível: o filtro é aplicado e a gaveta
+   * fica por cima do calendário que ela acabou de recortar, com a pessoa
+   * concluindo que o clique não funcionou.
+   *
+   * Na barra fixa do computador `aoEscolher` é ausente, e `escolher` vira
+   * só a ação.
+   */
+  const escolher = <T,>(acao: (valor: T) => void) => (valor: T) => {
+    acao(valor);
+    aoEscolher?.();
+  };
+
   // Quick stats
   const scheduledCount = jobs.filter(j => j.status === 'scheduled').length;
   const pendingApprovalCount = jobs.filter(j => j.status === 'for_approval').length;
 
   return (
-    <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 p-4 space-y-6 overflow-y-auto">
+    <aside
+      className={`bg-white dark:bg-slate-900 flex flex-col p-4 space-y-6 overflow-y-auto ${className}`}
+    >
       {/* Primary Action Button */}
       <Button
         id="btn-sidebar-new-job"
-        onClick={() => openCreateJobModal(currentDate.toISOString())}
+        onClick={() => escolher(openCreateJobModal)(currentDate.toISOString())}
         className="w-full"
       >
         <Plus className="w-4 h-4" />
@@ -165,7 +199,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
             return (
               <button
                 key={`cur-${day}`}
-                onClick={() => onSelectDate(new Date(year, month, day))}
+                onClick={() => escolher(onSelectDate)(new Date(year, month, day))}
                 className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center text-xs transition cursor-pointer ${
                   selected
                     ? 'bg-purple-600 text-white font-semibold shadow-sm'
@@ -187,7 +221,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
           <span>Clientes</span>
           {clientFilter !== 'all' && (
             <Button variant="ghost"
-              onClick={() => setClientFilter('all')}
+              onClick={() => escolher(setClientFilter)('all')}
               className="font-normal text-purple-600 hover:underline"
             >
               Limpar
@@ -196,7 +230,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
         </div>
         <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
           <button
-            onClick={() => setClientFilter('all')}
+            onClick={() => escolher(setClientFilter)('all')}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition text-left cursor-pointer ${
               clientFilter === 'all'
                 ? 'bg-purple-50 text-purple-700 font-semibold'
@@ -209,7 +243,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
           {clients.map(client => (
             <button
               key={client.id}
-              onClick={() => setClientFilter(client.id)}
+              onClick={() => escolher(setClientFilter)(client.id)}
               className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition text-left cursor-pointer ${
                 clientFilter === client.id
                   ? 'bg-purple-50 text-purple-700 font-semibold'
@@ -232,7 +266,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
           {platforms.map(p => (
             <button
               key={p.id}
-              onClick={() => setPlatformFilter(p.id)}
+              onClick={() => escolher(setPlatformFilter)(p.id)}
               className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 platformFilter === p.id
                   ? 'bg-purple-50 text-purple-700 font-semibold border border-purple-200/60'
@@ -255,7 +289,7 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({ currentDate, o
           {statuses.map(s => (
             <button
               key={s.id}
-              onClick={() => setStatusFilter(s.id)}
+              onClick={() => escolher(setStatusFilter)(s.id)}
               className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition text-left cursor-pointer ${
                 statusFilter === s.id
                   ? 'bg-purple-50 text-purple-700 font-semibold'

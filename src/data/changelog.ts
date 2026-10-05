@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '2.99.0',
+    data: '2026-10-05',
+    resumo: 'O quadro volta a rolar no celular, e o calendário passa a caber na tela.',
+    corrigido: [
+      'O quadro não rolava no telefone. Os cards desligavam a rolagem do navegador, e como eles cobrem quase toda a área da coluna, o dedo encostava sempre em um deles — nem a coluna descia, nem dava para passar para a coluna do lado. Segurar para arrastar continua funcionando igual.',
+      'A barra lateral do calendário ocupava 256px de uma tela de 390, e o que sobrava da grade do mês ficava cortado e inalcançável. No celular ela virou uma gaveta, aberta pelo botão Filtros.',
+      'No calendário, o mês, a navegação e os filtros disputavam uma linha só: a barra de filtros era empurrada para fora da tela. Agora ela quebra linha.',
+    ],
+    melhorias: [
+      'A gaveta de filtros do celular tem exatamente o que a barra do computador tem, incluindo o filtro de status — e fecha sozinha quando você escolhe.',
+      'Margens menores no quadro e no calendário abaixo do tablet: sobra largura para o conteúdo, e a coluna seguinte fica à vista indicando que dá para deslizar.',
+    ],
+  },
+  {
     versao: '2.98.0',
     data: '2026-10-05',
     resumo: 'O conteúdo passa a ter histórico: quem mexeu, quando, e quanto tempo ficou em cada etapa.',

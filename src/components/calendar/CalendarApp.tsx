@@ -6,10 +6,17 @@ import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
 import { ListView } from './ListView';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 
 export const CalendarApp: React.FC = () => {
   const { calendarView, garantirJobsDoPeriodo } = usePostfy();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   /**
    * Navegar para trás pede os jobs daquele mês.
@@ -67,15 +74,44 @@ export const CalendarApp: React.FC = () => {
         onNext={handleNext}
         onToday={handleToday}
         onChangeDate={handleSelectDate}
+        aoAbrirFiltros={() => setFiltrosAbertos(true)}
       />
 
       {/* Calendar Body: Sidebar + Active View */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Left Sidebar (Mini-calendar + Filters) */}
+        {/*
+          **A barra lateral some abaixo do `lg`, e isso era um bug, não um
+          ajuste de gosto.**
+
+          Ela é `w-64` — 256px de uma tela de 390. O `<main>` do App é
+          `overflow-hidden`, então o que sobrava da grade do mês não ficava
+          apertado: ficava **cortado e inalcançável**, sem barra de rolagem e
+          sem nada indicando que havia mês ali. Sete colunas em 134px.
+
+          Esconder e pronto custaria o filtro de status, que só existe aqui —
+          e filtro que some sem aviso é a tela escondendo conteúdo. Por isso
+          ela vira gaveta, com o mesmo componente: um lugar só continua
+          decidindo o que a barra mostra.
+        */}
         <CalendarSidebar
           currentDate={currentDate}
           onSelectDate={handleSelectDate}
+          className="w-64 border-r border-slate-200 dark:border-slate-800 shrink-0 hidden lg:flex"
         />
+
+        <Dialog open={filtrosAbertos} onOpenChange={setFiltrosAbertos}>
+          <DialogContent className="lg:hidden p-0 gap-0">
+            <DialogHeader className="px-4 pt-4 pb-0">
+              <DialogTitle>Filtros do calendário</DialogTitle>
+            </DialogHeader>
+            <CalendarSidebar
+              currentDate={currentDate}
+              onSelectDate={handleSelectDate}
+              className="w-full flex-1 min-h-0"
+              aoEscolher={() => setFiltrosAbertos(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
         {/* View Switcher Output */}
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
