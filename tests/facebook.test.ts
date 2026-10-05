@@ -38,7 +38,12 @@ describe('os dois fluxos nunca se misturam', () => {
      * nomear qual. Foi por isso que `api/_lib/meta.ts` foi apagado em vez de
      * virar um parâmetro.
      */
-    for (const escopo of ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts']) {
+    for (const escopo of [
+      'pages_show_list',
+      'pages_read_engagement',
+      'pages_manage_posts',
+      'business_management',
+    ]) {
       expect(
         semComentarios(instagram),
         `${escopo} entrou no fluxo do Instagram — a autorização passa a ser recusada ` +
@@ -438,6 +443,34 @@ describe('a lista de Páginas não chega cortada', () => {
       ramo,
       'a frase voltou a mandar só repetir a conexão, sem o caminho que resolve'
     ).toMatch(/Integrações empresariais/);
+  });
+
+  it('a autorização pede business_management, senão a Página do cliente some', () => {
+    /*
+      **`/me/accounts` não devolve Página que pertence a um Portfólio de
+      Negócios.** Medido no Explorador da Graph API, mesmo app e mesmo token:
+      com `pages_show_list` + `pages_read_engagement` + `pages_manage_posts`,
+      uma Página; acrescentando `business_management`, duas.
+
+      E a falta não dá erro — a lista volta curta, o produto conecta a única
+      que veio, e ninguém sabe que a Meta omitiu o resto. Quatro rodadas de
+      diagnóstico foram gastas achando que era liberação curta na tela da
+      autorização, com a liberação completa o tempo todo.
+
+      É a Página de cliente que vive em portfólio: agência não administra a
+      Página do cliente pelo perfil pessoal dela. Tirar este escopo devolve um
+      app que não conecta ninguém, em silêncio.
+    */
+    const escopos = semCom.slice(
+      semCom.indexOf('export const ESCOPOS_FACEBOOK'),
+      semCom.indexOf("].join(',')")
+    );
+
+    expect(
+      escopos,
+      'sem business_management o produto deixa de enxergar Página em Portfólio ' +
+        'de Negócios, que é onde a Página do cliente mora'
+    ).toContain('business_management');
   });
 
   it('a Página descartada por falta de token é contada, nunca sumida', () => {
