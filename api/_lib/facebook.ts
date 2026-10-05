@@ -193,24 +193,62 @@ export const trocarCodigoPorToken = async (
  */
 const MAX_PAGINACOES = 10;
 
+/**
+ * O que a Meta devolveu, e o que não deu para usar.
+ *
+ * **`semPermissao` existe porque descartar em silêncio é a pior resposta
+ * possível aqui.** A filtragem abaixo pula toda Página que vem sem
+ * `access_token` — e isso está certo, porque sem ele a Página não publica e
+ * oferecê-la seria uma escolha que falha depois. O que estava errado é o
+ * silêncio: quem administra cinco Páginas e recebe uma só não tinha como
+ * distinguir *"a Meta mandou uma"* de *"a Meta mandou cinco e quatro não
+ * vieram com permissão"*.
+ *
+ * As duas situações pedem coisas opostas. A primeira é liberação curta ou
+ * Página em Portfólio de Negócios, e se resolve refazendo a autorização; a
+ * segunda é papel insuficiente na Página, e refazer ali **não muda nada**.
+ * Sem o número, a tela mandava tratar sempre como a primeira — e a pessoa
+ * repetia a autorização quantas vezes quisesse sem nunca mexer no que
+ * importava. É o conselho que não pode funcionar, de novo.
+ *
+ * É a mesma regra que este projeto aplica ao alcance em Relatórios: **a tela
+ * afirma o que mediu**. Uma lista filtrada apresentada como a lista inteira é
+ * a armadilha 9 com outra roupa.
+ */
+export interface PaginasDoUsuario {
+  paginas: PaginaDoFacebook[];
+  /** Quantas a Meta listou e vieram sem token de publicação. */
+  semPermissao: number;
+}
+
 export const paginasDoUsuario = async (
   tokenDoUsuario: string
-): Promise<PaginaDoFacebook[]> => {
+): Promise<PaginasDoUsuario> => {
   let url =
     `${GRAPH}/me/accounts?fields=id,name,access_token,picture{url}&limit=100` +
     `&access_token=${encodeURIComponent(tokenDoUsuario)}`;
 
   const paginas: PaginaDoFacebook[] = [];
   const vistas = new Set<string>();
+  let semPermissao = 0;
 
   for (let volta = 0; volta < MAX_PAGINACOES && url; volta += 1) {
     const resposta = await chamar(url);
 
     for (const p of resposta.data || []) {
-      // Sem `access_token` a Página não publica, e listá-la seria oferecer
-      // uma escolha que falha depois.
-      if (!p?.id || !p?.access_token || vistas.has(String(p.id))) continue;
+      if (!p?.id || vistas.has(String(p.id))) continue;
       vistas.add(String(p.id));
+
+      /*
+        Sem `access_token` a Página não publica, e listá-la seria oferecer uma
+        escolha que falha depois. **Mas o descarte é contado** — ver
+        `PaginasDoUsuario`.
+      */
+      if (!p.access_token) {
+        semPermissao += 1;
+        continue;
+      }
+
       paginas.push({
         accountId: String(p.id),
         accountName: p.name || String(p.id),
@@ -222,7 +260,14 @@ export const paginasDoUsuario = async (
     url = resposta.paging?.next || '';
   }
 
-  return paginas;
+  /*
+    O número vai para o log também: quando a tela diz "uma Página só" e o
+    suporte precisa saber se a Meta mandou mais, a resposta não pode depender
+    de alguém reproduzir a conexão.
+  */
+  console.log('[facebook] /me/accounts', paginas.length, 'com token,', semPermissao, 'sem');
+
+  return { paginas, semPermissao };
 };
 
 /**
