@@ -497,6 +497,27 @@ describe('o calendário cabe na tela do celular', () => {
     );
   });
 
+  it('o grupo de navegação tem a altura dos vizinhos', () => {
+    /*
+      Ele era `p-1` em volta de botões de 32px e fechava em **40px**, ao lado
+      de quatro chips de filtro de 32 — a mesma inconsistência das doze alturas
+      de botão, agora entre um grupo e os controles da mesma linha. Ninguém vê
+      isso escrevendo a classe; só abrindo a tela.
+
+      A guarda mede o efeito: o grupo declara a altura da escala e não
+      acrescenta respiro **vertical** por fora dos botões.
+    */
+    const i = cabecalho.indexOf('btn-cal-prev');
+    expect(i, 'a navegação do mês sumiu do cabeçalho').toBeGreaterThan(-1);
+
+    const grupo = cabecalho.slice(cabecalho.lastIndexOf('<div', i), i);
+    expect(grupo, 'o grupo de navegação perdeu a altura da escala de botão').toMatch(/h-8/);
+    expect(
+      grupo,
+      'o grupo voltou a ter respiro vertical, e fica mais alto que os filtros ao lado'
+    ).not.toMatch(/\bp-\d|\bpy-\d/);
+  });
+
   it('o cabeçalho do calendário quebra linha', () => {
     /**
      * Título do mês, navegação e quatro filtros não cabem em 390px. Sem

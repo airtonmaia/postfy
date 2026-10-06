@@ -575,7 +575,7 @@ export const KanbanBoard: React.FC = () => {
       {/* Top Filter Bar */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-2 sm:py-3 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Quadro de Conteúdos (Kanban)</h3>
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Workflow de conteúdo</h3>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
             {filteredJobs.length} jobs ativos
           </span>

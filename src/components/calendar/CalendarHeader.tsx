@@ -75,7 +75,15 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </h2>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+        {/*
+          **A altura é a da escala de botão, como a dos vizinhos.** O grupo
+          tinha `p-1` em volta de botões de 32px e fechava em 40px, ao lado de
+          quatro chips de filtro de 32 — a mesma inconsistência das doze alturas
+          de botão, agora entre um grupo e os controles da mesma linha. `h-8`
+          com o respiro só na horizontal mantém o desenho de grupo e devolve os
+          8px.
+        */}
+        <div className="flex items-center gap-0.5 h-8 px-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
           <Button variant="ghost" size="icon-sm"
             id="btn-cal-prev"
             onClick={onPrev}
