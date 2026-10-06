@@ -543,11 +543,15 @@ export const FormularioDoConteudo: React.FC<Props> = ({
       {/* O lado a lado só existe quando os **dois** estão na mesma tela: no
           assistente do celular cada um tem o passo dele, e aí a grade de duas
           colunas deixaria metade vazia. */}
-      <div className={tipo.pedeArte && arte && texto ? 'grid grid-cols-1 lg:grid-cols-2 gap-5 lg:items-start' : ''}>
+      {/* A divisão é 2/5 para a arte e 3/5 para o texto, e não meio a meio:
+          a arte é um quadrado com miniaturas de largura fixa, e o que sobrava
+          dela virava espaço vazio enquanto a legenda — que é texto corrido e
+          tem contador — quebrava mais cedo do que precisava. */}
+      <div className={tipo.pedeArte && arte && texto ? 'grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-start' : ''}>
       {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
           upload neles seria pedir aprovação de algo que não existe. */}
       {tipo.pedeArte && arte && (
-        <div className="pt-1 space-y-5">
+        <div className="pt-1 space-y-5 lg:col-span-2">
           <MediaUploader
             mediaUrls={mediaUrls}
             onChange={(urls) => aoMudar({ mediaUrls: urls })}
@@ -601,6 +605,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
       <Tabs
         value={abaDoTexto}
         onValueChange={(v) => setAbaDoTexto(v as 'legenda' | 'rascunho')}
+        className={tipo.pedeArte && arte ? 'lg:col-span-3' : undefined}
       >
         <div className="flex items-end justify-between gap-2 mb-1 min-h-[22px]">
           <TabsList aparencia="segmentado">

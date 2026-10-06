@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.5.2',
+    data: '2026-10-06',
+    resumo: 'A área de mídia ficou com mais ar: a explicação virou tooltip, o botão desceu e a legenda ganhou largura.',
+    melhorias: [
+      'O texto de apoio de "Mídia e criativos" virou um ícone de informação com tooltip — ele ocupava três linhas acima da área de upload.',
+      'O botão "Adicionar mídia" desceu para baixo do título, em vez de dividir a linha com ele.',
+      'A área de adicionar ocupa a largura da coluna enquanto não há mídia: um alvo de 160px num espaço grande lia como item de lista, não como área de soltura.',
+      'A legenda passou a ter 3/5 da linha e a arte 2/5. Meio a meio deixava espaço vazio de um lado e quebrava o texto cedo do outro.',
+    ],
+  },
+  {
     versao: '3.5.1',
     data: '2026-10-06',
     resumo: 'Correção: abrir o quadro caía na tela de erro.',

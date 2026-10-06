@@ -11,13 +11,15 @@ import {
   urlNoDrive,
 } from '../../lib/midiaDoDrive';
 import { usePostfy } from '../../context/PostfyContext';
+import { ComTooltip } from '../ui/tooltip';
 import { 
   Upload, 
   X, 
   Image as ImageIcon, 
   Video, 
   Trash2, 
-  Plus, 
+  Plus,
+  Info, 
   MoveLeft, 
   MoveRight,
   ExternalLink,
@@ -300,12 +302,38 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         em quatro linhas ao lado de um botão de uma. Em coluna, cada um tem a
         largura inteira.
       */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
-        <div className="min-w-0">
+      <div className="flex flex-col items-start gap-2">
+        {/*
+          **A explicação virou tooltip, e o botão desceu para baixo do título.**
+
+          O texto de apoio ocupava três linhas ao lado de um botão largo, numa
+          coluna que agora divide a largura com a legenda: sobravam ~90px para
+          ele. Três linhas de cinza claro acima da área de upload empurram a
+          área — que é o assunto — para baixo, e ninguém lê um parágrafo para
+          descobrir que ali se sobe uma imagem.
+
+          No ícone, ele continua alcançável por quem procura, e some do caminho
+          de quem não precisa. É a regra que o projeto já tem para ícone solto:
+          todo ícone sem rótulo tem tooltip.
+        */}
+        <div className="flex items-center gap-1.5 min-w-0">
           <label className="block text-sm font-bold text-slate-900 dark:text-white">
             {label}
           </label>
-          <span className="text-[11px] text-slate-400">{helperText}</span>
+          <ComTooltip texto={helperText}>
+            <button
+              type="button"
+              aria-label={helperText}
+              /*
+                Afordância minúscula: um ícone de 14px ao lado de um rótulo.
+                Qualquer degrau da escala de botão é maior que ele — é o
+                terceiro papel que a seção de botões nomeia como exceção.
+              */
+              className="text-slate-400 hover:text-purple-600 transition cursor-help shrink-0"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
+          </ComTooltip>
         </div>
 
         {/*
@@ -326,7 +354,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           grudado no vizinho) e uma linha translúcida na cor do texto sobre o
           primário — que acompanha a marca da agência em vez de fixar branco.
         */}
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 w-full sm:w-auto">
           <div className="flex items-stretch">
             <Button
               type="button"
@@ -667,16 +695,35 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           embaixo **depois** da primeira mídia, ou seja, nunca na hora em que
           adianta.
         */}
+        {/*
+          **A área vazia ocupa a largura da coluna, e não um quadrado de 160px.**
+
+          Ela era do tamanho de uma miniatura, encostada à esquerda de uma
+          coluna larga — e um alvo pequeno num espaço grande lê como "um item
+          da lista", não como "solte o arquivo aqui". Ocupando a largura, ela
+          vira o que é: a área de soltura.
+
+          **E ela só cresce enquanto está vazia.** Com mídia já adicionada, o
+          "+" volta a ser do tamanho das miniaturas e entra na fileira delas —
+          ali ele é mesmo mais um item, e uma caixa de largura inteira embaixo
+          das artes empurraria a legenda para fora da tela.
+        */}
         {!cheio && (
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-40 h-40 shrink-0 px-3 flex flex-col items-center justify-center gap-1.5
+            className={`shrink-0 px-3 flex flex-col items-center justify-center gap-1.5
               rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700
               bg-slate-50 dark:bg-slate-950/60 text-slate-400 transition cursor-pointer
-              hover:border-purple-400 hover:text-purple-600"
+              hover:border-purple-400 hover:text-purple-600 ${
+                mediaUrls.length === 0 ? 'w-full h-56' : 'w-40 h-40'
+              }`}
           >
-            <Plus className="w-6 h-6" />
+            {mediaUrls.length === 0 ? (
+              <ImageIcon className="w-8 h-8" />
+            ) : (
+              <Plus className="w-6 h-6" />
+            )}
             <span className="text-xs font-bold">Adicionar</span>
             <span className="text-[10px] font-medium">ou arraste aqui</span>
           </button>
