@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.5.1',
+    data: '2026-10-06',
+    resumo: 'Correção: abrir o quadro caía na tela de erro.',
+    corrigido: [
+      'A tela do quadro abria com "Ocorreu um erro inesperado". A lista de passos do celular era montada antes de uma função que ela mesma lê, e isso derrubava a tela inteira — no computador também.',
+    ],
+  },
+  {
     versao: '3.5.0',
     data: '2026-10-06',
     resumo: 'No celular, criar e editar conteúdo viraram passos: Básico, Arte, Texto e Agenda.',

@@ -256,61 +256,6 @@ export const JobDetailModal: React.FC = () => {
    * clique: o "Salvar alterações" da barra, ou um dos botões do workflow, que
    * salvam antes de agir — exatamente como o cadastro faz.
    */
-  /**
-   * Os passos do celular, derivados do mesmo formulário da tela larga.
-   *
-   * No computador a tela tem duas colunas — a peça de um lado, a gestão do
-   * outro. Abaixo do `lg` as duas viram uma lista só, com doze campos, uma
-   * área de upload e duas de texto no meio: rolar isso para trocar a data é o
-   * que faz alguém preferir abrir o notebook.
-   *
-   * A arte entra **só quando o tipo pede arte**: copy e roteiro são texto, e
-   * um passo "Arte" vazio é a tela pedindo algo que não existe.
-   */
-  const camposDoPasso = (blocos: BlocoDoFormulario[]) => (
-    <FormularioDoConteudo
-      valor={dados}
-      aoMudar={mudar}
-      tipo={tipo}
-      clients={clients}
-      equipe={users}
-      aoGerarComIA={gerarTextoComIA}
-      mostrarDeadline
-      avisarAtraso={selectedJob.status !== 'published'}
-      blocos={blocos}
-    />
-  );
-
-  const passosDoConteudo: PassoDoConteudo[] = [
-    {
-      chave: 'identificacao',
-      rotulo: 'Básico',
-      descricao: 'De quem é a peça, onde ela sai e como ela se chama.',
-      conteudo: camposDoPasso(['identificacao']),
-    },
-    ...(tipo.pedeArte
-      ? [
-          {
-            chave: 'arte',
-            rotulo: 'Arte',
-            descricao: 'As imagens ou os vídeos que vão publicados.',
-            conteudo: camposDoPasso(['arte']),
-          },
-        ]
-      : []),
-    {
-      chave: 'texto',
-      rotulo: 'Texto',
-      descricao: 'A legenda que vai publicada, e o rascunho que fica aqui dentro.',
-      conteudo: camposDoPasso(['texto']),
-    },
-    {
-      chave: 'agenda',
-      rotulo: 'Agenda',
-      descricao: 'Quando a peça sai, e o prazo combinado com o cliente.',
-      conteudo: camposDoPasso(['agenda']),
-    },
-  ];
   const salvar = (): Job | undefined => {
     if (!selectedJob) return undefined;
 
@@ -545,6 +490,62 @@ export const JobDetailModal: React.FC = () => {
         return r?.caption || '';
       }
     : undefined;
+
+  /**
+   * Os passos do celular, derivados do mesmo formulário da tela larga.
+   *
+   * No computador a tela tem duas colunas — a peça de um lado, a gestão do
+   * outro. Abaixo do `lg` as duas viram uma lista só, com doze campos, uma
+   * área de upload e duas de texto no meio: rolar isso para trocar a data é o
+   * que faz alguém preferir abrir o notebook.
+   *
+   * A arte entra **só quando o tipo pede arte**: copy e roteiro são texto, e
+   * um passo "Arte" vazio é a tela pedindo algo que não existe.
+   */
+  const camposDoPasso = (blocos: BlocoDoFormulario[]) => (
+    <FormularioDoConteudo
+      valor={dados}
+      aoMudar={mudar}
+      tipo={tipo}
+      clients={clients}
+      equipe={users}
+      aoGerarComIA={gerarTextoComIA}
+      mostrarDeadline
+      avisarAtraso={selectedJob.status !== 'published'}
+      blocos={blocos}
+    />
+  );
+
+  const passosDoConteudo: PassoDoConteudo[] = [
+    {
+      chave: 'identificacao',
+      rotulo: 'Básico',
+      descricao: 'De quem é a peça, onde ela sai e como ela se chama.',
+      conteudo: camposDoPasso(['identificacao']),
+    },
+    ...(tipo.pedeArte
+      ? [
+          {
+            chave: 'arte',
+            rotulo: 'Arte',
+            descricao: 'As imagens ou os vídeos que vão publicados.',
+            conteudo: camposDoPasso(['arte']),
+          },
+        ]
+      : []),
+    {
+      chave: 'texto',
+      rotulo: 'Texto',
+      descricao: 'A legenda que vai publicada, e o rascunho que fica aqui dentro.',
+      conteudo: camposDoPasso(['texto']),
+    },
+    {
+      chave: 'agenda',
+      rotulo: 'Agenda',
+      descricao: 'Quando a peça sai, e o prazo combinado com o cliente.',
+      conteudo: camposDoPasso(['agenda']),
+    },
+  ];
 
   const ocupado = acao !== 'nenhuma';
   const feitos = selectedJob.checklist.filter((c) => c.completed).length;
