@@ -767,20 +767,26 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             {/*
               **Com uma arte, o alvo vira uma barra embaixo dela.** Um quadrado
               de 160px ao lado de uma imagem de largura inteira não tem onde
-              ficar: ou ele desce e sobra, ou ele volta a espremer a arte. E o
-              rótulo diz o que o segundo arquivo faz — acrescentar a segunda
-              arte é o que transforma a peça em carrossel, e descobrir isso
-              depois de publicar não dá.
+              ficar: ou ele desce e sobra, ou ele volta a espremer a arte.
+
+              O rótulo diz **página**, e não "vira carrossel": quem chega aqui
+              com uma arte e o botão à vista já escolheu o formato Carrossel —
+              é `maxFiles` que decide, e ele vem do formato. A frase antiga
+              prometia uma transformação que o formato é quem faz.
             */}
             <span className="text-xs font-bold">
-              {unica ? 'Adicionar outra arte (vira carrossel)' : 'Adicionar'}
+              {unica ? 'Adicionar a próxima página' : 'Adicionar'}
             </span>
             {!unica && <span className="text-[10px] font-medium">ou arraste aqui</span>}
           </button>
         )}
       </div>
 
-      {mediaUrls.length > 0 && (
+      {/*
+        A contagem só diz alguma coisa onde cabe mais de uma: "1 de 1" é ruído
+        embaixo de uma arte que a pessoa está olhando.
+      */}
+      {mediaUrls.length > 0 && maxFiles > 1 && (
         <span className="block text-[11px] text-slate-400">
           {mediaUrls.length} de {maxFiles}
         </span>

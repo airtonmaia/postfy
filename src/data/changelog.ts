@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.8.0',
+    data: '2026-10-06',
+    resumo: 'A segunda arte só é oferecida no formato Carrossel, que é o único que publica mais de uma.',
+    melhorias: [
+      'O botão de adicionar outra arte aparece só quando o formato é Carrossel. Nos demais, a peça publica uma arte — e oferecer a segunda gravava um arquivo que nunca ia ao ar.',
+      'A contagem "1 de 10" saiu de onde cabe uma arte só.',
+    ],
+  },
+  {
     versao: '3.7.2',
     data: '2026-10-06',
     resumo: 'Correção: o botão de salvar estava com um espaço a mais no rótulo.',

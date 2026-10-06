@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { artesDoFormato } from '../src/lib/formatos';
 
 /**
  * **Um formulário só, para cadastrar e para editar.**
@@ -815,5 +816,38 @@ describe('o que a tela sabe e não se edita mora no histórico', () => {
     expect(historico, 'a última alteração voltou a poder aparecer vazia').toMatch(
       /job\.updatedAt \|\| job\.createdAt/
     );
+  });
+});
+
+/**
+ * **Quantas artes cabem é do formato, e só o carrossel comporta mais de uma.**
+ *
+ * O formulário oferecia até dez em qualquer formato, e isso é a tela
+ * prometendo o que a rede não honra: um "Feed" com três imagens sai no perfil
+ * com uma, e as outras duas ficam gravadas sem nunca aparecer. É a família do
+ * `feed_story` oferecido no Facebook antes de existir publicador de story lá.
+ */
+describe('o limite de artes sai do formato', () => {
+  it('só o carrossel aceita mais de uma', () => {
+    // A função é pura: exercitada, não descrita.
+    expect(artesDoFormato('carousel')).toBeGreaterThan(1);
+    for (const outro of ['feed', 'story', 'reel', 'feed_story', 'video'] as const) {
+      expect(artesDoFormato(outro), `"${outro}" passou a aceitar mais de uma arte`).toBe(1);
+    }
+  });
+
+  it('o formulário deriva o limite, nunca escreve um número', () => {
+    /*
+      `maxFiles={10}` escrito à mão é o que estava lá, e um número à mão aqui
+      volta a oferecer a segunda arte num formato que publica uma. O campo do
+      story continua em 1 porque ele é uma arte por definição — a vertical.
+    */
+    expect(formulario, 'o limite de artes voltou a ser um número escrito à mão').toMatch(
+      /maxFiles=\{artesDoFormato\(format\)\}/
+    );
+    expect(
+      formulario,
+      'a arte do story deixou de ser uma só'
+    ).toMatch(/maxFiles=\{1\}/);
   });
 });
