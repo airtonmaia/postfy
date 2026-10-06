@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { 
-  Building2, Users, Paintbrush, Globe, Check, Lock, Plus, Link, Settings2, Bell, Shield, MessageSquare
+  Building2, Users, Paintbrush, Globe, Check, Lock, Plus, Link, Settings2, Bell, Shield, MessageSquare, Layers
 } from 'lucide-react';
 import { SettingsOverview } from './tabs/SettingsOverview';
 import { SettingsWhitelabel } from './tabs/SettingsWhitelabel';
@@ -10,6 +10,7 @@ import { SettingsPreferences } from './tabs/SettingsPreferences';
 import { SettingsCommunication } from './tabs/SettingsCommunication';
 import { SettingsUsers } from './tabs/SettingsUsers';
 import { SettingsTeams } from './tabs/SettingsTeams';
+import { SettingsConteudos } from './tabs/SettingsConteudos';
 import { subAbaDeConfiguracoes, urlDaAba } from '../../lib/rotas';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
@@ -50,6 +51,7 @@ export const SettingsView: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: Building2 },
     { id: 'whitelabel', label: 'Whitelabel', icon: Paintbrush },
     { id: 'integrations', label: 'Integrações', icon: Link },
+    { id: 'conteudos', label: 'Conteúdos', icon: Layers },
     { id: 'preferences', label: 'Preferências', icon: Settings2 },
     { id: 'communication', label: 'Comunicação', icon: MessageSquare },
     { id: 'users', label: 'Usuários', icon: Users },
@@ -85,6 +87,7 @@ export const SettingsView: React.FC = () => {
         <TabsContent value="overview"><SettingsOverview /></TabsContent>
         <TabsContent value="whitelabel"><SettingsWhitelabel /></TabsContent>
         <TabsContent value="integrations"><SettingsIntegrations /></TabsContent>
+        <TabsContent value="conteudos"><SettingsConteudos /></TabsContent>
         <TabsContent value="preferences"><SettingsPreferences /></TabsContent>
         <TabsContent value="communication"><SettingsCommunication /></TabsContent>
         <TabsContent value="users"><SettingsUsers /></TabsContent>

@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.0.0',
+    data: '2026-10-05',
+    resumo: 'Configurações ganha a aba Conteúdos: o fluxo de produção passa a ter os nomes, as cores e os prazos da sua agência.',
+    novidades: [
+      'Aba Conteúdos em Configurações. Cada uma das sete etapas pode ter o nome da sua agência, uma cor e um prazo em dias.',
+      'O nome e a cor valem no quadro, no seletor do card e no histórico da peça — renomear "Produção" para "Edição" troca a coluna inteira.',
+      'Prazo por etapa: o histórico da peça marca "Passou do prazo" onde a etapa demorou mais que o combinado. Sem prazo escrito, a tela não acusa nada.',
+      'Arquivar publicados automaticamente: você escolhe depois de quantos dias a peça entregue sai da vista do quadro. Ela continua no banco, no calendário, nos relatórios e na busca.',
+      'A aba também lista os formatos que cada rede aceita — a resposta para "o que posso criar no LinkedIn?" sem abrir o cadastro.',
+    ],
+    melhorias: [
+      'A tela diz, em uma linha, por que as sete etapas são fixas: cada uma tem lugar no quadro, no publicador e no fluxo de aprovação, e acrescentar uma passa por mudança no banco.',
+      'Quem renomeia uma etapa passa a ler "Movido para <nome novo>" no histórico, em vez de uma frase com uma palavra que o fluxo dele não tem mais.',
+    ],
+  },
+  {
     versao: '2.99.0',
     data: '2026-10-05',
     resumo: 'O quadro volta a rolar no celular, e o calendário passa a caber na tela.',

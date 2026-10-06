@@ -29,6 +29,7 @@ import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
+import { corDaEtapa, etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
 import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
@@ -196,6 +197,35 @@ export const KanbanBoard: React.FC = () => {
   const [avisoDoLote, setAvisoDoLote] = useState<{ ok: boolean; texto: string } | null>(null);
   const agrupaAvisos = currentWorkspace.notificacaoAprovacao === 'lote';
 
+  /*
+    As etapas como **esta** agência as chama (Configurações → Conteúdos). O
+    nome e a cor da coluna saem daqui; o agrupamento dos status, não.
+  */
+  const etapasDaAgencia = etapasDoFluxo(currentWorkspace.fluxoDeProducao);
+  const etapaPor = (status: JobStatus) =>
+    etapasDaAgencia.find((e) => e.status === status) ?? etapasDaAgencia[0];
+
+  /**
+   * A peça publicada já saiu da vista do quadro?
+   *
+   * **Zero e nulo valem "nunca"**, e isso não é tolerância a dado ruim: um
+   * campo numérico zerado por engano apagaria a coluna inteira, e o estado
+   * seguinte seria a pessoa concluindo que o sistema perdeu as publicações.
+   *
+   * A data é a de publicação, com recuo na de agendamento: peça marcada como
+   * publicada à mão não tem `publishedDate`, e sem o recuo ela nunca
+   * arquivaria — a limpeza funcionaria só para o que saiu pela fila.
+   */
+  const diasParaArquivar = currentWorkspace.arquivarPublicadosAposDias ?? 0;
+  const arquivada = (job: Job): boolean => {
+    if (diasParaArquivar <= 0 || job.status !== 'published') return false;
+    const quando = job.publishedDate || job.scheduledDate;
+    if (!quando) return false;
+    const t = Date.parse(quando);
+    if (Number.isNaN(t)) return false;
+    return Date.now() - t > diasParaArquivar * 24 * 60 * 60 * 1000;
+  };
+
   const dispararLote = async () => {
     if (clientFilter === 'all') {
       setAvisoDoLote({
@@ -244,20 +274,32 @@ export const KanbanBoard: React.FC = () => {
    * Cada coluna guarda a lista de status que a alimenta; o status continua
    * distinto no banco, e é ele que o seletor do card muda.
    */
-  const columns: {
-    id: string;
-    title: string;
-    statuses: JobStatus[];
-    color: string;
-    border: string;
-  }[] = [
-    { id: 'ideas', title: 'Ideias', statuses: ['ideas'], color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', border: 'border-slate-300' },
-    { id: 'in_production', title: 'Em Produção', statuses: ['in_production'], color: 'bg-blue-50 text-blue-800', border: 'border-blue-300' },
-    { id: 'for_approval', title: 'Para Aprovação', statuses: ['for_approval'], color: 'bg-amber-50 text-amber-900', border: 'border-amber-300' },
-    { id: 'in_adjustment', title: 'Em Ajuste', statuses: ['in_adjustment'], color: 'bg-rose-50 text-rose-900', border: 'border-rose-300' },
-    { id: 'aprovado_agendado', title: 'Aprovado / Agendado', statuses: ['approved', 'scheduled'], color: 'bg-emerald-50 text-emerald-900', border: 'border-emerald-300' },
-    { id: 'published', title: 'Publicado', statuses: ['published'], color: 'bg-teal-50 text-teal-900', border: 'border-teal-300' },
-  ];
+  const columns: Coluna[] = ([
+    { id: 'ideas', statuses: ['ideas'] },
+    { id: 'in_production', statuses: ['in_production'] },
+    { id: 'for_approval', statuses: ['for_approval'] },
+    { id: 'in_adjustment', statuses: ['in_adjustment'] },
+    /*
+      **Uma coluna para dois status, e isto não é derivado do fluxo.**
+      'Aprovado' e 'Agendado' dividem a coluna porque arrastar nunca pode
+      escolher entre eles: 'Agendado' significa que a peça está na
+      `publish_queue` e vai ao ar sozinha, e enfileirar é um clique, nunca um
+      gesto. O nome da coluna sai dos dois rótulos; o agrupamento, não.
+    */
+    { id: 'aprovado_agendado', statuses: ['approved', 'scheduled'] },
+    { id: 'published', statuses: ['published'] },
+  ] as { id: string; statuses: JobStatus[] }[]).map((c) => ({
+    ...c,
+    /*
+      **O título e a cor vêm do fluxo da agência**, não de um literal: quem
+      renomeia "Produção" para "Edição" em Configurações precisa ver "Edição"
+      no quadro. Duas fontes para o mesmo nome é como a coluna e o card
+      passariam a chamar a mesma etapa de coisas diferentes.
+    */
+    title: c.statuses.map((st) => etapaPor(st).rotulo).join(' / '),
+    color: corDaEtapa(etapaPor(c.statuses[0]).cor).caixa,
+    border: corDaEtapa(etapaPor(c.statuses[0]).cor).borda,
+  }));
 
   // Filter jobs
   /*
@@ -280,7 +322,18 @@ export const KanbanBoard: React.FC = () => {
     passaNosFiltros(job, { ...filtros, periodo: 'todos' as Periodo })
   );
 
-  const filteredJobs = antesDoPeriodo.filter((job) => passaNosFiltros(job, filtros));
+  const filteredJobs = antesDoPeriodo
+    .filter((job) => passaNosFiltros(job, filtros))
+    /*
+      **Arquivar aqui é sair da vista, não apagar.** A coluna "Publicado"
+      cresce para sempre numa agência em uso, e a peça entregue continua no
+      banco, no calendário, nos relatórios e na busca — some só da coluna.
+
+      O recorte vale apenas para `published`: esconder uma peça **aberta** por
+      idade seria o quadro omitindo trabalho que ainda precisa ser feito, e a
+      pessoa concluiria que ela foi perdida.
+    */
+    .filter((job) => !arquivada(job));
 
   const semDataEscondidas =
     periodoFiltro === 'todos'

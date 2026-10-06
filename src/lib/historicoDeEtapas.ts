@@ -156,8 +156,26 @@ const instante = (iso: string): number => {
 export const linhaDoTempo = (
   eventos: EventoDeEtapa[],
   statusAtual: JobStatus,
-  agora: Date = new Date()
+  agora: Date = new Date(),
+  /**
+   * As etapas como a agência as chama. Ausente = os nomes do produto.
+   *
+   * **Renomear a etapa troca a frase, e só então.** "Aprovado" descreve o
+   * **ato**, e o ato não muda quando a coluna muda de nome — quem não mexeu no
+   * fluxo continua lendo as frases boas. Mas quem chamou "Aprovação" de
+   * "Revisão do cliente" não pode ler "Enviado para aprovação" num produto que
+   * não tem mais essa palavra em lugar nenhum: aí a frase vira "Movido para
+   * Revisão do cliente", genérica e correta.
+   */
+  etapas?: { status: JobStatus; rotulo: string; rotuloPadrao: string }[]
 ): LinhaDoTempo => {
+  const daAgencia = (status: JobStatus) => etapas?.find((e) => e.status === status);
+  const nome = (status: JobStatus) => daAgencia(status)?.rotulo ?? rotuloDaEtapa(status);
+  const renomeada = (status: JobStatus) => {
+    const e = daAgencia(status);
+    return Boolean(e && e.rotulo !== e.rotuloPadrao);
+  };
+
   /*
     A ordem vem da data, não da ordem em que as linhas chegaram: o `select`
     pode mudar, e uma linha fora de lugar daria duração negativa — que
@@ -191,8 +209,10 @@ export const linhaDoTempo = (
     const acao = criacao
       ? evento.status === ETAPAS_DO_CONTEUDO[0].valor
         ? 'Criado'
-        : `Criado em ${rotuloDaEtapa(evento.status)}`
-      : (ACAO_DA_ETAPA[evento.status] ?? `Movido para ${rotuloDaEtapa(evento.status)}`);
+        : `Criado em ${nome(evento.status)}`
+      : renomeada(evento.status)
+        ? `Movido para ${nome(evento.status)}`
+        : (ACAO_DA_ETAPA[evento.status] ?? `Movido para ${nome(evento.status)}`);
 
     return {
       id: evento.id,
@@ -224,7 +244,7 @@ export const linhaDoTempo = (
     */
     pendentes: ETAPAS_DO_CONTEUDO.filter(
       (e) => !alcancados.has(e.valor) && e.valor !== statusAtual
-    ).map((e) => ({ status: e.valor, rotulo: e.rotulo })),
+    ).map((e) => ({ status: e.valor, rotulo: nome(e.valor) })),
     totalMs: acontecimentos.reduce((soma, a) => soma + a.duracaoMs, 0),
     medido: ordenados.length > 0,
   };

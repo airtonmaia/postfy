@@ -1,3 +1,5 @@
+import type { FluxoDeProducao } from '../lib/fluxoDeProducao';
+
 export type Role = 
   | 'owner' 
   | 'admin' 
@@ -86,6 +88,17 @@ export interface Workspace {
    * decisão do cliente sobre uma peça, e perdê-la é perder trabalho.
    */
   avisarAcoesDoCliente?: boolean;
+  /**
+   * Como esta agência chama cada etapa, com que cor e em quanto tempo.
+   *
+   * Chave ausente cai no padrão do produto — ver `src/lib/fluxoDeProducao.ts`.
+   * Guardar as sete inteiras congelaria os nomes de hoje nesta agência.
+   */
+  fluxoDeProducao?: FluxoDeProducao;
+  /**
+   * Dias que a peça publicada fica no quadro. Nulo ou zero = nunca arquivar.
+   */
+  arquivarPublicadosAposDias?: number;
   isTrial?: boolean;
   trialEndsAt?: string;
   /**

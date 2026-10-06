@@ -25,7 +25,7 @@ import { useConfirmacao } from '../ui/alert-dialog';
 import { usePostfy } from '../../context/PostfyContext';
 import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { prazoDoCard } from '../../lib/prazoDoCard';
-import { ETAPAS_DO_CONTEUDO, rotuloDaEtapa } from '../../lib/etapasDoConteudo';
+import { etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { urlDeExibicao } from '../../lib/midiaDoDrive';
 
 /**
@@ -83,6 +83,11 @@ export const CartaoDoQuadro: React.FC<{
   const { pedir, dialogo } = useConfirmacao();
   const { setSelectedJob, setAbaDoConteudo, duplicateJob, deleteJob, currentWorkspace } =
     usePostfy();
+
+  // As etapas como **esta** agência as chama (Configurações → Conteúdos).
+  // Lista própria aqui faria o card e a coluna do quadro darem nomes
+  // diferentes à mesma etapa.
+  const etapas = etapasDoFluxo(currentWorkspace.fluxoDeProducao);
 
   const prazo = prazoDoCard(job);
   const ultimaVersao = job.versions?.length ? job.versions[job.versions.length - 1] : undefined;
@@ -341,8 +346,8 @@ export const CartaoDoQuadro: React.FC<{
                       aria-label="Etapa atual do conteúdo"
                       className="text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-1.5 py-0.5 text-purple-700 dark:text-purple-300 font-semibold cursor-pointer"
                     >
-                      {ETAPAS_DO_CONTEUDO.map((etapa) => (
-                        <option key={etapa.valor} value={etapa.valor}>
+                      {etapas.map((etapa) => (
+                        <option key={etapa.status} value={etapa.status}>
                           {etapa.rotulo}
                         </option>
                       ))}
@@ -350,7 +355,7 @@ export const CartaoDoQuadro: React.FC<{
                   </div>
                 ) : (
                   <span className="font-semibold text-purple-700 dark:text-purple-300">
-                    {rotuloDaEtapa(job.status)}
+                    {etapas.find((e) => e.status === job.status)?.rotulo ?? job.status}
                   </span>
                 )}
               </div>

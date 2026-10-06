@@ -12,6 +12,7 @@ import type {
   Workspace,
   ClientUser,
 } from '../types';
+import { sanearFluxo } from './fluxoDeProducao';
 
 /**
  * Tradução entre o banco e o app.
@@ -56,6 +57,8 @@ export const workspaceDaLinha = (l: Linha): Workspace => ({
   // `true`, e divergir aqui faria a tela mostrar desligado o que está ligado.
   avisarAcessoDoPortal: l.avisar_acesso_do_portal !== false,
   avisarAcoesDoCliente: l.avisar_acoes_do_cliente !== false,
+  fluxoDeProducao: sanearFluxo(l.fluxo_de_producao),
+  arquivarPublicadosAposDias: ounull(l.arquivar_publicados_apos_dias),
   isTrial: ounull(l.is_trial),
   trialEndsAt: ounull(l.trial_ends_at),
   deletedAt: ounull(l.deleted_at),
@@ -76,6 +79,8 @@ export const workspaceParaLinha = (w: Partial<Workspace>): Linha =>
     notificacao_aprovacao: w.notificacaoAprovacao,
     avisar_acesso_do_portal: w.avisarAcessoDoPortal,
     avisar_acoes_do_cliente: w.avisarAcoesDoCliente,
+    fluxo_de_producao: w.fluxoDeProducao,
+    arquivar_publicados_apos_dias: w.arquivarPublicadosAposDias,
     is_trial: w.isTrial,
     trial_ends_at: w.trialEndsAt,
   });

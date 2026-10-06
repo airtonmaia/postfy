@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
+import { etapasDoFluxo } from '../src/lib/fluxoDeProducao';
 
 /**
  * O caminho do conteúdo, do cadastro ao aviso ao cliente.
@@ -136,7 +137,30 @@ describe('o cadastro decide pelo botão, não por um campo', () => {
 describe('o quadro junta aprovado e agendado', () => {
   it('uma coluna só, alimentada pelos dois status', () => {
     expect(kanban).toMatch(/statuses: \['approved', 'scheduled'\]/);
-    expect(kanban).toContain('Aprovado / Agendado');
+
+    /*
+      **O título deixou de ser literal, e a guarda seguiu a decisão.**
+
+      Ele passou a sair dos rótulos das etapas, porque a agência renomeia o
+      fluxo em Configurações → Conteúdos: quem chama "Aprovado" de "Ok do
+      cliente" precisa ver isso na coluna. Exigir a string aqui obrigaria a
+      editar a guarda junto com o código, que é como ela deixa de guardar.
+
+      O que fica afirmado é o efeito: nenhuma coluna com título escrito à mão,
+      e o fluxo padrão continuando a produzir o nome de sempre.
+    */
+    expect(
+      kanban,
+      'voltou um título de coluna escrito à mão: quem renomear a etapa não o verá mudar'
+    ).not.toMatch(/\btitle: '/);
+
+    const etapas = etapasDoFluxo();
+    const titulo = (['approved', 'scheduled'] as const)
+      .map((s) => etapas.find((e) => e.status === s)!.rotulo)
+      .join(' / ');
+    expect(titulo, 'o fluxo padrão deixou de produzir o nome de sempre').toBe(
+      'Aprovado / Agendado'
+    );
   });
 
   it('a coluna filtra pela lista de status, não pelo id', () => {
