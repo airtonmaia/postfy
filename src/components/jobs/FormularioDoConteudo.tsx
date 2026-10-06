@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2, ChevronDown,
+  Instagram, Facebook, Linkedin, Youtube, Twitter, Music2, ChevronDown, AlertTriangle,
 } from 'lucide-react';
 import type {
-  Client, JobPlatform, JobFormat, JobPriority,
+  Client, JobPlatform, JobFormat, JobPriority, User,
 } from '../../types';
+import { ResponsaveisDaPeca } from './ResponsaveisDaPeca';
 import { MediaUploader } from '../common/MediaUploader';
 import { CampoDinamico } from '../common/CampoDinamico';
 import { AtalhosDoConteudo } from '../common/AtalhosDoConteudo';
@@ -16,7 +17,8 @@ import {
 } from '../../lib/camposDoCanal';
 import { formatosComuns } from '../../lib/formatos';
 import type { DefinicaoDeTipo } from '../../lib/tiposDeJob';
-import { fusoDoDispositivoDivergente, cidadeDoFuso } from '../../lib/fusoHorario';
+import { fusoDoDispositivoDivergente, cidadeDoFuso, deParedeParaUtc } from '../../lib/fusoHorario';
+import { dataJaPassou } from '../../lib/avisosDaPeca';
 import { publicaSozinho, COMO_PUBLICA, REDES_QUE_PUBLICAM } from '../../lib/redes';
 import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
 import {
@@ -102,6 +104,29 @@ const ORIGENS_DE_MIDIA = [
  * banco; guardar ISO aqui faria o campo interpretar no fuso do aparelho, que
  * é exatamente a armadilha 8.2.
  */
+/**
+ * "Esta data já passou" embaixo do campo.
+ *
+ * **Hora de parede, convertida pelo fuso da agência antes de comparar.** O
+ * `datetime-local` entrega "2026-10-08T10:00" sem fuso nenhum, e `new Date`
+ * o interpreta no fuso do **navegador**: quem agenda de São Paulo para uma
+ * agência de Cuiabá veria o aviso aparecer e sumir com uma hora de erro
+ * (armadilha 8.2).
+ *
+ * E ele **não aparece na peça publicada**: ali a data no passado é o normal, e
+ * um alerta em toda peça antiga é como se aprende a ignorar os alertas.
+ */
+const AvisoDeAtraso: React.FC<{ quando: string; avisar: boolean }> = ({ quando, avisar }) => {
+  if (!avisar || !dataJaPassou(deParedeParaUtc(quando))) return null;
+
+  return (
+    <span className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+      <AlertTriangle className="w-3 h-3 shrink-0" />
+      Esta data já passou
+    </span>
+  );
+};
+
 export interface DadosDoConteudo {
   clientId: string;
   title: string;
@@ -116,6 +141,8 @@ export interface DadosDoConteudo {
   storyMediaUrls: string[];
   scheduledDate: string;
   deadlineApproval: string;
+  /** Ids de quem da equipe toca a peça. */
+  responsaveis: string[];
 }
 
 interface Props {
@@ -124,6 +151,8 @@ interface Props {
   aoMudar: (parcial: Partial<DadosDoConteudo>) => void;
   tipo: DefinicaoDeTipo;
   clients: Client[];
+  /** A equipe da agência, para o seletor de responsáveis. Vem da tela. */
+  equipe: User[];
   /**
    * A IA precisa do tema, que é o título — sem ele a rota recusa. Quem monta
    * a chamada é a tela, que é quem tem o `generateAiCopy` do contexto.
@@ -140,6 +169,14 @@ interface Props {
    */
   mostrarDeadline?: boolean;
   /**
+   * Mostrar "esta data já passou" embaixo dos campos de data.
+   *
+   * Quem decide é a tela, porque é ela que conhece o status: na peça
+   * **publicada** a data no passado é o estado normal, e alertar ali é o
+   * caminho para a pessoa parar de ler os alertas.
+   */
+  avisarAtraso?: boolean;
+  /**
    * O que entra em "Mais opções", embaixo do formulário.
    *
    * É um espaço, não uma lista: o cadastro não põe nada ali (CTA, hashtags e
@@ -155,14 +192,16 @@ export const FormularioDoConteudo: React.FC<Props> = ({
   aoMudar,
   tipo,
   clients,
+  equipe,
   aoGerarComIA,
   mostrarDeadline = false,
+  avisarAtraso = true,
   children,
 }) => {
   const {
     clientId, title, canais, format, priority,
     caption, draft, firstComment, configuracoes,
-    mediaUrls, storyMediaUrls, scheduledDate, deadlineApproval,
+    mediaUrls, storyMediaUrls, scheduledDate, deadlineApproval, responsaveis,
   } = valor;
 
   const platform = canais[0] || 'instagram';
@@ -398,6 +437,22 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           </select>
         </div>
 
+        {/* Quem está na peça.
+
+            **Fica no formulário, e não na coluna de metadados onde o campo
+            mentiroso estava.** Metadado é o que a tela sabe e não se edita; a
+            atribuição é decisão, e decisão mora onde se decide. Assim ela
+            também passa a existir no cadastro — atribuir na criação é o
+            momento em que a agência de fato distribui o trabalho. */}
+        <div className="sm:col-span-2">
+          <label className={rotulo}>Quem está nesta peça</label>
+          <ResponsaveisDaPeca
+            valor={responsaveis}
+            equipe={equipe}
+            aoMudar={(ids) => aoMudar({ responsaveis: ids })}
+          />
+        </div>
+
         {/* Prioridade */}
         <div>
           <label className={rotulo}>Prioridade</label>
@@ -585,6 +640,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
             onChange={(e) => aoMudar({ scheduledDate: e.target.value })}
             className={`${classeDeEntrada} cursor-pointer`}
           />
+          <AvisoDeAtraso quando={scheduledDate} avisar={avisarAtraso} />
         </div>
 
         {mostrarDeadline && (
@@ -596,6 +652,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
               onChange={(e) => aoMudar({ deadlineApproval: e.target.value })}
               className={`${classeDeEntrada} cursor-pointer`}
             />
+            <AvisoDeAtraso quando={deadlineApproval} avisar={avisarAtraso} />
           </div>
         )}
       </div>

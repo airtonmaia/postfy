@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.3.0',
+    data: '2026-10-06',
+    resumo: 'A tela do conteúdo ganhou a trilha de etapas, responsáveis de verdade e os avisos que antes só apareciam depois do clique.',
+    novidades: [
+      'A trilha de etapas no topo do conteúdo: por onde a peça passou, onde ela está, com o ícone e a cor de cada etapa. O visto só aparece onde o histórico registra passagem — peça anterior ao registro mostra só onde está.',
+      '"Quem está nesta peça": várias pessoas da equipe por conteúdo, escolhidas no cadastro ou na edição.',
+      'Antes de agendar, a tela diz o que acontece na data em cada canal — inclusive "Instagram não conectado: a publicação fica manual".',
+      'Data de publicação ou deadline no passado ganham um aviso embaixo do campo.',
+    ],
+    corrigido: [
+      'O campo "Responsável" mostrava quem estava olhando a tela, não quem fez a peça: numa equipe de quatro, cada um abria o mesmo conteúdo e lia o próprio nome.',
+    ],
+    melhorias: [
+      'A coluna da direita terminava em dois blocos sem rótulo, com "Duplicar" e "Excluir conteúdo" soltos no fim. Agora os dois moram dentro de "Sobre a peça".',
+    ],
+  },
+  {
     versao: '3.2.1',
     data: '2026-10-06',
     resumo: 'O ícone da etapa ganhou um disco próprio no topo da coluna, com o nome e a contagem ao lado.',

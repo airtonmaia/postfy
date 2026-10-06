@@ -413,7 +413,20 @@ export interface Job {
   scheduledDate: string; // ISO string with time
   publishedDate?: string;
   
-  // Responsibles
+  /**
+   * Quem da equipe toca esta peça.
+   *
+   * Lista, e não as três colunas antigas: a pergunta que a agência faz é
+   * "quem está nesta peça", e separar por função obriga a escolher uma gaveta
+   * para quem faz as duas coisas.
+   */
+  responsaveis?: string[];
+
+  /**
+   * **Nada no produto escreve nestes três.** Estão no schema desde a primeira
+   * migração e continuam mapeados porque a `main` os lê; quem responde "de
+   * quem é esta peça" é `responsaveis`.
+   */
   designerId?: string;
   copywriterId?: string;
   socialMediaId?: string;

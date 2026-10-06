@@ -24,11 +24,13 @@ import {
   Save,
   RotateCcw,
 } from 'lucide-react';
-import { JobStatus, Job, AbaDoConteudo } from '../../types';
+import { JobStatus, Job, JobPlatform, AbaDoConteudo } from '../../types';
 import { AiCopyModal } from './AiCopyModal';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge } from '../ui/tabs';
+import { TrilhaDeEtapas } from '../jobs/TrilhaDeEtapas';
+import { avisosDosCanais, dataJaPassou } from '../../lib/avisosDaPeca';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { useConfirmacao } from '../ui/alert-dialog';
 import {
@@ -76,6 +78,7 @@ interface RascunhoDoConteudo extends DadosDoConteudo {
 const doJob = (job: Job): RascunhoDoConteudo => ({
   clientId: job.clientId,
   title: job.title || '',
+  responsaveis: job.responsaveis || [],
   // `canais` é o conjunto; `platform` é o primeiro dele. Peça antiga tem só
   // `platform`, e sem este `||` o editor abriria sem canal nenhum marcado.
   canais: job.canais?.length ? job.canais : [job.platform],
@@ -118,6 +121,7 @@ export const JobDetailModal: React.FC = () => {
     abaDoConteudo,
     setAbaDoConteudo,
     clients,
+    users,
     moveJobStatus,
     approveJob,
     requestAdjustment,
@@ -145,6 +149,16 @@ export const JobDetailModal: React.FC = () => {
   const [ajustando, setAjustando] = useState(false);
   const [feedbackDoAjuste, setFeedbackDoAjuste] = useState('');
   const [iaAberta, setIaAberta] = useState(false);
+  /**
+   * As redes em que **este cliente** tem conta conectada.
+   *
+   * Vem de `social_connections`, que não está na carga inicial: é consulta
+   * própria, feita ao abrir a peça. Começa vazia e isso é deliberado — o
+   * estado "ainda não sei" e o estado "não tem conta" dizem a mesma coisa para
+   * quem lê o aviso: *não conte com o disparo automático*. Errar para esse
+   * lado custa uma frase a mais; errar para o outro é a peça não sair.
+   */
+  const [redesConectadas, setRedesConectadas] = useState<JobPlatform[]>([]);
   const { pedir, dialogo } = useConfirmacao();
 
   const jobId = selectedJob?.id;
@@ -179,6 +193,34 @@ export const JobDetailModal: React.FC = () => {
     setAjustando(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
+
+  /*
+    As contas conectadas **do cliente desta peça**, para o aviso dizer o que
+    acontece na data. Depende de `clientId` e não só de `jobId`: trocar o
+    cliente no formulário muda a resposta, e um aviso que não acompanha a
+    troca é pior que aviso nenhum — ele afirma sobre o cliente anterior.
+  */
+  const clienteDaPeca = dados?.clientId;
+  useEffect(() => {
+    if (!clienteDaPeca) {
+      setRedesConectadas([]);
+      return;
+    }
+    let vivo = true;
+    void listarContas()
+      .then((contas) => {
+        if (!vivo) return;
+        setRedesConectadas(
+          contas.filter((c) => c.clientId === clienteDaPeca).map((c) => c.platform)
+        );
+      })
+      // Falha de leitura vale "não tem conta": o aviso mais cauteloso é o que
+      // não promete disparo automático.
+      .catch(() => vivo && setRedesConectadas([]));
+    return () => {
+      vivo = false;
+    };
+  }, [clienteDaPeca]);
 
   const sujo = useMemo(
     () => Boolean(dados) && JSON.stringify(dados) !== original,
@@ -218,6 +260,7 @@ export const JobDetailModal: React.FC = () => {
       canais: dados.canais,
       format: dados.format,
       priority: dados.priority,
+      responsaveis: dados.responsaveis,
       caption: dados.caption,
       draft: dados.draft,
       firstComment: dados.firstComment,
@@ -543,6 +586,17 @@ export const JobDetailModal: React.FC = () => {
               </div>
             </div>
 
+            {/*
+              A trilha fica **entre o cabeçalho e as abas**, e não dentro da
+              aba Conteúdo: ela vale para as três. Dentro de uma delas, quem
+              abrisse em Revisões — que é o caminho do "Ver histórico" do card
+              — perderia de vista onde a peça está, justamente na aba que fala
+              de por onde ela passou.
+            */}
+            <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+              <TrilhaDeEtapas job={selectedJob} />
+            </div>
+
             <Tabs
               value={aba}
               onValueChange={(v) => setAba(v as typeof aba)}
@@ -603,8 +657,10 @@ export const JobDetailModal: React.FC = () => {
                       aoMudar={mudar}
                       tipo={tipo}
                       clients={clients}
+                      equipe={users}
                       aoGerarComIA={gerarTextoComIA}
                       mostrarDeadline
+                      avisarAtraso={selectedJob.status !== 'published'}
                     >
                       {/* "Mais opções": o que só existe depois de a peça
                           existir. */}
@@ -799,6 +855,38 @@ export const JobDetailModal: React.FC = () => {
               </span>
 
               {/*
+                **O que acontece na data, canal por canal — antes do clique.**
+
+                Isto saía de `textoDoAgendamento`, ou seja, **depois** de a peça
+                já estar na fila: a tela oferecia "Agendar publicação", a peça
+                entrava como agendada, e só então aparecia que aquele cliente
+                não tem conta conectada. No dia, ninguém publica.
+
+                É a mesma correção que `faltaArteDoStory` já recebeu — a
+                conferência vale onde ainda dá para agir.
+              */}
+              <div className="space-y-1">
+                {avisosDosCanais(dados.canais, redesConectadas).map((a) => (
+                  <p
+                    key={a.canal}
+                    className={`flex items-start gap-1.5 text-[11px] leading-relaxed ${
+                      a.automatico
+                        ? 'text-slate-500 dark:text-slate-400'
+                        : 'text-amber-700 dark:text-amber-400 font-semibold'
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                        a.automatico ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    {a.texto}
+                  </p>
+                ))}
+              </div>
+
+              {/*
                 **Toda ação daqui salva antes de agir**, como os botões do
                 cadastro fazem. Publicar o que está no banco enquanto a tela
                 mostra outra coisa é o pior desfecho possível: a legenda que
@@ -922,16 +1010,35 @@ export const JobDetailModal: React.FC = () => {
               )}
             </div>
 
-            {/* Metadados: o que a tela sabe e não se edita. */}
-            <div className={`${cartao} p-4 grid grid-cols-2 gap-3 text-xs`}>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  Responsável
-                </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {currentUser.name}
-                </span>
-              </div>
+            {/*
+              Metadados: o que a tela sabe e não se edita.
+
+              **"Responsável" saiu daqui, e ele era uma mentira.** O campo
+              mostrava `currentUser.name` — quem está **olhando** a tela, não
+              quem fez a peça —, então numa agência de quatro pessoas cada uma
+              abria a mesma peça e lia o próprio nome. Passava por informação
+              porque tinha cara de campo.
+
+              Quem responde isso agora é "Quem está nesta peça", no formulário:
+              atribuição é **decisão**, e decisão não mora na caixa do que a
+              tela só sabe.
+            */}
+            <div className={`${cartao} p-4 space-y-3 text-xs`}>
+              {/*
+                **O bloco ganhou nome, e os dois botões entraram nele.**
+
+                A coluna terminava em dois cartões sem rótulo: quatro datas
+                soltas e, embaixo, "Duplicar" e "Excluir conteúdo" flutuando
+                sem nada em volta. Rótulo não é enfeite — é o que diz à pessoa
+                que aquilo é um conjunto, e botão destrutivo sem moldura, no
+                fim de uma coluna, é o que se clica por engano ao procurar o
+                fim da página.
+              */}
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Sobre a peça
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   Versão atual
@@ -956,20 +1063,21 @@ export const JobDetailModal: React.FC = () => {
                   {safeDateTimeFormat(selectedJob.updatedAt || selectedJob.createdAt)}
                 </span>
               </div>
-            </div>
+              </div>
 
-            <div className="flex items-center justify-between gap-2">
-              <Button variant="ghost" onClick={() => duplicateJob(selectedJob.id)}>
-                <DuplicateIcon className="w-3.5 h-3.5" />
-                Duplicar
-              </Button>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <Button variant="ghost" onClick={() => duplicateJob(selectedJob.id)}>
+                  <DuplicateIcon className="w-3.5 h-3.5" />
+                  Duplicar
+                </Button>
 
-              {/* Exclusão pergunta, e a pergunta diz a consequência — não "tem
-                  certeza?". É a regra dos diálogos do projeto. */}
-              <Button variant="destructive" onClick={excluir} className="text-rose-600">
-                <Trash2 className="w-3.5 h-3.5" />
-                Excluir conteúdo
-              </Button>
+                {/* Exclusão pergunta, e a pergunta diz a consequência — não
+                    "tem certeza?". É a regra dos diálogos do projeto. */}
+                <Button variant="destructive" onClick={excluir} className="text-rose-600">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Excluir conteúdo
+                </Button>
+              </div>
             </div>
           </aside>
         </div>

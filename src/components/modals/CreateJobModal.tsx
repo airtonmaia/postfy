@@ -32,6 +32,9 @@ import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 const EM_BRANCO: DadosDoConteudo = {
   clientId: '',
   title: '',
+  // Ninguém atribuído é um estado legítimo: a peça nasce na pauta e ganha
+  // dono quando a agência distribui o trabalho.
+  responsaveis: [],
   // Campanha saiu do cadastro. O padrão era 'Conteúdo Institucional' e ia
   // junto sem ninguém escolher — todo job nascia carimbado com uma campanha
   // que não existe. Quem precisar dela edita no detalhe do conteúdo.
@@ -65,6 +68,7 @@ export const CreateJobModal: React.FC = () => {
     createJobPreselectedDate,
     createJobTipo,
     clients,
+    users,
     createJob,
     setSelectedJob,
     generateAiCopy,
@@ -240,6 +244,7 @@ export const CreateJobModal: React.FC = () => {
         canais: dados.canais,
         format: dados.format,
         priority: dados.priority,
+        responsaveis: dados.responsaveis,
         status: statusFinal,
         caption: dados.caption.trim(),
         // Só o texto de trabalho: quem é publicado é `caption`.
@@ -412,6 +417,7 @@ export const CreateJobModal: React.FC = () => {
             aoMudar={mudar}
             tipo={tipo}
             clients={clients}
+            equipe={users}
             aoGerarComIA={gerarTextoComIA}
           />
 

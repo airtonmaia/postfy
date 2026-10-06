@@ -2694,6 +2694,83 @@ Protegido por `tests/historico-de-etapas.test.ts`, conferido ao contrário:
 tirando a saída antecipada do gatilho, abrindo uma política de insert, somando as
 visitas e apagando a distinção de origem, sete asserções reprovam.
 
+#### "Responsável" mostrava quem estava olhando a tela
+
+Este arquivo registrou a mentira em *Pendências conhecidas* por várias
+entregas: a modal de conteúdo rotulava `currentUser.name` como "Responsável".
+Numa agência de quatro pessoas, cada uma abria a mesma peça e lia o próprio
+nome — e aquilo passava por informação porque tinha cara de campo.
+
+`designerId`, `copywriterId` e `socialMediaId` estavam no schema desde a
+primeira migração com **ninguém escrevendo neles**: a família do
+`trial_ends_at`, agora com um rótulo em cima.
+
+`jobs.responsaveis uuid[]` responde de verdade. Quatro decisões:
+
+- **É uma lista, não as três colunas antigas.** A pergunta que a agência faz
+  ao abrir a peça é *"quem está nisto?"*, e separar por função obriga a
+  escolher uma gaveta para quem faz arte e texto, que é a maioria das agências
+  pequenas. As três colunas ficam onde estão — removê-las derrubaria a `main`,
+  que ainda as mapeia.
+- **Sem chave estrangeira para `auth.users`.** O vínculo que importa é com a
+  agência, e ele mora em `workspace_members`; uma `fk` ali impediria apagar a
+  conta de quem saiu sem antes limpar todas as peças dela. Quem some da equipe
+  vira "Fora da equipe" na tela, e não um nome inventado: a peça foi feita por
+  alguém, e apagar o nome reescreveria o passado.
+- **O campo mora no formulário, não na caixa de metadados.** Metadado é o que
+  a tela sabe e não se edita; atribuição é decisão. Como o formulário é o
+  mesmo das duas telas, ele passou a existir no cadastro também — que é o
+  momento em que a agência de fato distribui o trabalho.
+- **A guarda derivada cobrou sozinha.** `tests/editor-de-conteudo.test.ts`
+  deriva a lista de campos de `DadosDoConteudo` e exige que as duas telas
+  gravem cada um: o campo novo reprovou o teste **antes** de eu lembrar de
+  gravá-lo nas duas. É exatamente o que uma guarda derivada existe para fazer.
+
+**E a coluna nova quase vazou para o portal.** `portal_dados` responde com
+`to_jsonb(j)`, que é a linha inteira — a armadilha 10 — e `responsaveis` é a
+mesma categoria que já saía dali, ao lado de `designer_id`. A migração recria
+a função com a subtração, e a guarda confere a **última** definição pelo nome
+do arquivo.
+
+#### A trilha de etapas, e por que ela não marca pela ordem
+
+O seletor do cabeçalho responde *onde a peça está*; ele não responde **por onde
+ela passou**, que é a pergunta de quem abre uma peça atrasada.
+
+A saída fácil é pintar como concluída toda etapa anterior à atual na ordem do
+fluxo. Ela mente no caso que mais importa: uma peça que pulou de Ideias direto
+para Aprovação apareceria com "Produção" concluída — a tela afirmando um
+trabalho que ninguém fez. Quem sabe é `historico_de_etapas`, que guarda uma
+linha por entrada em etapa; peça anterior ao registro não tem linha nenhuma, e
+aí a trilha mostra só onde a peça está, **sem nenhum visto**. É a mesma decisão
+de não fazer backfill daquela tabela.
+
+**Ela não muda a etapa, e isso foi escolhido com o usuário.** Uma régua larga
+com sete alvos clicáveis, logo acima do conteúdo, convida ao clique errado — e
+dois desses alvos têm consequência: "Agendado" põe a peça na fila e "Publicado"
+carimba a data.
+
+#### O aviso que só aparecia depois do clique
+
+"Este cliente não tem conta conectada" saía de `textoDoAgendamento` — ou seja,
+**depois** de a peça já estar na fila. A tela oferecia "Agendar publicação", a
+peça entrava como agendada, e no dia ninguém publicava. É a mesma correção que
+`faltaArteDoStory` já tinha recebido, pela mesma razão: *a conferência vale
+onde ainda dá para agir.*
+
+`src/lib/avisosDaPeca.ts` responde as duas perguntas, e é pura — a consulta das
+contas conectadas fica na tela, que passa a resposta pronta. Dois detalhes:
+
+- **"Não sei" e "não tem conta" dizem a mesma coisa para quem lê**: *não conte
+  com o disparo automático*. Por isso a lista começa vazia e uma falha de
+  leitura também vale vazia — errar para esse lado custa uma frase a mais;
+  errar para o outro é a peça não sair.
+- **"Esta data já passou" não aparece na peça publicada.** Ali a data no
+  passado é o normal, e alerta em toda peça antiga é como se aprende a ignorar
+  os alertas. E a comparação converte a hora de parede pelo fuso da agência
+  antes: `new Date('2026-10-08T10:00')` lê no fuso do **navegador**, e o aviso
+  apareceria e sumiria com uma hora de erro (armadilha 8.2).
+
 #### O cliente aprova uma peça de cada vez; o perfil dele não é uma peça de cada vez
 
 O portal mostrava a peça sozinha, grande, com legenda e botões. É o que a
@@ -3657,19 +3734,7 @@ supabase/migrations/       schema é a fonte de verdade; 50 migrações
   conferido de ponta a ponta.
 - **Variáveis de ambiente na Vercel** — veja `.env.example`. A aba Integrações
   mostra quais estão faltando, lendo do servidor.
-- **"Responsável" na modal de conteúdo mostra `currentUser.name`** — ou seja,
-  quem está **olhando** a tela, não quem fez a peça. Encontrado escrevendo a
-  gaveta do card do quadro. `jobs.designerId`, `copywriterId` e
-  `socialMediaId` existem desde a primeira migração, são mapeados em
-  `mappers.ts` e **nada no produto escreve ou lê os três** — a família do
-  `trial_ends_at`, agora com um rótulo em cima. É a armadilha 9 numa tela que
-  a equipe inteira usa: numa agência de quatro pessoas, cada uma abre a mesma
-  peça e lê o próprio nome como responsável.
-
-  O card novo contornou isso mostrando `versions[].submittedBy`, que é
-  carimbado de verdade, e **não mostrando nada** quando ninguém entregou. A
-  correção de verdade é uma das duas: ou os três campos ganham quem os
-  escreva (seletor no formulário) e a modal passa a lê-los, ou o rótulo some
-  da modal. Enquanto não for nenhuma das duas, a tela afirma o que não mediu.
-  Protegido pelo lado do card em `tests/cartao-do-quadro.test.ts`, que reprova
-  qualquer `currentUser` ali dentro.
+- **Resolvido na 3.3.0** — "Responsável" mostrava `currentUser.name`, isto é,
+  quem estava **olhando** a tela. Virou `jobs.responsaveis`, uma lista de quem
+  da equipe toca a peça, gravada pelo formulário das duas telas. Ver *"Responsável"
+  mostrava quem estava olhando a tela*, acima.
