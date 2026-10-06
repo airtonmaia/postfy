@@ -2597,10 +2597,23 @@ some (um "1" que não numera nada sugere uma segunda página que não existe) e 
 botões de reordenar somem junto — eles nasceriam desligados, que é um controle
 explicando que não serve para nada.
 
-**Quem decide é a contagem, nunca o campo Formato.** Neste produto o segundo
-item de `media_urls` *é* a página 2 do carrossel — é a razão de a arte do story
-ter coluna própria. Perguntar ao formato daria duas respostas no dia em que
-alguém marcasse "Carrossel" com uma imagem só.
+**Quem decide o desenho é a contagem; quem decide o limite é o formato.** São
+duas perguntas diferentes e a primeira versão respondeu as duas com a contagem:
+
+- *como desenhar o que já existe?* — pela contagem. O segundo item de
+  `media_urls` *é* a página 2 do carrossel, e perguntar ao formato daria duas
+  respostas no dia em que alguém marcasse "Carrossel" com uma imagem só: a
+  tela mostraria a miniatura numa peça que tem uma arte;
+- *quantas cabem?* — pelo formato, em `artesDoFormato`. Só o carrossel
+  comporta mais de uma. Oferecer dez em qualquer formato é a tela prometendo o
+  que a rede não honra: um "Feed" com três imagens sai no perfil com uma, e as
+  outras duas ficam gravadas sem nunca aparecer — a família do `feed_story`
+  oferecido no Facebook antes de existir publicador de story lá.
+
+O limite fecha a **porta de entrada**, não apaga o que entrou por ela: uma peça
+antiga com três artes num formato de uma continua mostrando as três, e dá para
+remover. Apagar na mudança de formato seria a tela decidindo sozinha jogar
+trabalho fora.
 
 E ela cresce **sem proporção declarada**: `aspect-[4/5]` com teto de altura não
 dá proporção nenhuma — os dois se anulam e o `object-cover` recorta —, e

@@ -170,6 +170,30 @@ export const faltaArteDoStory = (peca: {
   peca.format === 'feed_story' &&
   !(peca.storyMediaUrls || []).some((u) => (u || '').trim().length > 0);
 
+/**
+ * Quantas artes o formato comporta — e **só o carrossel comporta mais de uma.**
+ *
+ * O formulário oferecia até dez em qualquer formato, e isso é a tela
+ * prometendo o que a rede não honra: um "Feed" com três imagens sai no perfil
+ * com uma, e as outras duas ficam gravadas sem nunca aparecer. É a família do
+ * `feed_story` oferecido no Facebook antes de existir publicador de story lá —
+ * *a tela oferece mais do que o servidor honra.*
+ *
+ * Isto mora aqui, e não na tela, pelo mesmo motivo de `FORMATOS_POR_CANAL`: o
+ * uploader é montado em dois lugares, e repetir a regra em cada um garante
+ * esquecer um.
+ *
+ * O número **não limita o que já está gravado**: uma peça antiga com três
+ * artes num formato de uma continua mostrando as três, e dá para remover. O
+ * limite fecha a porta de entrada, não apaga o que entrou por ela.
+ */
+export const ARTES_DO_FORMATO: Partial<Record<JobFormat, number>> = {
+  carousel: 10,
+};
+
+export const artesDoFormato = (formato: JobFormat): number =>
+  ARTES_DO_FORMATO[formato] ?? 1;
+
 /** O que dizer quando falta. Um texto só, pelos mesmos motivos. */
 export const AVISO_SEM_ARTE_DE_STORY =
   'Este conteúdo é "Feed + Story" e não tem arte de story. Suba a arte 9:16 em ' +

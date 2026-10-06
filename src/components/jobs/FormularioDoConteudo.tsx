@@ -15,7 +15,7 @@ import {
   limiteMaisApertado,
   type CampoDoCanal,
 } from '../../lib/camposDoCanal';
-import { formatosComuns } from '../../lib/formatos';
+import { artesDoFormato, formatosComuns } from '../../lib/formatos';
 import type { DefinicaoDeTipo } from '../../lib/tiposDeJob';
 import { fusoDoDispositivoDivergente, cidadeDoFuso, deParedeParaUtc } from '../../lib/fusoHorario';
 import { dataJaPassou } from '../../lib/avisosDaPeca';
@@ -580,7 +580,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           <MediaUploader
             mediaUrls={mediaUrls}
             onChange={(urls) => aoMudar({ mediaUrls: urls })}
-            maxFiles={10}
+            maxFiles={artesDoFormato(format)}
             label={format === 'feed_story' ? 'Mídia do Feed' : 'Mídia e criativos'}
             helperText={
               format === 'feed_story'
