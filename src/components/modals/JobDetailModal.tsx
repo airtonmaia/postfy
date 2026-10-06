@@ -23,6 +23,8 @@ import {
   History,
   Save,
   RotateCcw,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { JobStatus, Job, JobPlatform, AbaDoConteudo } from '../../types';
 import { AiCopyModal } from './AiCopyModal';
@@ -149,6 +151,8 @@ export const JobDetailModal: React.FC = () => {
   const [ajustando, setAjustando] = useState(false);
   const [feedbackDoAjuste, setFeedbackDoAjuste] = useState('');
   const [iaAberta, setIaAberta] = useState(false);
+  /* A prévia nasce fechada: ver abaixo, no botão que a abre. */
+  const [previaAberta, setPreviaAberta] = useState(false);
   /**
    * As redes em que **este cliente** tem conta conectada.
    *
@@ -827,7 +831,37 @@ export const JobDetailModal: React.FC = () => {
               O título é dela: escrever "Prévia" aqui em cima punha a palavra
               duas vezes, uma embaixo da outra.
             */}
-            <div>
+            {/*
+              **A prévia passou a nascer fechada, em toda largura.**
+
+              Ela ocupava o topo inteiro da coluna — uma moldura de celular com
+              a arte, a legenda e os ícones da rede —, e empurrava "Ações de
+              workflow" e "Sobre a peça" para fora da dobra. Quem abre a peça
+              vem decidir sobre ela; conferir o enquadramento é um segundo
+              momento, e agora ele custa um clique em vez de a decisão custar
+              uma rolagem.
+
+              O botão fica onde a prévia estava, e **continua inline**: uma
+              modal sobre modal cobriria a legenda, que é justamente o que se
+              relê enquanto se olha a prévia. Foi por isso que o
+              compartilhamento deixou de ser modal.
+            */}
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setPreviaAberta((v) => !v)}
+              className="w-full"
+              aria-expanded={previaAberta}
+            >
+              {previaAberta ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+              {previaAberta ? 'Ocultar prévia' : 'Ver prévia da publicação'}
+            </Button>
+
+            <div className={previaAberta ? '' : 'hidden'}>
               <PreviaDaRede
                 className="w-full"
                 dados={{
