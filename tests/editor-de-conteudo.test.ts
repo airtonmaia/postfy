@@ -171,11 +171,33 @@ describe('nada é gravado sem alguém confirmar', () => {
     expect(editor).toMatch(/descricao:/);
   });
 
-  it('a barra de salvar só aparece quando há o que salvar', () => {
-    // Um botão de salvar sempre aceso não diz nada; um que aparece é o próprio
-    // aviso de que existe trabalho não gravado.
-    expect(editor, 'a marca de alteração pendente sumiu').toMatch(/\{sujo && \(/);
-    expect(editor).toMatch(/Salvar alterações/);
+  it('salvar só aparece quando há o que salvar, e em uma barra só', () => {
+    /*
+      Um botão de salvar sempre aceso não diz nada; um que aparece é o próprio
+      aviso de que existe trabalho não gravado.
+
+      **E ele aparece numa barra de cada vez.** No celular quem o mostra é a
+      barra do assistente; na tela larga, a barra grudada no rodapé da coluna.
+      As duas ao mesmo tempo dariam dois "Salvar alterações" na mesma tela, e a
+      pessoa não teria como saber se são o mesmo.
+    */
+    expect(editor, 'a marca de alteração pendente sumiu').toMatch(/\{sujo && /);
+    expect(editor, 'a barra grudada voltou a aparecer junto com a do assistente').toMatch(
+      /\{sujo && !estreita && \(/
+    );
+    expect(editor, 'o assistente ficou sem como salvar').toMatch(
+      /acoes=\{sujo \? botoesDeSalvar : null\}/
+    );
+
+    /*
+      E os botões são **os mesmos dois**, não uma cópia: escritos duas vezes,
+      um ganharia o estado de "salvando" que o outro não tem — e a pessoa
+      clicaria num botão que não responde.
+    */
+    expect(
+      (editor.match(/Salvar alterações/g) ?? []).length,
+      'os botões de salvar viraram duas cópias'
+    ).toBe(1);
   });
 
   it('o texto vindo da IA cai no rascunho, não no banco', () => {
@@ -381,7 +403,7 @@ describe('o que ocupa a tela do conteúdo', () => {
     expect(
       formulario,
       'a arte e o texto voltaram a ser empilhados em qualquer largura'
-    ).toMatch(/tipo\.pedeArte \?[\s\S]{0,80}lg:grid-cols-2/);
+    ).toMatch(/tipo\.pedeArte && arte && texto \?[\s\S]{0,80}lg:grid-cols-2/);
   });
 });
 
@@ -404,18 +426,28 @@ describe('as duas colunas saem do mesmo formulário', () => {
 
   it('a tela monta as duas metades do mesmo componente', () => {
     expect(editor, 'a coluna da peça deixou de usar o formulário compartilhado').toMatch(
-      /secao="peca"/
+      /blocos=\{\['arte', 'texto'\]\}/
     );
     expect(editor, 'a coluna de gestão deixou de usar o formulário compartilhado').toMatch(
-      /secao="gestao"/
+      /blocos=\{\['identificacao', 'agenda'\]\}/
     );
 
     /*
-      E são **duas** montagens do mesmo componente, não uma cópia à mão: três
-      ocorrências do nome (o import e os dois usos) é o que prova isso.
+      **Toda montagem declara o recorte dela**, e é isso que a guarda mede — e
+      não um número de montagens, que muda a cada arranjo novo de tela (foram
+      duas, viraram três quando o celular ganhou o assistente).
+
+      Uma montagem sem `blocos` desenharia o formulário **inteiro** no meio de
+      uma coluna que já mostra metade dele: os mesmos campos duas vezes na
+      mesma tela, e a pessoa editando um deles sem saber qual vale.
     */
-    const usos = editor.match(/<FormularioDoConteudo/g) ?? [];
-    expect(usos.length, 'a coluna de gestão virou uma cópia dos campos').toBe(2);
+    const usos = (editor.match(/<FormularioDoConteudo/g) ?? []).length;
+    const recortes = (editor.match(/\bblocos=\{/g) ?? []).length;
+
+    expect(usos, 'o formulário sumiu da tela de conteúdo').toBeGreaterThan(1);
+    expect(recortes, 'uma montagem do formulário ficou sem dizer qual recorte desenha').toBe(
+      usos
+    );
   });
 
   it('o efeito que revalida o formato roda numa metade só', () => {

@@ -42,7 +42,10 @@ import { PreviaDaRede } from '../common/PreviaDaRede';
 import {
   FormularioDoConteudo,
   type DadosDoConteudo,
+  type BlocoDoFormulario,
 } from '../jobs/FormularioDoConteudo';
+import { AssistenteDoConteudo, type PassoDoConteudo } from '../jobs/AssistenteDoConteudo';
+import { useTelaEstreita } from '../../lib/telaEstreita';
 import { PainelDeRevisoes } from '../jobs/PainelDeRevisoes';
 import { PainelDeCompartilhamento } from '../jobs/PainelDeCompartilhamento';
 import { PainelDeTimesheet } from '../jobs/PainelDeTimesheet';
@@ -155,6 +158,7 @@ export const JobDetailModal: React.FC = () => {
   const [previaAberta, setPreviaAberta] = useState(false);
   /* A trilha nasce aberta: ver abaixo, no botão que a recolhe. */
   const [trilhaAberta, setTrilhaAberta] = useState(true);
+  const estreita = useTelaEstreita();
   /**
    * As redes em que **este cliente** tem conta conectada.
    *
@@ -252,6 +256,61 @@ export const JobDetailModal: React.FC = () => {
    * clique: o "Salvar alterações" da barra, ou um dos botões do workflow, que
    * salvam antes de agir — exatamente como o cadastro faz.
    */
+  /**
+   * Os passos do celular, derivados do mesmo formulário da tela larga.
+   *
+   * No computador a tela tem duas colunas — a peça de um lado, a gestão do
+   * outro. Abaixo do `lg` as duas viram uma lista só, com doze campos, uma
+   * área de upload e duas de texto no meio: rolar isso para trocar a data é o
+   * que faz alguém preferir abrir o notebook.
+   *
+   * A arte entra **só quando o tipo pede arte**: copy e roteiro são texto, e
+   * um passo "Arte" vazio é a tela pedindo algo que não existe.
+   */
+  const camposDoPasso = (blocos: BlocoDoFormulario[]) => (
+    <FormularioDoConteudo
+      valor={dados}
+      aoMudar={mudar}
+      tipo={tipo}
+      clients={clients}
+      equipe={users}
+      aoGerarComIA={gerarTextoComIA}
+      mostrarDeadline
+      avisarAtraso={selectedJob.status !== 'published'}
+      blocos={blocos}
+    />
+  );
+
+  const passosDoConteudo: PassoDoConteudo[] = [
+    {
+      chave: 'identificacao',
+      rotulo: 'Básico',
+      descricao: 'De quem é a peça, onde ela sai e como ela se chama.',
+      conteudo: camposDoPasso(['identificacao']),
+    },
+    ...(tipo.pedeArte
+      ? [
+          {
+            chave: 'arte',
+            rotulo: 'Arte',
+            descricao: 'As imagens ou os vídeos que vão publicados.',
+            conteudo: camposDoPasso(['arte']),
+          },
+        ]
+      : []),
+    {
+      chave: 'texto',
+      rotulo: 'Texto',
+      descricao: 'A legenda que vai publicada, e o rascunho que fica aqui dentro.',
+      conteudo: camposDoPasso(['texto']),
+    },
+    {
+      chave: 'agenda',
+      rotulo: 'Agenda',
+      descricao: 'Quando a peça sai, e o prazo combinado com o cliente.',
+      conteudo: camposDoPasso(['agenda']),
+    },
+  ];
   const salvar = (): Job | undefined => {
     if (!selectedJob) return undefined;
 
@@ -303,6 +362,27 @@ export const JobDetailModal: React.FC = () => {
   const descartar = () => {
     setDados(doJob(selectedJob));
   };
+
+  /**
+   * Descartar e salvar, num lugar só.
+   *
+   * Eles aparecem na barra grudada no rodapé da coluna **e** na barra do
+   * assistente, no celular — e são os mesmos dois botões. Escrevê-los duas
+   * vezes faria um ganhar um estado de "salvando" que o outro não tem, que é
+   * como a pessoa clica num botão que não responde.
+   */
+  const botoesDeSalvar = (
+    <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+      <Button variant="ghost" type="button" onClick={descartar}>
+        <RotateCcw className="w-3.5 h-3.5" />
+        Descartar
+      </Button>
+      <Button type="button" onClick={() => salvar()} disabled={salvando}>
+        <Save className="w-3.5 h-3.5" />
+        Salvar alterações
+      </Button>
+    </div>
+  );
 
   /**
    * Fechar com alteração pendente **pergunta**.
@@ -683,6 +763,27 @@ export const JobDetailModal: React.FC = () => {
                   que espremia os cards de dentro. */}
               <div className="lg:flex-1 lg:overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-950/50">
                 <TabsContent value="conteudo">
+                  {estreita ? (
+                    /*
+                      **No celular a aba Conteúdo vira passos.**
+
+                      Aqui ela precisa de mais que os dois blocos da coluna da
+                      esquerda: a gestão, que no computador mora na coluna da
+                      direita, no telefone vira um passo — senão ela ficaria
+                      numa lista longa embaixo de tudo, que é o que esta
+                      entrega veio resolver.
+
+                      E por isso o cartão de Gestão da coluna da direita sai
+                      nessa largura: os mesmos campos em dois lugares da mesma
+                      tela fariam a pessoa editar um e achar que o outro não
+                      salvou.
+                    */
+                    <AssistenteDoConteudo
+                      passos={passosDoConteudo}
+                      acoes={sujo ? botoesDeSalvar : null}
+                    />
+                  ) : (
+                  <>
                   <div className={`${cartao} p-4 sm:p-5`}>
                     {/*
                       **É o mesmo formulário do cadastro**, montado do mesmo
@@ -700,7 +801,7 @@ export const JobDetailModal: React.FC = () => {
                       aoGerarComIA={gerarTextoComIA}
                       mostrarDeadline
                       avisarAtraso={selectedJob.status !== 'published'}
-                      secao="peca"
+                      blocos={['arte', 'texto']}
                     />
                   </div>
 
@@ -759,6 +860,8 @@ export const JobDetailModal: React.FC = () => {
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
+                  </>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="revisoes">
@@ -779,21 +882,12 @@ export const JobDetailModal: React.FC = () => {
               é um botão que a pessoa não encontra — e o trabalho dela fica
               sem gravar sem que nada avise.
             */}
-            {sujo && (
+            {sujo && !estreita && (
               <div className="sticky bottom-0 z-10 shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                 <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 sm:mr-auto">
                   Alterações não salvas
                 </span>
-                <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
-                  <Button variant="ghost" type="button" onClick={descartar}>
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Descartar
-                  </Button>
-                  <Button type="button" onClick={() => salvar()} disabled={salvando}>
-                    <Save className="w-3.5 h-3.5" />
-                    Salvar alterações
-                  </Button>
-                </div>
+                {botoesDeSalvar}
               </div>
             )}
           </div>
@@ -1042,6 +1136,7 @@ export const JobDetailModal: React.FC = () => {
               em cima devolveria o problema que esta entrega veio resolver —
               as ações fora da dobra.
             */}
+            {!estreita && (
             <div className={`${cartao} p-4 space-y-3`}>
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
                 Gestão
@@ -1055,7 +1150,7 @@ export const JobDetailModal: React.FC = () => {
                 equipe={users}
                 mostrarDeadline
                 avisarAtraso={selectedJob.status !== 'published'}
-                secao="gestao"
+                blocos={['identificacao', 'agenda']}
               >
                       {/* "Mais opções": o que só existe depois de a peça
                           existir. */}
@@ -1113,6 +1208,7 @@ export const JobDetailModal: React.FC = () => {
                       </Button>
               </FormularioDoConteudo>
             </div>
+            )}
 
             {/*
               Metadados: o que a tela sabe e não se edita.

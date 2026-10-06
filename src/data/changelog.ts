@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.5.0',
+    data: '2026-10-06',
+    resumo: 'No celular, criar e editar conteúdo viraram passos: Básico, Arte, Texto e Agenda.',
+    novidades: [
+      'No celular o conteúdo é preenchido em passos, com a faixa em cima e "Voltar / Avançar" embaixo. Tocar num passo vai direto para ele — quem só quer trocar a legenda não precisa percorrer os outros.',
+      'Dá para salvar em qualquer passo: o botão fica sempre na barra de baixo, não escondido no último.',
+    ],
+    melhorias: [
+      'No computador nada muda: as duas colunas continuam como estão. A escolha entre os dois é feita pela largura real da tela, e só uma das versões é montada.',
+    ],
+  },
+  {
     versao: '3.4.0',
     data: '2026-10-06',
     resumo: 'A coluna da esquerda ficou só com a arte e o texto; o resto foi para a direita, e a trilha de etapas pode ser recolhida.',
