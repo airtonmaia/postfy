@@ -536,6 +536,30 @@ export const NOME_DA_REDE: Record<JobPlatform, string> = {
   twitter: 'X',
 };
 
+/**
+ * As redes em que a agência **tem conteúdo**, para o filtro oferecer.
+ *
+ * Mesma decisão de `formatosEmUso`, e no controle vizinho: o filtro listava as
+ * seis redes do produto, e numa agência que só faz Instagram as outras cinco
+ * não podem dar resultado nenhum. Escolher uma esvazia o quadro, e quadro
+ * vazio depois de um clique num filtro é a tela que faz a pessoa concluir que
+ * o conteúdo sumiu.
+ *
+ * A rede escolhida entra mesmo sem conteúdo, pela mesma razão: apagar a última
+ * peça dela enquanto ela é o filtro ativo tiraria da lista a linha que está
+ * marcada.
+ */
+export const redesEmUso = (
+  jobs: { platform: JobPlatform }[],
+  selecionada?: string
+): [JobPlatform, string][] => {
+  const usadas = new Set<string>(jobs.map((j) => j.platform));
+  if (selecionada) usadas.add(selecionada);
+  return (Object.entries(NOME_DA_REDE) as [JobPlatform, string][]).filter(([valor]) =>
+    usadas.has(valor)
+  );
+};
+
 const nomesDasRedes = (redes: JobPlatform[]): string =>
   redes.map((r) => NOME_DA_REDE[r] ?? r).join(' e ');
 

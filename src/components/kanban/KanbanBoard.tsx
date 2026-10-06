@@ -39,8 +39,13 @@ import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
 import { corDaEtapa, etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
+import { IconeDaEtapa } from '../common/IconeDaEtapa';
 import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { ClientesDoQuadro } from './ClientesDoQuadro';
+import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
+import { agendarPublicacao, textoDoAgendamento } from '../../lib/redes';
+import { useConfirmacao } from '../ui/alert-dialog';
+import { dataCompacta } from '../../lib/utils';
 import {
   ordenarColuna,
   dentroDoPeriodo,
@@ -58,6 +63,7 @@ interface Coluna {
   statuses: JobStatus[];
   color: string;
   border: string;
+  icone: string;
 }
 
 /**
@@ -213,8 +219,9 @@ export const KanbanBoard: React.FC = () => {
    * caixa só; com o filtro em "todos", o lote misturaria clientes e o aviso
    * iria para quem não deveria ver o conteúdo dos outros.
    */
+  const { pedir, dialogo } = useConfirmacao();
   const [enviandoLote, setEnviandoLote] = useState(false);
-  const [avisoDoLote, setAvisoDoLote] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const agrupaAvisos = currentWorkspace.notificacaoAprovacao === 'lote';
 
   /*
@@ -248,7 +255,7 @@ export const KanbanBoard: React.FC = () => {
 
   const dispararLote = async () => {
     if (clientFilter === 'all') {
-      setAvisoDoLote({
+      setAviso({
         ok: false,
         texto: 'Escolha um cliente no filtro acima: o aviso vai para a caixa dele.',
       });
@@ -256,7 +263,7 @@ export const KanbanBoard: React.FC = () => {
     }
 
     setEnviandoLote(true);
-    setAvisoDoLote(null);
+    setAviso(null);
     try {
       const { enviados, destinatario } = await enviarAprovacaoEmLote(
         currentWorkspace.id,
@@ -265,12 +272,12 @@ export const KanbanBoard: React.FC = () => {
       // "Na fila", não "enviado": quem envia é o cron, daqui a alguns minutos
       // (armadilha 9.1). Dizer "enviado" aqui seria afirmar o que ainda não
       // aconteceu.
-      setAvisoDoLote({
+      setAviso({
         ok: true,
         texto: `${enviados} conteúdo(s) no aviso, na fila para ${destinatario}.`,
       });
     } catch (e) {
-      setAvisoDoLote({
+      setAviso({
         ok: false,
         texto: e instanceof Error ? e.message : 'Não foi possível avisar.',
       });
@@ -300,13 +307,23 @@ export const KanbanBoard: React.FC = () => {
     { id: 'for_approval', statuses: ['for_approval'] },
     { id: 'in_adjustment', statuses: ['in_adjustment'] },
     /*
-      **Uma coluna para dois status, e isto não é derivado do fluxo.**
-      'Aprovado' e 'Agendado' dividem a coluna porque arrastar nunca pode
-      escolher entre eles: 'Agendado' significa que a peça está na
-      `publish_queue` e vai ao ar sozinha, e enfileirar é um clique, nunca um
-      gesto. O nome da coluna sai dos dois rótulos; o agrupamento, não.
+      **'Aprovado' e 'Agendado' são colunas separadas, e o que os separava
+      antes era um atalho.**
+
+      Eles dividiam uma coluna porque arrastar não pode enfileirar publicação:
+      'Agendado' significa que a peça está na `publish_queue` e vai ao ar
+      sozinha, e postagem no perfil do cliente não volta. Juntá-los resolvia
+      isso **escondendo a etapa** — o quadro tinha seis colunas para sete
+      etapas, e a peça agendada ficava misturada com a que ninguém mandou
+      publicar, que são estados bem diferentes para quem olha o quadro.
+
+      O que a separação exige é que o gesto **pergunte**: soltar aqui abre a
+      confirmação do agendamento, e quem enfileira é a confirmação. A regra
+      continua inteira — enfileirar é um clique —, e o clique passou a ser o
+      "Agendar publicação" do diálogo.
     */
-    { id: 'aprovado_agendado', statuses: ['approved', 'scheduled'] },
+    { id: 'approved', statuses: ['approved'] },
+    { id: 'scheduled', statuses: ['scheduled'] },
     { id: 'published', statuses: ['published'] },
   ] as { id: string; statuses: JobStatus[] }[]).map((c) => ({
     ...c,
@@ -319,6 +336,7 @@ export const KanbanBoard: React.FC = () => {
     title: c.statuses.map((st) => etapaPor(st).rotulo).join(' / '),
     color: corDaEtapa(etapaPor(c.statuses[0]).cor).caixa,
     border: corDaEtapa(etapaPor(c.statuses[0]).cor).borda,
+    icone: etapaPor(c.statuses[0]).icone,
   }));
 
   // Filter jobs
@@ -388,12 +406,12 @@ export const KanbanBoard: React.FC = () => {
    * desistir gravaria um status igual ao que já estava, enchendo o histórico
    * de atividade de linhas que não aconteceram.
    *
-   * **A coluna "Aprovado / Agendado" junta dois status, e o arrasto escolhe
-   * sempre `approved`.** "Agendado" significa que existe data marcada **e**
-   * que a peça está na fila de publicação — e enfileirar é um clique, nunca
-   * um efeito de arrastar um card: postagem no perfil do cliente não volta.
-   * Quem quer `scheduled` usa o seletor do card, ou o botão "Agendar
-   * publicação" na peça, que põe na fila de verdade.
+   * **"Agendado" é o único destino que o arrasto não grava sozinho.** Ele
+   * significa que a peça está na `publish_queue` e vai ao ar sozinha, e
+   * postagem no perfil do cliente não volta: um gesto não pode decidir isso.
+   * Quem trata esse destino é `aoTerminarArrasto`, abrindo a confirmação —
+   * aqui ele devolve o status como qualquer outro, porque esta função só
+   * responde "para onde a peça foi".
    */
   const statusAoSoltar = (col: Coluna | undefined, job: Job): JobStatus | null => {
     if (!col) return null;
@@ -418,6 +436,67 @@ export const KanbanBoard: React.FC = () => {
     }
     return mapa;
   }, [filteredJobs, ordem, clientMap]);
+
+  /**
+   * O agendamento que o arrasto pede e a confirmação decide.
+   *
+   * Três recusas antes da pergunta, e nenhuma é zelo:
+   *
+   * - **sem data não há agendamento.** `quandoDeveSair` trata data no passado
+   *   como *agora* — é a regra do "agendei para agora" —, então uma peça sem
+   *   data entraria na fila para sair na primeira passada do cron. Arrastar um
+   *   card publicaria no perfil do cliente em cinco minutos;
+   * - **falta a arte do story** é a conferência que mora antes da ação: o
+   *   publicador não substitui mais pela arte do feed, mas descobrir lá é
+   *   tarde — o feed já está no ar e a peça ficou pela metade;
+   * - e o diálogo **nomeia a consequência**, que é a razão de `descricao` ser
+   *   obrigatória: "tem certeza?" não ajuda ninguém a decidir.
+   */
+  const pedirAgendamento = (job: Job) => {
+    if (!job.scheduledDate) {
+      setAviso({
+        ok: false,
+        texto:
+          'Esta peça não tem data de publicação. Abra o conteúdo e marque a data antes de ' +
+          'agendar — sem ela, a fila entenderia "agora" e o disparo sairia na próxima passada.',
+      });
+      return;
+    }
+
+    if (faltaArteDoStory(job)) {
+      setAviso({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+      return;
+    }
+
+    pedir({
+      titulo: `Agendar "${job.title}"?`,
+      descricao:
+        `A peça entra na fila de publicação e vai ao ar sozinha em ` +
+        `${dataCompacta(job.scheduledDate, { comAno: true })}, nas contas conectadas deste ` +
+        'cliente. Publicação feita não volta — até lá, dá para tirar da fila em Publicações.',
+      rotuloConfirmar: 'Agendar publicação',
+      aoConfirmar: () => void agendar(job),
+    });
+  };
+
+  const agendar = async (job: Job) => {
+    setAviso(null);
+    try {
+      /*
+        O status primeiro, e `moveJobStatus` e não `updateJob`: é ele que
+        carimba o histórico da etapa como qualquer outra mudança. Se a fila
+        recusar depois, o aviso diz o que não entrou — e a peça em "Agendado"
+        sem item na fila aparece na tela de Publicações, que é onde se olha.
+      */
+      moveJobStatus(job.id, 'scheduled');
+      setAviso(textoDoAgendamento(await agendarPublicacao(job), job.scheduledDate));
+    } catch (err) {
+      setAviso({
+        ok: false,
+        texto: err instanceof Error ? err.message : 'Não foi possível agendar.',
+      });
+    }
+  };
 
   const aoComecarArrasto = (evento: DragStartEvent) => setArrastando(String(evento.active.id));
 
@@ -451,6 +530,25 @@ export const KanbanBoard: React.FC = () => {
       para sempre.
     */
     if (alvo === job.id && !novoStatus) return;
+
+    /*
+      **Soltar em "Agendado" não grava nada: ele pergunta.**
+
+      Gravar `scheduled` aqui seria a tela afirmando que a peça está na fila
+      quando ela não está — a "fila de mentira" que este produto já teve, com
+      o card dizendo "Agendado", a data passando e nada publicando. E
+      enfileirar direto seria pior: um gesto de arrastar publicaria no perfil
+      do cliente, e o que sai não volta.
+
+      Então o gesto abre a confirmação, e é ela que faz as duas coisas — muda
+      o status **e** põe na fila —, pelo mesmo caminho do botão "Agendar
+      publicação" da peça. A posição também não é gravada: ela viria antes de
+      a peça ter entrado na coluna.
+    */
+    if (novoStatus === 'scheduled') {
+      pedirAgendamento(job);
+      return;
+    }
 
     const indice = lista.findIndex((j) => j.id === alvo);
     const destino = indice >= 0 ? indice : lista.length;
@@ -614,16 +712,16 @@ export const KanbanBoard: React.FC = () => {
         aoSelecionar={setClientFilter}
       />
 
-      {avisoDoLote && (
+      {aviso && (
         <div
           className={`mx-6 mt-4 flex items-start gap-2 text-xs p-3 rounded-xl border ${
-            avisoDoLote.ok
+            aviso.ok
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
               : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300'
           }`}
         >
           <MailCheck className="w-4 h-4 shrink-0 mt-px" />
-          <span className="font-semibold leading-relaxed">{avisoDoLote.texto}</span>
+          <span className="font-semibold leading-relaxed">{aviso.texto}</span>
         </div>
       )}
 
@@ -656,7 +754,17 @@ export const KanbanBoard: React.FC = () => {
                 cabecalho={
                   <div className="flex items-center justify-between px-2 py-1.5 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md border ${col.color} ${col.border}`}>
+                      {/*
+                        **O ícone entra dentro do selo, não ao lado dele.**
+                        A referência que originou o pedido põe um círculo
+                        colorido antes do título — e um círculo novo aqui
+                        seria uma forma que o produto não tem, ao lado de um
+                        selo que ele já tem, dizendo a mesma coisa duas vezes.
+                        Dentro do selo, o ícone herda a cor da etapa de graça
+                        e a coluna continua lendo como as outras seis.
+                      */}
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md border inline-flex items-center gap-1.5 ${col.color} ${col.border}`}>
+                        <IconeDaEtapa chave={col.icone} className="w-3 h-3 shrink-0" />
                         {col.title}
                       </span>
                       <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono">
@@ -751,6 +859,11 @@ export const KanbanBoard: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Sem isto na árvore o diálogo não existe, e soltar um card em "Agendado"
+          não faria nada: sem erro, sem pergunta, sem pista. É a falha silenciosa
+          que o hook de confirmação carrega, e nada local a acusa. */}
+      {dialogo}
     </div>
   );
 };

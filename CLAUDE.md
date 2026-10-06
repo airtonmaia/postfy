@@ -2565,6 +2565,54 @@ a pessoa concluindo que o sistema perdeu as publicações. O recorte alcança s�
 `published`: esconder peça **aberta** por idade seria o quadro omitindo trabalho
 que ainda precisa ser feito.
 
+##### A paleta da etapa não pode usar a cor da marca
+
+`DynamicThemeProvider` injeta uma folha de `!important` que repinta **toda**
+classe `purple-*` com a cor da agência — é assim que o whitelabel funciona. A
+paleta das etapas tinha "Roxo", e numa agência de marca rosa a bolinha roxa
+saía **rosa**: dois botões idênticos no seletor, e a etapa escolhida como roxa
+aparecendo no quadro com a cor de outra.
+
+Chegou como *"não está sincronizado"*, e a frase descreve bem o que se vê: a
+escolha e o resultado não batem, e nada na tela explica por quê. A pessoa
+conclui que a gravação falhou — procura o defeito na persistência, que é o
+lugar errado.
+
+**Quem troca é a paleta, nunca a folha.** O roxo *é* a marca neste produto;
+tirá-lo de lá apagaria o whitelabel para consertar um seletor. `indigo` entrou
+no lugar porque já tinha 77 usos no `src` — cor levantada por contagem, como
+manda a regra de desenho, e não inventada.
+
+E há uma tradução de `purple` para `indigo` em `sanearFluxo`: sem ela, a cor
+guardada viraria chave desconhecida, seria descartada, e a etapa voltaria
+**calada** para o padrão. Quem escolheu continua com o que escolheu.
+
+A guarda **deriva a família da própria folha** em vez de escrever "purple": no
+dia em que a marca mudar de família, ela segue junto.
+
+##### O ícone da etapa: a chave é dado, o desenho é componente
+
+A lista de chaves (`ICONES_DA_ETAPA`) mora em `fluxoDeProducao.ts`, que é dado
+puro — `sanearFluxo` e `etapasDoFluxo` rodam em teste sem montar componente
+nenhum. O mapa de desenhos mora em `src/components/common/IconeDaEtapa.tsx`,
+porque importar React naquele módulo levaria a árvore de ícones para dentro de
+funções que só decidem strings.
+
+O preço da separação é que as duas podem divergir, e divergir aqui **não quebra
+nada visível**: a etapa fica sem ícone, com a tela desenhada e um buraco onde a
+pessoa escolheu alguma coisa. Por isso a guarda exige igualdade nos dois
+sentidos — toda chave tem desenho, todo desenho é oferecido.
+
+Duas decisões menores que custariam uma ida e volta cada:
+
+- **chave desconhecida cai no primeiro ícone, nunca em nada.** `null` deixaria
+  a coluna com um buraco e o título deslocado em relação às vizinhas — parece
+  defeito do quadro, não configuração faltando;
+- **o ícone entra dentro do selo da coluna**, não num círculo ao lado. A
+  referência que originou o pedido tem o círculo; copiá-lo seria uma forma nova
+  ao lado de uma que o produto já tem, dizendo a mesma coisa duas vezes. Dentro
+  do selo, o ícone herda a cor da etapa de graça.
+
 Protegido por `tests/fluxo-de-producao.test.ts`, conferido ao contrário:
 guardando etapa sem ajuste, aceitando cor e prazo inválidos, fazendo o SLA
 ausente valer 1 dia e tirando a troca de frase, quatro asserções reprovam.
@@ -2894,12 +2942,25 @@ que não são gosto:
   `tolerance` é o quanto o dedo pode tremer durante a pausa. Medido no
   Chromium: toque curto chama `setSelectedJob`, segurar 400 ms e mover levanta
   o overlay.
-- **Arrastar nunca enfileira publicação.** "Aprovado / Agendado" é uma coluna
-  só, alimentada por `['approved', 'scheduled']`, e o arrasto leva ao
-  **primeiro**. Levar a `scheduled` diria que a peça está na `publish_queue`
-  quando ela não está — e um disparo a partir de um gesto é a forma mais barata
-  de publicar o que ninguém decidiu publicar. Enfileirar continua sendo um
-  clique.
+- **Arrastar nunca enfileira publicação sozinho — e a resposta mudou de
+  forma.** "Aprovado" e "Agendado" dividiam **uma** coluna, alimentada por
+  `['approved', 'scheduled']`, e o arrasto levava sempre ao primeiro. Resolvia
+  o risco escondendo a etapa: o quadro tinha seis colunas para sete etapas, e a
+  peça que já está na fila ficava misturada com a que ninguém mandou publicar.
+
+  Hoje são sete colunas, e soltar em "Agendado" **não grava nada**: abre a
+  confirmação, e quem muda o status e põe na fila é ela, pelo mesmo caminho do
+  botão "Agendar publicação" da peça. A regra continua inteira — o clique passou
+  a ser o do diálogo. Gravar `scheduled` ali diria que a peça está na
+  `publish_queue` quando ela não está (a "fila de mentira" que este arquivo já
+  registra), e enfileirar direto publicaria no perfil do cliente a partir de um
+  gesto, que não volta.
+
+  Três recusas vêm **antes** da pergunta, e nenhuma é zelo: peça **sem data**
+  não é agendável — `quandoDeveSair` trata data no passado como *agora*, então
+  ela sairia na primeira passada do cron —; `faltaArteDoStory` é a conferência
+  que mora antes da ação; e a `descricao` do diálogo nomeia a consequência, que
+  é a razão de ela ser obrigatória.
 - **Soltar onde a peça já estava não grava nada.** `statusAoSoltar` devolve
   `null` quando a coluna de destino já contém o status atual: sem isso,
   arrastar e desistir gravaria o mesmo status de novo, e cada gravação dessas

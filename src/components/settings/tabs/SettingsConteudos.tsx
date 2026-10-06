@@ -6,11 +6,13 @@ import { atualizarWorkspace } from '../../../lib/db';
 import { pode } from '../../../lib/permissions';
 import {
   CORES_DA_ETAPA,
+  ICONES_DA_ETAPA,
   corDaEtapa,
   etapasDoFluxo,
   sanearFluxo,
   type FluxoDeProducao,
 } from '../../../lib/fluxoDeProducao';
+import { IconeDaEtapa } from '../../common/IconeDaEtapa';
 import { FORMATOS_POR_CANAL } from '../../../lib/formatos';
 import { NOME_DA_REDE } from '../../../lib/redes';
 import { Button } from '../../ui/button';
@@ -170,7 +172,19 @@ export const SettingsConteudos: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cor.ponto}`} />
+                    {/*
+                      **O cabeçalho da etapa é a prévia do que vai ao quadro.**
+                      Era uma bolinha com a cor; agora é a cor **e** o ícone,
+                      no mesmo desenho que a coluna recebe. Escolher um ícone
+                      numa fileira e só descobrir como ele ficou abrindo outra
+                      tela é o tipo de ida e volta que faz a pessoa desistir de
+                      ajustar.
+                    */}
+                    <span
+                      className={`w-6 h-6 rounded-full shrink-0 inline-flex items-center justify-center ${cor.caixa}`}
+                    >
+                      <IconeDaEtapa chave={etapa.icone} className="w-3.5 h-3.5" />
+                    </span>
                     <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                       {etapa.rotulo}
                     </span>
@@ -249,6 +263,50 @@ export const SettingsConteudos: React.FC = () => {
                       onChange={(e) => mexer(etapa.status, { slaDias: e.target.value })}
                       className="w-24 text-xs p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-60"
                     />
+                  </div>
+                </div>
+
+                {/*
+                  **O ícone tem linha própria, e não é desleixo de layout.**
+                  São catorze opções: espremê-las na mesma linha da cor e do
+                  prazo faria a fileira rolar na horizontal dentro de um
+                  formulário, que é onde ninguém procura por uma barra. Aqui
+                  elas quebram em duas linhas e todas ficam à vista.
+                */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                    Ícone
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {ICONES_DA_ETAPA.map((i) => {
+                      const escolhido = etapa.icone === i.valor;
+
+                      return (
+                        <button
+                          key={i.valor}
+                          type="button"
+                          disabled={!podeSalvar}
+                          onClick={() => mexer(etapa.status, { icone: i.valor })}
+                          title={i.rotulo}
+                          aria-label={`Ícone ${i.rotulo} para a etapa ${etapa.rotulo}`}
+                          aria-pressed={escolhido}
+                          /*
+                            A caixa é a mesma do seletor de cor (`w-7`,
+                            `rounded-lg`, anel roxo no escolhido): são dois
+                            controles da mesma pergunta, e desenhá-los
+                            diferente faria a tela parecer dois formulários
+                            colados.
+                          */
+                          className={`w-7 h-7 rounded-lg border inline-flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed ${
+                            escolhido
+                              ? `${cor.caixa} ${cor.borda} ring-2 ring-offset-1 ring-purple-600 dark:ring-offset-slate-950`
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          <IconeDaEtapa chave={i.valor} className="w-3.5 h-3.5" />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

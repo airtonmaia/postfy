@@ -41,39 +41,69 @@ describe('arrastar muda de etapa, e só isso', () => {
      * em "Para Aprovação" — que é justamente o caminho que arrastar abre.
      */
     const corpo = quadro.slice(quadro.indexOf('const aoTerminarArrasto'));
-    expect(corpo.slice(0, 900), 'o soltar deixou de passar por moveJobStatus').toMatch(
+    expect(corpo.slice(0, 1600), 'o soltar deixou de passar por moveJobStatus').toMatch(
       /moveJobStatus\(job\.id, novoStatus\)/
     );
   });
 
-  it('arrastar nunca enfileira publicação', () => {
+  it('arrastar não enfileira publicação sem passar por uma pergunta', () => {
     /**
-     * **Esta é a guarda que protege o produto, não a interação.**
+     * **Esta é a guarda que protege o produto, não a interação**, e ela mudou
+     * de forma quando "Agendado" virou coluna própria.
      *
-     * "Agendado" não é só um status: significa que a peça está na
-     * `publish_queue` e vai ao ar sozinha na data. Enfileirar é um clique,
-     * nunca um efeito — um disparo a partir de um gesto de arrastar é a forma
-     * mais barata de publicar o que ninguém decidiu publicar, e postagem no
-     * perfil do cliente não volta.
+     * Antes o quadro não podia nem mencionar `agendarPublicacao`: não havia
+     * destino que pedisse isso, e a coluna juntada escolhia sempre `approved`.
+     * Hoje há — e a regra não é "o quadro não agenda", é **"nenhum gesto
+     * agenda sozinho"**: "Agendado" significa que a peça está na
+     * `publish_queue` e vai ao ar na data, e postagem no perfil do cliente
+     * não volta.
+     *
+     * Então a guarda afirma três coisas, e as três são de efeito:
+     *
+     * 1. soltar em `scheduled` sai do caminho que grava, antes de gravar;
+     * 2. quem chama `agendarPublicacao` é uma função que a **confirmação**
+     *    dispara, nunca o `onDragEnd`;
+     * 3. a confirmação diz a consequência — `descricao` existe para isso.
      */
+    const corpo = quadro.slice(quadro.indexOf('const aoTerminarArrasto'));
+    const ate = corpo.slice(0, corpo.indexOf('const aoComecarArrasto') + 1 || 1600);
+
     expect(
-      tudo.match(/agendarPublicacao|publicarAgora/)?.[0] ?? null,
-      'o quadro passou a publicar ou enfileirar a partir de um arrasto'
-    ).toBeNull();
+      ate,
+      'soltar em "Agendado" voltou a gravar direto: o card diria "Agendado" com a fila vazia'
+    ).toMatch(/novoStatus === 'scheduled'[\s\S]{0,200}return;/);
+
+    expect(
+      ate,
+      'o arrasto passou a enfileirar publicação direto, sem perguntar'
+    ).not.toMatch(/agendarPublicacao/);
+
+    const pergunta = quadro.slice(quadro.indexOf('const pedirAgendamento'));
+    expect(pergunta, 'o agendamento do quadro deixou de perguntar').toMatch(/pedir\(\{/);
+    expect(pergunta.slice(0, 1600), 'a pergunta não diz mais o que vai acontecer').toMatch(
+      /descricao:/
+    );
   });
 
-  it('a coluna que junta dois status escolhe o de menor compromisso', () => {
-    /**
-     * "Aprovado / Agendado" é alimentada por `['approved', 'scheduled']`, e o
-     * arrasto leva ao **primeiro**. Levar a `scheduled` diria que a peça está
-     * na fila quando ela não está — a tela afirmando o que não aconteceu.
-     */
-    const corpo = quadro.slice(quadro.indexOf('const statusAoSoltar'));
-    expect(corpo.slice(0, 400), 'o arrasto deixou de escolher o primeiro status').toMatch(
-      /return col\.statuses\[0\]/
+  it('agendar pelo quadro confere a data e a arte do story', () => {
+    /*
+      **Sem data, `quandoDeveSair` entende "agora"** — é a regra do "agendei
+      para agora" —, então uma peça sem data entraria na fila para sair na
+      primeira passada do cron: arrastar um card publicaria no perfil do
+      cliente em cinco minutos.
+
+      E `faltaArteDoStory` é a conferência que mora **antes** da ação: o
+      publicador não troca mais a arte do story pela do feed, mas descobrir lá
+      é tarde — o feed já está no ar e a peça ficou pela metade.
+    */
+    const pergunta = quadro.slice(
+      quadro.indexOf('const pedirAgendamento'),
+      quadro.indexOf('const agendar =')
     );
-    expect(quadro, 'a ordem da coluna juntada mudou — o arrasto passaria a agendar').toMatch(
-      /statuses: \['approved', 'scheduled'\]/
+
+    expect(pergunta, 'o quadro agenda peça sem data').toMatch(/!job\.scheduledDate/);
+    expect(pergunta, 'a conferência da arte do story saiu do quadro').toMatch(
+      /faltaArteDoStory\(job\)/
     );
   });
 

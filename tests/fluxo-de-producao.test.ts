@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
 import {
   CORES_DA_ETAPA,
+  ICONES_DA_ETAPA,
   estourouOSla,
   etapasDoFluxo,
   sanearFluxo,
@@ -244,5 +245,120 @@ describe('a migração do fluxo', () => {
     expect(sql, 'apareceu um check no jsonb do fluxo').not.toMatch(
       /check[\s\S]{0,80}fluxo_de_producao/
     );
+  });
+});
+
+/**
+ * A paleta da etapa e a marca da agência não podem ser a mesma cor.
+ *
+ * `DynamicThemeProvider` injeta uma folha de `!important` que repinta **toda**
+ * classe de uma família de cor com a cor da agência — é assim que o whitelabel
+ * funciona. A paleta tinha "Roxo", que é justamente essa família: numa agência
+ * de marca rosa, a bolinha roxa saía **rosa**, idêntica à do "Rosa" ao lado, e
+ * a etapa escolhida como roxa aparecia no quadro com a cor de outra.
+ *
+ * Chegou como *"não está sincronizado"*, que descreve bem o que se vê: a
+ * escolha e o resultado não batem, e nada explica por quê.
+ *
+ * **A guarda deriva a família da própria folha**, em vez de escrever "purple":
+ * no dia em que a marca mudar de família, ela segue junto. Lista literal
+ * obrigaria a editá-la com o código, que é como ela deixa de guardar.
+ */
+describe('a cor da etapa não colide com a cor da agência', () => {
+  const tema = ler('src', 'components', 'common', 'DynamicThemeProvider.tsx');
+
+  const familiaDaMarca = () => {
+    const nomes = new Set<string>();
+    for (const [, familia] of tema.matchAll(/\.(?:dark .)?(?:[a-z\:-]*)bg-([a-z]+)-\d/g)) {
+      nomes.add(familia);
+    }
+    return [...nomes];
+  };
+
+  it('a folha de !important repinta alguma família, e a paleta não a usa', () => {
+    const familias = familiaDaMarca();
+
+    expect(
+      familias.length,
+      'a folha do whitelabel deixou de repintar classe nenhuma — ou o formato mudou'
+    ).toBeGreaterThan(0);
+
+    for (const cor of CORES_DA_ETAPA) {
+      const classes = `${cor.ponto} ${cor.caixa} ${cor.borda}`;
+      for (const familia of familias) {
+        expect(
+          classes.includes(`${familia}-`),
+          `a cor "${cor.valor}" usa ${familia}, que o whitelabel repinta com a cor da ` +
+            'agência: a etapa apareceria com a cor da marca, não com a escolhida'
+        ).toBe(false);
+      }
+    }
+  });
+
+  it('quem já tinha escolhido o roxo não perde a escolha', () => {
+    /*
+      `sanearFluxo` descarta cor desconhecida — certo para chave inventada,
+      errado aqui: a agência escolheu, o produto é que mudou de nome. Sem a
+      tradução, a etapa voltaria calada para a cor padrão.
+    */
+    const saneado = sanearFluxo({ scheduled: { cor: 'purple' } });
+
+    expect(saneado.scheduled?.cor, 'a cor escolhida foi descartada na renomeação').toBeTruthy();
+    expect(
+      CORES_DA_ETAPA.some((c) => c.valor === saneado.scheduled?.cor),
+      'a tradução devolveu uma cor que a paleta não tem'
+    ).toBe(true);
+  });
+});
+
+/**
+ * O ícone da etapa: lista fechada, e as duas pontas conferidas.
+ *
+ * A lista de **chaves** mora em `fluxoDeProducao.ts`, que é dado puro; o
+ * **desenho** mora em `IconeDaEtapa.tsx`, porque importar React naquele módulo
+ * levaria a árvore de ícones para dentro de funções que só decidem strings.
+ *
+ * O preço da separação é que as duas podem divergir — e divergir aqui **não
+ * quebra nada visível**: a etapa fica sem ícone, com a tela desenhada e um
+ * buraco onde a pessoa escolheu alguma coisa.
+ */
+describe('o ícone da etapa', () => {
+  const desenhos = ler('src', 'components', 'common', 'IconeDaEtapa.tsx');
+
+  const chavesDesenhadas = () => {
+    const inicio = desenhos.indexOf('const DESENHO');
+    const corpo = desenhos.slice(inicio, desenhos.indexOf('};', inicio));
+    return [...corpo.matchAll(/^\s{2}([a-z]+):/gm)].map((m) => m[1]);
+  };
+
+  it('toda chave oferecida tem desenho, e todo desenho é oferecido', () => {
+    const oferecidas = ICONES_DA_ETAPA.map((i: { valor: string }) => i.valor);
+    const desenhadas = chavesDesenhadas();
+
+    expect(desenhadas.length, 'o mapa de desenhos ficou vazio — o recorte mudou').toBeGreaterThan(
+      0
+    );
+    expect([...oferecidas].sort(), 'a lista de ícones e o mapa de desenhos divergiram').toEqual(
+      [...desenhadas].sort()
+    );
+  });
+
+  it('toda etapa tem ícone, mesmo sem a agência ter escolhido', () => {
+    /*
+      Padrão ausente deixaria a coluna com um buraco do tamanho do ícone e o
+      título deslocado em relação às vizinhas — parece defeito do quadro, não
+      configuração faltando.
+    */
+    for (const etapa of etapasDoFluxo(null)) {
+      expect(etapa.icone, `a etapa ${etapa.status} ficou sem ícone padrão`).toBeTruthy();
+    }
+  });
+
+  it('o ícone escolhido é guardado, e o inventado é descartado', () => {
+    const bom = sanearFluxo({ ideas: { icone: 'foguete' } });
+    expect(bom.ideas?.icone).toBe('foguete');
+
+    const ruim = sanearFluxo({ ideas: { icone: 'nave-espacial' } });
+    expect(ruim.ideas, 'ícone inventado virou um ajuste vazio').toBeUndefined();
   });
 });
