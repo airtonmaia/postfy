@@ -18,8 +18,8 @@ import {
   Copy as DuplicateIcon,
   Sparkles,
   CalendarClock,
-  CheckSquare,
-  Timer,
+  CheckCircle2,
+  MoreHorizontal,
   History,
   Save,
   RotateCcw,
@@ -36,8 +36,14 @@ import { avisosDosCanais, dataJaPassou } from '../../lib/avisosDaPeca';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { useConfirmacao } from '../ui/alert-dialog';
 import {
-  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
-} from '../ui/accordion';
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '../ui/dropdown-menu';
+import { duracaoLegivel } from '../../lib/historicoDeEtapas';
 import { PreviaDaRede } from '../common/PreviaDaRede';
 import {
   FormularioDoConteudo,
@@ -48,7 +54,6 @@ import { AssistenteDoConteudo, type PassoDoConteudo } from '../jobs/AssistenteDo
 import { useTelaEstreita } from '../../lib/telaEstreita';
 import { PainelDeRevisoes } from '../jobs/PainelDeRevisoes';
 import { PainelDeCompartilhamento } from '../jobs/PainelDeCompartilhamento';
-import { PainelDeTimesheet } from '../jobs/PainelDeTimesheet';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
 import { camposVisiveis } from '../../lib/camposDoCanal';
 import { rotuloDoFormato, faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
@@ -130,7 +135,6 @@ export const JobDetailModal: React.FC = () => {
     moveJobStatus,
     approveJob,
     requestAdjustment,
-    toggleChecklistItem,
     duplicateJob,
     deleteJob,
     updateJob,
@@ -156,8 +160,8 @@ export const JobDetailModal: React.FC = () => {
   const [iaAberta, setIaAberta] = useState(false);
   /* A prévia nasce fechada: ver abaixo, no botão que a abre. */
   const [previaAberta, setPreviaAberta] = useState(false);
-  /* A trilha nasce aberta: ver abaixo, no botão que a recolhe. */
-  const [trilhaAberta, setTrilhaAberta] = useState(true);
+  /* A trilha nasce recolhida: ver abaixo, onde ela é montada. */
+  const [trilhaAberta, setTrilhaAberta] = useState(false);
   const estreita = useTelaEstreita();
   /**
    * As redes em que **este cliente** tem conta conectada.
@@ -309,24 +313,34 @@ export const JobDetailModal: React.FC = () => {
   };
 
   /**
-   * Descartar e salvar, num lugar só.
+   * O seletor de etapa, montado **uma vez**, em um de dois lugares.
    *
-   * Eles aparecem na barra grudada no rodapé da coluna **e** na barra do
-   * assistente, no celular — e são os mesmos dois botões. Escrevê-los duas
-   * vezes faria um ganhar um estado de "salvando" que o outro não tem, que é
-   * como a pessoa clica num botão que não responde.
+   * Ele morava no cabeçalho, e a razão escrita era boa: abaixo do `lg` a
+   * coluna da direita vira rodapé, e mudar a etapa passaria a exigir rolar a
+   * modal inteira até o fim. Na tela larga, porém, ele ficava longe de tudo
+   * que fala da mesma coisa — cliente, canais, formato, responsáveis, datas —,
+   * e o cabeçalho é a identidade da peça, não um painel de controle.
+   *
+   * Então ele muda de casa com a largura, pelo **mesmo** `estreita` que já
+   * escolhe entre o assistente e as duas colunas: no computador ele abre a
+   * Gestão; no celular continua no cabeçalho, onde se alcança sem rolar. Dois
+   * seletores ao mesmo tempo deixariam a pergunta de qual dos dois vale.
    */
-  const botoesDeSalvar = (
-    <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
-      <Button variant="ghost" type="button" onClick={descartar}>
-        <RotateCcw className="w-3.5 h-3.5" />
-        Descartar
-      </Button>
-      <Button type="button" onClick={() => salvar()} disabled={salvando}>
-        <Save className="w-3.5 h-3.5" />
-        Salvar alterações
-      </Button>
-    </div>
+  const seletorDeEtapa = (
+    <select
+      value={selectedJob.status}
+      onChange={(e) => moveJobStatus(selectedJob.id, e.target.value as JobStatus)}
+      aria-label="Etapa do conteúdo"
+      className="w-full min-w-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-purple-500 cursor-pointer"
+    >
+      <option value="ideas">Ideias</option>
+      <option value="in_production">Em Produção</option>
+      <option value="for_approval">Para Aprovação</option>
+      <option value="in_adjustment">Em Ajuste</option>
+      <option value="approved">Aprovado</option>
+      <option value="scheduled">Agendado</option>
+      <option value="published">Publicado</option>
+    </select>
   );
 
   /**
@@ -548,7 +562,6 @@ export const JobDetailModal: React.FC = () => {
   ];
 
   const ocupado = acao !== 'nenhuma';
-  const feitos = selectedJob.checklist.filter((c) => c.completed).length;
   const cartao =
     'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs';
 
@@ -641,25 +654,10 @@ export const JobDetailModal: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/*
-                  O seletor de status fica **no cabeçalho, não na coluna da
-                  direita**, embora o desenho a peça ali: abaixo do `lg` a
-                  coluna vira rodapé, e mudar o status passaria a exigir rolar
-                  a modal inteira até o fim. É o controle mais usado da tela.
-                */}
-                <select
-                  value={selectedJob.status}
-                  onChange={(e) => moveJobStatus(selectedJob.id, e.target.value as JobStatus)}
-                  className="flex-1 sm:flex-none min-w-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-purple-500 cursor-pointer"
-                >
-                  <option value="ideas">Ideias</option>
-                  <option value="in_production">Em Produção</option>
-                  <option value="for_approval">Para Aprovação</option>
-                  <option value="in_adjustment">Em Ajuste</option>
-                  <option value="approved">Aprovado</option>
-                  <option value="scheduled">Agendado</option>
-                  <option value="published">Publicado</option>
-                </select>
+                {/* No celular ele fica aqui, porque a Gestão — onde ele mora na
+                    tela larga — vira o passo "Básico" do assistente, atrás de
+                    um toque. Ver `seletorDeEtapa`. */}
+                {estreita && <div className="flex-1 sm:w-40">{seletorDeEtapa}</div>}
 
                 <Button
                   variant="ghost"
@@ -681,13 +679,15 @@ export const JobDetailModal: React.FC = () => {
               de por onde ela passou.
             */}
             {/*
-              **A trilha pode ser recolhida, e nasce aberta.**
+              **A trilha pode ser recolhida, e nasce recolhida.**
 
-              Ela é a resposta de quem abre uma peça atrasada — *por onde isto
-              passou?* —, e por isso o padrão é mostrá-la: quem nunca a vir não
-              descobre que ela existe. Quem já sabe onde a peça está e veio
-              escrever a legenda recolhe e ganha 60px de altura, que numa modal
-              de 844px é o começo da arte.
+              Ela nascia aberta, pelo argumento de que quem nunca a vê não
+              descobre que ela existe — e o argumento valia enquanto recolhida
+              ela sumia por inteiro, deixando um botão "Ver fluxo" sozinho.
+              Agora a faixa recolhida **diz a etapa e há quanto tempo a peça
+              está nela**, que é a resposta mais usada da régua: ela não precisa
+              estar aberta para informar, e os 60px da fileira de sete bolinhas
+              voltam para a arte, numa tela que já estava cheia demais.
 
               **O estado não é guardado**, de propósito. Guardá-lo exigiria uma
               coluna em `user_settings` (a armadilha 4 proíbe o `localStorage`
@@ -697,24 +697,11 @@ export const JobDetailModal: React.FC = () => {
               que a pessoa está trabalhando naquela peça.
             */}
             <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-              <div className="flex items-center justify-end px-4 sm:px-6 pt-2 -mb-1">
-                <button
-                  type="button"
-                  onClick={() => setTrilhaAberta((v) => !v)}
-                  aria-expanded={trilhaAberta}
-                  /* Afordância pequena e discreta: ela não disputa com o
-                     conteúdo, e o rótulo diz para onde o clique leva. */
-                  className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-purple-600 transition cursor-pointer inline-flex items-center gap-1"
-                >
-                  {trilhaAberta ? 'Ocultar fluxo' : 'Ver fluxo'}
-                  {trilhaAberta ? (
-                    <ChevronUp className="w-3 h-3" />
-                  ) : (
-                    <ChevronDown className="w-3 h-3" />
-                  )}
-                </button>
-              </div>
-              {trilhaAberta && <TrilhaDeEtapas job={selectedJob} />}
+              <TrilhaDeEtapas
+                job={selectedJob}
+                aberta={trilhaAberta}
+                aoAlternar={() => setTrilhaAberta((v) => !v)}
+              />
             </div>
 
             <Tabs
@@ -779,12 +766,15 @@ export const JobDetailModal: React.FC = () => {
                       tela fariam a pessoa editar um e achar que o outro não
                       salvou.
                     */
-                    <AssistenteDoConteudo
-                      passos={passosDoConteudo}
-                      acoes={sujo ? botoesDeSalvar : null}
-                    />
+                    /*
+                      **Sem a barra de ações do assistente**, e isso é a regra
+                      de "uma barra de salvar de cada vez": o rodapé da modal
+                      agora é fixo em toda largura e já traz o Salvar. Mantê-la
+                      aqui daria dois "Salvar alterações" na mesma tela, e a
+                      pessoa não teria como saber se são o mesmo.
+                    */
+                    <AssistenteDoConteudo passos={passosDoConteudo} />
                   ) : (
-                  <>
                   <div className={`${cartao} p-4 sm:p-5`}>
                     {/*
                       **É o mesmo formulário do cadastro**, montado do mesmo
@@ -805,63 +795,6 @@ export const JobDetailModal: React.FC = () => {
                       blocos={['arte', 'texto']}
                     />
                   </div>
-
-                  {/*
-                    Checklist e timesheet são o **processo interno**, não a
-                    peça. Eram duas abas próprias, e disputavam a barra com as
-                    três que o documento pediu; recolhidas aqui embaixo elas
-                    continuam a um clique, com a contagem à vista para não
-                    virarem aba esquecida.
-                  */}
-                  <Accordion type="single" collapsible className="mt-4 space-y-3">
-                    <AccordionItem value="checklist" className={`${cartao} p-4 sm:p-5 block`}>
-                      <AccordionTrigger>
-                        <CheckSquare className="w-4 h-4 text-slate-400" />
-                        Checklist de produção ({feitos}/{selectedJob.checklist.length})
-                      </AccordionTrigger>
-                      <AccordionContent className="space-y-2">
-                        {selectedJob.checklist.length === 0 && (
-                          <p className="text-xs text-slate-400">
-                            Sem itens. O botão "Gerar checklist técnico com IA", na aba
-                            Revisões, transforma o pedido do cliente em tarefas.
-                          </p>
-                        )}
-                        {selectedJob.checklist.map((item) => (
-                          <label
-                            key={item.id}
-                            className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-950 border border-slate-100 dark:border-slate-800 transition cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={item.completed}
-                              onChange={() => toggleChecklistItem(selectedJob.id, item.id)}
-                              className="w-4 h-4 rounded-md accent-purple-600 cursor-pointer"
-                            />
-                            <span
-                              className={`text-xs ${
-                                item.completed
-                                  ? 'line-through text-slate-400 font-medium'
-                                  : 'text-slate-800 dark:text-slate-200 font-semibold'
-                              }`}
-                            >
-                              {item.title}
-                            </span>
-                          </label>
-                        ))}
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    <AccordionItem value="timesheet" className={`${cartao} p-4 sm:p-5 block`}>
-                      <AccordionTrigger>
-                        <Timer className="w-4 h-4 text-slate-400" />
-                        Horas neste conteúdo ({selectedJob.timesheetMinutes || 0}m)
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <PainelDeTimesheet job={selectedJob} />
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                  </>
                   )}
                 </TabsContent>
 
@@ -875,22 +808,6 @@ export const JobDetailModal: React.FC = () => {
               </div>
             </Tabs>
 
-            {/*
-              **A barra de salvar só existe quando há o que salvar.**
-
-              Fixa no rodapé da coluna e fora da área que rola: um botão de
-              salvar que exige rolar até o fim de um formulário de doze campos
-              é um botão que a pessoa não encontra — e o trabalho dela fica
-              sem gravar sem que nada avise.
-            */}
-            {sujo && !estreita && (
-              <div className="sticky bottom-0 z-10 shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 sm:mr-auto">
-                  Alterações não salvas
-                </span>
-                {botoesDeSalvar}
-              </div>
-            )}
           </div>
 
           {/* ========================= COLUNA DIREITA ========================= */}
@@ -958,167 +875,74 @@ export const JobDetailModal: React.FC = () => {
               />
             </div>
 
-            {/* Ações de workflow */}
-            <div className={`${cartao} p-4 space-y-3`}>
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                Ações de workflow
-              </span>
 
-              {/*
-                **O que acontece na data, canal por canal — antes do clique.**
+            {/*
+              **A decisão do cliente, no momento em que ela existe.**
 
-                Isto saía de `textoDoAgendamento`, ou seja, **depois** de a peça
-                já estar na fila: a tela oferecia "Agendar publicação", a peça
-                entrava como agendada, e só então aparecia que aquele cliente
-                não tem conta conectada. No dia, ninguém publica.
+              Ela era o rodapé do cartão "Ações de workflow", que tinha os
+              quatro botões empilhados. Os três que a agência dispara — enviar,
+              agendar e publicar — desceram para o rodapé fixo da modal; estes
+              dois ficaram, e por isso ganharam cartão próprio: aprovar em nome
+              do cliente e devolver para ajuste não são "mais um botão de
+              workflow", são a resposta de outra pessoa, e só existem enquanto a
+              peça está com ela.
+            */}
+            {(selectedJob.status === 'for_approval' || ajustando) && (
+              <div className={`${cartao} p-4 space-y-3`}>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                  Decisão do cliente
+                </span>
 
-                É a mesma correção que `faltaArteDoStory` já recebeu — a
-                conferência vale onde ainda dá para agir.
-              */}
-              <div className="space-y-1">
-                {avisosDosCanais(dados.canais, redesConectadas).map((a) => (
-                  <p
-                    key={a.canal}
-                    className={`flex items-start gap-1.5 text-[11px] leading-relaxed ${
-                      a.automatico
-                        ? 'text-slate-500 dark:text-slate-400'
-                        : 'text-amber-700 dark:text-amber-400 font-semibold'
-                    }`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                        a.automatico ? 'bg-emerald-500' : 'bg-amber-500'
-                      }`}
-                    />
-                    {a.texto}
-                  </p>
-                ))}
-              </div>
-
-              {/*
-                **Toda ação daqui salva antes de agir**, como os botões do
-                cadastro fazem. Publicar o que está no banco enquanto a tela
-                mostra outra coisa é o pior desfecho possível: a legenda que
-                foi ao ar não é a que a pessoa acabou de ler.
-              */}
-              <div className="grid grid-cols-1 gap-2">
-                <Button
-                  onClick={enviarParaAprovacao}
-                  disabled={selectedJob.status === 'for_approval' || ocupado}
-                  title={
-                    selectedJob.status === 'for_approval'
-                      ? 'Esta peça já está com o cliente'
-                      : 'Salva e manda para o cliente aprovar no portal'
-                  }
-                >
-                  <Send className="w-4 h-4" />
-                  Enviar para aprovação
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => void agendar()}
-                  disabled={ocupado}
-                  className="text-slate-700 dark:text-slate-200"
-                  title="Salva e põe na fila de publicação, na data marcada"
-                >
-                  <CalendarClock className="w-4 h-4" />
-                  {acao === 'agendando' ? 'Agendando...' : 'Agendar publicação'}
-                </Button>
-
-                {/* Publicar agora fica por último e com a cor de aviso: é a
-                    única ação da tela que não tem volta.
-
-                    **Só aparece quando algum canal marcado publica sozinho.**
-                    Numa peça só de LinkedIn ele existia e o servidor recusava
-                    — botão que promete o que não faz é pior que botão
-                    ausente. A condição deriva de `REDES_QUE_PUBLICAM`, nunca
-                    de um nome de rede escrito aqui: era `includes('instagram')`
-                    no cadastro, e foi isso que escondeu o Facebook depois de
-                    ele já publicar. */}
-                {dados.canais.some(publicaSozinho) && (
-                <Button
-                  onClick={() => void publicar()}
-                  disabled={ocupado || selectedJob.status === 'published'}
-                  title={
-                    selectedJob.status === 'published'
-                      ? 'Esta peça já foi publicada'
-                      : 'Salva e publica no perfil conectado do cliente, agora. Não tem volta.'
-                  }
-                  className="border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60"
-                >
-                  <Send className="w-4 h-4" />
-                  {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
-                </Button>
-                )}
-              </div>
-
-              {/* O que o servidor respondeu, com o texto que ele mandou.
-                  Em linha e não em diálogo: o erro continua legível enquanto a
-                  pessoa relê a peça, e num diálogo ele some ao ser dispensado. */}
-              {resultado && (
-                <p
-                  className={`text-[11px] font-semibold p-2 rounded-lg border leading-relaxed ${
-                    resultado.ok
-                      ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900'
-                      : 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900'
-                  }`}
-                >
-                  {resultado.texto}
-                </p>
-              )}
-
-              {/* As decisões do cliente, no momento em que elas existem. */}
-              {selectedJob.status === 'for_approval' && (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button
-                    variant="success"
-                    onClick={() => approveJob(selectedJob.id, 'Agência')}
-                    className="active:bg-emerald-800"
-                  >
-                    <Check className="w-4 h-4" />
-                    Aprovar
-                  </Button>
-
-                  <Button
-                    variant="destructive"
-                    onClick={() => setAjustando(true)}
-                    className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                    Pedir ajuste
-                  </Button>
-                </div>
-              )}
-
-              {ajustando && (
-                <div className="p-3 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900 space-y-2">
-                  <label className="block text-[11px] font-bold text-rose-800 dark:text-rose-300">
-                    Motivo do ajuste (obrigatório):
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={feedbackDoAjuste}
-                    onChange={(e) => setFeedbackDoAjuste(e.target.value)}
-                    placeholder="Ex: Trocar o slide 2 para o produto lançamento..."
-                    className="w-full text-xs p-2 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-white"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" onClick={() => setAjustando(false)}>
-                      Cancelar
+                {selectedJob.status === 'for_approval' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="success"
+                      onClick={() => approveJob(selectedJob.id, 'Agência')}
+                      className="active:bg-emerald-800"
+                    >
+                      <Check className="w-4 h-4" />
+                      Aprovar
                     </Button>
+
                     <Button
                       variant="destructive"
-                      onClick={registrarAjuste}
-                      className="bg-rose-600 text-white"
+                      onClick={() => setAjustando(true)}
+                      className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
                     >
-                      Confirmar pedido
+                      <AlertCircle className="w-4 h-4" />
+                      Pedir ajuste
                     </Button>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+
+                {ajustando && (
+                  <div className="p-3 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900 space-y-2">
+                    <label className="block text-[11px] font-bold text-rose-800 dark:text-rose-300">
+                      Motivo do ajuste (obrigatório):
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={feedbackDoAjuste}
+                      onChange={(e) => setFeedbackDoAjuste(e.target.value)}
+                      placeholder="Ex: Trocar o slide 2 para o produto lançamento..."
+                      className="w-full text-xs p-2 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-white"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => setAjustando(false)}>
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={registrarAjuste}
+                        className="bg-rose-600 text-white"
+                      >
+                        Confirmar pedido
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/*
               **Gestão: tudo que não é a arte nem o texto.**
@@ -1142,6 +966,20 @@ export const JobDetailModal: React.FC = () => {
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
                 Gestão
               </span>
+
+              {/*
+                **A etapa abre a Gestão**, e é a primeira coisa da coluna: ela
+                é o controle mais usado da tela, e no cabeçalho ficava longe de
+                tudo que fala da mesma peça. Ver `seletorDeEtapa` para o porquê
+                de ele trocar de casa com a largura em vez de existir nos dois
+                lugares.
+              */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Etapa
+                </label>
+                {seletorDeEtapa}
+              </div>
 
               <FormularioDoConteudo
                 valor={dados}
@@ -1226,14 +1064,14 @@ export const JobDetailModal: React.FC = () => {
             */}
             <div className={`${cartao} p-4 space-y-3 text-xs`}>
               {/*
-                **O bloco ganhou nome, e os dois botões entraram nele.**
+                **E os dois botões saíram daqui para o rodapé.**
 
-                A coluna terminava em dois cartões sem rótulo: quatro datas
-                soltas e, embaixo, "Duplicar" e "Excluir conteúdo" flutuando
-                sem nada em volta. Rótulo não é enfeite — é o que diz à pessoa
-                que aquilo é um conjunto, e botão destrutivo sem moldura, no
-                fim de uma coluna, é o que se clica por engano ao procurar o
-                fim da página.
+                "Duplicar" e "Excluir conteúdo" moravam neste cartão, pelo
+                argumento certo de que botão destrutivo solto no fim de uma
+                coluna é o que se clica por engano ao procurar o fim da página.
+                O rodapé fixo resolve isso melhor: eles ficam atrás do "Mais
+                ações", que é um clique a mais antes do botão vermelho, e o
+                cartão volta a ser só o que a tela sabe e não se edita.
               */}
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
                 Sobre a peça
@@ -1266,21 +1104,235 @@ export const JobDetailModal: React.FC = () => {
               </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="ghost" onClick={() => duplicateJob(selectedJob.id)}>
-                  <DuplicateIcon className="w-3.5 h-3.5" />
-                  Duplicar
-                </Button>
-
-                {/* Exclusão pergunta, e a pergunta diz a consequência — não
-                    "tem certeza?". É a regra dos diálogos do projeto. */}
-                <Button variant="destructive" onClick={excluir} className="text-rose-600">
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Excluir conteúdo
-                </Button>
-              </div>
             </div>
           </aside>
+        </div>
+
+        {/*
+          **O que o servidor respondeu fica colado no rodapé que disparou.**
+
+          Ele morava no cartão "Ações de workflow", na coluna da direita, junto
+          dos botões. Com a ação no rodapé, a resposta dela na outra ponta da
+          tela — e, no celular, abaixo de tudo — é uma resposta que ninguém lê:
+          a pessoa clica em "Publicar agora" e nada parece acontecer.
+
+          Em linha e não em diálogo, como antes: o erro continua legível
+          enquanto a pessoa relê a peça, e num diálogo ele some ao ser
+          dispensado.
+        */}
+        {resultado && (
+          <div
+            className={`shrink-0 px-4 sm:px-5 py-2 text-[11px] font-semibold leading-relaxed border-t ${
+              resultado.ok
+                ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900'
+                : 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900'
+            }`}
+          >
+            {resultado.texto}
+          </div>
+        )}
+
+        {/*
+          ======================= RODAPÉ DE AÇÕES =======================
+
+          **Ele é fixo, existe em toda largura e está sempre aqui.**
+
+          A barra de salvar aparecia só quando havia mudança, e só na coluna da
+          esquerda; as ações de workflow eram quatro botões empilhados na
+          coluna da direita, abaixo da prévia e da gestão. Eram dois lugares
+          para a mesma pergunta — *e agora, o que eu faço com esta peça?* —, e
+          nenhum dos dois estava à vista o tempo todo.
+
+          Agora é um rodapé só, fora da área que rola, atravessando as duas
+          colunas: salvar está sempre a um clique, em qualquer passo e em
+          qualquer aba, que é o que se pediu. As outras três ações moram na
+          seta ao lado dele — elas são raras perto do salvar, e todas **salvam
+          antes de agir**, então o botão principal é o resumo honesto do que a
+          seta faz.
+        */}
+        <div className="shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 sm:px-5 py-2.5 flex items-center gap-3">
+          {/*
+            "Mais ações" guarda o que mexe na peça inteira. Excluir atrás de um
+            clique a mais é de propósito: ela ficava solta no fim da coluna da
+            direita, que é onde o dedo para ao procurar o fim da página.
+          */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                type="button"
+                aria-label="Mais ações"
+                className="shrink-0"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+                <span className="hidden sm:inline">Mais ações</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="w-56">
+              <DropdownMenuItem onSelect={() => duplicateJob(selectedJob.id)}>
+                <DuplicateIcon className="w-4 h-4 text-slate-400" />
+                Duplicar conteúdo
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Exclusão pergunta, e a pergunta diz a consequência — não "tem
+                  certeza?". É a regra dos diálogos do projeto. */}
+              <DropdownMenuItem
+                onSelect={excluir}
+                className="text-rose-600 dark:text-rose-400 focus:text-rose-700"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir conteúdo
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/*
+            **O meio diz o estado da gravação, e ele não afirma o que não
+            mediu.** Com mudança pendente ele diz que há mudança pendente; sem
+            ela, há quanto tempo foi a última alteração — que sai de
+            `jobs.updated_at`, carimbada pelo gatilho do banco.
+          */}
+          <span className="flex-1 min-w-0 text-center text-[11px] leading-tight">
+            {sujo ? (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
+                <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Alterações não salvas
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="hidden sm:inline font-semibold">Última alteração</span>
+                <span>
+                  há{' '}
+                  {duracaoLegivel(
+                    Date.now() -
+                      Date.parse(selectedJob.updatedAt || selectedJob.createdAt)
+                  )}
+                </span>
+              </span>
+            )}
+          </span>
+
+          {/*
+            Botão dividido, o mesmo desenho do "Adicionar mídia": a ação comum
+            no clique direto, as outras na seta. A emenda é o canto reto do lado
+            colado e a linha translúcida na cor do texto — e não uma moldura em
+            volta, que faria o par ler como campo de formulário.
+          */}
+          <div className="flex items-stretch shrink-0">
+            <Button
+              type="button"
+              onClick={() => salvar()}
+              /* Desligado sem mudança: um `updateJob` com os mesmos valores
+                 escreve no banco e carimba `updated_at` à toa, e a tela passaria
+                 a dizer "há menos de 1m" sobre uma alteração que não houve. */
+              disabled={salvando || !sujo}
+              aria-label="Salvar alterações"
+              className="rounded-none rounded-l-lg"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Salvar
+              <span className="hidden sm:inline">&nbsp;alterações</span>
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  type="button"
+                  disabled={ocupado}
+                  aria-label="Outras ações da peça"
+                  className="rounded-none rounded-r-lg border-l border-primary-foreground/25"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" side="top" className="w-72">
+                {/*
+                  **O que acontece na data, canal por canal — antes do clique.**
+
+                  Isto saía de `textoDoAgendamento`, ou seja, **depois** de a
+                  peça já estar na fila: a tela oferecia "Agendar publicação", a
+                  peça entrava como agendada, e só então aparecia que aquele
+                  cliente não tem conta conectada. No dia, ninguém publica.
+
+                  Ele mora **dentro** do menu porque é aqui que se decide: na
+                  coluna da direita ele ficava longe do botão, e no celular,
+                  abaixo dele. É a mesma correção que `faltaArteDoStory` já
+                  recebeu — a conferência vale onde ainda dá para agir.
+                */}
+                {avisosDosCanais(dados.canais, redesConectadas).map((a) => (
+                  <p
+                    key={a.canal}
+                    className={`flex items-start gap-1.5 px-2 py-1 text-[11px] leading-relaxed ${
+                      a.automatico
+                        ? 'text-slate-500 dark:text-slate-400'
+                        : 'text-amber-700 dark:text-amber-400 font-semibold'
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                        a.automatico ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    {a.texto}
+                  </p>
+                ))}
+
+                <DropdownMenuLabel>
+                  {/*
+                    **Toda ação daqui salva antes de agir**, como os botões do
+                    cadastro fazem. Publicar o que está no banco enquanto a tela
+                    mostra outra coisa é o pior desfecho possível: a legenda que
+                    foi ao ar não é a que a pessoa acabou de ler.
+                  */}
+                  Salvar e…
+                </DropdownMenuLabel>
+
+                <DropdownMenuItem
+                  onSelect={enviarParaAprovacao}
+                  disabled={selectedJob.status === 'for_approval' || ocupado}
+                >
+                  <Send className="w-4 h-4 text-slate-400" />
+                  {selectedJob.status === 'for_approval'
+                    ? 'Já está com o cliente'
+                    : 'Enviar para aprovação'}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onSelect={() => void agendar()} disabled={ocupado}>
+                  <CalendarClock className="w-4 h-4 text-slate-400" />
+                  {acao === 'agendando' ? 'Agendando...' : 'Agendar publicação'}
+                </DropdownMenuItem>
+
+                {/* Publicar agora fica por último e com a cor de aviso: é a
+                    única ação da tela que não tem volta.
+
+                    **Só aparece quando algum canal marcado publica sozinho.**
+                    Numa peça só de LinkedIn ele existia e o servidor recusava
+                    — botão que promete o que não faz é pior que botão
+                    ausente. A condição deriva de `REDES_QUE_PUBLICAM`, nunca
+                    de um nome de rede escrito aqui: era `includes('instagram')`
+                    no cadastro, e foi isso que escondeu o Facebook depois de
+                    ele já publicar. */}
+                {dados.canais.some(publicaSozinho) && (
+                  <DropdownMenuItem
+                    onSelect={() => void publicar()}
+                    disabled={ocupado || selectedJob.status === 'published'}
+                    className="text-amber-700 dark:text-amber-400 font-semibold"
+                  >
+                    <Send className="w-4 h-4" />
+                    {acao === 'publicando'
+                      ? 'Publicando...'
+                      : selectedJob.status === 'published'
+                        ? 'Já foi publicada'
+                        : 'Publicar agora'}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </DialogContent>
 

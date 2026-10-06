@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { AlertCircle, Sparkles, Send, Upload, History } from 'lucide-react';
+import { AlertCircle, Send, Upload, History } from 'lucide-react';
 import type { Job } from '../../types';
 import { usePostfy } from '../../context/PostfyContext';
-import { novoId } from '../../lib/sincronizacao';
-import { ApiError } from '../../lib/api';
 import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
@@ -34,17 +32,12 @@ export const PainelDeRevisoes: React.FC<{ job: Job }> = ({ job }) => {
   const {
     addJobComment,
     addNewJobVersion,
-    updateJob,
-    setSelectedJob,
-    convertFeedbackToTasks,
   } = usePostfy();
 
   const [texto, setTexto] = useState('');
   const [criandoVersao, setCriandoVersao] = useState(false);
   const [legendaDaVersao, setLegendaDaVersao] = useState('');
   const [midiaDaVersao, setMidiaDaVersao] = useState('');
-  const [convertendo, setConvertendo] = useState(false);
-  const [erroIa, setErroIa] = useState<string | null>(null);
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,42 +55,6 @@ export const PainelDeRevisoes: React.FC<{ job: Job }> = ({ job }) => {
     setCriandoVersao(false);
   };
 
-  const converterFeedbackComIa = async () => {
-    if (!job.lastFeedback) return;
-    setConvertendo(true);
-    setErroIa(null);
-    try {
-      const res = await convertFeedbackToTasks({
-        clientFeedback: job.lastFeedback,
-        jobTitle: job.title,
-        currentCopy: job.caption,
-      });
-
-      if (res && res.checklist && res.checklist.length > 0) {
-        const novos = res.checklist.map((c: any) => ({
-          id: novoId(),
-          title: `[${c.role.toUpperCase()}] ${c.item}`,
-          completed: false,
-        }));
-
-        updateJob(job.id, { checklist: [...job.checklist, ...novos] });
-        setSelectedJob({ ...job, checklist: [...job.checklist, ...novos] });
-      }
-    } catch (err) {
-      // Precisa aparecer na tela: as funções de IA propagam erro em vez de
-      // devolver texto de exemplo, então sem isto o botão só para de girar.
-      setErroIa(
-        err instanceof ApiError && err.naoConfigurado
-          ? 'A conversão por IA ainda não está configurada neste ambiente.'
-          : err instanceof Error
-          ? err.message
-          : 'Não foi possível converter o feedback. Tente novamente.'
-      );
-    } finally {
-      setConvertendo(false);
-    }
-  };
-
   const cartao =
     'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs';
 
@@ -110,24 +67,22 @@ export const PainelDeRevisoes: React.FC<{ job: Job }> = ({ job }) => {
       */}
       {job.lastFeedback && (
         <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 font-bold">
-              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-              <span>Ajuste solicitado pelo cliente</span>
-            </div>
-            <Button type="button" onClick={converterFeedbackComIa} disabled={convertendo}>
-              <Sparkles className="w-3.5 h-3.5" />
-              {convertendo ? 'Convertendo...' : 'Gerar checklist técnico com IA'}
-            </Button>
+          {/*
+            **O "Gerar checklist técnico com IA" saiu daqui.**
+
+            Ele transformava o pedido do cliente em itens de `jobs.checklist`,
+            e o checklist de produção deixou de ter tela: o botão passaria a
+            gravar uma lista que nenhuma parte do produto mostra — a família do
+            `trial_ends_at`, agora com um giro de carregamento em cima. Botão
+            que escreve no vazio é pior que botão ausente.
+          */}
+          <div className="flex items-center gap-1.5 font-bold">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span>Ajuste solicitado pelo cliente</span>
           </div>
           <p className="italic pl-5 bg-white/60 dark:bg-black/30 p-2 rounded-lg border border-rose-100 dark:border-rose-900">
             "{job.lastFeedback}"
           </p>
-          {erroIa && (
-            <p className="pl-5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
-              {erroIa}
-            </p>
-          )}
         </div>
       )}
 

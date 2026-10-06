@@ -2430,16 +2430,41 @@ v2 existe.
   o link do portal é o mesmo por e-mail ou colado na conversa —, e modal sobre
   modal obrigava a fechar para reler a legenda antes de mandar. Virar filho da
   tela também matou de vez a armadilha 8.1 que aquele arquivo carregava.
-- **Checklist e horas** viraram seções recolhíveis dentro de Conteúdo. São o
-  processo interno, não a peça, e disputavam a barra com as três que importam.
-  A contagem fica no próprio gatilho: seção recolhida sem número é seção
-  esquecida.
+- **Checklist e horas** foram seções recolhíveis dentro de Conteúdo e **saíram
+  do produto**. Elas eram o processo interno, não a peça, e já tinham perdido a
+  aba própria por disputarem a barra com as três que importam; recolhidas, com
+  a contagem no gatilho, continuaram sendo duas caixas antes da dobra numa tela
+  que o dono já tinha pedido para enxugar duas vezes.
+
+  **Tirar a tela obriga a tirar quem escreve**, e esta é a parte que não é
+  óbvia. O "Gerar checklist técnico com IA", na aba Revisões, gravava em
+  `jobs.checklist`: sem tela, ele passaria a gravar uma lista que nenhuma parte
+  do produto mostra, com um giro de carregamento por cima — a família do
+  `trial_ends_at`, agora com um botão em cima. Saíram junto `toggleChecklistItem`,
+  `addTimesheetLog`, `convertFeedbackToTasks`, o `aiApi.convertFeedback`, o
+  prompt `convert-feedback` de `api/gemini.ts` e os três itens de checklist que
+  `createJob` semeava.
+
+  **As colunas ficam.** `jobs.checklist` é `not null` e o acervo tem itens
+  gravados; `timesheet_logs` continua carregada e sincronizada, porque mexer na
+  ordem dos `useColecaoSincronizada` é o que a armadilha 3 guarda. O que some é
+  o que afirmava existir.
 
 **A coluna da direita é a do cadastro, com o que só existe depois de salvar**:
-prévia, ações de workflow, responsável, versão, criado em, última atualização
-e excluir. O **seletor de status fica no cabeçalho, não nela** — abaixo do
-`lg` a coluna vira rodapé, e mudar o status passaria a exigir rolar a modal
-inteira até o fim. É o controle mais usado da tela.
+prévia, decisão do cliente, gestão, versão, criado em e última atualização.
+
+**O seletor de etapa trocou de casa com a largura, e a decisão anterior era
+outra.** Ele morava no cabeçalho pelo argumento certo de que, abaixo do `lg`, a
+coluna da direita vira rodapé e mudar a etapa passaria a exigir rolar a modal
+inteira até o fim. Na tela larga, porém, ele ficava longe de tudo que fala da
+mesma peça — cliente, canais, formato, responsáveis, datas — e o cabeçalho é a
+identidade da peça, não um painel de controle.
+
+Hoje ele abre o cartão **Gestão** no computador e continua no **cabeçalho** no
+celular, escolhido pelo mesmo `estreita` que já decide entre o assistente e as
+duas colunas. Ele é **uma** constante montada em um dos dois lugares, nunca
+dois `<select>`: as sete opções são a lista fechada que o `check` do banco
+também guarda, e uma segunda cópia perderia a etapa nova em silêncio.
 
 **No celular quem rola é um só, e a primeira versão errou isso.** Com as duas
 rolagens mantidas, o `shrink-0` da coluna direita (que ali serve para fixar
@@ -2504,13 +2529,65 @@ lugar onde ele não é inofensivo.
 A guarda afirma as três coisas: as duas montagens existem, são **duas** e não
 uma cópia à mão, e a saída antecipada está acima da condição do efeito.
 
-**A trilha de etapas nasce aberta e pode ser recolhida.** Aberta por padrão
-porque quem nunca a vê não descobre que ela existe, e ela é a resposta de quem
-abre uma peça atrasada. O estado **não é guardado**: uma coluna em
-`user_settings` para isso faria a pessoa encontrar a tela sem metade do que
-espera, sem lembrar de ter desligado — e o `localStorage` está fora pela
-armadilha 4. Recolher vale para a sessão, que é o tempo em que se trabalha
-naquela peça.
+**A trilha de etapas nasce recolhida, e recolhida ela ainda responde.** Ela
+nascia aberta, porque quem nunca a vê não descobre que ela existe — e o
+argumento valia enquanto recolhida ela **sumia por inteiro**, deixando um botão
+"Ver fluxo" sozinho: quem recolhia perdia junto a resposta mais usada da régua,
+*em que etapa isto está?*, e a faixa virava um controle que não informa nada.
+
+Agora a faixa recolhida é uma linha com o disco da etapa, o nome dela e **há
+quanto tempo a peça está ali**, mais o "Ver fluxo completo →". Ela informa sem
+ocupar: os 60px da fileira de sete bolinhas voltaram para a arte.
+
+**O tempo sai do histórico, nunca de `updated_at`.** Aquela coluna é a última
+edição de qualquer campo, inclusive de uma vírgula na legenda — ela diria "há
+2m nesta etapa" de uma peça parada há uma semana. Quem sabe é
+`historico_de_etapas`, e a leitura é a **última** linha com a etapa de agora:
+uma peça que voltou para ajuste duas vezes tem duas, e a primeira diria o tempo
+da estadia anterior. Sem linha nenhuma — o acervo anterior ao registro — a
+faixa mostra a etapa e **nenhum número**, que é a regra de `post_metrics`.
+
+O estado **não é guardado**: uma coluna em `user_settings` para isso faria a
+pessoa encontrar a tela sem metade do que espera, sem lembrar de ter desligado —
+e o `localStorage` está fora pela armadilha 4. Recolher vale para a sessão, que
+é o tempo em que se trabalha naquela peça.
+
+##### O rodapé de ações é um só, e fica fora da rolagem
+
+A tela tinha **dois lugares para a mesma pergunta** — *e agora, o que eu faço
+com esta peça?* A barra de salvar aparecia só quando havia mudança, só na
+coluna da esquerda, e no celular quem a mostrava era o assistente; as ações de
+workflow eram quatro botões empilhados na coluna da direita, abaixo da prévia e
+da gestão, portanto fora da dobra num notebook. Nenhum dos dois estava à vista
+o tempo todo, que é a única coisa que um botão de salvar precisa ser.
+
+Hoje é um rodapé só, irmão da linha das duas colunas (e não filho dela), com
+`shrink-0`: ele atravessa a modal inteira, em toda largura, e não rola. Três
+coisas que não são detalhe:
+
+- **O salvar é um botão dividido**, o mesmo desenho do "Adicionar mídia": a ação
+  comum no clique direto, as outras três na seta. Elas **salvam antes de agir**,
+  então o rótulo do botão principal é o resumo honesto do que a seta faz. E ele
+  é **desligado** sem mudança, nunca escondido: botão que some é botão que a
+  pessoa procura — e gravar sem mudança carimbaria `updated_at` à toa, fazendo o
+  próprio rodapé mentir na linha seguinte.
+- **O aviso por canal mudou de casa junto com a ação.** Ele existe para dizer o
+  que acontece na data *antes* do clique — foi por isso que saiu de
+  `textoDoAgendamento` —, e deixá-lo na coluna da direita o poria, no celular,
+  **abaixo** do botão que ele qualifica. Ele mora dentro do menu, acima de
+  "Agendar publicação".
+- **A resposta do servidor ficou colada no rodapé que a disparou.** Ela morava
+  no cartão de workflow; com a ação embaixo, a resposta na outra ponta da tela é
+  uma resposta que ninguém lê — a pessoa clica em "Publicar agora" e nada parece
+  acontecer.
+
+"Mais ações" guarda duplicar e excluir, que estavam soltos no fim da coluna da
+direita. Excluir atrás de um clique a mais é de propósito: o fim de uma coluna
+é onde o dedo para ao procurar o fim da página.
+
+E **o assistente do celular perdeu a barra de ações dele**, pela regra que já
+existia: uma barra de salvar de cada vez. Com o rodapé valendo em toda largura,
+manter a dele daria dois "Salvar alterações" na mesma tela.
 
 #### `jobs.updated_at` é carimbada pelo banco
 
@@ -3794,7 +3871,7 @@ src/components/common/PreviaNoHover.tsx  a arte grande no hover, a mesma no cale
 src/components/jobs/FormularioDoConteudo.tsx  o formulário do conteúdo, um só para cadastrar e editar
 src/components/jobs/PainelDeRevisoes.tsx      pedido do cliente, conversa e versões
 src/components/jobs/PainelDeCompartilhamento.tsx  link do portal e mensagem pronta
-src/components/jobs/PainelDeTimesheet.tsx    horas na peça; só o que é medido
+
 src/components/portal/ConversaComAAgencia.tsx  o chat do cliente, na tela de aprovação
 src/components/portal/FeedDoInstagram.tsx    o perfil montado, para o cliente ver o conjunto
 src/lib/feedDoInstagram.ts o que entra na grade do feed, e em que ordem

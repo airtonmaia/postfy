@@ -69,9 +69,6 @@ export const aiApi = {
   generateCopy: (params: Record<string, unknown>) =>
     chamar<any>('/api/gemini', { action: 'generate-copy', ...params }),
 
-  convertFeedback: (params: Record<string, unknown>) =>
-    chamar<any>('/api/gemini', { action: 'convert-feedback', ...params }),
-
   editorialIdeas: (params: Record<string, unknown>) =>
     chamar<any>('/api/gemini', { action: 'editorial-ideas', ...params }),
 };
