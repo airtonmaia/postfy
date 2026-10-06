@@ -180,10 +180,14 @@ export const SettingsConteudos: React.FC = () => {
                       tela é o tipo de ida e volta que faz a pessoa desistir de
                       ajustar.
                     */}
+                    {/* As medidas são as da coluna do quadro (`w-8`, `border`,
+                        ícone de 16px) de propósito: esta é a prévia, e uma
+                        prévia em outro tamanho faz escolher o ícone duas
+                        vezes — uma aqui e outra depois de abrir o quadro. */}
                     <span
-                      className={`w-6 h-6 rounded-full shrink-0 inline-flex items-center justify-center ${cor.caixa}`}
+                      className={`w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center border ${cor.caixa} ${cor.borda}`}
                     >
-                      <IconeDaEtapa chave={etapa.icone} className="w-3.5 h-3.5" />
+                      <IconeDaEtapa chave={etapa.icone} className="w-4 h-4" />
                     </span>
                     <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                       {etapa.rotulo}

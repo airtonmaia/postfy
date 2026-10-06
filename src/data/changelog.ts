@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.2.1',
+    data: '2026-10-06',
+    resumo: 'O ícone da etapa ganhou um disco próprio no topo da coluna, com o nome e a contagem ao lado.',
+    melhorias: [
+      'O cabeçalho da coluna ficou com o ícone num disco colorido, o nome da etapa em texto comum e a contagem embaixo — no selo, o ícone tinha 12px e não dava para distinguir um do outro.',
+      'A prévia em Configurações → Conteúdos passou a usar as mesmas medidas da coluna, para o ícone ser escolhido uma vez só.',
+    ],
+  },
+  {
     versao: '3.2.0',
     data: '2026-10-06',
     resumo: 'Cada etapa ganha um ícone, "Agendado" vira coluna própria, e os filtros passam a oferecer só o que a agência tem.',
