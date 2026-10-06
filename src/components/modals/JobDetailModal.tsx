@@ -1158,8 +1158,20 @@ export const JobDetailModal: React.FC = () => {
               className="rounded-none rounded-l-lg"
             >
               <Save className="w-3.5 h-3.5" />
-              Salvar
-              <span className="hidden sm:inline">&nbsp;alterações</span>
+              {/*
+                **Um rótulo por largura, nunca uma palavra colada na outra.**
+
+                Era `Salvar` mais um `<span>` com `&nbsp;alterações`: dois
+                filhos do botão, e o `gap-1.5` da escala vale **entre filhos**.
+                O espaço do `gap` somava com o do `&nbsp;` e saía um buraco de
+                duas larguras no meio da palavra, com o botão esticado junto.
+
+                Dois `<span>` que se alternam não têm esse problema: o escondido
+                é `display:none` e não gera caixa, então o `gap` acontece uma
+                vez só, entre o ícone e o rótulo visível.
+              */}
+              <span className="hidden sm:inline">Salvar alterações</span>
+              <span className="sm:hidden">Salvar</span>
             </Button>
 
             <DropdownMenu>
