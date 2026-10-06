@@ -269,8 +269,14 @@ describe('a lista de etapas é uma só, e cobre o fluxo inteiro', () => {
       readFileSync(join(RAIZ, 'src', 'components', 'kanban', 'CartaoDoQuadro.tsx'), 'utf-8')
     );
 
-    expect(cartao, 'o seletor de etapa voltou a ter a própria lista').toContain(
-      'ETAPAS_DO_CONTEUDO'
+    /*
+      O card lê as etapas pelo **fluxo da agência**, que por sua vez nasce de
+      `ETAPAS_DO_CONTEUDO`. Qualquer um dos dois serve; o que não pode é uma
+      terceira lista aqui dentro, que faria o card e a coluna do quadro darem
+      nomes diferentes à mesma etapa.
+    */
+    expect(cartao, 'o seletor de etapa voltou a ter a própria lista').toMatch(
+      /etapasDoFluxo|ETAPAS_DO_CONTEUDO/
     );
     expect(cartao, 'nasceu uma segunda lista de etapas no card').not.toMatch(
       /const ETAPAS(_DO_QUADRO)?\s*[:=]/

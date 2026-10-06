@@ -10,6 +10,8 @@ import {
   type EventoDeEtapa,
   type LinhaDoTempo,
 } from '../../lib/historicoDeEtapas';
+import { estourouOSla, etapasDoFluxo } from '../../lib/fluxoDeProducao';
+import { usePostfy } from '../../context/PostfyContext';
 import { dataCompacta, safeTimeFormat } from '../../lib/utils';
 import { Avatar } from '../common/Avatar';
 import { Badge } from '../ui/badge';
@@ -54,6 +56,7 @@ const Autor: React.FC<{ acontecimento: AcontecimentoDoConteudo }> = ({ acontecim
 
 export const HistoricoDeEtapas: React.FC<{ job: Job }> = ({ job }) => {
   /* Todos os hooks antes de qualquer `return` — armadilha 8.1. */
+  const { currentWorkspace } = usePostfy();
   const [eventos, setEventos] = useState<EventoDeEtapa[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -79,7 +82,12 @@ export const HistoricoDeEtapas: React.FC<{ job: Job }> = ({ job }) => {
     };
   }, [job.id, job.status]);
 
-  const dados: LinhaDoTempo | null = eventos ? linhaDoTempo(eventos, job.status) : null;
+  const etapas = etapasDoFluxo(currentWorkspace.fluxoDeProducao);
+  const slaDe = (status: string) => etapas.find((e) => e.status === status)?.slaDias;
+
+  const dados: LinhaDoTempo | null = eventos
+    ? linhaDoTempo(eventos, job.status, new Date(), etapas)
+    : null;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs p-4 sm:p-5">
@@ -167,6 +175,20 @@ export const HistoricoDeEtapas: React.FC<{ job: Job }> = ({ job }) => {
                         {duracaoLegivel(a.duracaoMs)}
                       </span>{' '}
                       em {a.emAndamento ? 'andamento nesta etapa' : 'seguida nesta etapa'}
+                      {/*
+                        **O estouro só aparece onde há prazo combinado.** Sem
+                        SLA escrito em Configurações → Conteúdos, a tela cala:
+                        um atraso acusado sobre um prazo que ninguém combinou
+                        vai para a conversa com quem fez o trabalho, e é a
+                        regra de `post_metrics` aplicada ao tempo.
+                      */}
+                      {estourouOSla(a.duracaoMs, slaDe(a.status)) && (
+                        <span className="ml-1.5 inline-flex">
+                          <Badge tom="rubi">
+                            Passou do prazo de {slaDe(a.status)}d
+                          </Badge>
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

@@ -2504,6 +2504,71 @@ campanha, público e funil. A subtração vale para **todos os papéis**: o edit
 
 Protegido por `tests/revisoes-do-cliente.test.ts`.
 
+#### O fluxo de produção é ajustável, não extensível — e a tela diz isso
+
+As sete etapas sempre foram fixas no código, e agência nenhuma chama as coisas
+assim: quem faz vídeo tem "Captação" e "Edição" onde está escrito "Produção";
+quem faz tráfego tem "Briefing" onde está "Ideias". O nome errado no quadro não
+é gosto — é a equipe traduzindo a coluna mentalmente toda vez que olha para ela.
+
+`Configurações → Conteúdos` deixa renomear, colorir e dar prazo às sete.
+**Não deixa criar uma oitava, e essa é a decisão que importa.**
+
+`jobs.status` tem um `check` com os sete valores. Uma etapa a mais na tela sem
+valor no `check` é o `feed_story` outra vez, e aquele custou dez conteúdos
+perdidos em silêncio — a gravação roda em segundo plano, o Postgres recusa a
+linha, a tela já pintou o card, e o `activity_logs` ainda registra "Criou o
+conteúdo". Etapa nova precisa de valor no `check`, de coluna no quadro, de lugar
+no publicador e no fluxo de aprovação: é uma migração, não um campo de texto.
+
+**E a limitação é dita na tela, em uma linha.** Quem não a vê conclui que o
+produto não tem a funcionalidade; quem a vê entende o que ela custa. É a mesma
+regra da aba Integrações e do Financeiro — a tela afirma o que mediu, inclusive
+sobre si mesma.
+
+Cinco decisões no desenho:
+
+- **jsonb numa coluna, não uma tabela.** São no máximo sete linhas por agência,
+  lidas em toda pintura do quadro, do card e do histórico. Uma tabela viraria
+  mais uma coleção na carga inicial e na persistência por diff — e o diff é a
+  camada que este arquivo registra como a que some com dado em silêncio.
+- **O que a agência não mexeu não é guardado.** Gravar as sete inteiras na
+  primeira abertura da tela congelaria os nomes de hoje naquela agência, e a
+  próxima renomeação do produto nunca chegaria nela. É a família do
+  `trial_ends_at`: um valor que parece escolha e é só uma cópia velha do padrão.
+- **Sem `check` no jsonb, de propósito.** Quem valida é `sanearFluxo`, que
+  **descarta** o que não reconhece — chave desconhecida, cor fora da paleta,
+  prazo negativo. Um `check` faria uma chave estranha derrubar a gravação das
+  configurações inteiras, que é a troca errada para um campo de aparência.
+- **Prazo em branco nunca acusa atraso.** É a regra de `post_metrics` aplicada
+  ao tempo: um SLA que ninguém combinou não pode marcar "passou do prazo",
+  porque esse aviso vai para a conversa com quem fez o trabalho.
+- **Renomear troca a frase do histórico, e só então.** "Aprovado" descreve o
+  **ato**, e o ato não muda quando a coluna muda de nome — quem não mexeu
+  continua lendo as frases boas. Mas quem chamou "Aprovação" de "Revisão do
+  cliente" não pode ler "Enviado para aprovação" num produto que não tem mais
+  essa palavra: aí a frase vira "Movido para Revisão do cliente".
+
+**O título da coluna do quadro deixou de ser literal**, e a guarda seguiu a
+decisão em vez do texto: ela passou a exigir que nenhuma coluna tenha título
+escrito à mão, e a afirmar que o fluxo padrão continua produzindo
+"Aprovado / Agendado". Exigir a string obrigaria a editar a guarda junto com o
+código, que é como ela deixa de guardar. O **agrupamento** `['approved',
+'scheduled']` continua literal: ele não é aparência — é a regra de que arrastar
+nunca enfileira publicação.
+
+**Arquivar aqui é sair da vista, não apagar**, e a tela escreve qual dos dois:
+a peça publicada continua no banco, no calendário, nos relatórios e na busca.
+Zero e nulo valem "nunca", e isso não é tolerância a dado ruim — um campo
+numérico zerado por engano apagaria a coluna inteira, e o estado seguinte seria
+a pessoa concluindo que o sistema perdeu as publicações. O recorte alcança só
+`published`: esconder peça **aberta** por idade seria o quadro omitindo trabalho
+que ainda precisa ser feito.
+
+Protegido por `tests/fluxo-de-producao.test.ts`, conferido ao contrário:
+guardando etapa sem ajuste, aceitando cor e prazo inválidos, fazendo o SLA
+ausente valer 1 dia e tirando a troca de frase, quatro asserções reprovam.
+
 #### O histórico da peça: quem mexeu, quando, e quanto ela ficou parada
 
 "Esta peça está parada em aprovação há quanto tempo, e quem a mandou para lá?"
