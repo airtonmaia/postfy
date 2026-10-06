@@ -368,7 +368,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto"
     >
       {/* Sticky Top Header */}
-      <div className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 pb-0 flex flex-col gap-4">
+      <div className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 sm:p-6 pb-0 sm:pb-0 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <Button variant="ghost" 
@@ -378,7 +378,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
               <ArrowLeft className="w-3.5 h-3.5" />
               Voltar para lista de clientes
             </Button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <Avatar
                 nome={client.name}
                 url={client.avatar}
@@ -387,9 +387,9 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                 className="border border-slate-200 dark:border-slate-800 shadow-xs"
               />
               <div>
-                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5">
+                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
                   <span>{client.name}</span>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border shrink-0 ${
                     client.status === 'active' 
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' 
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
@@ -437,7 +437,7 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
       </div>
 
       {/* Main Tab Content */}
-      <div className="p-6 max-w-5xl">
+      <div className="p-4 sm:p-6 max-w-5xl w-full min-w-0">
         {/* TAB 1: CADASTRO */}
         <TabsContent value="cadastro">
           <form onSubmit={handleSaveCadastro} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
@@ -894,7 +894,11 @@ export const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) =>
                       </div>
                       <div className="min-w-0">
                         <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">{file.name}</span>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                        {/* **`flex-wrap`.** Sem ele os três pedaços da linha
+                            somam uma largura mínima maior que o card no
+                            telefone, e a data ia parar por cima dos botões de
+                            editar e excluir — medido em 390px. */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-slate-400">
                           <span className="capitalize">{file.category.replace('_', ' ')}</span>
                           <span>&bull;</span>
                           <span>{tipo === 'link' ? 'Link externo' : file.size}</span>

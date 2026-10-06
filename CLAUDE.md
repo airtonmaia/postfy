@@ -3056,6 +3056,41 @@ armadilha 9 na memória do projeto.
 (`ui/recorte-quadrado.tsx`), onde o gesto é manipulação direta, sem `delay`, e
 a área é pequena e deliberada.
 
+#### `overflow-y-auto` liga o eixo horizontal junto, e é assim que a tela escorrega
+
+A raiz de quase toda tela é `overflow-y-auto`. O que ninguém lembra é a regra
+do CSS: **quando um eixo deixa de ser `visible`, o outro vira `auto`**. Então
+toda tela deste produto tem rolagem horizontal ligada sem ninguém ter pedido —
+e qualquer filho mais largo que o telefone passa a esticar a página.
+
+O sintoma não parece layout quebrado, parece tela torta: o conteúdo aparece
+deslocado, com o começo cortado. Chegou por print assim — *"Clientes da
+Agência"* lido como **"entes da Agência"**, *"Nome Fantasia"* como **"ome
+Fantasia"**, *"Dados Cadastrais"* como **"ados Cadastrais"**. Nada disso é a
+tela desenhando errado: é a página inteira rolada para a direita.
+
+**O culpado era a barra de abas**, e por um motivo que vale guardar:
+`inline-flex` e `w-fit` são as duas formas de dizer *"não encolha"*. A variante
+padrão do `TabsList` tinha `inline-flex` e nenhum teto; com oito abas em
+Configurações e sete na ficha do cliente, ela ficava mais larga que o aparelho.
+As variantes `pagina` e `painel` já nasceram com `overflow-x-auto`; a mais usada
+era a única sem ele.
+
+A regra: **quem declara que não encolhe declara até onde cresce** —
+`max-w-full overflow-x-auto` andam juntos com `inline-flex` e `w-fit`.
+
+E `no-scrollbar`, que essas faixas usam para esconder a barra, **não existia**:
+quatro telas a escreviam e nenhuma regra a definia, nem no Tailwind nem no
+`index.css`. Classe que não existe não vira propriedade — as faixas rolavam com
+a barra cinza do sistema à mostra, num produto que é whitelabel. Mesma família
+do `animate-in` sem o `tw-animate-css`, e a guarda agora é a mesma: se a classe
+é usada em `src`, ela tem de existir no CSS.
+
+Protegido por `tests/celular.test.ts`, que **deriva as variantes do próprio
+primitivo** e exige rolagem de cada uma — lista literal teria de ser editada
+junto com o código. Conferido ao contrário: tirando o `overflow-x-auto` da
+variante padrão e renomeando a `@utility`, duas asserções reprovam.
+
 #### Painel de largura fixa no celular não fica apertado — fica inalcançável
 
 A barra lateral do calendário é `w-64`: **256px de uma tela de 390**. Como o

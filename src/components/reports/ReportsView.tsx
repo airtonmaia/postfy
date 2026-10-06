@@ -331,7 +331,7 @@ export const ReportsView: React.FC = () => {
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
       
       {/* Printable Report Container */}
-      <div ref={reportRef} className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+      <div ref={reportRef} className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto w-full min-w-0">
         
         {/* Top Header */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">

@@ -13,10 +13,34 @@ export const Tabs = TabsPrimitive.Root;
 const variantesDaLista = cva('flex items-center', {
   variants: {
     aparencia: {
+      /*
+        **`max-w-full` e `overflow-x-auto`, e isto era um bug de celular, não
+        acabamento.**
+
+        A variante padrão é `inline-flex`: ela se dimensiona pelo conteúdo e
+        **não encolhe**. Com oito abas em Configurações, ou sete na ficha do
+        cliente, a barra fica mais larga que um telefone — e como a raiz da
+        tela é `overflow-y-auto`, o CSS promove o eixo horizontal a `auto`
+        junto. O resultado não é a barra rolando: é a **página inteira**
+        rolando para o lado, com o título, os campos e os botões saindo da
+        vista. Medido nas três telas que chegaram por print: "Clientes da
+        Agência" lido como "entes da Agência".
+
+        As variantes `pagina` e `painel` já tinham o `overflow-x-auto` desde
+        que nasceram. A padrão é a mais usada e era a única sem ele.
+      */
       default:
-        'inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground',
+        'inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground ' +
+        'max-w-full overflow-x-auto no-scrollbar',
+      /*
+        `w-fit` tem o mesmo defeito do `inline-flex` acima: a faixa não
+        encolhe. Com quatro filtros — "Todos / Anexos / Links / Bloco de
+        notas", na aba Arquivos do cliente — o último saía da tela no
+        telefone, e era a página que rolava atrás dele.
+      */
       segmentado:
-        'inline-flex h-10 items-center justify-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 w-fit',
+        'inline-flex h-10 items-center justify-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 w-fit ' +
+        'max-w-full overflow-x-auto no-scrollbar',
       pagina: 'gap-6 overflow-x-auto no-scrollbar pt-2',
       painel:
         'gap-2 border-b border-slate-200 dark:border-slate-800 ' +

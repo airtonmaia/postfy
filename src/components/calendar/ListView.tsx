@@ -69,7 +69,7 @@ export const ListView: React.FC = () => {
   const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto p-6">
+    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto p-4 sm:p-6">
       {/* Search & Filter Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs mb-6 flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">

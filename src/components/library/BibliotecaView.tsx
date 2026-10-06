@@ -176,7 +176,7 @@ export const BibliotecaView: React.FC = () => {
      * Só aparece quando o conteúdo passa da altura da janela, então no
      * desktop de quem escreveu, com poucos arquivos, ela parecia certa.
      */
-    <div className="flex-1 min-w-0 overflow-y-auto p-6 md:p-8 space-y-6">
+    <div className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
