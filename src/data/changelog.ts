@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.7.1',
+    data: '2026-10-06',
+    resumo: 'Correção: a equipe mostrada na peça trazia gente de outras agências.',
+    corrigido: [
+      'O seletor de "Quem está nesta peça" listava os membros de todas as agências de que você participa, com o mesmo nome repetido uma vez por agência. Agora ele mostra só a equipe da agência aberta — a mesma lista de Configurações → Usuários.',
+    ],
+  },
+  {
     versao: '3.7.0',
     data: '2026-10-06',
     resumo:

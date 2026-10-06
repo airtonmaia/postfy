@@ -592,10 +592,16 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Equipe real da agência, vinda de workspace_members.
-  // O e-mail não vem junto: ele vive em auth.users, que a RLS não expõe entre
-  // membros. Para atribuir tarefa e montar squad, id + nome + papel bastam.
-  const [users, setUsers] = useState<User[]>([]);
+  /*
+    Equipe real da agência, vinda de `workspace_members`.
+
+    O e-mail não vem junto: ele vive em `auth.users`, que a RLS não expõe entre
+    membros. Para atribuir tarefa e montar squad, id + nome + papel bastam.
+
+    **É `allUsers`, com todas as agências da pessoa dentro** — como toda outra
+    coleção daqui. Quem recorta é o `useMemo` lá embaixo; ver `users`.
+  */
+  const [allUsers, setUsers] = useState<User[]>([]);
 
   // ============================================================
   // Autenticação (Supabase Auth)
@@ -1070,6 +1076,25 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
     pertenceAoWorkspace(row, currentWsId);
+
+  /**
+   * **A equipe é a da agência aberta, e era a única coleção sem esse recorte.**
+   *
+   * `listarMembros` lê `workspace_members` sem filtro — a RLS devolve as linhas
+   * de **todas** as agências de que a pessoa participa, como faz com clientes e
+   * conteúdos. As outras dez coleções passam por `belongsToWorkspace`; esta
+   * ficou de fora, e o efeito só aparece em quem tem mais de uma agência.
+   *
+   * Chegou pelo seletor de "Quem está nesta peça": nove nomes numa agência de
+   * quatro pessoas, com o mesmo nome repetido três vezes — uma linha por
+   * agência da mesma pessoa. Atribuir ali gravaria em `jobs.responsaveis` o id
+   * de alguém que não é da agência da peça, e a tela do colega mostraria "Fora
+   * da equipe" sem explicar por quê.
+   *
+   * Não é vazamento de dado — nome e avatar de quem divide uma agência com
+   * você —, mas é a tela afirmando que aquelas pessoas são a equipe daqui.
+   */
+  const users = useMemo(() => allUsers.filter(belongsToWorkspace), [allUsers, currentWsId]);
 
   const clients = useMemo(() => allClients.filter(belongsToWorkspace), [allClients, currentWsId]);
   const jobs = useMemo(() => allJobs.filter(belongsToWorkspace), [allJobs, currentWsId]);
