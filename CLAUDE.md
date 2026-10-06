@@ -2477,6 +2477,41 @@ exatamente isso que o `lg:flex` do cadastro fazia, estado fechado e prévia à
 mostra assim mesmo. A primeira versão dela aceitava qualquer `useState(false)`
 do arquivo, que é a guarda medindo o vizinho; a que ficou exige o par com nome.
 
+##### O formulário é um só, montado duas vezes
+
+A tela de conteúdo partiu os campos em duas colunas: **arte e texto** de um
+lado, **cliente, canais, título, formato, responsáveis, prioridade e datas** do
+outro. Antes tudo isso ficava acima da arte, empurrando a peça — que é o
+assunto da tela — para baixo da dobra.
+
+A saída fácil seria escrever os campos de gestão direto na coluna da direita.
+Seriam **duas** definições do mesmo formulário, e duas cópias divergem na
+primeira pressa: é a história das doze alturas de botão, das sete barras de
+abas e da tabela de formatos, que já teve de sair da `CreateJobModal` por este
+motivo exato. Divergir **aqui** é pior que nos outros casos — um campo some de
+um lado e ninguém nota, porque a outra coluna continua mostrando o dele.
+
+Então é o mesmo componente, montado duas vezes, com uma prop de recorte. Isso
+cobra um cuidado que não é óbvio:
+
+**Efeito em componente montado duas vezes roda duas vezes.** O efeito que
+revalida o formato ao trocar de canal mora na metade que tem o campo Formato, e
+**só nela**. Sem a saída antecipada, as duas montagens o rodariam — e as duas
+gravariam o mesmo valor, porque as entradas são as mesmas. Inofensivo *por
+coincidência*, que é exatamente como um efeito duplicado passa a ser aceito num
+lugar onde ele não é inofensivo.
+
+A guarda afirma as três coisas: as duas montagens existem, são **duas** e não
+uma cópia à mão, e a saída antecipada está acima da condição do efeito.
+
+**A trilha de etapas nasce aberta e pode ser recolhida.** Aberta por padrão
+porque quem nunca a vê não descobre que ela existe, e ela é a resposta de quem
+abre uma peça atrasada. O estado **não é guardado**: uma coluna em
+`user_settings` para isso faria a pessoa encontrar a tela sem metade do que
+espera, sem lembrar de ter desligado — e o `localStorage` está fora pela
+armadilha 4. Recolher vale para a sessão, que é o tempo em que se trabalha
+naquela peça.
+
 #### `jobs.updated_at` é carimbada pelo banco
 
 A tela mostra "última atualização", e a coluna não existia. Mostrar

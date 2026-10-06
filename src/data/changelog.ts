@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.4.0',
+    data: '2026-10-06',
+    resumo: 'A coluna da esquerda ficou só com a arte e o texto; o resto foi para a direita, e a trilha de etapas pode ser recolhida.',
+    melhorias: [
+      'Cliente, canais, título, formato, responsáveis, prioridade e datas saíram de cima da arte e foram para a coluna da direita, em "Gestão". A esquerda ficou com a peça — arte e texto, lado a lado.',
+      'A trilha de etapas tem "Ocultar fluxo". Ela nasce aberta: quem nunca a vê não descobre que ela existe.',
+    ],
+  },
+  {
     versao: '3.3.1',
     data: '2026-10-06',
     resumo: 'A tela do conteúdo respira: arte e texto lado a lado, e a prévia a um clique em vez de ocupar o topo da coluna.',

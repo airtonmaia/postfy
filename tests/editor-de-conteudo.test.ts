@@ -384,3 +384,62 @@ describe('o que ocupa a tela do conteúdo', () => {
     ).toMatch(/tipo\.pedeArte \?[\s\S]{0,80}lg:grid-cols-2/);
   });
 });
+
+/**
+ * O formulário é um só, montado duas vezes com recortes diferentes.
+ *
+ * A tela de conteúdo partiu os campos em duas colunas — arte e texto de um
+ * lado; cliente, canais, título, formato, responsáveis, prioridade e datas do
+ * outro. A saída fácil seria escrever os campos de gestão direto na coluna da
+ * direita, e aí haveria **duas** definições do mesmo formulário: é a história
+ * das doze alturas de botão, da tabela de formatos e das sete barras de abas.
+ */
+describe('as duas colunas saem do mesmo formulário', () => {
+  const formulario = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'jobs', 'FormularioDoConteudo.tsx'), 'utf-8')
+  );
+  const editor = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'modals', 'JobDetailModal.tsx'), 'utf-8')
+  );
+
+  it('a tela monta as duas metades do mesmo componente', () => {
+    expect(editor, 'a coluna da peça deixou de usar o formulário compartilhado').toMatch(
+      /secao="peca"/
+    );
+    expect(editor, 'a coluna de gestão deixou de usar o formulário compartilhado').toMatch(
+      /secao="gestao"/
+    );
+
+    /*
+      E são **duas** montagens do mesmo componente, não uma cópia à mão: três
+      ocorrências do nome (o import e os dois usos) é o que prova isso.
+    */
+    const usos = editor.match(/<FormularioDoConteudo/g) ?? [];
+    expect(usos.length, 'a coluna de gestão virou uma cópia dos campos').toBe(2);
+  });
+
+  it('o efeito que revalida o formato roda numa metade só', () => {
+    /*
+      Com duas montagens, um efeito sem recorte roda duas vezes. **Aqui as duas
+      chamadas gravariam o mesmo valor** — inofensivo por coincidência, e é
+      assim que um efeito duplicado passa a ser aceito num lugar onde ele não
+      é. A saída antecipada vem antes da condição, na metade que tem o campo.
+    */
+    const i = formulario.indexOf('formatosDoCanal.some');
+    expect(i, 'o efeito que revalida o formato sumiu').toBeGreaterThan(-1);
+
+    const acima = formulario.slice(Math.max(0, i - 300), i);
+    expect(acima, 'o efeito do formato voltou a rodar nas duas montagens').toMatch(
+      /if \(!gestao\) return;/
+    );
+  });
+
+  it('a trilha pode ser recolhida, e nasce aberta', () => {
+    // Nascer fechada esconderia a resposta de quem abre uma peça atrasada, e
+    // quem nunca a vê não descobre que ela existe.
+    expect(editor, 'a trilha deixou de nascer aberta').toMatch(
+      /\[trilhaAberta, setTrilhaAberta\] = useState\(true\)/
+    );
+    expect(editor, 'o botão não diz mais para onde o clique leva').toMatch(/'Ocultar fluxo'/);
+  });
+});
