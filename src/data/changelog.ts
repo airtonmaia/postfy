@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.1.2',
+    data: '2026-10-06',
+    resumo: 'A faixa de clientes do quadro: o anel do selecionado parou de sair cortado, e todos ganharam contorno.',
+    corrigido: [
+      'O anel do cliente selecionado aparecia cortado no topo: o container que rola na horizontal estava aparando os 2px que o anel desenha para fora.',
+    ],
+    melhorias: [
+      'Todos os clientes da faixa passaram a ter contorno: cinza nos demais, roxo no selecionado. O que distingue é a cor, não a presença da borda.',
+    ],
+  },
+  {
     versao: '3.1.1',
     data: '2026-10-06',
     resumo: 'O rodapé do card do quadro cabe na coluna, e o modo escuro deixa de ter manchas brancas.',

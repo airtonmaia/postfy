@@ -480,3 +480,58 @@ describe('o filtro de conteúdo é o mesmo nas cinco telas', () => {
     );
   });
 });
+
+/**
+ * A faixa de clientes: o anel inteiro, em todos.
+ *
+ * Duas coisas estavam erradas ao mesmo tempo, e uma escondia a outra:
+ *
+ * - **o anel do selecionado saía cortado no topo.** O `ring` do Tailwind é
+ *   `box-shadow`, desenhado **fora** da caixa do elemento; o container da
+ *   faixa é `overflow-x-auto`, e pela regra do CSS que este projeto já pagou
+ *   uma vez — eixo que deixa de ser `visible` faz o outro virar `auto` — o
+ *   recorte vertical estava ligado junto. Os 2px do anel eram aparados, e o
+ *   círculo lia como foto mal recortada;
+ * - **só o selecionado tinha anel.** Uma foto com contorno no meio de oito sem
+ *   lê como "esta está em destaque", não como "esta é a escolhida". Com o
+ *   neutro em volta de todas, o que distingue passa a ser a cor.
+ */
+describe('o anel da faixa de clientes', () => {
+  const faixa = ler('ClientesDoQuadro.tsx');
+
+  it('o container que rola deixa espaço para o anel', () => {
+    /*
+      Guarda de **efeito**: a linha que liga o recorte tem de trazer respiro
+      vertical. Sem ele o anel volta a ser aparado, e nada local acusa — `tsc`
+      compila, o vitest não monta componente e o `vite build` não mede caixa.
+    */
+    const linha = faixa.split('\n').find((l) => l.includes('overflow-x-auto'));
+
+    expect(linha, 'a faixa deixou de rolar na horizontal').toBeTruthy();
+    expect(linha, 'o container que recorta ficou sem respiro: o anel sai cortado').toMatch(
+      /\b(?:py|pt)-[1-9]/
+    );
+  });
+
+  it('todo item tem anel, e nenhum estado fica sem', () => {
+    /*
+      A decisão é medida pela **ausência de um ramo vazio**: enquanto o anel
+      nascer de um ternário com `''` de um lado, metade da faixa fica sem
+      contorno. E os dois ramos têm de ter a mesma espessura — anel que engorda
+      ao ser escolhido empurra o vizinho e faz a faixa tremer na troca.
+    */
+    const inicio = faixa.indexOf('const anel');
+    expect(inicio, 'o anel da faixa deixou de sair de um lugar só').toBeGreaterThan(-1);
+
+    const corpo = faixa.slice(inicio, faixa.indexOf(';', inicio));
+    expect(corpo, 'o item não selecionado voltou a ficar sem contorno').toMatch(
+      /ring-2 ring-slate-/
+    );
+    expect(corpo, 'o selecionado perdeu a cor que o distingue').toMatch(/ring-2 ring-purple-/);
+    expect(corpo, 'o anel voltou a ter um ramo sem contorno nenhum').not.toMatch(/: ''/);
+
+    /* E ele é aplicado nos dois desenhos da faixa — o "Todos", que é um ícone,
+       e o avatar do cliente. Um deles de fora deixa um buraco na fileira. */
+    expect(faixa.match(/anel\(\s*ativo\s*\)/g)?.length, 'um dos itens ficou sem o anel').toBe(2);
+  });
+});
