@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.8.2',
+    data: '2026-10-06',
+    resumo: 'O calendário e o quadro passaram a criar peça pelo mesmo botão.',
+    melhorias: [
+      'O "Novo Post" do calendário virou o mesmo "Adicionar" do quadro, com as três entregas: conteúdo, copy e roteiro. Antes, quem criava pelo calendário não descobria que copy e roteiro existem.',
+      'Criar pelo calendário já marca a data que está aberta na tela.',
+      'O menu passou a fechar com Esc e a andar pelo teclado — ele era um menu escrito à mão.',
+    ],
+  },
+  {
     versao: '3.8.1',
     data: '2026-10-06',
     resumo: 'Ajustes de tela: a navegação do mês ficou na altura dos filtros, e o quadro mudou de nome.',

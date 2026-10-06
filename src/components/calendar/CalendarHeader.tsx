@@ -3,7 +3,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon, 
-  Plus, 
   Filter,
   Layers,
   Columns,
@@ -14,6 +13,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { CalendarViewMode } from '../../types';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
+import { AdicionarConteudo } from '../common/AdicionarConteudo';
 import { Button } from '../ui/button';
 
 interface CalendarHeaderProps {
@@ -38,7 +38,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     clients, 
     clientFilter, 
     setClientFilter,
-    openCreateJobModal
   } = usePostfy();
 
 
@@ -180,14 +179,11 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             filtros, lia como mais um recorte do mesmo conteúdo. */}
         <AlternarVisaoDoWorkflow />
 
-        {/* Add Content Button */}
-        <Button
-          id="btn-header-add-content"
-          onClick={() => openCreateJobModal(currentDate.toISOString())}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Novo Post</span>
-        </Button>
+        {/* **O mesmo botão do quadro**, com a data que está aberta: criar
+            olhando para outubro e a peça nascer em hoje é a tela ignorando o
+            contexto do clique. Ele era "Novo Post", criava sempre um conteúdo
+            e escondia copy e roteiro de quem cria pelo calendário. */}
+        <AdicionarConteudo dataSugerida={currentDate.toISOString()} />
       </div>
 
     </div>
