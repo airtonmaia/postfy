@@ -47,7 +47,7 @@ const badgeDoPapel = (papel: string) => {
   return (
     <span
       className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
-        achado?.classe || 'bg-slate-100 text-slate-700 border-slate-200'
+        achado?.classe || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
       }`}
     >
       {achado?.rotulo || papel}

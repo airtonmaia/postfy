@@ -2931,6 +2931,74 @@ precisou deixar de ler `KanbanBoard.tsx` e passar a ler a **pasta**
 `src/components/kanban` inteira — ela reprovou no dia em que o card saiu para
 um arquivo próprio, medindo o arquivo em vez da decisão.
 
+#### No card do quadro só ficam as ações reversíveis
+
+O rodapé tinha cinco controles numa linha: ver histórico, copiar o link do
+portal, duplicar, excluir e a gaveta. No computador o **"Detalhes" saía
+cortado na borda do card** — lia-se "Detalhe", com o chevron por fora. A base
+do `Button` é `whitespace-nowrap`, então a linha não quebra: ela transborda, e
+o que sai é o último.
+
+Os dois que saíram não foram escolhidos por largura:
+
+- **o link do portal é do cliente, não da peça.** Ele é idêntico em todos os
+  cards do mesmo cliente, e copiá-lo de dentro de um card dava a impressão de
+  ser o link daquele conteúdo. Ele continua na aba Compartilhamento, junto da
+  mensagem pronta;
+- **excluir não é ação de passagem.** Ela ficava a um toque num card que a
+  pessoa percorre com o dedo, colada no controle mais usado do rodapé. A
+  exclusão continua existindo — na modal do conteúdo, com a confirmação que
+  nomeia o que some junto —, que é onde se decide sobre a peça depois de
+  olhar para ela.
+
+Duplicar fica: é reversível, e é o atalho que o quadro existe para dar.
+
+A guarda mede as **duas** metades, e isso não é zelo: tirar o excluir sem
+conferir o outro lado deixaria o produto sem como apagar uma peça, que é um
+estrago maior que o botão cortado.
+
+#### Fundo claro sem par escuro não quebra nada — fica branco
+
+As seis colunas do quadro eram `bg-slate-200/70` **sem `dark:`**. No modo
+escuro viravam faixas brancas no meio de uma tela preta, com os cards escuros
+por cima.
+
+Três coisas que valem mais que o conserto:
+
+- **O defeito aparece desigual, e o relato chega errado por isso.** Coluna
+  cheia tem o fundo coberto pelos cards; coluna curta não. Chegou como
+  *"algumas colunas ficam brancas"* — que manda procurar diferença entre as
+  colunas, onde não há nenhuma.
+- **A variante excepcional tinha o par; o estado normal não.** O realce de
+  soltura ao lado sempre escreveu `bg-purple-100/80 dark:bg-purple-950/40`. É
+  o padrão desta classe de bug: a linha que alguém parou para pensar sai
+  completa, e o fundo de todo dia passa batido. A varredura achou mais oito
+  assim, todos em `hover:`.
+- **Nada local acusa.** `tsc` compila, o vitest não monta componente, o
+  `vite build` não pinta nada — armadilha 0 na camada do tema. E só aparece
+  para quem usa o produto no escuro, que não costuma ser quem escreveu a
+  classe.
+
+`tests/modo-escuro.test.ts` varre `src/components` e **deriva a paleta das
+etapas de `CORES_DA_ETAPA`**, em vez de listar as sete cores: cor nova nasce
+conferida nos dois temas.
+
+Duas exceções nomeadas, e nenhuma é tolerância: `LoginView` e
+`AcceptInviteView` não têm **nenhum** `dark:` — são claras por inteiro, porque
+a preferência de tema mora em `user_settings` e só existe depois da sessão; o
+play do portal e os pontinhos do carrossel são brancos **sobre a arte**, onde
+o contraste é com a foto e não com a tela. A bolinha do interruptor sai pela
+mesma razão: pseudo-elemento ali não é superfície.
+
+**E a primeira versão da guarda media o vizinho.** Ela olhava uma janela de
+linhas inteiras em volta do tom claro — e o caso real estava no ramo de baixo
+de um ternário cujo ramo de cima trazia o par escuro uma linha acima. A janela
+enxergava aquele `dark:` e **aprovava o defeito**: conferida ao contrário, com
+o bug recolocado, ela passava. A versão que ficou olha só para a frente, 140
+caracteres, que é o que cabe o salto de uma string concatenada em duas linhas.
+É a quinta vez que este arquivo registra o mesmo erro — *guarda que aceita o
+vizinho no lugar do alvo não guarda*.
+
 #### O e-mail da equipe vem por RPC, e a agência pode trocar de dono
 
 A tela de Usuários mostrava **"Membro da agência"** embaixo do nome de todo

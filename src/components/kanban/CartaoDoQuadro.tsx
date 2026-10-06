@@ -7,23 +7,18 @@ import {
   GripVertical,
   Pin,
   History,
-  Link2,
-  Check,
   Copy,
-  Trash2,
   ChevronDown,
   ChevronUp,
   ExternalLink,
 } from 'lucide-react';
 import type { Client, Job, JobStatus } from '../../types';
-import { dataCompacta, copyToClipboard } from '../../lib/utils';
+import { dataCompacta } from '../../lib/utils';
 import { PlatformBadge, FormatBadge, TipoBadge } from '../common/Badges';
 import { Badge } from '../ui/badge';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
-import { useConfirmacao } from '../ui/alert-dialog';
 import { usePostfy } from '../../context/PostfyContext';
-import { urlDoPortalDaAgencia } from '../../lib/rotas';
 import { prazoDoCard } from '../../lib/prazoDoCard';
 import { etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { urlDeExibicao } from '../../lib/midiaDoDrive';
@@ -79,10 +74,7 @@ export const CartaoDoQuadro: React.FC<{
     coluna, e o erro #310 derruba a árvore inteira.
   */
   const [aberto, setAberto] = useState(false);
-  const [linkCopiado, setLinkCopiado] = useState(false);
-  const { pedir, dialogo } = useConfirmacao();
-  const { setSelectedJob, setAbaDoConteudo, duplicateJob, deleteJob, currentWorkspace } =
-    usePostfy();
+  const { setSelectedJob, setAbaDoConteudo, duplicateJob, currentWorkspace } = usePostfy();
 
   // As etapas como **esta** agência as chama (Configurações → Conteúdos).
   // Lista própria aqui faria o card e a coluna do quadro darem nomes
@@ -97,34 +89,12 @@ export const CartaoDoQuadro: React.FC<{
     setSelectedJob(job);
   };
 
-  const copiarLink = async () => {
-    const ok = await copyToClipboard(
-      urlDoPortalDaAgencia(currentWorkspace.slug, window.location.origin)
-    );
-    if (!ok) return;
-    setLinkCopiado(true);
-    window.setTimeout(() => setLinkCopiado(false), 2000);
-  };
-
-  const excluir = () =>
-    pedir({
-      titulo: `Excluir "${job.title}"?`,
-      // A descrição é obrigatória no diálogo justamente para ele não virar um
-      // "tem certeza?": o que decide é a consequência, não a pergunta.
-      descricao:
-        'A peça sai do quadro com as versões, os comentários e o histórico dela. ' +
-        'Se estiver na fila de publicação, o disparo é cancelado junto.',
-      rotuloConfirmar: 'Excluir',
-      destrutivo: true,
-      aoConfirmar: () => deleteJob(job.id),
-    });
-
   return (
     <div
       className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/90 p-2.5 sm:p-3.5 space-y-1.5 sm:space-y-2.5 group ${
         flutuando
           ? 'shadow-2xl border-purple-300 rotate-2 cursor-grabbing'
-          : 'shadow-xs hover:bg-slate-50 hover:border-purple-300 transition-all'
+          : 'shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-purple-300 transition-all'
       }`}
     >
       {/* Título, versão e a alça */}
@@ -273,34 +243,45 @@ export const CartaoDoQuadro: React.FC<{
             e o `aria-label` fica no lugar: rótulo que some no celular sem nome
             para o leitor de tela é trocar um problema de espaço por um de
             acesso.
+
+            **E sobraram três controles, não cinco.** Com o link do portal e o
+            excluir ali, a linha pedia mais largura do que a coluna tem: no
+            computador o "Detalhes" saía **cortado na borda do card** — o botão
+            lia "Detalhe", com o chevron por fora. `whitespace-nowrap` é a base
+            do `Button`, então a linha não quebra, ela transborda.
+
+            Os dois que saíram são os que menos pertencem a esta linha, e por
+            razões diferentes:
+
+            - **o link do portal é do cliente, não da peça.** Ele é o mesmo em
+              todos os cards do mesmo cliente — copiá-lo daqui dava a impressão
+              de ser o link daquele conteúdo. Ele mora na aba Compartilhamento,
+              junto da mensagem pronta;
+            - **excluir não é ação de passagem.** Ela está a um toque de um
+              card que a pessoa percorre com o dedo, e o alvo fica colado no
+              "Detalhes". A exclusão continua existindo, com a confirmação que
+              diz o que some junto, na modal do conteúdo — que é onde se decide
+              sobre a peça depois de olhar para ela.
+
+            Duplicar fica: ele é reversível e é o atalho que o quadro existe
+            para dar.
           */}
           <div className="flex items-center justify-between gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="text-[11px] px-2"
+              className="text-[11px] px-2 min-w-0"
               onClick={() => abrir('revisoes')}
               title="Versões entregues, pedidos de ajuste e a conversa com o cliente"
               aria-label="Ver o histórico deste conteúdo"
             >
-              <History className="w-3 h-3" />
-              <span className="hidden sm:inline">Ver histórico</span>
+              <History className="w-3 h-3 shrink-0" />
+              <span className="hidden sm:inline truncate">Ver histórico</span>
             </Button>
 
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={copiarLink}
-                title="Copiar o link do portal do cliente"
-                aria-label="Copiar o link do portal do cliente"
-              >
-                {linkCopiado ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Link2 className="w-3.5 h-3.5" />
-                )}
-              </Button>
+            {/* `shrink-0`: numa coluna estreita quem cede é o rótulo da
+                esquerda, nunca a gaveta — ela é o controle que o card ganhou. */}
+            <div className="flex items-center gap-0.5 shrink-0">
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -309,15 +290,6 @@ export const CartaoDoQuadro: React.FC<{
                 aria-label="Duplicar este conteúdo"
               >
                 <Copy className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                onClick={excluir}
-                title="Excluir este conteúdo"
-                aria-label="Excluir este conteúdo"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
               </Button>
 
               {/*
@@ -329,11 +301,15 @@ export const CartaoDoQuadro: React.FC<{
                 secundária e saiu de contagem, não de gosto. Cor nova aqui
                 competiria com o selo de prazo logo acima, que é o que precisa
                 saltar no card.
+
+                O `px-2` é o mesmo do "Ver histórico" ao lado: `sm` continua
+                sendo a altura — a escala de botão tem uma só, e inventar um
+                degrau menor aqui seria a décima terceira altura.
               */}
               <Button
                 variant="secondary"
                 size="sm"
-                className="text-[11px] ml-1"
+                className="text-[11px] px-2 ml-1"
                 onClick={() => setAberto((a) => !a)}
                 aria-expanded={aberto}
               >
@@ -442,8 +418,6 @@ export const CartaoDoQuadro: React.FC<{
           )}
         </div>
       )}
-
-      {dialogo}
     </div>
   );
 };

@@ -200,7 +200,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                     e.stopPropagation();
                     openCreateJobModal(dateISO);
                   }}
-                  className="opacity-0 group-hover:opacity-100 pointer-events-auto hover:bg-slate-200 dark:text-slate-200"
+                  className="opacity-0 group-hover:opacity-100 pointer-events-auto hover:bg-slate-200 dark:hover:bg-slate-800 dark:text-slate-200"
                   title="Novo conteúdo nesta data"
                 >
                   <Plus className="w-3.5 h-3.5" />

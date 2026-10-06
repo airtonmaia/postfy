@@ -364,7 +364,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                     setMenuAberto(false);
                     fileInputRef.current?.click();
                   }}
-                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <UploadCloud className="w-4 h-4 text-slate-400" />
                   Do computador
@@ -376,7 +376,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                     setMenuAberto(false);
                     setShowUrlInput(true);
                   }}
-                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50"
+                  className="w-full justify-start text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <Link2 className="w-4 h-4 text-slate-400" />
                   Por link da web
@@ -415,7 +415,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                         setMenuAberto(false);
                         void escolherNoDrive(conta);
                       }}
-                      className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                      className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-transparent"
                     >
                       <ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="flex-1 text-left min-w-0">
@@ -441,7 +441,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                       setMenuAberto(false);
                       void escolherNoDrive(contas[0]);
                     }}
-                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-transparent"
                   >
                     <ExternalLink className="w-4 h-4 text-slate-400" />
                     <span className="flex-1 text-left">Google Drive</span>
@@ -469,7 +469,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                       setMenuAberto(false);
                       origem.aoEscolher?.();
                     }}
-                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+                    className="w-full text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-transparent"
                   >
                     <ExternalLink className="w-4 h-4 text-slate-400" />
                     <span className="flex-1 text-left">{origem.rotulo}</span>
