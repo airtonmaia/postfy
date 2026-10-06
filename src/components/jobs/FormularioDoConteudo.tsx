@@ -469,6 +469,19 @@ export const FormularioDoConteudo: React.FC<Props> = ({
         </div>
       </div>
 
+      {/*
+        **A arte e o texto ficam lado a lado a partir do lg.**
+
+        Eram empilhados, e o custo era de rolagem: a legenda ficava uma tela
+        inteira abaixo da arte, então escrever olhando para a imagem — que é
+        como se escreve legenda — exigia subir e descer a cada frase. Lado a
+        lado, os dois cabem na mesma dobra num notebook.
+
+        No celular continuam empilhados: 390px não comportam duas colunas, e
+        espremer a área de texto é pior que rolar. E sem arte (copy e roteiro)
+        o texto ocupa a largura inteira, em vez de deixar meia tela vazia.
+      */}
+      <div className={tipo.pedeArte ? 'grid grid-cols-1 lg:grid-cols-2 gap-5 lg:items-start' : ''}>
       {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
           upload neles seria pedir aprovação de algo que não existe. */}
       {tipo.pedeArte && (
@@ -618,6 +631,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           </p>
         </TabsContent>
       </Tabs>
+      </div>
 
       {/* "Mais opções": só é desenhada quando a tela tem o que pôr dentro. */}
       {children && (

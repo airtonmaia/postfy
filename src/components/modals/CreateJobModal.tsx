@@ -464,9 +464,22 @@ export const CreateJobModal: React.FC = () => {
             <Button variant="ghost"
               type="button"
               onClick={closeCreateJobModal}
-              className="sm:mr-auto"
             >
               Cancelar
+            </Button>
+
+            {/* A prévia é consulta, não decisão — por isso ela fica na ponta
+                oposta dos botões que gravam, e é o que separa as duas metades
+                da linha. */}
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setPreviaAberta((v) => !v)}
+              className="sm:mr-auto"
+              aria-expanded={previaAberta}
+            >
+              {previaAberta ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {previaAberta ? 'Ocultar prévia' : 'Ver prévia'}
             </Button>
 
             {/* Publicar agora fica **longe** do primário, e com a cor de
@@ -526,24 +539,20 @@ export const CreateJobModal: React.FC = () => {
         {/* Prévia: como fica na rede escolhida, com o dado deste formulário. */}
         {/* Centralizada na vertical, e com folga no topo: encostada em cima
             ela passava por baixo do botão de fechar. */}
-        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:pt-12 flex flex-col lg:flex-row lg:items-center gap-3">
-          {/*
-            O botão que abre a prévia **só existe abaixo do `lg`**, que é onde
-            ela deixa de ser coluna e vira rodapé. Acima disso ela está sempre
-            aberta e um botão para "mostrar" o que já está à vista seria ruído.
-          */}
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => setPreviaAberta((v) => !v)}
-            className="lg:hidden w-full"
-            aria-expanded={previaAberta}
-          >
-            {previaAberta ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            {previaAberta ? 'Ocultar prévia' : 'Ver prévia da publicação'}
-          </Button>
+        {/*
+          **A coluna da prévia só existe quando a prévia está aberta.**
 
-          <div className={`${previaAberta ? 'flex' : 'hidden'} lg:flex w-full items-center`}>
+          Ela reservava 440px fixos, e o formulário ficava com o resto — que
+          é pouco desde que a arte e o texto passaram a dividir a linha. Com
+          ela fechada, a largura inteira volta para quem está preenchendo, que
+          é o que a pessoa veio fazer no cadastro.
+
+          O botão que a abre mora na linha de ações, com o resto das decisões.
+        */}
+        {previaAberta && (
+        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:pt-12 flex flex-col lg:flex-row lg:items-center gap-3">
+
+          <div className="flex w-full items-center">
           <PreviaDaRede
             className="w-full"
             dados={{
@@ -564,6 +573,7 @@ export const CreateJobModal: React.FC = () => {
           />
           </div>
         </aside>
+        )}
         </div>
       </DialogContent>
 

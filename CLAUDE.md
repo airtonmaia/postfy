@@ -2449,6 +2449,34 @@ formulário não aparecia** — a modal abria na prévia, sem barra de rolagem e
 sem pista de que havia um formulário acima. Medido no Chromium em 390px. Por
 isso `shrink-0` e as rolagens internas são todos `lg:`.
 
+##### O que ocupa a tela, e o que fica a um clique
+
+A tela mostrava tudo ao mesmo tempo: formulário, arte, legenda e uma moldura de
+celular com a prévia no topo da coluna da direita. O efeito não é "informação
+completa" — é ninguém achar nada. Num notebook, "Ações de workflow" e "Sobre a
+peça" ficavam **fora da dobra**, atrás de uma prévia que ninguém pediu para ver.
+
+Duas trocas, e as duas seguem a mesma regra: *o que se decide fica à vista, o
+que se consulta fica a um clique.*
+
+- **A arte e o texto dividem a linha a partir do `lg`.** Empilhados, a legenda
+  ficava uma tela inteira abaixo da arte — e escrever legenda olhando para a
+  imagem é o caso normal, não o excepcional. No celular continuam empilhados,
+  porque 390px não comportam duas colunas, e **sem arte** (copy, roteiro) o
+  texto ocupa a largura inteira: meia tela vazia ao lado de um campo de texto é
+  pior que o campo largo.
+- **A prévia nasce fechada, nas duas telas.** Ela continua *inline*, e não em
+  diálogo: modal sobre modal cobriria a legenda, que é justamente o que se
+  relê enquanto se olha a prévia — foi por isso que o compartilhamento deixou
+  de ser modal. No cadastro, a coluna dela **só existe quando está aberta**:
+  440px reservados para algo fechado é o mesmo desperdício com outra roupa.
+
+A guarda mede o efeito e não a forma: as duas telas abrem com o estado em
+`false` e nenhuma pode **forçar** a prévia aberta por breakpoint — era
+exatamente isso que o `lg:flex` do cadastro fazia, estado fechado e prévia à
+mostra assim mesmo. A primeira versão dela aceitava qualquer `useState(false)`
+do arquivo, que é a guarda medindo o vizinho; a que ficou exige o par com nome.
+
 #### `jobs.updated_at` é carimbada pelo banco
 
 A tela mostra "última atualização", e a coluna não existia. Mostrar

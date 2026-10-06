@@ -316,3 +316,71 @@ describe('publicar agora diz o que saiu, e o que não saiu', () => {
     );
   });
 });
+
+/**
+ * O espaço da tela de conteúdo: o que fica à vista e o que fica a um clique.
+ *
+ * A tela mostrava tudo ao mesmo tempo — formulário, arte, legenda e uma
+ * moldura de celular com a prévia ocupando o topo da coluna da direita. O
+ * efeito não é "informação completa", é ninguém achar nada: as ações de
+ * workflow e os dados da peça ficavam fora da dobra num notebook.
+ */
+describe('o que ocupa a tela do conteúdo', () => {
+  const cadastro = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'modals', 'CreateJobModal.tsx'), 'utf-8')
+  );
+  const editor = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'modals', 'JobDetailModal.tsx'), 'utf-8')
+  );
+  const formulario = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'jobs', 'FormularioDoConteudo.tsx'), 'utf-8')
+  );
+
+  it('a prévia nasce fechada nas duas telas', () => {
+    /*
+      Guarda de **efeito**, não de forma: as duas telas guardam o estado
+      começando em `false`, e nenhuma delas força a prévia aberta por
+      breakpoint. O `lg:flex` que existia no cadastro é exatamente isso —
+      estado fechado, prévia à mostra mesmo assim.
+    */
+    for (const [nome, fonte] of [
+      ['CreateJobModal', cadastro],
+      ['JobDetailModal', editor],
+    ] as const) {
+      /*
+        A alternativa frouxa aqui era `|useState(false)`, que casa com
+        **qualquer** estado booleano do arquivo — e há vários. Guarda que
+        aceita o vizinho no lugar do alvo não guarda.
+      */
+      expect(fonte, `${nome} deixou de abrir a peça com a prévia fechada`).toMatch(
+        /\[previaAberta, setPreviaAberta\] = useState\(false\)/
+      );
+      expect(
+        fonte,
+        `${nome} voltou a forçar a prévia aberta no desktop: o botão deixa de valer`
+      ).not.toMatch(/previaAberta[\s\S]{0,80}lg:flex/);
+    }
+  });
+
+  it('o botão diz qual dos dois estados ele leva', () => {
+    // "Prévia" sozinho não distingue abrir de fechar, e um gatilho que não
+    // muda de texto faz a pessoa clicar duas vezes para descobrir.
+    for (const fonte of [cadastro, editor]) {
+      expect(fonte).toMatch(/'Ocultar prévia'/);
+      expect(fonte).toMatch(/Ver prévia/);
+    }
+  });
+
+  it('a arte e o texto dividem a linha, e só quando há arte', () => {
+    /*
+      Empilhados, a legenda ficava uma tela inteira abaixo da arte — e escrever
+      legenda olhando para a imagem é o caso normal. Sem arte (copy, roteiro) o
+      texto ocupa a largura inteira: metade da tela vazia ao lado de um campo
+      de texto é pior que o campo largo.
+    */
+    expect(
+      formulario,
+      'a arte e o texto voltaram a ser empilhados em qualquer largura'
+    ).toMatch(/tipo\.pedeArte \?[\s\S]{0,80}lg:grid-cols-2/);
+  });
+});

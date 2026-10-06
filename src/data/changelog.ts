@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.3.1',
+    data: '2026-10-06',
+    resumo: 'A tela do conteúdo respira: arte e texto lado a lado, e a prévia a um clique em vez de ocupar o topo da coluna.',
+    melhorias: [
+      'A arte e a legenda ficam lado a lado a partir do notebook. Empilhadas, escrever a legenda olhando para a imagem exigia subir e descer a cada frase.',
+      'A prévia virou um botão "Ver prévia" e nasce fechada nas duas telas. Ela ocupava o topo inteiro da coluna e empurrava as ações e os dados da peça para fora da dobra.',
+      'No cadastro, a coluna da prévia só existe quando ela está aberta — com ela fechada, a largura inteira volta para o formulário.',
+    ],
+  },
+  {
     versao: '3.3.0',
     data: '2026-10-06',
     resumo: 'A tela do conteúdo ganhou a trilha de etapas, responsáveis de verdade e os avisos que antes só apareciam depois do clique.',
