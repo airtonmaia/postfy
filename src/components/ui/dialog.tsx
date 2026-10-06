@@ -99,6 +99,20 @@ const variantesDoConteudo = cva(
     // Do `sm` para cima: a caixa centrada de sempre.
     'sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 ' +
     'sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:border sm:border-slate-200 sm:dark:border-slate-800 ' +
+    /*
+      **`overflow-hidden` é o que faz o canto arredondado existir.**
+
+      O raio é da caixa, e nada mais: um filho com fundo próprio — o cabeçalho
+      cinza, a coluna da direita, o rodapé branco — é desenhado por cima do
+      canto e o preenche quadrado. O resultado é a moldura arredondada com as
+      quatro quinas cheias, que lê como defeito de renderização e não como
+      escolha: a modal parece redonda e quadrada ao mesmo tempo.
+
+      Clipar aqui não custa nada ao conteúdo: cada modal já tem a própria
+      rolagem interna, e menu suspenso do Radix sai por portal, fora desta
+      caixa.
+    */
+    'overflow-hidden ' +
     'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 ' +
     'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
   {

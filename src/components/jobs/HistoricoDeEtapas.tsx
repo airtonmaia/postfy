@@ -12,7 +12,7 @@ import {
 } from '../../lib/historicoDeEtapas';
 import { estourouOSla, etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { usePostfy } from '../../context/PostfyContext';
-import { dataCompacta, safeTimeFormat } from '../../lib/utils';
+import { dataCompacta, safeDateTimeFormat, safeTimeFormat } from '../../lib/utils';
 import { Avatar } from '../common/Avatar';
 import { Badge } from '../ui/badge';
 
@@ -98,6 +98,47 @@ export const HistoricoDeEtapas: React.FC<{ job: Job }> = ({ job }) => {
       <p className="text-[11px] text-slate-400 mt-0.5 mb-4">
         Quem mexeu na peça, quando, e quanto tempo ela ficou em cada lugar.
       </p>
+
+      {/*
+        **Versão, criação e última alteração moram aqui, e não numa caixa
+        própria.**
+
+        Elas eram o cartão "Sobre a peça", no fim da coluna da direita: três
+        datas soltas ocupando um cartão inteiro ao lado dos campos que se
+        editam, na coluna que mais disputa espaço com a arte. São metadados —
+        o que a tela sabe e não se edita — e a pergunta que elas respondem é a
+        mesma deste painel: *o que aconteceu com esta peça, e quando?*
+
+        A linha de baixo conta o percurso; esta conta as pontas dele. Separadas,
+        quem queria saber "quando isto foi criado" procurava em dois lugares.
+      */}
+      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+        <div>
+          <dt className="text-[10px] uppercase font-bold text-slate-400">Versão atual</dt>
+          <dd className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            v{job.currentVersion}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase font-bold text-slate-400">Criado em</dt>
+          <dd className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            {safeDateTimeFormat(job.createdAt)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase font-bold text-slate-400">
+            Última atualização
+          </dt>
+          {/*
+            `updated_at` é carimbada pelo gatilho do banco, e cai para
+            `created_at` quando a peça nunca foi editada — mostrar vazio ali
+            faria parecer que a leitura falhou.
+          */}
+          <dd className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            {safeDateTimeFormat(job.updatedAt || job.createdAt)}
+          </dd>
+        </div>
+      </dl>
 
       {!dados ? (
         <p className="text-xs text-slate-400 py-6 text-center">Carregando…</p>

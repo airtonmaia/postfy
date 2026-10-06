@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import { CalendarHeader } from './CalendarHeader';
-import { CalendarSidebar } from './CalendarSidebar';
 import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
@@ -62,10 +61,6 @@ export const CalendarApp: React.FC = () => {
     setCurrentDate(new Date());
   };
 
-  const handleSelectDate = (date: Date) => {
-    setCurrentDate(date);
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
       {/* Calendar Top Header */}
@@ -74,55 +69,44 @@ export const CalendarApp: React.FC = () => {
         onPrev={handlePrev}
         onNext={handleNext}
         onToday={handleToday}
-        onChangeDate={handleSelectDate}
         aoAbrirFiltros={() => setFiltrosAbertos(true)}
       />
 
-      {/* Calendar Body: Sidebar + Active View */}
+      {/* Calendar Body */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/*
-          **A barra lateral some abaixo do `lg`, e isso era um bug, não um
-          ajuste de gosto.**
+          **A barra lateral saiu, e o que ela tinha de próprio foi reposto
+          antes de ela sair.**
 
-          Ela é `w-64` — 256px de uma tela de 390. O `<main>` do App é
-          `overflow-hidden`, então o que sobrava da grade do mês não ficava
-          apertado: ficava **cortado e inalcançável**, sem barra de rolagem e
-          sem nada indicando que havia mês ali. Sete colunas em 134px.
+          Ela era `w-64` de uma tela que já tem os mesmos filtros no topo:
+          cliente e rede existiam nos dois lugares, com desenhos diferentes, e
+          a navegação por mês já está no cabeçalho, ao lado do "Hoje". O que
+          ela tinha de único era o **filtro de etapa** — e tirá-la sem ele
+          seria a tela recortando conteúdo por um controle que não existe mais,
+          que é a razão de ela ter virado gaveta no celular em vez de sumir.
 
-          Esconder e pronto custaria o filtro de status, que só existe aqui —
-          e filtro que some sem aviso é a tela escondendo conteúdo. Por isso
-          ela vira gaveta, com o mesmo componente: um lugar só continua
-          decidindo o que a barra mostra.
+          Hoje esse filtro é o `comStatus` da barra de cima, derivado do fluxo
+          da agência: ele ganhou as duas etapas que a lista da lateral não
+          tinha e passou a respeitar os nomes que a agência escolheu.
+
+          **O que foi embora junto, e é bom dizer qual:** o mini-calendário,
+          que era o único caminho para pular para um mês distante. Resta ‹ ›
+          e "Hoje". Se fizer falta, o lugar dela é o título do mês no
+          cabeçalho, não uma coluna de 256px.
         */}
-        <CalendarSidebar
-          currentDate={currentDate}
-          onSelectDate={handleSelectDate}
-          className="w-64 border-r border-slate-200 dark:border-slate-800 shrink-0 hidden lg:flex"
-        />
-
         <Dialog open={filtrosAbertos} onOpenChange={setFiltrosAbertos}>
           <DialogContent className="lg:hidden p-0 gap-0">
             <DialogHeader className="px-4 pt-4 pb-0">
               <DialogTitle>Filtros do calendário</DialogTitle>
             </DialogHeader>
             {/*
-              **A barra de filtros entra na gaveta junto com a lateral.**
-
-              No celular ela aparecia nas duas: quatro chips no cabeçalho e o
-              botão "Filtros" logo abaixo, dois caminhos para a mesma pergunta
-              — e os quatro chips ocupavam duas linhas da altura que a grade do
-              mês precisa. Aqui é a mesma peça do computador, empilhada.
+              No celular os chips não cabem no cabeçalho — eles ocupavam duas
+              linhas da altura que a grade do mês precisa. Aqui é a mesma peça
+              do computador, empilhada, e com o mesmo filtro de etapa.
             */}
-            <div className="px-4 pt-4">
-              <BarraDeFiltrosDoConteudo empilhada />
+            <div className="p-4">
+              <BarraDeFiltrosDoConteudo empilhada comStatus />
             </div>
-
-            <CalendarSidebar
-              currentDate={currentDate}
-              onSelectDate={handleSelectDate}
-              className="w-full flex-1 min-h-0"
-              aoEscolher={() => setFiltrosAbertos(false)}
-            />
           </DialogContent>
         </Dialog>
 

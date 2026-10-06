@@ -210,6 +210,15 @@ interface Props {
    */
   blocos?: BlocoDoFormulario[];
   /**
+   * Esconde o campo Título — para a tela que já edita o título em outro lugar.
+   *
+   * É o caso da tela de conteúdo, onde ele é editado no próprio cabeçalho, em
+   * cima: dois campos para o mesmo valor na mesma tela deixam a pergunta de
+   * qual dos dois vale. O padrão é mostrá-lo, porque o cadastro não tem
+   * cabeçalho com a peça — e sem título a peça nasceria sem nome.
+   */
+  semTitulo?: boolean;
+  /**
    * O que entra em "Mais opções", embaixo do formulário.
    *
    * É um espaço, não uma lista: o cadastro não põe nada ali (CTA, hashtags e
@@ -230,6 +239,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
   mostrarDeadline = false,
   avisarAtraso = true,
   blocos = TODOS_OS_BLOCOS,
+  semTitulo = false,
   children,
 }) => {
   const {
@@ -463,21 +473,37 @@ export const FormularioDoConteudo: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Título */}
-      <div>
-        <label className={rotulo}>Título do conteúdo *</label>
-        <input
-          type="text"
-          required
-          value={title}
-          onChange={(e) => aoMudar({ title: e.target.value })}
-          placeholder="Ex: 5 Dicas para Escolher o Melhor Café Especial"
-          className={`${classeDeEntrada} font-semibold`}
-        />
-      </div>
+      {/*
+        **O título só existe aqui onde não há outro editor dele.**
+
+        A tela de conteúdo edita o título no próprio cabeçalho, que é onde ele
+        é lido; repeti-lo na coluna de gestão deixava a pergunta "qual dos dois
+        vale", e um campo para o mesmo valor em dois lugares da mesma tela é
+        como alguém edita um e conclui que o outro não salvou. O cadastro não
+        tem cabeçalho com a peça, então lá ele continua sendo este campo.
+      */}
+      {!semTitulo && (
+        <div>
+          <label className={rotulo}>Título do conteúdo *</label>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => aoMudar({ title: e.target.value })}
+            placeholder="Ex: 5 Dicas para Escolher o Melhor Café Especial"
+            className={`${classeDeEntrada} font-semibold`}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Formato: só o que existe na rede escolhida. */}
+        {/*
+          **Formato e prioridade dividem a linha**, e os dois são seletores
+          curtos: sozinho, cada um deixava metade da linha vazia numa coluna
+          que é estreita justamente para a arte caber ao lado. Quem está na
+          peça desceu porque é o único dos três que cresce — cada pessoa
+          atribuída é um chip, e com três ele já ocupa duas linhas.
+        */}
         <div>
           <label className={rotulo}>Formato</label>
           <select
@@ -488,6 +514,20 @@ export const FormularioDoConteudo: React.FC<Props> = ({
             {formatosDoCanal.map((f) => (
               <option key={f.valor} value={f.valor}>{f.rotulo}</option>
             ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={rotulo}>Prioridade</label>
+          <select
+            value={priority}
+            onChange={(e) => aoMudar({ priority: e.target.value as JobPriority })}
+            className={`${classeDeEntrada} cursor-pointer`}
+          >
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+            <option value="urgent">Urgente</option>
           </select>
         </div>
 
@@ -505,21 +545,6 @@ export const FormularioDoConteudo: React.FC<Props> = ({
             equipe={equipe}
             aoMudar={(ids) => aoMudar({ responsaveis: ids })}
           />
-        </div>
-
-        {/* Prioridade */}
-        <div>
-          <label className={rotulo}>Prioridade</label>
-          <select
-            value={priority}
-            onChange={(e) => aoMudar({ priority: e.target.value as JobPriority })}
-            className={`${classeDeEntrada} cursor-pointer`}
-          >
-            <option value="low">Baixa</option>
-            <option value="medium">Média</option>
-            <option value="high">Alta</option>
-            <option value="urgent">Urgente</option>
-          </select>
         </div>
       </div>
 

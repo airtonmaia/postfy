@@ -294,6 +294,18 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   const cheio = mediaUrls.length >= maxFiles;
 
+  /**
+   * Uma arte só não é uma fileira — é a peça.
+   *
+   * A contagem decide, e não o campo Formato: neste produto o segundo item de
+   * `media_urls` **é** a página 2 do carrossel, e é por isso que a arte do
+   * story tem coluna própria. Perguntar ao formato daria duas respostas para
+   * a mesma pergunta no dia em que alguém marcasse "Carrossel" com uma imagem
+   * só — e a tela mostraria uma miniatura de 128px de uma peça que tem uma
+   * arte, que é exatamente o que se pediu para consertar.
+   */
+  const unica = mediaUrls.length === 1;
+
   return (
     <div className="space-y-3">
       {/*
@@ -566,19 +578,34 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         Fileira única, na ordem em que as páginas vão sair. O carrossel é uma
         sequência, e a grade de duas colunas fazia a página 3 aparecer embaixo
         da 1 — a ordem que importa some.
+
+        **Com uma arte só, a fileira não é fileira.** Uma miniatura de 128px
+        encostada à esquerda de uma coluna larga é o que a peça de foto única
+        mostrava — a arte, que é o assunto da tela, lida como item de lista. E
+        a miniatura existe para uma coisa que ali não existe: dizer a ordem das
+        páginas.
+
+        **Quem decide é a contagem, não o formato**, e isso não é atalho: neste
+        produto o segundo item de `media_urls` *é* a página 2 do carrossel — é
+        a razão de a arte do story ter coluna própria. Uma arte é uma foto;
+        duas já são uma sequência.
       */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`flex items-stretch gap-3 overflow-x-auto pb-1 rounded-2xl transition ${
+        className={`rounded-2xl transition ${
+          unica ? 'flex flex-col gap-3' : 'flex items-stretch gap-3 overflow-x-auto pb-1'
+        } ${
           isDragging ? 'ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-slate-900' : ''
         }`}
       >
         {mediaUrls.map((url, idx) => (
           <div
             key={idx}
-            className="group relative w-32 shrink-0 aspect-[4/5] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xs"
+            className={`group relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xs ${
+              unica ? 'w-full' : 'w-32 shrink-0 aspect-[4/5]'
+            }`}
           >
             {/*
               Arte do Drive não tem URL que o navegador desenhe: `drive://` é
@@ -588,11 +615,11 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             */}
             {ehDoDrive(url) ? (
               urlDeExibicao(url) ? (
-                <img src={urlDeExibicao(url)} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
+                <img src={urlDeExibicao(url)} alt={`Mídia ${idx + 1}`} className={`${unica ? 'w-full h-auto max-h-[26rem] object-contain' : 'w-full h-full object-cover'}`} />
               ) : (
                 /* Sem miniatura, o nome do arquivo — um quadro vazio não diz
                    qual arte é, e foi o que a primeira versão mostrou. */
-                <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 text-slate-400">
+                <div className={`flex flex-col items-center justify-center gap-1.5 p-2 text-slate-400 ${unica ? 'w-full h-56' : 'w-full h-full'}`}>
                   <ImageIcon className="w-5 h-5 shrink-0" />
                   <span className="text-[10px] font-semibold text-center leading-tight line-clamp-3 break-all">
                     {dadosDoDrive(url)?.nome}
@@ -600,9 +627,9 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                 </div>
               )
             ) : isVideo(url) ? (
-              <video src={url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+              <video src={url} className={`${unica ? 'w-full h-auto max-h-[26rem] object-contain' : 'w-full h-full object-cover'}`} muted loop autoPlay playsInline />
             ) : (
-              <img src={url} alt={`Mídia ${idx + 1}`} className="w-full h-full object-cover" />
+              <img src={url} alt={`Mídia ${idx + 1}`} className={`${unica ? 'w-full h-auto max-h-[26rem] object-contain' : 'w-full h-full object-cover'}`} />
             )}
 
             {/* Dizer de onde veio, porque a diferença importa: a arte do Drive
@@ -614,10 +641,14 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               </span>
             )}
 
-            {/* O número é a página no carrossel, não um enfeite. */}
-            <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-lg bg-black/70 text-white text-[11px] font-bold backdrop-blur-xs flex items-center justify-center">
-              {idx + 1}
-            </div>
+            {/* O número é a página no carrossel, não um enfeite — e por isso
+                ele some com uma arte só: "1" numa foto única não numera nada,
+                e sugere uma segunda página que não existe. */}
+            {!unica && (
+              <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-lg bg-black/70 text-white text-[11px] font-bold backdrop-blur-xs flex items-center justify-center">
+                {idx + 1}
+              </div>
+            )}
 
             {(isVideo(url) || ehVideo(url)) && (
               <div className="absolute top-1.5 left-1.5 p-1 rounded-md bg-black/70 text-white">
@@ -649,26 +680,31 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between text-white">
-                <Button size="icon-sm"
-                  type="button"
-                  disabled={idx === 0}
-                  onClick={() => handleMoveLeft(idx)}
-                  className="bg-black/60 hover:bg-black/80"
-                  title="Mover para a esquerda"
-                >
-                  <MoveLeft className="w-3 h-3" />
-                </Button>
-                <Button size="icon-sm"
-                  type="button"
-                  disabled={idx === mediaUrls.length - 1}
-                  onClick={() => handleMoveRight(idx)}
-                  className="bg-black/60 hover:bg-black/80"
-                  title="Mover para a direita"
-                >
-                  <MoveRight className="w-3 h-3" />
-                </Button>
-              </div>
+              {/* Reordenar é a ordem das páginas, e com uma arte só não há
+                  ordem: os dois botões nasceriam desligados, que é um controle
+                  explicando que não serve para nada. */}
+              {!unica && (
+                <div className="flex items-center justify-between text-white">
+                  <Button size="icon-sm"
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => handleMoveLeft(idx)}
+                    className="bg-black/60 hover:bg-black/80"
+                    title="Mover para a esquerda"
+                  >
+                    <MoveLeft className="w-3 h-3" />
+                  </Button>
+                  <Button size="icon-sm"
+                    type="button"
+                    disabled={idx === mediaUrls.length - 1}
+                    onClick={() => handleMoveRight(idx)}
+                    className="bg-black/60 hover:bg-black/80"
+                    title="Mover para a direita"
+                  >
+                    <MoveRight className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -712,11 +748,15 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className={`shrink-0 px-3 flex flex-col items-center justify-center gap-1.5
+            className={`shrink-0 px-3 flex items-center justify-center gap-1.5
               rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700
               bg-slate-50 dark:bg-slate-950/60 text-slate-400 transition cursor-pointer
               hover:border-purple-400 hover:text-purple-600 ${
-                mediaUrls.length === 0 ? 'w-full h-56' : 'w-40 h-40'
+                mediaUrls.length === 0
+                  ? 'flex-col w-full h-56'
+                  : unica
+                    ? 'w-full h-14'
+                    : 'flex-col w-40 h-40'
               }`}
           >
             {mediaUrls.length === 0 ? (
@@ -724,8 +764,18 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
             ) : (
               <Plus className="w-6 h-6" />
             )}
-            <span className="text-xs font-bold">Adicionar</span>
-            <span className="text-[10px] font-medium">ou arraste aqui</span>
+            {/*
+              **Com uma arte, o alvo vira uma barra embaixo dela.** Um quadrado
+              de 160px ao lado de uma imagem de largura inteira não tem onde
+              ficar: ou ele desce e sobra, ou ele volta a espremer a arte. E o
+              rótulo diz o que o segundo arquivo faz — acrescentar a segunda
+              arte é o que transforma a peça em carrossel, e descobrir isso
+              depois de publicar não dá.
+            */}
+            <span className="text-xs font-bold">
+              {unica ? 'Adicionar outra arte (vira carrossel)' : 'Adicionar'}
+            </span>
+            {!unica && <span className="text-[10px] font-medium">ou arraste aqui</span>}
           </button>
         )}
       </div>

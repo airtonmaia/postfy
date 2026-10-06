@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AtSign, Check, MapPin, MessageSquare, X } from 'lucide-react';
+import { AtSign, Check, MapPin, MessageSquare } from 'lucide-react';
 
 import {
   contarHashtags,
@@ -160,20 +160,14 @@ const ModalDoAtalho: React.FC<{
       arrasto de dentro para fora não fecha nada.
     */
     <Dialog open onOpenChange={(aberto) => !aberto && onClose()}>
-      <DialogContent tamanho="formulario" semFechar className="z-[60] p-0 gap-0">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+      {/* O fechar é o do primitivo: uma posição só em todas as modais. */}
+      <DialogContent tamanho="formulario" className="z-[60] p-0 gap-0">
+        <div className="flex items-center justify-between px-5 pr-12 py-4 border-b border-slate-200 dark:border-slate-800">
           <DialogTitle asChild>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
               {campo.rotulo}
             </h3>
           </DialogTitle>
-          <Button variant="ghost" size="icon-sm"
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-          >
-            <X className="w-4 h-4" />
-          </Button>
         </div>
 
         <div className="p-5 space-y-2">

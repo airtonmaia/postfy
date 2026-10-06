@@ -527,6 +527,7 @@ export const JobDetailModal: React.FC = () => {
       mostrarDeadline
       avisarAtraso={selectedJob.status !== 'published'}
       blocos={blocos}
+      semTitulo
     />
   );
 
@@ -572,12 +573,21 @@ export const JobDetailModal: React.FC = () => {
       Esta modal era uma das 25 sobreposições à mão do produto, e entre as 25
       **duas** fechavam com `Esc` e **nenhuma** travava a rolagem do fundo.
 
-      `semFechar` porque o X desta mora no cabeçalho, ao lado do seletor de
-      status — e o do primitivo fecharia direto, sem passar pela pergunta de
-      "sair sem salvar".
+      **O fechar é o do primitivo**, e por isso ele fica onde fica em todas as
+      outras: `absolute top-3 right-3`. Esta modal tinha um X próprio, dentro
+      da linha do cabeçalho — então ele andava com o conteúdo do cabeçalho e
+      ficava num lugar diferente do de qualquer outra tela.
+
+      Usar o do primitivo é seguro aqui porque o `open` é fixo: fechar dispara
+      `onOpenChange(false)`, que cai no `fechar()` logo abaixo e **pergunta**
+      antes de descartar. A modal só some quando `selectedJob` vira nulo.
+
+      (Era por isto que existia o `semFechar`: supunha-se que o X do primitivo
+      fecharia direto, sem passar pela pergunta de "sair sem salvar". Ele não
+      fecha — quem fecha é o `open`, e o `open` daqui é fixo.)
     */
     <Dialog open onOpenChange={(aberto) => !aberto && fechar()}>
-      <DialogContent tamanho="editorComPrevia" semFechar className="p-0 gap-0">
+      <DialogContent tamanho="editorComPrevia" className="p-0 gap-0">
         {/* O título é desenhado no cabeçalho. Aqui ele existe para o leitor de
             tela: sem `DialogTitle` o Radix sobe o diálogo sem nome. */}
         <DialogTitle className="sr-only">{selectedJob.title || 'Conteúdo'}</DialogTitle>
@@ -606,7 +616,7 @@ export const JobDetailModal: React.FC = () => {
               Era `flex items-center justify-between gap-4`: a identidade e os
               controles disputavam os 390px, e quem perdia era a identidade.
             */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-50 dark:bg-slate-950/70">
+            <div className="p-4 sm:p-5 pr-12 lg:pr-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-50 dark:bg-slate-950/70">
               <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <Avatar
                   nome={client?.name || 'Cliente'}
@@ -626,17 +636,31 @@ export const JobDetailModal: React.FC = () => {
                   </div>
 
                   {/*
-                    **O título aqui é leitura, e o campo mora no formulário.**
+                    **O título é editado aqui, e só aqui.**
 
-                    Ele já era editável neste cabeçalho, por clique; agora que
-                    a aba Conteúdo tem o campo "Título do conteúdo" do
-                    cadastro, dois editores para o mesmo valor deixariam a
-                    pergunta "qual dos dois vale" — e um deles guardaria o
-                    texto de antes.
+                    Ele já tinha sido os dois: editável no cabeçalho, depois
+                    somente leitura com o campo "Título do conteúdo" na coluna
+                    de gestão. O que não pode é ser os dois ao mesmo tempo —
+                    dois campos para o mesmo valor na mesma tela deixam a
+                    pergunta de qual deles vale.
+
+                    E entre os dois lugares, este é onde o título é **lido**:
+                    corrigir uma palavra ali embaixo, numa coluna que fala de
+                    datas e canais, é procurar o campo longe do texto que
+                    incomodou.
+
+                    É um `input` sem moldura, com a mesma fonte do título: a
+                    alternativa — clicar para virar campo — esconde que dá para
+                    editar, que é o estado em que ele já esteve.
                   */}
-                  <span className="block text-base font-bold text-slate-900 dark:text-white truncate mt-0.5">
-                    {dados.title || 'Sem título'}
-                  </span>
+                  <input
+                    type="text"
+                    value={dados.title}
+                    onChange={(e) => mudar({ title: e.target.value })}
+                    placeholder="Sem título"
+                    aria-label="Título do conteúdo"
+                    className="block w-full bg-transparent border border-transparent rounded-lg -ml-1.5 px-1.5 py-0.5 mt-0.5 text-base font-bold text-slate-900 dark:text-white truncate hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30 outline-hidden transition"
+                  />
 
                   <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                     {/* Os selos refletem o **rascunho**, não o que está gravado:
@@ -658,16 +682,6 @@ export const JobDetailModal: React.FC = () => {
                     tela larga — vira o passo "Básico" do assistente, atrás de
                     um toque. Ver `seletorDeEtapa`. */}
                 {estreita && <div className="flex-1 sm:w-40">{seletorDeEtapa}</div>}
-
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={fechar}
-                  aria-label="Fechar conteúdo"
-                  className="dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 
@@ -813,7 +827,7 @@ export const JobDetailModal: React.FC = () => {
           {/* ========================= COLUNA DIREITA ========================= */}
           {/* Abaixo do `lg` ela vira rodapé: no celular a prévia e as ações
               caem embaixo do formulário, na ordem em que se decide. */}
-          <aside className="lg:w-[400px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 lg:overflow-y-auto p-4 sm:p-5 space-y-4">
+          <aside className="lg:w-[400px] lg:shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 lg:overflow-y-auto p-4 sm:p-5 lg:pt-12 space-y-4">
             {/*
               **A prévia não existia na edição.** Ela responde antes de
               publicar a pergunta que só a captura de tela respondia: a arte
@@ -877,74 +891,6 @@ export const JobDetailModal: React.FC = () => {
 
 
             {/*
-              **A decisão do cliente, no momento em que ela existe.**
-
-              Ela era o rodapé do cartão "Ações de workflow", que tinha os
-              quatro botões empilhados. Os três que a agência dispara — enviar,
-              agendar e publicar — desceram para o rodapé fixo da modal; estes
-              dois ficaram, e por isso ganharam cartão próprio: aprovar em nome
-              do cliente e devolver para ajuste não são "mais um botão de
-              workflow", são a resposta de outra pessoa, e só existem enquanto a
-              peça está com ela.
-            */}
-            {(selectedJob.status === 'for_approval' || ajustando) && (
-              <div className={`${cartao} p-4 space-y-3`}>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  Decisão do cliente
-                </span>
-
-                {selectedJob.status === 'for_approval' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant="success"
-                      onClick={() => approveJob(selectedJob.id, 'Agência')}
-                      className="active:bg-emerald-800"
-                    >
-                      <Check className="w-4 h-4" />
-                      Aprovar
-                    </Button>
-
-                    <Button
-                      variant="destructive"
-                      onClick={() => setAjustando(true)}
-                      className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      Pedir ajuste
-                    </Button>
-                  </div>
-                )}
-
-                {ajustando && (
-                  <div className="p-3 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900 space-y-2">
-                    <label className="block text-[11px] font-bold text-rose-800 dark:text-rose-300">
-                      Motivo do ajuste (obrigatório):
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={feedbackDoAjuste}
-                      onChange={(e) => setFeedbackDoAjuste(e.target.value)}
-                      placeholder="Ex: Trocar o slide 2 para o produto lançamento..."
-                      className="w-full text-xs p-2 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-white"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => setAjustando(false)}>
-                        Cancelar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={registrarAjuste}
-                        className="bg-rose-600 text-white"
-                      >
-                        Confirmar pedido
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/*
               **Gestão: tudo que não é a arte nem o texto.**
 
               Cliente, canais, título, formato, responsáveis, prioridade e as
@@ -990,6 +936,7 @@ export const JobDetailModal: React.FC = () => {
                 mostrarDeadline
                 avisarAtraso={selectedJob.status !== 'published'}
                 blocos={['identificacao', 'agenda']}
+                semTitulo
               >
                       {/* "Mais opções": o que só existe depois de a peça
                           existir. */}
@@ -1049,62 +996,6 @@ export const JobDetailModal: React.FC = () => {
             </div>
             )}
 
-            {/*
-              Metadados: o que a tela sabe e não se edita.
-
-              **"Responsável" saiu daqui, e ele era uma mentira.** O campo
-              mostrava `currentUser.name` — quem está **olhando** a tela, não
-              quem fez a peça —, então numa agência de quatro pessoas cada uma
-              abria a mesma peça e lia o próprio nome. Passava por informação
-              porque tinha cara de campo.
-
-              Quem responde isso agora é "Quem está nesta peça", no formulário:
-              atribuição é **decisão**, e decisão não mora na caixa do que a
-              tela só sabe.
-            */}
-            <div className={`${cartao} p-4 space-y-3 text-xs`}>
-              {/*
-                **E os dois botões saíram daqui para o rodapé.**
-
-                "Duplicar" e "Excluir conteúdo" moravam neste cartão, pelo
-                argumento certo de que botão destrutivo solto no fim de uma
-                coluna é o que se clica por engano ao procurar o fim da página.
-                O rodapé fixo resolve isso melhor: eles ficam atrás do "Mais
-                ações", que é um clique a mais antes do botão vermelho, e o
-                cartão volta a ser só o que a tela sabe e não se edita.
-              */}
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                Sobre a peça
-              </span>
-
-              <div className="grid grid-cols-2 gap-3">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  Versão atual
-                </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  v{selectedJob.currentVersion}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  Criado em
-                </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {safeDateTimeFormat(selectedJob.createdAt)}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  Última atualização
-                </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {safeDateTimeFormat(selectedJob.updatedAt || selectedJob.createdAt)}
-                </span>
-              </div>
-              </div>
-
-            </div>
           </aside>
         </div>
 
@@ -1120,6 +1011,42 @@ export const JobDetailModal: React.FC = () => {
           enquanto a pessoa relê a peça, e num diálogo ele some ao ser
           dispensado.
         */}
+        {/*
+          **O motivo do ajuste é pedido onde a ação foi disparada.**
+
+          Ele é obrigatório: "pedir ajuste" sem dizer o quê devolve a peça para
+          a produção sem nada explicando por quê, e é esse texto que vira o
+          `lastFeedback` que a aba Revisões mostra para sempre. Em faixa e não
+          em diálogo, pela mesma razão do resultado: ele fica legível enquanto
+          a pessoa relê a legenda de que vai falar.
+        */}
+        {ajustando && (
+          <div className="shrink-0 border-t border-rose-200 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/30 px-4 sm:px-5 py-3 space-y-2">
+            <label className="block text-[11px] font-bold text-rose-800 dark:text-rose-300">
+              Motivo do ajuste (obrigatório):
+            </label>
+            <textarea
+              rows={2}
+              value={feedbackDoAjuste}
+              onChange={(e) => setFeedbackDoAjuste(e.target.value)}
+              placeholder="Ex: Trocar o slide 2 para o produto lançamento..."
+              className="w-full text-xs p-2 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-white"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setAjustando(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={registrarAjuste}
+                className="bg-rose-600 text-white"
+              >
+                Confirmar pedido
+              </Button>
+            </div>
+          </div>
+        )}
+
         {resultado && (
           <div
             className={`shrink-0 px-4 sm:px-5 py-2 text-[11px] font-semibold leading-relaxed border-t ${
@@ -1290,6 +1217,41 @@ export const JobDetailModal: React.FC = () => {
                   */}
                   Salvar e…
                 </DropdownMenuLabel>
+
+                {/*
+                  **A decisão do cliente desceu para cá junto com o resto.**
+
+                  Ela teve cartão próprio na coluna da direita por uma entrega,
+                  com o argumento de que aprovar em nome do cliente e devolver
+                  para ajuste não são "mais um botão de workflow". O argumento
+                  continua certo e a conclusão estava errada: um cartão que só
+                  existe enquanto a peça está em aprovação faz a coluna mudar de
+                  altura conforme a etapa, e as ações da tela passam a sair de
+                  dois lugares de novo — que é o que o rodapé veio acabar.
+
+                  Elas só aparecem **enquanto a peça está com o cliente**, que é
+                  quando a decisão existe.
+                */}
+                {selectedJob.status === 'for_approval' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => approveJob(selectedJob.id, 'Agência')}
+                      className="text-emerald-700 dark:text-emerald-400 font-semibold"
+                    >
+                      <Check className="w-4 h-4" />
+                      Aprovar em nome do cliente
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onSelect={() => setAjustando(true)}
+                      className="text-rose-600 dark:text-rose-400"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      Pedir ajuste
+                    </DropdownMenuItem>
+                  </>
+                )}
 
                 <DropdownMenuItem
                   onSelect={enviarParaAprovacao}

@@ -681,3 +681,135 @@ describe('o rodapé de ações da tela de conteúdo', () => {
     );
   });
 });
+
+/**
+ * **A arte única é a peça, não um item de lista.**
+ *
+ * A fileira de miniaturas de 128px existe para uma coisa: dizer a ordem das
+ * páginas do carrossel. Numa peça de foto só não há ordem — e a arte, que é o
+ * assunto da tela, aparecia do tamanho de um ícone encostada à esquerda de uma
+ * coluna larga.
+ */
+describe('a área de mídia muda com a quantidade de arte', () => {
+  const uploader = ler('src', 'components', 'common', 'MediaUploader.tsx');
+
+  it('quem decide é a contagem, não o campo Formato', () => {
+    /*
+      Neste produto o segundo item de `media_urls` **é** a página 2 do
+      carrossel — é a razão de a arte do story ter coluna própria. Perguntar ao
+      formato daria duas respostas no dia em que alguém marcasse "Carrossel"
+      com uma imagem só, e a tela voltaria a mostrar a miniatura de 128px numa
+      peça que tem uma arte.
+    */
+    expect(uploader, 'a arte única deixou de ter desenho próprio').toMatch(
+      /const unica = mediaUrls\.length === 1;/
+    );
+    expect(uploader, 'o desenho da mídia passou a depender do formato da peça').not.toMatch(
+      /unica[\s\S]{0,80}format/
+    );
+  });
+
+  it('com uma arte ela cresce, e o que é do carrossel some', () => {
+    /*
+      O número é a página e os dois botões reordenam: com uma arte só, o "1" não
+      numera nada e os dois nascem desligados — controle explicando que não
+      serve para nada.
+    */
+    expect(uploader, 'a arte única voltou ao tamanho de miniatura').toMatch(
+      /unica \? 'w-full' : 'w-32 shrink-0 aspect-\[4\/5\]'/
+    );
+    expect(uploader, 'o número da página voltou a aparecer na arte única').toMatch(
+      /\{!unica && \([\s\S]{0,200}\{idx \+ 1\}/
+    );
+    expect(uploader, 'os botões de reordenar voltaram a aparecer na arte única').toMatch(
+      /\{!unica && \([\s\S]{0,400}handleMoveLeft/
+    );
+
+    /*
+      E a arte cresce **sem proporção declarada**: `aspect-[4/5]` com teto de
+      altura não dá proporção nenhuma (os dois se anulam e o `object-cover`
+      recorta), e recortar aqui mostraria à pessoa um enquadramento que não é o
+      que ela subiu. Quem responde pelo enquadramento do feed é a Prévia.
+    */
+    expect(uploader, 'a arte única voltou a ser recortada na área de edição').toMatch(
+      /unica \? 'w-full h-auto max-h-\[26rem\] object-contain'/
+    );
+  });
+});
+
+/**
+ * **Um editor por valor, e o título já foi os dois.**
+ *
+ * Ele era editável no cabeçalho; virou leitura quando o campo "Título do
+ * conteúdo" entrou na coluna de gestão. O que não pode é ser os dois ao mesmo
+ * tempo — dois campos para o mesmo valor na mesma tela deixam a pergunta de
+ * qual deles vale, e a pessoa edita um e conclui que o outro não salvou.
+ */
+describe('o título do conteúdo tem um editor só', () => {
+  it('na tela de conteúdo ele é o do cabeçalho', () => {
+    expect(editor, 'o título do cabeçalho voltou a ser só leitura').toMatch(
+      /onChange=\{\(e\) => mudar\(\{ title: e\.target\.value \}\)\}/
+    );
+
+    /*
+      **A guarda é derivada do recorte, não da contagem de montagens.** O campo
+      Título mora no bloco `identificacao`: quem monta esse bloco precisa do
+      `semTitulo`, e quem monta só arte e texto não tem o campo para esconder.
+      Uma montagem nova que traga a identificação sem o recorte devolve o
+      segundo editor do título sem ninguém notar.
+    */
+    const comIdentificacao = [...editor.matchAll(/blocos=\{([^}]*)\}([\s\S]{0,60})/g)].filter(
+      ([, valor]) => valor === 'blocos' || valor.includes('identificacao')
+    );
+    expect(
+      comIdentificacao.length,
+      'a tela de conteúdo não monta mais o bloco de identificação'
+    ).toBeGreaterThan(0);
+    for (const [, valor, depois] of comIdentificacao) {
+      expect(
+        depois,
+        `a montagem com blocos={${valor}} voltou a trazer o campo Título, que já existe no cabeçalho`
+      ).toMatch(/semTitulo/);
+    }
+  });
+
+  it('no cadastro ele continua sendo o campo do formulário', () => {
+    /*
+      Lá não há cabeçalho com a peça: esconder o campo faria a peça nascer sem
+      nome, e o título é obrigatório.
+    */
+    expect(cadastro, 'o cadastro passou a esconder o título e a peça nasce sem nome').not.toMatch(
+      /semTitulo/
+    );
+    expect(formulario, 'o campo Título sumiu do formulário').toMatch(/Título do conteúdo \*/);
+  });
+});
+
+/**
+ * **Versão, criação e última alteração são metadado, e metadado é histórico.**
+ *
+ * Elas eram o cartão "Sobre a peça", no fim da coluna que mais disputa espaço
+ * com a arte. A pergunta que respondem é a mesma do painel de histórico — *o
+ * que aconteceu com esta peça, e quando?* —, e em dois lugares quem queria
+ * saber "quando isto foi criado" procurava nos dois.
+ */
+describe('o que a tela sabe e não se edita mora no histórico', () => {
+  const historico = ler('src', 'components', 'jobs', 'HistoricoDeEtapas.tsx');
+
+  it('as três datas saíram da coluna da direita', () => {
+    for (const campo of ['Versão atual', 'Criado em', 'Última atualização']) {
+      expect(historico, `"${campo}" não chegou ao histórico`).toContain(campo);
+      expect(editor, `"${campo}" voltou para a coluna da direita`).not.toContain(campo);
+    }
+  });
+
+  it('a última alteração cai para a criação quando a peça nunca mudou', () => {
+    /*
+      `updated_at` é carimbada por gatilho do banco e é nula no acervo anterior
+      a ela. Campo vazio ali faz parecer que a leitura falhou.
+    */
+    expect(historico, 'a última alteração voltou a poder aparecer vazia').toMatch(
+      /job\.updatedAt \|\| job\.createdAt/
+    );
+  });
+});

@@ -31,6 +31,27 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.7.0',
+    data: '2026-10-06',
+    resumo:
+      'A peça de foto única mostra a arte grande, o título é editado onde ele é lido, e o calendário perdeu a coluna da esquerda.',
+    novidades: [
+      'Com uma arte só, a imagem ocupa a largura inteira da coluna em vez de aparecer como miniatura. Com duas ou mais ela volta a ser a fileira do carrossel, que é onde a ordem das páginas importa.',
+      'O filtro de etapa passou a morar na barra de filtros do calendário — com as sete etapas, e com os nomes que a agência deu a elas.',
+    ],
+    melhorias: [
+      'O título do conteúdo é editado no próprio cabeçalho da peça, onde ele é lido. O campo repetido na coluna da direita saiu.',
+      'Prioridade subiu para o lado de Formato, e "Quem está nesta peça" desceu para a linha de baixo.',
+      'Versão, criação e última alteração saíram da coluna da direita e entraram no histórico de etapas, que é onde a mesma pergunta já era respondida.',
+      'Aprovar e pedir ajuste passaram para o menu do rodapé, junto das outras ações da peça.',
+      'A coluna da esquerda do calendário saiu: cliente, rede e navegação do mês já estavam no topo, e o filtro de etapa foi para lá antes dela sair.',
+    ],
+    corrigido: [
+      'As bordas das modais ficavam redondas por fora e quadradas por dentro: o cabeçalho e as colunas pintavam por cima do canto arredondado.',
+      'O botão de fechar ficava em posições diferentes dependendo da modal. Agora é sempre o mesmo, no canto superior direito.',
+    ],
+  },
+  {
     versao: '3.6.0',
     data: '2026-10-06',
     resumo:

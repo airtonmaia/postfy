@@ -2552,6 +2552,41 @@ pessoa encontrar a tela sem metade do que espera, sem lembrar de ter desligado �
 e o `localStorage` está fora pela armadilha 4. Recolher vale para a sessão, que
 é o tempo em que se trabalha naquela peça.
 
+##### Um editor por valor: o título e a arte única
+
+**O título já foi os dois.** Era editável no cabeçalho da peça; virou leitura
+quando o campo "Título do conteúdo" do cadastro entrou na coluna de gestão, e a
+razão escrita era a certa — *dois editores para o mesmo valor deixam a pergunta
+de qual deles vale*. A conclusão é que estava trocada: entre os dois lugares,
+este é onde o título é **lido**. Corrigir uma palavra num campo lá embaixo, numa
+coluna que fala de datas e canais, é procurar o campo longe do texto que
+incomodou.
+
+Hoje o cabeçalho tem um `input` sem moldura, com a mesma fonte do título, e o
+formulário recebe `semTitulo` nas duas montagens da tela de conteúdo. O cadastro
+continua com o campo, porque lá não há cabeçalho com a peça — e sem ele a peça
+nasceria sem nome. A guarda é **derivada do recorte**: quem monta o bloco
+`identificacao` precisa do `semTitulo`, e uma montagem nova sem ele devolve o
+segundo editor sem ninguém notar.
+
+**A arte única é a peça, não um item de lista.** A fileira de miniaturas de
+128px existe para dizer a ordem das páginas do carrossel; numa peça de foto só
+não há ordem, e a arte aparecia do tamanho de um ícone encostada à esquerda de
+uma coluna larga. Com uma arte ela ocupa a largura inteira, o número da página
+some (um "1" que não numera nada sugere uma segunda página que não existe) e os
+botões de reordenar somem junto — eles nasceriam desligados, que é um controle
+explicando que não serve para nada.
+
+**Quem decide é a contagem, nunca o campo Formato.** Neste produto o segundo
+item de `media_urls` *é* a página 2 do carrossel — é a razão de a arte do story
+ter coluna própria. Perguntar ao formato daria duas respostas no dia em que
+alguém marcasse "Carrossel" com uma imagem só.
+
+E ela cresce **sem proporção declarada**: `aspect-[4/5]` com teto de altura não
+dá proporção nenhuma — os dois se anulam e o `object-cover` recorta —, e
+recortar aqui mostraria à pessoa um enquadramento que não é o que ela subiu.
+Quem responde pelo enquadramento do feed é a Prévia.
+
 ##### O rodapé de ações é um só, e fica fora da rolagem
 
 A tela tinha **dois lugares para a mesma pergunta** — *e agora, o que eu faço
@@ -2584,6 +2619,22 @@ coisas que não são detalhe:
 "Mais ações" guarda duplicar e excluir, que estavam soltos no fim da coluna da
 direita. Excluir atrás de um clique a mais é de propósito: o fim de uma coluna
 é onde o dedo para ao procurar o fim da página.
+
+**Aprovar e pedir ajuste também desceram para o menu**, e a entrega anterior
+tinha errado isso: elas ganharam um cartão próprio na coluna da direita, pelo
+argumento de que a decisão do cliente não é "mais um botão de workflow". O
+argumento continua certo e a conclusão não — um cartão que só existe enquanto a
+peça está em aprovação faz a coluna mudar de altura conforme a etapa, e as ações
+da tela voltam a sair de dois lugares, que é o que o rodapé veio acabar. O
+**motivo do ajuste** é pedido numa faixa acima do rodapé, pela mesma razão do
+resultado: ele fica legível enquanto a pessoa relê a legenda de que vai falar.
+
+**Versão, criação e última alteração saíram da coluna para o histórico.** Elas
+eram o cartão "Sobre a peça", três datas num cartão inteiro na coluna que mais
+disputa espaço com a arte — e a pergunta que elas respondem é a mesma do painel
+de histórico: *o que aconteceu com esta peça, e quando?* A linha do tempo conta
+o percurso; elas contam as pontas dele. Em dois lugares, quem queria saber
+"quando isto foi criado" procurava nos dois.
 
 E **o assistente do celular perdeu a barra de ações dele**, pela regra que já
 existia: uma barra de salvar de cada vez. Com o rodapé valendo em toda largura,
@@ -3478,24 +3529,60 @@ filtros para fora da área visível, e de novo o corte a tornava inalcançável 
 vez de apertada.
 
 A regra que fica: **largura fixa em painel de tela tem breakpoint, sempre.** E
-a conta de esconder não é só esconder:
+a conta de esconder não é só esconder — a barra guardava o filtro de **status**,
+que não existia em nenhum outro lugar da tela, então `hidden lg:flex` sozinho
+tiraria um filtro sem dizer que tirou. Por isso ela virou **gaveta** no celular,
+montando o mesmo componente.
 
-- A barra guarda o filtro de **status**, que não existe em nenhum outro lugar
-  da tela. `hidden lg:flex` sozinho tiraria um filtro sem dizer que tirou — a
-  tela recortando conteúdo por um controle que já não existe.
-- Por isso ela vira **gaveta** no celular, montando o **mesmo componente**: um
-  lugar só continua decidindo o que a barra mostra. Uma versão reduzida para o
-  telefone divergiria na primeira pressa, que é a história das doze alturas de
-  botão.
-- E o fechamento da gaveta mora **num lugar só** (`escolher`), não em cada
-  `onClick`: embrulhar handler por handler garante esquecer um, e o que se
-  esquece aqui não quebra nada visível — o filtro é aplicado e a gaveta fica
-  por cima do calendário que ela acabou de recortar, com a pessoa concluindo
-  que o clique não funcionou.
+**Hoje ela não existe em largura nenhuma, e a conta foi a mesma.** Cliente e
+rede já estavam no cabeçalho, com desenhos diferentes para a mesma pergunta, e a
+navegação por mês também. O que ela tinha de próprio era o filtro de etapa — e
+ele foi para a barra de cima **antes** de ela sair, por recorte (`comStatus`),
+não por uma segunda barra: duas definições do mesmo filtro divergem na primeira
+pressa, e divergir num filtro esconde conteúdo sem dizer que escondeu.
+
+Duas coisas que a mudança corrigiu de brinde, e uma que ela custou:
+
+- a lista de etapas da lateral era **literal e incompleta**: cinco das sete (não
+  dava para filtrar "Ideias" nem "Em Produção") e com os nomes do produto, então
+  quem renomeou "Aprovação" para "Revisão do cliente" filtrava por uma palavra
+  que já não existia na própria tela. A da barra sai de `etapasDoFluxo`;
+- o filtro passou a sobreviver à troca de visão, como os outros quatro, porque o
+  estado dele já morava no contexto e agora o controle mora na mesma barra;
+- **o mini-calendário foi junto**, e ele era o único caminho para pular para um
+  mês distante. Restaram ‹ › e "Hoje". Se fizer falta, o lugar dele é o título
+  do mês no cabeçalho, não uma coluna de 256px.
 
 Protegido por `tests/celular.test.ts`, conferido ao contrário: devolvendo o
-`touch-none`, tirando o `hidden lg:flex` da barra e o `flex-wrap` do cabeçalho,
-três asserções reprovam.
+`touch-none`, tirando o `comStatus` de uma das montagens da barra e o
+`flex-wrap` do cabeçalho, três asserções reprovam.
+
+#### O canto da modal é da caixa, e o filho pinta por cima dele
+
+`sm:rounded-2xl` arredonda o `DialogContent` e **nada mais**. Todo filho com
+fundo próprio — o cabeçalho cinza, a coluna da direita, o rodapé branco — é
+desenhado quadrado sobre a quina e a preenche. O resultado chegou como *"as
+bordas de todas as modais estão bugadas, redondo e quadrado"*, e a frase
+descreve exatamente o que se vê: a moldura arredondada com as quatro quinas
+cheias, que lê como defeito de renderização e não como escolha.
+
+O conserto é `overflow-hidden` no primitivo, e ele não custa nada ao conteúdo:
+cada modal já tem a própria rolagem interna, e menu suspenso do Radix sai por
+portal, fora desta caixa.
+
+**E o fechar tem uma posição só.** Ela mora no primitivo (`absolute top-3
+right-3`), que existe justamente porque entre as 25 modais à mão havia **três
+posições e dois tamanhos**. Depois disso três telas voltaram a escrever o X
+dentro da própria linha de cabeçalho — e ali ele anda com o conteúdo do
+cabeçalho, ficando num lugar diferente a cada modal. As três passaram a usar o
+do primitivo, e quem o esconde reserva o espaço dele (`pr-12` no cabeçalho,
+`lg:pt-12` na coluna da direita da tela de conteúdo).
+
+`semFechar` continua existindo para quem fecha em **outro lugar de propósito**:
+o rodapé do changelog e da busca (onde o "Fechar" é um botão com texto) e o X
+sobre a arte no portal (onde o `ghost` do primitivo sumiria sobre a foto). O que
+a guarda reprova é um X desenhado no cabeçalho — o mesmo botão, em outra
+posição.
 
 #### O celular não é o desktop estreito
 

@@ -434,30 +434,38 @@ describe('o calendário cabe na tela do celular', () => {
   const calendario = ler('src', 'components', 'calendar', 'CalendarApp.tsx');
   const cabecalho = ler('src', 'components', 'calendar', 'CalendarHeader.tsx');
 
-  it('a barra lateral fixa não existe abaixo do lg', () => {
-    const montagens = [...calendario.matchAll(/<CalendarSidebar[\s\S]{0,400}?\/>/g)].map(
-      (m) => m[0]
-    );
-    expect(montagens.length, 'a barra lateral do calendário sumiu do CalendarApp').toBe(2);
-
-    const fixa = montagens.find((m) => /w-64/.test(m));
-    expect(fixa, 'a barra fixa do calendário sumiu').toBeTruthy();
-    expect(
-      fixa,
-      'a barra de 256px voltou a aparecer no celular, cortando a grade do mês'
-    ).toMatch(/hidden lg:flex/);
-  });
-
-  it('e o que ela guarda continua alcançável por lá', () => {
+  it('a barra lateral saiu, e o filtro que só ela tinha continua existindo', () => {
     /**
-     * Esconder e pronto custaria o filtro de **status**, que só existe dentro
-     * dela — e filtro que some sem aviso é a tela escondendo conteúdo. Por
-     * isso a gaveta monta a mesma barra, não uma cópia reduzida.
+     * **A decisão mudou, e a guarda mudou com ela.** A barra de 256px era
+     * escondida abaixo do `lg` e virava gaveta, porque esconder e pronto
+     * custaria o filtro de status — o único controle que só existia lá dentro.
+     *
+     * Agora ela não existe em largura nenhuma: cliente, rede e navegação do mês
+     * já estavam no cabeçalho, com desenhos diferentes para a mesma pergunta. O
+     * filtro de etapa foi para a barra de cima, por recorte (`comStatus`), e é
+     * **isso** que esta guarda protege — tirar a lateral sem repor o filtro é a
+     * tela recortando conteúdo por um controle que não existe mais.
      */
-    expect(
-      calendario,
-      'a gaveta de filtros do celular sumiu: o filtro de status ficou inalcançável'
-    ).toMatch(/<DialogContent className="lg:hidden[\s\S]{0,400}<CalendarSidebar/);
+    expect(calendario, 'a barra lateral do calendário voltou').not.toMatch(
+      /<CalendarSidebar/
+    );
+
+    for (const [nome, fonte] of [
+      ['CalendarHeader', cabecalho],
+      ['CalendarApp', calendario],
+    ] as const) {
+      const montagens = [...fonte.matchAll(/<BarraDeFiltrosDoConteudo[^/]*\/>/g)].map(
+        (m) => m[0]
+      );
+      expect(montagens.length, `${nome} deixou de montar a barra de filtros`).toBeGreaterThan(0);
+      for (const montagem of montagens) {
+        expect(
+          montagem,
+          `${nome}: a barra do calendário perdeu o filtro de etapa, que não existe em mais lugar nenhum`
+        ).toMatch(/comStatus/);
+      }
+    }
+
     const abridor = cabecalho.slice(
       Math.max(0, cabecalho.indexOf('aoAbrirFiltros}') - 300),
       cabecalho.indexOf('aoAbrirFiltros}') + 200
@@ -468,6 +476,25 @@ describe('o calendário cabe na tela do celular', () => {
       'o botão de filtros passou a aparecer também onde a barra já está à ' +
         'vista — dois caminhos para a mesma coisa'
     ).toMatch(/lg:hidden/);
+  });
+
+  it('as etapas do filtro saem do fluxo da agência', () => {
+    /*
+      A lista que este filtro substituiu era literal e estava errada de duas
+      formas: trazia cinco das sete etapas — não dava para filtrar "Ideias" nem
+      "Em Produção" — e escrevia os nomes do produto, então quem renomeou
+      "Aprovação" para "Revisão do cliente" filtrava por uma palavra que já não
+      existe na própria tela. Lista literal em filtro esconde conteúdo sem
+      dizer que escondeu.
+    */
+    const barra = ler('src', 'components', 'common', 'BarraDeFiltrosDoConteudo.tsx');
+    expect(barra, 'o filtro de etapa sumiu da barra').toMatch(/comStatus/);
+    expect(barra, 'as etapas do filtro voltaram a ser uma lista escrita à mão').toMatch(
+      /etapasDoFluxo\(currentWorkspace\.fluxoDeProducao\)/
+    );
+    expect(barra, 'o filtro de etapa deixou de escrever no estado do contexto').toMatch(
+      /onValueChange=\{setStatusFilter\}/
+    );
   });
 
   it('o cabeçalho do calendário quebra linha', () => {
@@ -800,5 +827,63 @@ describe('o assistente do celular', () => {
     */
     expect(assistente, 'a faixa de passos virou chip escrito à mão').toMatch(/<TabsTrigger/);
     expect(assistente, 'a faixa de passos deixou de usar o primitivo').toMatch(/<TabsList/);
+  });
+});
+
+/**
+ * **O canto arredondado da modal é da caixa, e o filho pinta por cima dele.**
+ *
+ * `sm:rounded-2xl` arredonda o `DialogContent` e nada mais. O cabeçalho cinza,
+ * a coluna da direita e o rodapé branco são filhos com fundo próprio: sem
+ * recorte, cada um é desenhado quadrado sobre a quina e a preenche. A tela fica
+ * com a moldura redonda e as quatro quinas cheias — lê como defeito de
+ * renderização, não como escolha.
+ */
+describe('a moldura da modal', () => {
+  const dialogo = ler('src', 'components', 'ui', 'dialog.tsx');
+
+  it('o canto arredondado vem com o recorte que o faz existir', () => {
+    expect(dialogo, 'a modal deixou de ter canto no computador').toMatch(/sm:rounded-2xl/);
+    expect(
+      dialogo,
+      'o canto voltou a existir sem recorte: os filhos com fundo próprio pintam por cima dele'
+    ).toMatch(/overflow-hidden/);
+  });
+
+  it('o fechar tem uma posição só, e ela mora no primitivo', () => {
+    /*
+      Eram três posições e dois tamanhos entre as 25 modais à mão; o primitivo
+      juntou tudo em `absolute top-3 right-3`. Depois disso, três telas
+      voltaram a escrever o X dentro da própria linha de cabeçalho — e ali ele
+      anda com o conteúdo do cabeçalho, ficando num lugar diferente a cada
+      modal.
+    */
+    expect(dialogo, 'o fechar do primitivo saiu do canto').toMatch(
+      /absolute top-3 right-3/
+    );
+
+    /*
+      `semFechar` continua existindo para quem fecha em outro lugar **de
+      propósito** — o rodapé do changelog e da busca, o X sobre a arte no
+      portal. O que não pode voltar é um segundo X no cabeçalho, que é o mesmo
+      botão em outra posição.
+    */
+    const telas = listarTsx(join(RAIZ, 'src'));
+    const comXNoCabecalho: string[] = [];
+
+    for (const caminho of telas) {
+      const fonte = semComentarios(readFileSync(caminho, 'utf-8'));
+      if (!/semFechar/.test(fonte)) continue;
+      // O X desenhado dentro de uma linha de cabeçalho: `justify-between` com
+      // um `<X` e um `aria-label="Fechar"` logo depois do título.
+      if (/border-b[\s\S]{0,700}?aria-label="Fechar"[\s\S]{0,120}?<X /.test(fonte)) {
+        comXNoCabecalho.push(relativoAoRepo(caminho, RAIZ));
+      }
+    }
+
+    expect(
+      comXNoCabecalho,
+      'uma modal voltou a desenhar o próprio X no cabeçalho, fora da posição que todas as outras usam'
+    ).toEqual([]);
   });
 });

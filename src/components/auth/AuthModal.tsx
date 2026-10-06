@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
-  X, LogOut, ShieldCheck, Building2, Mail, RefreshCw, CloudOff, Cloud,
+  LogOut, ShieldCheck, Building2, Mail, RefreshCw, CloudOff, Cloud,
   Upload, KeyRound, Check, AlertTriangle, Eye, EyeOff, Link2, User as UserIcon,
 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
@@ -176,9 +176,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(aberto) => !aberto && onClose()}>
-      {/* `semFechar`: o X desta já mora no cabeçalho, ao lado do título. */}
-      <DialogContent tamanho="recado" semFechar className="p-0 gap-0">
-        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+      {/* O fechar é o do primitivo: uma posição só em todas as modais. */}
+      <DialogContent tamanho="recado" className="p-0 gap-0">
+        <div className="flex items-center justify-between p-5 pr-12 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div>
             <DialogTitle asChild>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Sua conta</h3>
@@ -187,13 +187,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               Sessão autenticada no servidor
             </p>
           </div>
-          <Button variant="ghost" size="icon-sm"
-            onClick={onClose}
-            className="dark:hover:text-white"
-            aria-label="Fechar"
-          >
-            <X className="w-4 h-4" />
-          </Button>
         </div>
 
         <div className="p-5 space-y-5 overflow-y-auto">

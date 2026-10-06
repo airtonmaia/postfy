@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarRange, Layers, Share2 } from 'lucide-react';
+import { CalendarRange, Layers, ListChecks, Share2 } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { usePostfy } from '../../context/PostfyContext';
 import { PERIODOS, type Periodo } from '../../lib/ordemDoQuadro';
 import { formatosEmUso } from '../../lib/formatos';
 import { NOME_DA_REDE, redesEmUso } from '../../lib/redes';
+import { etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import type { JobPlatform } from '../../types';
 
 /**
@@ -69,10 +70,27 @@ export const BarraDeFiltrosDoConteudo: React.FC<{
    * aqui esconde conteúdo sem dizer que escondeu.
    */
   empilhada?: boolean;
-}> = ({ empilhada = false }) => {
+  /**
+   * Acrescenta o filtro de etapa — **só onde a etapa não é o próprio layout.**
+   *
+   * No quadro cada etapa é uma coluna: filtrar por uma delas deixaria seis
+   * colunas vazias e uma cheia, que é a tela respondendo pior do que já
+   * respondia. No calendário a etapa não aparece em lugar nenhum da grade, e
+   * sem este controle não há como perguntar "o que está esperando aprovação
+   * este mês?".
+   *
+   * Ele entra por recorte e não por uma segunda barra: duas definições da
+   * mesma barra divergem na primeira pressa, e divergir num filtro esconde
+   * conteúdo sem dizer que escondeu.
+   */
+  comStatus?: boolean;
+}> = ({ empilhada = false, comStatus = false }) => {
   const {
     jobs,
     clients,
+    currentWorkspace,
+    statusFilter,
+    setStatusFilter,
     clientFilter,
     setClientFilter,
     platformFilter,
@@ -114,6 +132,21 @@ export const BarraDeFiltrosDoConteudo: React.FC<{
 
   const rotuloDoPeriodo =
     PERIODOS.find((p) => p.valor === periodoFiltro)?.rotulo ?? 'Qualquer data';
+
+  /*
+    **As etapas saem do fluxo da agência, nunca de uma lista escrita aqui.**
+
+    A lista que este filtro substituiu era literal e estava errada de duas
+    formas: trazia cinco das sete etapas — "Ideias" e "Em Produção" não dava
+    para filtrar — e escrevia os nomes do produto, então quem renomeou
+    "Aprovação" para "Revisão do cliente" filtrava por uma palavra que não
+    existe mais na própria tela.
+  */
+  const ETAPAS = etapasDoFluxo(currentWorkspace.fluxoDeProducao);
+  const rotuloDaEtapa =
+    statusFilter === 'all'
+      ? 'Qualquer etapa'
+      : (ETAPAS.find((e) => e.status === statusFilter)?.rotulo ?? 'Qualquer etapa');
 
   return (
     <div
@@ -163,6 +196,31 @@ export const BarraDeFiltrosDoConteudo: React.FC<{
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {comStatus && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={statusFilter === 'all' ? 'secondary' : 'primary'}
+              aria-label={`Etapa: ${rotuloDaEtapa}`}
+            >
+              <ListChecks className="w-3.5 h-3.5" />
+              {rotuloDaEtapa}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Etapa da produção</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+              <DropdownMenuRadioItem value="all">Qualquer etapa</DropdownMenuRadioItem>
+              {ETAPAS.map((e) => (
+                <DropdownMenuRadioItem key={e.status} value={e.status}>
+                  {e.rotulo}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

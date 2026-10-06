@@ -21,7 +21,6 @@ interface CalendarHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
-  onChangeDate: (date: Date) => void;
   /** Abre a gaveta de filtros. Só existe abaixo do `lg`, onde a barra some. */
   aoAbrirFiltros: () => void;
 }
@@ -31,7 +30,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onPrev,
   onNext,
   onToday,
-  onChangeDate,
   aoAbrirFiltros
 }) => {
   const { 
@@ -122,7 +120,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             precisa, e o botão "Filtros" já estava logo ao lado oferecendo a
             mesma coisa. */}
         <div className="hidden lg:flex">
-          <BarraDeFiltrosDoConteudo />
+          <BarraDeFiltrosDoConteudo comStatus />
         </div>
       </div>
 
