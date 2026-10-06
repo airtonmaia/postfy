@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.8.1',
+    data: '2026-10-06',
+    resumo: 'Ajustes de tela: a navegação do mês ficou na altura dos filtros, e o quadro mudou de nome.',
+    melhorias: [
+      'O grupo "Hoje" do calendário tinha 40px ao lado de filtros de 32 — agora os cinco controles da linha têm a mesma altura.',
+      'O quadro passou a se chamar Workflow de conteúdo.',
+    ],
+  },
+  {
     versao: '3.8.0',
     data: '2026-10-06',
     resumo: 'A segunda arte só é oferecida no formato Carrossel, que é o único que publica mais de uma.',
