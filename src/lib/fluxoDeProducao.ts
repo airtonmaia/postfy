@@ -79,13 +79,13 @@ export interface CorDaEtapa {
 }
 
 export const CORES_DA_ETAPA: CorDaEtapa[] = [
-  { valor: 'slate', rotulo: 'Cinza', ponto: 'bg-slate-400', caixa: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', borda: 'border-slate-300' },
-  { valor: 'blue', rotulo: 'Azul', ponto: 'bg-blue-500', caixa: 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300', borda: 'border-blue-300' },
-  { valor: 'amber', rotulo: 'Âmbar', ponto: 'bg-amber-500', caixa: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300', borda: 'border-amber-300' },
-  { valor: 'rose', rotulo: 'Rosa', ponto: 'bg-rose-500', caixa: 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-300', borda: 'border-rose-300' },
-  { valor: 'emerald', rotulo: 'Verde', ponto: 'bg-emerald-500', caixa: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300', borda: 'border-emerald-300' },
-  { valor: 'purple', rotulo: 'Roxo', ponto: 'bg-purple-500', caixa: 'bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-300', borda: 'border-purple-300' },
-  { valor: 'teal', rotulo: 'Turquesa', ponto: 'bg-teal-600', caixa: 'bg-teal-50 dark:bg-teal-950/40 text-teal-900 dark:text-teal-300', borda: 'border-teal-300' },
+  { valor: 'slate', rotulo: 'Cinza', ponto: 'bg-slate-400', caixa: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300', borda: 'border-slate-300 dark:border-slate-700' },
+  { valor: 'blue', rotulo: 'Azul', ponto: 'bg-blue-500', caixa: 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300', borda: 'border-blue-300 dark:border-blue-900' },
+  { valor: 'amber', rotulo: 'Âmbar', ponto: 'bg-amber-500', caixa: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300', borda: 'border-amber-300 dark:border-amber-900' },
+  { valor: 'rose', rotulo: 'Rosa', ponto: 'bg-rose-500', caixa: 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-300', borda: 'border-rose-300 dark:border-rose-900' },
+  { valor: 'emerald', rotulo: 'Verde', ponto: 'bg-emerald-500', caixa: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300', borda: 'border-emerald-300 dark:border-emerald-900' },
+  { valor: 'purple', rotulo: 'Roxo', ponto: 'bg-purple-500', caixa: 'bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-300', borda: 'border-purple-300 dark:border-purple-900' },
+  { valor: 'teal', rotulo: 'Turquesa', ponto: 'bg-teal-600', caixa: 'bg-teal-50 dark:bg-teal-950/40 text-teal-900 dark:text-teal-300', borda: 'border-teal-300 dark:border-teal-900' },
 ];
 
 /** A cor que cada etapa tem quando a agência não escolheu nenhuma. */

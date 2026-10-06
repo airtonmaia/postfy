@@ -536,7 +536,7 @@ export const JobDetailModal: React.FC = () => {
                   size="icon-sm"
                   onClick={fechar}
                   aria-label="Fechar conteúdo"
-                  className="dark:text-slate-300 hover:bg-slate-200"
+                  className="dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
                 >
                   <X className="w-5 h-5" />
                 </Button>

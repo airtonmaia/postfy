@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.1.1',
+    data: '2026-10-06',
+    resumo: 'O rodapé do card do quadro cabe na coluna, e o modo escuro deixa de ter manchas brancas.',
+    corrigido: [
+      'No modo escuro as colunas do quadro ficavam brancas: elas tinham fundo claro sem o par escuro. Aparecia mais nas colunas curtas, onde sobra fundo à mostra.',
+      'No computador o botão "Detalhes" do card saía cortado na borda — a linha de ações pedia mais largura do que a coluna tem.',
+      'Mais oito pontos que ficavam claros no tema escuro: o "+" do calendário, os botões de mídia, o seletor de período em Relatórios, o selo de papel em Usuários e a borda dos selos de etapa.',
+    ],
+    melhorias: [
+      'O card do quadro ficou com três controles no rodapé: ver histórico, duplicar e detalhes.',
+      'Excluir um conteúdo passou a acontecer só dentro dele, com a confirmação que diz o que some junto. No card, a lixeira ficava colada no "Detalhes".',
+      'O link do portal saiu do card: ele é o mesmo para todos os conteúdos do cliente, e ali parecia ser o link daquela peça. Ele continua na aba Compartilhamento.',
+    ],
+  },
+  {
     versao: '3.1.0',
     data: '2026-10-06',
     resumo: 'O calendário do celular passa a mostrar — e abrir — todos os conteúdos de um dia.',

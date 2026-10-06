@@ -199,19 +199,55 @@ describe('controle dentro de card arrastável para os dois eventos', () => {
     );
   });
 
-  it('excluir pergunta, e a pergunta diz a consequência', () => {
+  it('o rodapé do card não carrega ação destrutiva', () => {
     /*
-      `confirm()` não cabe a explicação, e "tem certeza?" é a pergunta errada:
-      o que decide é o que some junto. A `descricao` é obrigatória no
-      componente justamente por isso.
-    */
-    const inicio = cartao.indexOf('const excluir');
-    expect(inicio, 'o excluir do card deixou de existir').toBeGreaterThan(-1);
+      Excluir ficava a um toque num card que a pessoa percorre com o dedo, e
+      colada no "Detalhes". Ela saiu daqui — e a guarda mede as **duas**
+      metades da decisão, porque tirar sem repor seria deixar o produto sem
+      como apagar uma peça:
 
-    const corpo = cartao.slice(inicio, cartao.indexOf('});', inicio));
-    expect(corpo, 'o excluir do card perdeu a confirmação').toMatch(/pedir\(\{/);
+      1. o card não chama `deleteJob`;
+      2. a modal do conteúdo continua chamando, com a confirmação que diz o
+         que some junto. A `descricao` é obrigatória no componente justamente
+         para o diálogo não virar um "tem certeza?".
+    */
+    expect(cartao, 'o excluir voltou para o rodapé do card').not.toMatch(/deleteJob/);
+
+    const inicio = modal.indexOf('const excluir');
+    expect(inicio, 'a modal do conteúdo deixou de excluir — não sobrou caminho').toBeGreaterThan(
+      -1
+    );
+
+    const corpo = modal.slice(inicio, modal.indexOf('};', inicio));
+    expect(corpo, 'o excluir da modal perdeu a confirmação').toMatch(/pedir\(\{/);
     expect(corpo, 'a confirmação não diz mais o que some junto').toMatch(/descricao:/);
-    expect(corpo).toMatch(/deleteJob\(job\.id\)/);
+    expect(corpo).toMatch(/deleteJob\(selectedJob\.id\)/);
+  });
+
+  it('o rodapé do card cabe na coluna', () => {
+    /*
+      No computador o "Detalhes" saía **cortado na borda do card**: a linha
+      tinha cinco controles e `whitespace-nowrap` é a base do `Button`, então
+      ela não quebra — transborda. Duas asserções de efeito:
+
+      - o link do portal (que é do cliente, não da peça) não voltou;
+      - quem cede numa coluna estreita é o rótulo da esquerda, nunca a gaveta.
+    */
+    expect(cartao, 'o link do portal voltou para o card').not.toMatch(/urlDoPortalDaAgencia/);
+
+    const inicio = cartao.indexOf('Ver histórico');
+    const gaveta = cartao.indexOf("'Detalhes'");
+    expect(gaveta, 'a gaveta sumiu do rodapé').toBeGreaterThan(inicio);
+
+    /*
+      O `shrink-0` tem de estar no **grupo** que contém a gaveta, não num
+      ícone qualquer do caminho: o ícone do "Ver histórico" também o usa, e
+      uma busca solta aprovaria o grupo sem ele.
+    */
+    const linha = cartao.slice(inicio, gaveta);
+    expect(linha, 'a gaveta voltou a poder encolher até ser cortada').toMatch(
+      /<div className="flex items-center[^"]*shrink-0"/
+    );
   });
 });
 

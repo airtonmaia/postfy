@@ -92,10 +92,22 @@ const ColunaDoQuadro: React.FC<{
   return (
     <div
       ref={setNodeRef}
+      /*
+        **A coluna precisa do par escuro, e a falta dele não some sozinha.**
+        Ela era `bg-slate-200/70` sem `dark:`, então no modo escuro as seis
+        colunas ficavam **brancas** — faixas claras no meio de uma tela preta,
+        com os cards escuros por cima. Aparecia mais nas colunas curtas, onde
+        sobra fundo à mostra, e menos nas cheias, onde os cards cobrem quase
+        tudo: o mesmo defeito lido como "algumas colunas estão erradas".
+
+        O realce de soltura ao lado já trazia o par desde sempre — o estado
+        normal era o que não tinha. É o caso comum: a variante excepcional é
+        escrita com atenção, e o fundo de todo dia passa batido.
+      */
       className={`w-80 shrink-0 rounded-2xl p-3 flex flex-col max-h-full border shadow-xs transition-colors ${
         realcar
-          ? 'bg-purple-100/80 dark:bg-purple-950/40 border-purple-400'
-          : 'bg-slate-200/70 border-slate-300/60'
+          ? 'bg-purple-100/80 dark:bg-purple-950/40 border-purple-400 dark:border-purple-700'
+          : 'bg-slate-200/70 dark:bg-slate-900/60 border-slate-300/60 dark:border-slate-800'
       }`}
     >
       {cabecalho}
@@ -655,7 +667,7 @@ export const KanbanBoard: React.FC = () => {
                     {col.id === 'ideas' && (
                       <Button variant="ghost" size="icon-sm"
                         onClick={() => openCreateJobModal()}
-                        className="hover:bg-slate-300"
+                        className="hover:bg-slate-300 dark:hover:bg-slate-800"
                         title="Adicionar ideia"
                       >
                         <Plus className="w-4 h-4" />
