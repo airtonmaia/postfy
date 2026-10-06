@@ -2608,10 +2608,22 @@ Duas decisões menores que custariam uma ida e volta cada:
 - **chave desconhecida cai no primeiro ícone, nunca em nada.** `null` deixaria
   a coluna com um buraco e o título deslocado em relação às vizinhas — parece
   defeito do quadro, não configuração faltando;
-- **o ícone entra dentro do selo da coluna**, não num círculo ao lado. A
-  referência que originou o pedido tem o círculo; copiá-lo seria uma forma nova
-  ao lado de uma que o produto já tem, dizendo a mesma coisa duas vezes. Dentro
-  do selo, o ícone herda a cor da etapa de graça.
+- **o ícone é um disco colorido antes do título**, e a primeira versão errou
+  isso. Ela pôs o ícone **dentro** do selo da coluna, pelo argumento de não
+  inventar uma forma que o produto não tem — argumento correto em geral e
+  errado aqui, por um motivo que só aparece em tela: no selo o ícone tem 12px,
+  e em 12px não dá para distinguir uma lâmpada de uma paleta, que é exatamente
+  o que escolher o ícone deveria resolver. O disco dá a ele 16px e um fundo
+  próprio.
+
+  Com o disco carregando a cor, **o título virou texto comum**: pintar os dois
+  repete a mesma informação, e o nome da etapa é o que se lê primeiro. A
+  contagem desceu para baixo do nome e ganhou a palavra — número solto ao lado
+  de um nome lê como versão.
+
+  E a prévia em `Configurações → Conteúdos` usa as **mesmas medidas** da
+  coluna. Prévia em outro tamanho faz escolher o ícone duas vezes: uma ali e
+  outra depois de abrir o quadro.
 
 Protegido por `tests/fluxo-de-producao.test.ts`, conferido ao contrário:
 guardando etapa sem ajuste, aceitando cor e prazo inválidos, fazendo o SLA

@@ -753,22 +753,39 @@ export const KanbanBoard: React.FC = () => {
                 statusArrastado={jobArrastado?.status ?? null}
                 cabecalho={
                   <div className="flex items-center justify-between px-2 py-1.5 mb-2">
-                    <div className="flex items-center gap-2">
-                      {/*
-                        **O ícone entra dentro do selo, não ao lado dele.**
-                        A referência que originou o pedido põe um círculo
-                        colorido antes do título — e um círculo novo aqui
-                        seria uma forma que o produto não tem, ao lado de um
-                        selo que ele já tem, dizendo a mesma coisa duas vezes.
-                        Dentro do selo, o ícone herda a cor da etapa de graça
-                        e a coluna continua lendo como as outras seis.
-                      */}
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md border inline-flex items-center gap-1.5 ${col.color} ${col.border}`}>
-                        <IconeDaEtapa chave={col.icone} className="w-3 h-3 shrink-0" />
-                        {col.title}
+                    {/*
+                      **O ícone é um disco, e o título saiu do selo.**
+
+                      A primeira versão pôs o ícone **dentro** do selo colorido,
+                      para não inventar uma forma que o produto não tem. A
+                      decisão foi revista a pedido, com a referência na mão, e o
+                      que ela mostra é melhor por um motivo que só aparece em
+                      tela: o disco dá ao ícone o dobro do tamanho, e num ícone
+                      de 12px dentro de um selo não dá para distinguir uma
+                      lâmpada de uma paleta — que é justamente o que escolher o
+                      ícone deveria resolver.
+
+                      Com o disco carregando a cor, o título vira texto comum:
+                      pintar os dois repetiria a mesma informação duas vezes, e
+                      o nome da etapa é o que se lê primeiro.
+                    */}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center border ${col.color} ${col.border}`}
+                      >
+                        <IconeDaEtapa chave={col.icone} className="w-4 h-4" />
                       </span>
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono">
-                        {colJobs.length}
+                      <span className="min-w-0">
+                        <span className="block text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">
+                          {col.title}
+                        </span>
+                        {/* A contagem era um número solto ao lado do selo, e
+                            número sem unidade ao lado de um nome lê como
+                            versão. Com a palavra, ele responde a pergunta que
+                            a pessoa faz ao olhar a coluna: quantas peças. */}
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                          {colJobs.length} {colJobs.length === 1 ? 'item' : 'itens'}
+                        </span>
                       </span>
                     </div>
 
