@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.0.1',
+    data: '2026-10-06',
+    resumo: 'As telas param de escorregar para o lado no celular.',
+    corrigido: [
+      'As barras de abas eram mais largas que a tela do telefone e não rolavam sozinhas: quem rolava era a página inteira, levando o título, os campos e os botões para fora da vista. Agora a faixa rola e a tela fica parada.',
+      'Na ficha do cliente, a data do arquivo passava por cima dos botões de editar e excluir.',
+      'O nome do cliente e o selo "Cliente Ativo" disputavam a mesma linha e empurravam o cabeçalho para fora.',
+      'A fileira de ações do card de cliente — Abrir Perfil, Ver Calendário, Prévia do portal — esticava o card e, com ele, a tela.',
+      'A classe que esconde a barra de rolagem das faixas era usada em quatro telas e não existia: elas rolavam mostrando a barra cinza do sistema.',
+    ],
+    melhorias: [
+      'Margens menores abaixo do tablet em todas as telas: Dashboard, Clientes, Comercial, Publicações, Relatórios, Automações, Configurações, Biblioteca e a lista do calendário. Sobram 16px de largura útil para o conteúdo.',
+    ],
+  },
+  {
     versao: '3.0.0',
     data: '2026-10-05',
     resumo: 'Configurações ganha a aba Conteúdos: o fluxo de produção passa a ter os nomes, as cores e os prazos da sua agência.',

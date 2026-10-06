@@ -103,6 +103,28 @@
   continua escrito como classe, `rounded-xl` por dentro e `rounded-2xl` no
   card.
 */
+/*
+  `no-scrollbar`: faixa que rola e não mostra a barra.
+
+  **Ela era usada em quatro lugares e não existia em lugar nenhum** — nem no
+  Tailwind, nem aqui. Classe que não existe não vira propriedade: as abas de
+  Configurações, do cliente, do portal e da Comunicação rolavam com a barra
+  cinza do sistema operacional à mostra, num produto que é whitelabel. É a
+  mesma família do `animate-in` sem o `tw-animate-css`: `tsc`, vitest e
+  `vite build` ficam os três verdes e só aparece abrindo a tela.
+
+  A faixa continua rolando — o que some é a barra. Esconder a barra de uma
+  área que **não** rola seria esconder que há conteúdo fora da vista.
+*/
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;

@@ -90,7 +90,7 @@ export const DashboardView: React.FC = () => {
   const insights = derivarInsights(displayedJobs, clients);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 space-y-6">
       {/* Top Welcome & Agency Health Banner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main Agency Health Card */}

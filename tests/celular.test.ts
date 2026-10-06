@@ -497,3 +497,76 @@ describe('o calendário cabe na tela do celular', () => {
     ).toMatch(/min-w-0/);
   });
 });
+
+describe('nenhuma faixa de abas empurra a página', () => {
+  /**
+   * **A tela rola para o lado inteira, e não é a faixa que rola.**
+   *
+   * A raiz de cada tela é `overflow-y-auto`, e o CSS promove o eixo
+   * horizontal a `auto` quando o vertical deixa de ser `visible`. Então uma
+   * faixa de abas mais larga que o telefone não ganha barra própria: ela
+   * estica a tela, e o título, os campos e os botões saem da vista. Medido em
+   * três telas por print — "Clientes da Agência" lido como "entes da Agência",
+   * "Nome Fantasia" como "ome Fantasia".
+   *
+   * `inline-flex` e `w-fit` são justamente as duas formas de dizer "não
+   * encolha". Quem as usa precisa dizer também até onde pode crescer.
+   */
+  const tabs = ler('src', 'components', 'ui', 'tabs.tsx');
+  const bloco = tabs.slice(tabs.indexOf('const variantesDaLista'), tabs.indexOf('export interface TabsListProps'));
+
+  const VARIANTES = ['default', 'segmentado', 'pagina', 'painel'];
+
+  it('a lista de variantes foi derivada do primitivo', () => {
+    // Se o bloco mudar de forma, a extração devolve vazio e a guarda passaria
+    // sem olhar nada — o pior desfecho possível.
+    expect(bloco.length, 'não achei as variantes da barra de abas').toBeGreaterThan(200);
+    for (const v of VARIANTES) {
+      expect(bloco, `a variante ${v} sumiu do primitivo`).toContain(`${v}:`);
+    }
+  });
+
+  for (const variante of VARIANTES) {
+    it(`a variante ${variante} rola em vez de esticar a tela`, () => {
+      const inicio = bloco.indexOf(`${variante}:`);
+      const fim = VARIANTES.map((v) => bloco.indexOf(`${v}:`))
+        .filter((i) => i > inicio)
+        .sort((a, b) => a - b)[0];
+      const corpo = bloco.slice(inicio, fim > 0 ? fim : undefined);
+
+      expect(
+        corpo,
+        `a barra de abas "${variante}" voltou a poder empurrar a página no celular`
+      ).toMatch(/overflow-x-auto/);
+
+      // `inline-flex` e `w-fit` não encolhem: sem um teto, o `overflow-x-auto`
+      // nunca chega a valer, porque a caixa cresce com o conteúdo.
+      if (/inline-flex|w-fit/.test(corpo)) {
+        expect(
+          corpo,
+          `a barra "${variante}" não encolhe e não tem teto de largura`
+        ).toMatch(/max-w-full/);
+      }
+    });
+  }
+
+  it('`no-scrollbar` existe de verdade', () => {
+    /**
+     * Ela era usada em quatro lugares e **não existia em lugar nenhum** — nem
+     * no Tailwind, nem no `index.css`. Classe que não existe não vira
+     * propriedade: as faixas rolavam com a barra cinza do sistema à mostra,
+     * num produto que é whitelabel. Mesma família do `animate-in` sem o
+     * `tw-animate-css`.
+     */
+    const css = readFileSync(join(RAIZ, 'src', 'index.css'), 'utf-8');
+    const usada = listarTsx(join(RAIZ, 'src')).some((f) =>
+      /no-scrollbar/.test(readFileSync(f, 'utf-8'))
+    );
+
+    if (usada) {
+      expect(css, 'a classe `no-scrollbar` é usada e não existe em lugar nenhum').toMatch(
+        /@utility no-scrollbar|\.no-scrollbar/
+      );
+    }
+  });
+});

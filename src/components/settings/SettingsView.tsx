@@ -64,7 +64,7 @@ export const SettingsView: React.FC = () => {
       onValueChange={(v) => setActiveTab(v as typeof activeTab)}
       className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto"
     >
-      <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 pb-0">
+      <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 sm:p-6 pb-0">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Sistema</span>
           <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">Configurações</h3>
@@ -83,7 +83,7 @@ export const SettingsView: React.FC = () => {
         </TabsList>
       </div>
 
-      <div className="p-6 max-w-5xl mx-auto w-full">
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto w-full min-w-0">
         <TabsContent value="overview"><SettingsOverview /></TabsContent>
         <TabsContent value="whitelabel"><SettingsWhitelabel /></TabsContent>
         <TabsContent value="integrations"><SettingsIntegrations /></TabsContent>
