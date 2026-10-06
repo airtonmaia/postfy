@@ -153,6 +153,8 @@ export const JobDetailModal: React.FC = () => {
   const [iaAberta, setIaAberta] = useState(false);
   /* A prévia nasce fechada: ver abaixo, no botão que a abre. */
   const [previaAberta, setPreviaAberta] = useState(false);
+  /* A trilha nasce aberta: ver abaixo, no botão que a recolhe. */
+  const [trilhaAberta, setTrilhaAberta] = useState(true);
   /**
    * As redes em que **este cliente** tem conta conectada.
    *
@@ -597,8 +599,41 @@ export const JobDetailModal: React.FC = () => {
               — perderia de vista onde a peça está, justamente na aba que fala
               de por onde ela passou.
             */}
+            {/*
+              **A trilha pode ser recolhida, e nasce aberta.**
+
+              Ela é a resposta de quem abre uma peça atrasada — *por onde isto
+              passou?* —, e por isso o padrão é mostrá-la: quem nunca a vir não
+              descobre que ela existe. Quem já sabe onde a peça está e veio
+              escrever a legenda recolhe e ganha 60px de altura, que numa modal
+              de 844px é o começo da arte.
+
+              **O estado não é guardado**, de propósito. Guardá-lo exigiria uma
+              coluna em `user_settings` (a armadilha 4 proíbe o `localStorage`
+              para dado de agência), e preferência que mora no banco e ninguém
+              lembra de ter ligado é como a pessoa encontra uma tela sem metade
+              do que ela espera. Recolher vale para a sessão, que é o tempo em
+              que a pessoa está trabalhando naquela peça.
+            */}
             <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-              <TrilhaDeEtapas job={selectedJob} />
+              <div className="flex items-center justify-end px-4 sm:px-6 pt-2 -mb-1">
+                <button
+                  type="button"
+                  onClick={() => setTrilhaAberta((v) => !v)}
+                  aria-expanded={trilhaAberta}
+                  /* Afordância pequena e discreta: ela não disputa com o
+                     conteúdo, e o rótulo diz para onde o clique leva. */
+                  className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-purple-600 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  {trilhaAberta ? 'Ocultar fluxo' : 'Ver fluxo'}
+                  {trilhaAberta ? (
+                    <ChevronUp className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              {trilhaAberta && <TrilhaDeEtapas job={selectedJob} />}
             </div>
 
             <Tabs
@@ -665,62 +700,8 @@ export const JobDetailModal: React.FC = () => {
                       aoGerarComIA={gerarTextoComIA}
                       mostrarDeadline
                       avisarAtraso={selectedJob.status !== 'published'}
-                    >
-                      {/* "Mais opções": o que só existe depois de a peça
-                          existir. */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Campanha
-                        </label>
-                        <input
-                          type="text"
-                          value={dados.campaign}
-                          onChange={(e) => mudar({ campaign: e.target.value })}
-                          placeholder="Ex: Lançamento de verão"
-                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Chamada para ação (CTA)
-                        </label>
-                        <input
-                          type="text"
-                          value={dados.cta}
-                          onChange={(e) => mudar({ cta: e.target.value })}
-                          placeholder="Ex: Comente EU QUERO para receber o link"
-                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Hashtags
-                        </label>
-                        {/* A lista viaja como texto separado por espaço: é como
-                            a pessoa escreve hashtag e como ela cola de outro
-                            lugar. A `#` é acrescentada na volta — quem digita
-                            "verao" espera uma hashtag, não um erro silencioso
-                            na publicação. */}
-                        <input
-                          type="text"
-                          value={dados.hashtags}
-                          onChange={(e) => mudar({ hashtags: e.target.value })}
-                          placeholder="#verao #promo #novidade"
-                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white font-mono"
-                        />
-                      </div>
-
-                      <Button
-                        type="button"
-                        onClick={() => setIaAberta(true)}
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Gerar copy completa com IA
-                      </Button>
-                    </FormularioDoConteudo>
+                      secao="peca"
+                    />
                   </div>
 
                   {/*
@@ -1042,6 +1023,95 @@ export const JobDetailModal: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/*
+              **Gestão: tudo que não é a arte nem o texto.**
+
+              Cliente, canais, título, formato, responsáveis, prioridade e as
+              datas ficavam acima da arte, empurrando a peça — que é o assunto
+              da tela — para baixo da dobra. Aqui eles continuam editáveis e
+              deixam a coluna da esquerda com uma coisa só.
+
+              **É o mesmo componente da esquerda, com outro recorte.** Uma
+              cópia dos campos aqui divergiria na primeira pressa, e divergir
+              num formulário significa um campo que some de um lado sem
+              ninguém notar.
+
+              Ele vem **depois** das ações: a gestão tem sete campos, e pô-la
+              em cima devolveria o problema que esta entrega veio resolver —
+              as ações fora da dobra.
+            */}
+            <div className={`${cartao} p-4 space-y-3`}>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Gestão
+              </span>
+
+              <FormularioDoConteudo
+                valor={dados}
+                aoMudar={mudar}
+                tipo={tipo}
+                clients={clients}
+                equipe={users}
+                mostrarDeadline
+                avisarAtraso={selectedJob.status !== 'published'}
+                secao="gestao"
+              >
+                      {/* "Mais opções": o que só existe depois de a peça
+                          existir. */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          Campanha
+                        </label>
+                        <input
+                          type="text"
+                          value={dados.campaign}
+                          onChange={(e) => mudar({ campaign: e.target.value })}
+                          placeholder="Ex: Lançamento de verão"
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          Chamada para ação (CTA)
+                        </label>
+                        <input
+                          type="text"
+                          value={dados.cta}
+                          onChange={(e) => mudar({ cta: e.target.value })}
+                          placeholder="Ex: Comente EU QUERO para receber o link"
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          Hashtags
+                        </label>
+                        {/* A lista viaja como texto separado por espaço: é como
+                            a pessoa escreve hashtag e como ela cola de outro
+                            lugar. A `#` é acrescentada na volta — quem digita
+                            "verao" espera uma hashtag, não um erro silencioso
+                            na publicação. */}
+                        <input
+                          type="text"
+                          value={dados.hashtags}
+                          onChange={(e) => mudar({ hashtags: e.target.value })}
+                          placeholder="#verao #promo #novidade"
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={() => setIaAberta(true)}
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Gerar copy completa com IA
+                      </Button>
+              </FormularioDoConteudo>
             </div>
 
             {/*

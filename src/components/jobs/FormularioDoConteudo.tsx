@@ -177,6 +177,24 @@ interface Props {
    */
   avisarAtraso?: boolean;
   /**
+   * Qual metade do formulário desenhar.
+   *
+   * **A tela de conteúdo partiu o formulário em duas colunas**: a arte e o
+   * texto de um lado, e cliente, canais, título, formato, responsáveis,
+   * prioridade e datas do outro. O que não pode acontecer é cada coluna ter a
+   * própria cópia dos campos — duas cópias divergem na primeira pressa, que é
+   * a história das doze alturas de botão e da tabela de formatos.
+   *
+   * Então o componente é **um só**, montado duas vezes com recortes
+   * diferentes. A consequência que precisa de cuidado está no efeito que
+   * revalida o formato ao trocar de canal: ele mora na metade que tem o campo
+   * Formato, e **só nela**. Em duas instâncias ele rodaria duas vezes — aqui
+   * seria inofensivo, porque as duas chamadas gravariam o mesmo valor, mas
+   * "inofensivo por coincidência" é como um efeito duplicado passa a ser
+   * aceito num lugar onde ele não é.
+   */
+  secao?: 'tudo' | 'gestao' | 'peca';
+  /**
    * O que entra em "Mais opções", embaixo do formulário.
    *
    * É um espaço, não uma lista: o cadastro não põe nada ali (CTA, hashtags e
@@ -196,6 +214,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
   aoGerarComIA,
   mostrarDeadline = false,
   avisarAtraso = true,
+  secao = 'tudo',
   children,
 }) => {
   const {
@@ -203,6 +222,9 @@ export const FormularioDoConteudo: React.FC<Props> = ({
     caption, draft, firstComment, configuracoes,
     mediaUrls, storyMediaUrls, scheduledDate, deadlineApproval, responsaveis,
   } = valor;
+
+  const gestao = secao !== 'peca';
+  const peca = secao !== 'gestao';
 
   const platform = canais[0] || 'instagram';
 
@@ -220,6 +242,14 @@ export const FormularioDoConteudo: React.FC<Props> = ({
    * formato que aquela rede não aceita, sem ninguém ver.
    */
   useEffect(() => {
+    /*
+      **Só a metade que desenha o campo Formato revalida o formato.** Com o
+      formulário partido em duas colunas, o componente é montado duas vezes; sem
+      esta saída, o efeito rodaria nas duas. As duas gravariam o mesmo valor —
+      inofensivo por coincidência, e é assim que um efeito duplicado passa a ser
+      aceito num lugar onde ele não é.
+    */
+    if (!gestao) return;
     if (formatosDoCanal.length && !formatosDoCanal.some((f) => f.valor === format)) {
       aoMudar({ format: formatosDoCanal[0].valor });
     }
@@ -289,6 +319,8 @@ export const FormularioDoConteudo: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
+      {gestao && (
+      <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Cliente */}
         <div>
@@ -469,6 +501,11 @@ export const FormularioDoConteudo: React.FC<Props> = ({
         </div>
       </div>
 
+      </>
+      )}
+
+      {peca && (
+      <>
       {/*
         **A arte e o texto ficam lado a lado a partir do lg.**
 
@@ -633,6 +670,11 @@ export const FormularioDoConteudo: React.FC<Props> = ({
       </Tabs>
       </div>
 
+      </>
+      )}
+
+      {gestao && (
+      <>
       {/* "Mais opções": só é desenhada quando a tela tem o que pôr dentro. */}
       {children && (
         <Accordion type="single" collapsible className="border-t border-slate-200 dark:border-slate-800 pt-3">
@@ -680,6 +722,8 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           Horário de <strong>{cidadeDoFuso()}</strong>, o fuso da agência — não o do
           seu aparelho.
         </p>
+      )}
+      </>
       )}
     </div>
   );
