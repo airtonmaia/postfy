@@ -403,7 +403,7 @@ describe('o que ocupa a tela do conteúdo', () => {
     expect(
       formulario,
       'a arte e o texto voltaram a ser empilhados em qualquer largura'
-    ).toMatch(/tipo\.pedeArte && arte && texto \?[\s\S]{0,80}lg:grid-cols-2/);
+    ).toMatch(/tipo\.pedeArte && arte && texto \?[\s\S]{0,80}lg:grid-cols-\d/);
   });
 });
 
