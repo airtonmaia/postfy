@@ -54,11 +54,11 @@ export const ClientesDoQuadro: React.FC<{
   );
 
   return (
-    <div className="px-6 pt-4">
+    <div className="px-4 sm:px-6 pt-2 sm:pt-4">
       {/* Rola na horizontal porque a lista cresce com a agência, e empilhar
           clientes em duas linhas empurraria o quadro para baixo justamente em
           quem tem mais trabalho para ver. */}
-      <div className="flex items-start gap-4 overflow-x-auto pb-1">
+      <div className="flex items-start gap-3 sm:gap-4 overflow-x-auto no-scrollbar pb-1">
         {itens.map((item) => {
           const ativo = selecionado === item.id;
 
@@ -71,8 +71,9 @@ export const ClientesDoQuadro: React.FC<{
               // não souber dele.
               onClick={() => aoSelecionar(ativo && item.id !== 'all' ? 'all' : item.id)}
               title={item.nome}
+              aria-label={item.nome}
               aria-pressed={ativo}
-              className="flex flex-col items-center gap-1.5 shrink-0 w-16 group cursor-pointer"
+              className="flex flex-col items-center gap-1.5 shrink-0 w-11 sm:w-16 group cursor-pointer"
             >
               {item.id === 'all' ? (
                 <span
@@ -95,9 +96,17 @@ export const ClientesDoQuadro: React.FC<{
 
               {/* O nome inteiro não cabe, e cortar é melhor que quebrar em
                   duas linhas: a faixa teria alturas diferentes por item. O
-                  `title` entrega o nome completo. */}
+                  `title` entrega o nome completo.
+
+                  **Abaixo do `sm` ele some, e a faixa encolhe de 85 para 52
+                  pixels.** Num telefone esses 33px são um terço de um card, e
+                  o quadro só mostrava dois. O que fica é o avatar — que este
+                  arquivo já argumenta ser reconhecido antes de qualquer texto,
+                  com cor estável e iniciais para quem não tem foto — mais o
+                  `title` e o `aria-label`, que é o que o leitor de tela lê. */}
               <span
-                className={`text-[11px] leading-tight text-center truncate w-full ${
+                aria-hidden
+                className={`hidden sm:block text-[11px] leading-tight text-center truncate w-full ${
                   ativo
                     ? 'font-bold text-purple-700 dark:text-purple-300'
                     : 'font-medium text-slate-600 dark:text-slate-400'
