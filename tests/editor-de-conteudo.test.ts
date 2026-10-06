@@ -171,33 +171,60 @@ describe('nada é gravado sem alguém confirmar', () => {
     expect(editor).toMatch(/descricao:/);
   });
 
-  it('salvar só aparece quando há o que salvar, e em uma barra só', () => {
+  it('salvar está sempre no rodapé, e numa barra só', () => {
     /*
-      Um botão de salvar sempre aceso não diz nada; um que aparece é o próprio
-      aviso de que existe trabalho não gravado.
+      **A decisão mudou, e a guarda mudou com ela.** Antes a barra de salvar
+      aparecia só quando havia mudança, e só na coluna da esquerda — e no
+      celular quem a mostrava era o assistente. Eram dois lugares para a mesma
+      pergunta, e nenhum deles estava à vista o tempo todo.
 
-      **E ele aparece numa barra de cada vez.** No celular quem o mostra é a
-      barra do assistente; na tela larga, a barra grudada no rodapé da coluna.
-      As duas ao mesmo tempo dariam dois "Salvar alterações" na mesma tela, e a
-      pessoa não teria como saber se são o mesmo.
+      Agora o rodapé é um só, fixo, atravessando as duas colunas e existindo em
+      toda largura: dá para salvar em qualquer passo e em qualquer aba, que é o
+      que se pediu. O que a guarda afirma é isso — **um** rodapé, **um** botão
+      de salvar, e o assistente sem barra própria.
     */
-    expect(editor, 'a marca de alteração pendente sumiu').toMatch(/\{sujo && /);
-    expect(editor, 'a barra grudada voltou a aparecer junto com a do assistente').toMatch(
-      /\{sujo && !estreita && \(/
+    /*
+      A âncora é **código**, não um comentário: `ler` remove os comentários
+      antes de medir, e uma guarda ancorada num deles recebe -1 do `indexOf`,
+      fatia o arquivo ao contrário e passa a afirmar sobre o lugar errado — sem
+      falhar. Já aconteceu aqui com a fatia de `setIsWhatsAppOpen(true)`.
+
+      O que prova que o rodapé está fora da área que rola é a **posição**: ele
+      vem depois do `</aside>` que fecha a coluna da direita, portanto fora do
+      `flex-1 min-h-0 overflow-y-auto` que embrulha as duas colunas.
+    */
+    const depoisDasColunas = editor.slice(editor.indexOf('</aside>'));
+    const rodape = depoisDasColunas.slice(0, depoisDasColunas.indexOf('</DialogContent>'));
+    expect(rodape, 'o rodapé voltou para dentro da área que rola').toMatch(
+      /shrink-0 border-t/
     );
-    expect(editor, 'o assistente ficou sem como salvar').toMatch(
-      /acoes=\{sujo \? botoesDeSalvar : null\}/
-    );
+    expect(rodape, 'o salvar saiu do rodapé fixo').toMatch(/Salvar/);
 
     /*
-      E os botões são **os mesmos dois**, não uma cópia: escritos duas vezes,
-      um ganharia o estado de "salvando" que o outro não tem — e a pessoa
-      clicaria num botão que não responde.
+      Um "Salvar alterações" só. Dois — um no rodapé e um no assistente, como
+      havia — fariam um ganhar o estado de "salvando" que o outro não tem, e a
+      pessoa clicaria num botão que não responde.
     */
     expect(
       (editor.match(/Salvar alterações/g) ?? []).length,
       'os botões de salvar viraram duas cópias'
     ).toBe(1);
+    expect(editor, 'o assistente voltou a ter barra de ações própria').not.toMatch(
+      /acoes=\{/
+    );
+
+    /*
+      E ele é **desligado sem mudança**, nunca escondido: botão que some é
+      botão que a pessoa procura. Gravar sem mudança carimbaria `updated_at` à
+      toa, e o rodapé passaria a dizer "há menos de 1m" sobre uma alteração que
+      não houve.
+    */
+    expect(editor, 'o salvar voltou a gravar sem haver mudança').toMatch(
+      /disabled=\{salvando \|\| !sujo\}/
+    );
+    expect(editor, 'a marca de alteração pendente sumiu do rodapé').toMatch(
+      /\{sujo \? \(/
+    );
   });
 
   it('o texto vindo da IA cai no rascunho, não no banco', () => {
@@ -466,13 +493,41 @@ describe('as duas colunas saem do mesmo formulário', () => {
     );
   });
 
-  it('a trilha pode ser recolhida, e nasce aberta', () => {
-    // Nascer fechada esconderia a resposta de quem abre uma peça atrasada, e
-    // quem nunca a vê não descobre que ela existe.
-    expect(editor, 'a trilha deixou de nascer aberta').toMatch(
-      /\[trilhaAberta, setTrilhaAberta\] = useState\(true\)/
+  it('recolhida, a trilha continua dizendo a etapa', () => {
+    /*
+      **A guarda antiga exigia que ela nascesse aberta**, e o argumento era que
+      quem nunca a vê não descobre que ela existe. Ele valia enquanto recolhida
+      ela sumia por inteiro, deixando um botão "Ver fluxo" sozinho.
+
+      Agora ela nasce recolhida e a faixa recolhida **informa**: a etapa atual e
+      há quanto tempo a peça está nela. O que a guarda protege é isto — não o
+      estado inicial, mas que o estado recolhido não volte a ser um controle
+      mudo.
+    */
+    const trilha = ler('src', 'components', 'jobs', 'TrilhaDeEtapas.tsx');
+
+    const recolhida = trilha.slice(trilha.indexOf('if (!aberta)'));
+    expect(recolhida, 'a trilha deixou de ter estado recolhido').not.toBe(trilha);
+    expect(recolhida, 'a faixa recolhida parou de dizer a etapa').toMatch(/Etapa:/);
+    expect(recolhida, 'a faixa recolhida ficou sem como abrir o fluxo').toMatch(
+      /Ver fluxo completo/
     );
-    expect(editor, 'o botão não diz mais para onde o clique leva').toMatch(/'Ocultar fluxo'/);
+
+    /*
+      E o tempo na etapa sai do **histórico**, nunca de `updated_at`: aquela
+      coluna é a última edição de qualquer campo, inclusive de uma vírgula na
+      legenda — ela diria "há 2m nesta etapa" de uma peça parada há uma semana.
+      Sem linha no histórico, nenhum número: a tela não afirma o que não mediu.
+    */
+    expect(trilha, 'o tempo na etapa passou a sair de updated_at').not.toMatch(
+      /updatedAt/
+    );
+    expect(trilha, 'o tempo na etapa deixou de depender do histórico').toMatch(
+      /tempoNaEtapa = entradaNaEtapa \? /
+    );
+    expect(trilha, 'o botão não diz mais para onde o clique leva').toMatch(
+      /'Ocultar fluxo'|Ocultar fluxo/
+    );
   });
 });
 
@@ -525,4 +580,104 @@ describe('a ordem de declaração dentro das telas de conteúdo', () => {
       }
     });
   }
+});
+
+/**
+ * **O rodapé de ações, e as duas coisas que ele veio juntar.**
+ *
+ * A tela tinha dois lugares para a mesma pergunta — *e agora, o que eu faço
+ * com esta peça?* A barra de salvar aparecia só quando havia mudança, só na
+ * coluna da esquerda, e no celular ela era do assistente; as ações de workflow
+ * eram quatro botões empilhados na coluna da direita, abaixo da prévia e da
+ * gestão, portanto fora da dobra num notebook. Nenhum dos dois estava à vista
+ * o tempo todo, que é a única coisa que um botão de salvar precisa ser.
+ */
+describe('o rodapé de ações da tela de conteúdo', () => {
+  it('o aviso do canal mora no mesmo menu que agendar e publicar', () => {
+    /*
+      **A conferência vale onde ainda dá para agir.** Este aviso já saiu de
+      `textoDoAgendamento` uma vez, por dizer *depois* do clique que o cliente
+      não tem conta conectada — a peça entrava como agendada e no dia ninguém
+      publicava. Agora o risco é geográfico: com a ação no rodapé e o aviso na
+      coluna da direita, no celular ele ficaria **abaixo** do botão que ele
+      existe para qualificar.
+
+      A guarda mede a distância entre os dois no arquivo, que é o que
+      "no mesmo menu" significa aqui.
+    */
+    const apartirDoGatilho = editor.slice(editor.indexOf('Outras ações da peça'));
+    expect(apartirDoGatilho, 'o menu das ações sumiu do rodapé').not.toBe(editor);
+
+    const menu = apartirDoGatilho.slice(
+      apartirDoGatilho.indexOf('<DropdownMenuContent'),
+      apartirDoGatilho.indexOf('</DropdownMenuContent>')
+    );
+
+    expect(menu, 'o agendar saiu do menu do rodapé').toMatch(/Agendar publicação/);
+    expect(
+      menu,
+      'o aviso do canal voltou a morar longe do botão que ele qualifica'
+    ).toMatch(/avisosDosCanais\(/);
+  });
+
+  it('a etapa é um seletor só, montado em um lugar de cada vez', () => {
+    /*
+      Ele saiu do cabeçalho para a Gestão, onde moram os outros campos da peça
+      — e **continua no cabeçalho no celular**, porque ali a Gestão vira um
+      passo do assistente, atrás de um toque.
+
+      Escrever o `<select>` duas vezes é a história das doze alturas de botão
+      com um agravante: as sete opções são a lista fechada que o `check` do
+      banco também guarda, e uma cópia perde a etapa nova em silêncio. Por isso
+      ele é **uma** constante, montada por `estreita`.
+    */
+    expect(
+      (editor.match(/<option value="ideas">/g) ?? []).length,
+      'o seletor de etapa virou duas cópias'
+    ).toBe(1);
+    expect(editor, 'o seletor de etapa deixou de ser peça única').toMatch(
+      /const seletorDeEtapa = \(/
+    );
+    expect(editor, 'o celular ficou sem o seletor de etapa no cabeçalho').toMatch(
+      /\{estreita && <div[^>]*>\{seletorDeEtapa\}/
+    );
+  });
+
+  it('o checklist e as horas saíram, e nada mais escreve neles', () => {
+    /*
+      As duas eram seções recolhíveis da peça, e eram processo interno
+      disputando a tela com a peça. Tirar a tela e deixar quem escreve é a
+      família do `trial_ends_at`: o "Gerar checklist técnico com IA" gravaria
+      uma lista que nenhuma parte do produto mostra, com um giro de
+      carregamento por cima — e o apontamento de horas somaria minutos que
+      ninguém lê.
+
+      Por isso a guarda mede o **efeito** nos dois sentidos: a tela sumiu e o
+      escritor sumiu junto.
+    */
+    const semPainel = () => {
+      try {
+        readFileSync(join(RAIZ, 'src', 'components', 'jobs', 'PainelDeTimesheet.tsx'));
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    expect(semPainel(), 'o painel de horas voltou sem tela que o abra').toBe(true);
+
+    const contexto = ler('src', 'context', 'PostfyContext.tsx');
+    for (const escritor of ['addTimesheetLog', 'toggleChecklistItem', 'convertFeedbackToTasks']) {
+      expect(
+        contexto,
+        `${escritor} voltou ao contexto sem nenhuma tela que mostre o que ele grava`
+      ).not.toMatch(new RegExp(`const ${escritor}`));
+    }
+
+    expect(editor, 'o checklist voltou à tela de conteúdo').not.toMatch(
+      /Checklist de produção/
+    );
+    expect(editor, 'as horas voltaram à tela de conteúdo').not.toMatch(
+      /Horas neste conteúdo/
+    );
+  });
 });

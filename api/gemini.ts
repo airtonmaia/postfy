@@ -39,18 +39,6 @@ Responda com este JSON:
   "reelsScript": "Se aplicável, roteiro cena a cena de Reels/TikTok"
 }`,
 
-  'convert-feedback': (c: any) => `O cliente solicitou o seguinte ajuste no post "${c.jobTitle || 'sem título'}":
-Feedback bruto: "${c.clientFeedback}"
-Legenda atual: "${c.currentCopy || 'Não informada'}"
-
-Como Diretor de Operações de agência, transforme esse feedback numa lista acionável e técnica de tarefas separadas por responsável.
-
-Responda com este JSON:
-{
-  "summary": "Resumo objetivo do que precisa ser alterado",
-  "checklist": [{ "item": "Tarefa técnica a executar", "role": "designer" }]
-}
-O campo "role" aceita apenas "designer" ou "copywriter".`,
 
   'editorial-ideas': (c: any) => `Gere 4 ideias criativas de conteúdo estratégico para o cliente "${c.clientName || 'Cliente'}", do segmento "${c.clientSegment || 'Negócios e Serviços'}", para o mês de "${c.month || 'próximo mês'}".
 
@@ -94,9 +82,6 @@ async function handler(request: Request): Promise<Response> {
 
   if (acao === 'generate-copy' && !textoValido(corpo?.theme, 500)) {
     return json({ error: 'Informe o tema do conteúdo.' }, 400);
-  }
-  if (acao === 'convert-feedback' && !textoValido(corpo?.clientFeedback, 5000)) {
-    return json({ error: 'Informe o feedback do cliente.' }, 400);
   }
 
   const configIA = configuracaoDaIA();

@@ -31,6 +31,25 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.6.0',
+    data: '2026-10-06',
+    resumo:
+      'A tela de conteúdo ganhou um rodapé fixo: salvar está sempre a um clique, e as ações de workflow saíram de dentro da coluna.',
+    novidades: [
+      'Rodapé fixo na tela de conteúdo, em toda largura: "Salvar alterações" com uma seta ao lado que abre enviar para aprovação, agendar e publicar agora — as três salvam antes de agir.',
+      'O rodapé também mostra há quanto tempo foi a última alteração, e avisa quando há mudança não salva.',
+      '"Mais ações" no canto do rodapé reúne duplicar e excluir, que ficavam soltos no fim da coluna da direita.',
+      'A trilha de etapas recolhida passou a dizer em que etapa a peça está e há quanto tempo ela está ali, em vez de sumir por inteiro.',
+    ],
+    melhorias: [
+      'A etapa do conteúdo passou a ficar no cartão Gestão, junto de cliente, canais, formato e datas. No celular ela continua no topo, onde se alcança sem rolar.',
+      'A trilha de etapas nasce recolhida: a fileira de sete bolinhas devolveu a altura dela para a arte.',
+      'Os avisos de "este canal não publica sozinho" passaram a aparecer dentro do menu de agendar e publicar, ao lado do botão que eles qualificam.',
+      'O retorno de agendar e publicar aparece colado no rodapé que disparou a ação, não na outra ponta da tela.',
+      'O checklist de produção e o apontamento de horas saíram da tela de conteúdo. Eram processo interno disputando espaço com a peça; com eles saiu o "Gerar checklist técnico com IA", que gravaria numa lista que já não aparece em lugar nenhum.',
+    ],
+  },
+  {
     versao: '3.5.2',
     data: '2026-10-06',
     resumo: 'A área de mídia ficou com mais ar: a explicação virou tooltip, o botão desceu e a legenda ganhou largura.',

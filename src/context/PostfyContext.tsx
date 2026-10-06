@@ -309,7 +309,6 @@ interface PostfyContextType {
   requestAdjustment: (jobId: string, feedback: string, requesterName?: string) => void;
   addNewJobVersion: (jobId: string, mediaUrls: string[], caption: string) => void;
   addJobComment: (jobId: string, text: string, isClient?: boolean) => void;
-  toggleChecklistItem: (jobId: string, itemId: string) => void;
   duplicateJob: (jobId: string) => void;
   
   // Client & Commercial Operations
@@ -365,11 +364,9 @@ interface PostfyContextType {
 
   // Timesheet
   timesheetLogs: TimesheetLog[];
-  addTimesheetLog: (log: Omit<TimesheetLog, 'id' | 'createdAt'>) => void;
 
   // AI Operations (Gemini)
   generateAiCopy: (params: { theme: string; format?: string; platform?: string; clientId?: string; additionalNotes?: string }) => Promise<{ caption: string; hook: string; cta: string; hashtags: string[]; reelsScript?: string }>;
-  convertFeedbackToTasks: (params: { clientFeedback: string; jobTitle: string; currentCopy?: string }) => Promise<{ summary: string; checklist: { item: string; role: 'designer' | 'copywriter' }[] }>;
   generateEditorialIdeas: (clientId: string) => Promise<{ ideas: { title: string; format: string; hook: string; rationale: string }[] }>;
 
   /**
@@ -1754,11 +1751,13 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deadlineProduction: jobData.deadlineProduction || new Date(Date.now() + 86400000 * 2).toISOString(),
       deadlineApproval: jobData.deadlineApproval || new Date(Date.now() + 86400000 * 4).toISOString(),
       scheduledDate: jobData.scheduledDate || new Date(Date.now() + 86400000 * 5).toISOString(),
-      checklist: jobData.checklist || [
-        { id: novoId(), title: 'Redação da copy e chamada', completed: false },
-        { id: novoId(), title: 'Design / Edição do criativo', completed: false },
-        { id: novoId(), title: 'Revisão ortográfica e aprovação', completed: false }
-      ],
+      /*
+        Sem os três itens padrão: o checklist de produção deixou de ter tela, e
+        semeá-lo escreveria no banco uma lista que nenhuma parte do produto
+        mostra nem deixa marcar. A coluna fica, porque o acervo já tem itens
+        gravados e `jobs.checklist` é `not null` — mas o que nasce nasce vazio.
+      */
+      checklist: jobData.checklist || [],
       comments: []
     };
     
@@ -2176,17 +2175,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     
     logActivity(isClient ? 'Cliente comentou' : 'Comentou no job', `Job: ${job.title}`);
-  };
-  
-  const toggleChecklistItem = (jobId: string, itemId: string) => {
-    const job = jobs.find(j => j.id === jobId);
-    if (!job) return;
-    
-    const updatedChecklist = job.checklist.map(item => 
-      item.id === itemId ? { ...item, completed: !item.completed } : item
-    );
-    
-    updateJob(jobId, { checklist: updatedChecklist });
   };
   
   const duplicateJob = (jobId: string) => {
@@ -2695,29 +2683,19 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAllClientMaterials(prev => prev.filter(m => m.id !== id));
   };
 
-  // Timesheet
-  const addTimesheetLog = (log: Omit<TimesheetLog, 'id' | 'createdAt'>) => {
-    const newLog: TimesheetLog = {
-      ...log,
-      id: novoId(),
-      createdAt: new Date().toISOString()
-    };
-    setAllTimesheetLogs(prev => [newLog, ...prev]);
+  /*
+    **O apontamento de horas perdeu a tela, e o escritor saiu com ela.**
 
-    // Update job timesheetMinutes
-    setAllJobs(prev => prev.map(j => {
-      if (j.id === log.jobId) {
-        const updated = {
-          ...j,
-          timesheetMinutes: (j.timesheetMinutes || 0) + log.minutes
-        };
-        return updated;
-      }
-      return j;
-    }));
+    "Horas neste conteúdo" era uma seção recolhível da peça, e saiu junto com o
+    checklist de produção: as duas são processo interno, e disputavam a tela com
+    a peça. `addTimesheetLog` ficaria aqui sem nenhum chamador — a família do
+    `trial_ends_at`, que é a razão de ele sair agora e não "quando sobrar
+    tempo".
 
-    logActivity('Apontou tempo em Job', `${log.minutes} min em "${log.jobTitle}" por ${log.userName}`);
-  };
+    `timesheet_logs` continua sendo lida na carga e sincronizada: a tabela tem
+    dados de agência de verdade, e tirá-la da carga é uma entrega própria —
+    mexer na ordem dos `useColecaoSincronizada` é o que a armadilha 3 guarda.
+  */
 
   // ============================================================
   // IA (Gemini)
@@ -2747,12 +2725,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       additionalNotes: params.additionalNotes,
     });
   };
-
-  const convertFeedbackToTasks = async (params: {
-    clientFeedback: string;
-    jobTitle: string;
-    currentCopy?: string;
-  }) => aiApi.convertFeedback(params);
 
   const generateEditorialIdeas = async (clientId: string) => {
     const client = clients.find((c) => c.id === clientId) || clients[0];
@@ -2928,7 +2900,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         requestAdjustment,
         addNewJobVersion,
         addJobComment,
-        toggleChecklistItem,
         duplicateJob,
         addClient,
         updateClient,
@@ -2959,9 +2930,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addClientMaterial,
         deleteClientMaterial,
         timesheetLogs,
-        addTimesheetLog,
         generateAiCopy,
-        convertFeedbackToTasks,
         generateEditorialIdeas,
         aparencia,
         recarregarAparencia,
