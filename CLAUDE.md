@@ -3514,6 +3514,51 @@ a busca); a segunda extraía a raiz parando no primeiro `>`, que caía dentro de
 tela correta. Guarda que aceita o vizinho no lugar do alvo não guarda, e
 guarda que reprova código certo ensina a ignorá-la.
 
+#### No celular o conteúdo vira passos, e quem decide a largura é o JavaScript
+
+No computador a tela tem duas colunas: a peça de um lado, a gestão do outro.
+Abaixo do `lg` as duas viram **uma lista só** — doze campos, uma área de upload
+e duas de texto no meio. Rolar isso de ponta a ponta para trocar a data é o que
+faz alguém preferir abrir o notebook, que é o oposto do que um produto usado no
+telefone precisa.
+
+`AssistenteDoConteudo` quebra a mesma lista em quatro passos — Básico, Arte,
+Texto, Agenda —, e os quatro saem do **mesmo** formulário, pelo recorte
+`blocos`. Cinco decisões:
+
+- **A escolha entre assistente e colunas é feita em JavaScript, não com
+  `lg:hidden`.** Esconder por CSS monta as **duas** versões e deixa uma
+  invisível: o formulário seria montado o dobro de vezes, com o efeito que
+  revalida o formato rodando numa instância que ninguém vê, e o aparelho
+  carregando duas árvores justamente onde a memória falta. `useTelaEstreita`
+  guarda o corte (1024px) num lugar só — dois números diferentes criariam uma
+  faixa de largura com os dois ao mesmo tempo, ou com nenhum.
+- **A faixa de passos é tocável, não só um indicador.** Quem veio trocar a
+  legenda toca "Texto"; quem está criando segue o "Avançar". Um assistente que
+  **obriga** a ordem transforma a edição de uma palavra em quatro toques.
+- **Dá para salvar em qualquer passo.** A referência que originou o pedido só
+  mostra "Criar" no último — e fechar no meio é **um toque** no celular.
+  Perder o que foi digitado por isso é o pior desfecho numa tela de produção, e
+  a peça incompleta é um estado que o quadro já tem: chama-se Ideias.
+- **Uma barra de salvar de cada vez.** No celular quem mostra os botões é o
+  assistente; na tela larga, a barra grudada no rodapé da coluna. E são os
+  **mesmos dois botões**, não uma cópia: escritos duas vezes, um ganharia o
+  estado de "salvando" que o outro não tem, e a pessoa clicaria num botão que
+  não responde. Pela mesma razão o cartão de Gestão da coluna da direita não
+  existe no celular — ele e o passo "Básico" são os mesmos campos.
+- **Quem rola é o pai.** O assistente mora numa área que já rola; um
+  `overflow-y-auto` nele criaria duas barras aninhadas, e a de dentro só
+  apareceria depois de a de fora acabar. As duas barras dele são `sticky`, o
+  que funciona com altura limitada e sem.
+
+**A faixa de passos é a barra de abas do projeto, e a primeira versão errou
+isso.** Ela desenhou os chips à mão, pintando o atual com o roxo do botão
+primário — e as duas guardas de `tests/botoes.test.ts` reprovaram, com razão
+nas duas: item selecionável não é `<button>` à mão, e nada à mão se pinta como
+a ação primária da tela. A peça certa já existia: tocar um passo troca o painel
+sem navegar, que é a definição de aba, e ela traz de graça a rolagem horizontal
+sem barra à mostra e a navegação por teclado.
+
 #### `alert()` e `window.confirm()` não voltam
 
 Três razões, e nenhuma é gosto:

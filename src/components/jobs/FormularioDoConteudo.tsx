@@ -127,6 +127,18 @@ const AvisoDeAtraso: React.FC<{ quando: string; avisar: boolean }> = ({ quando, 
   );
 };
 
+/**
+ * Os pedaços em que o formulário pode ser recortado.
+ *
+ * São quatro porque são quatro perguntas diferentes: *de quem é e o que é*,
+ * *qual a arte*, *o que ela diz* e *quando sai*. O assistente do celular dá um
+ * passo a cada um; a tela de computador junta arte e texto de um lado e os
+ * outros dois do outro.
+ */
+export type BlocoDoFormulario = 'identificacao' | 'arte' | 'texto' | 'agenda';
+
+export const TODOS_OS_BLOCOS: BlocoDoFormulario[] = ['identificacao', 'arte', 'texto', 'agenda'];
+
 export interface DadosDoConteudo {
   clientId: string;
   title: string;
@@ -177,23 +189,26 @@ interface Props {
    */
   avisarAtraso?: boolean;
   /**
-   * Qual metade do formulário desenhar.
+   * Quais blocos desenhar, e em que ordem a tela os pediu.
    *
-   * **A tela de conteúdo partiu o formulário em duas colunas**: a arte e o
-   * texto de um lado, e cliente, canais, título, formato, responsáveis,
-   * prioridade e datas do outro. O que não pode acontecer é cada coluna ter a
-   * própria cópia dos campos — duas cópias divergem na primeira pressa, que é
-   * a história das doze alturas de botão e da tabela de formatos.
+   * **O formulário é um só, montado mais de uma vez com recortes diferentes.**
+   * A tela de conteúdo o parte em duas colunas; o assistente do celular o
+   * parte em quatro passos. A alternativa — escrever os campos de novo em
+   * cada lugar — daria três definições do mesmo formulário, e duas cópias
+   * divergem na primeira pressa: é a história das doze alturas de botão, das
+   * sete barras de abas e da tabela de formatos.
    *
-   * Então o componente é **um só**, montado duas vezes com recortes
-   * diferentes. A consequência que precisa de cuidado está no efeito que
-   * revalida o formato ao trocar de canal: ele mora na metade que tem o campo
-   * Formato, e **só nela**. Em duas instâncias ele rodaria duas vezes — aqui
-   * seria inofensivo, porque as duas chamadas gravariam o mesmo valor, mas
-   * "inofensivo por coincidência" é como um efeito duplicado passa a ser
-   * aceito num lugar onde ele não é.
+   * Divergir **aqui** é pior que nos outros casos: um campo some de um
+   * recorte e ninguém nota, porque os outros continuam mostrando o deles.
+   *
+   * A consequência que precisa de cuidado está no efeito que revalida o
+   * formato ao trocar de canal: ele mora no bloco que tem o campo Formato, e
+   * **só nele**. Em duas montagens ele rodaria duas vezes — aqui seria
+   * inofensivo, porque as duas gravariam o mesmo valor, mas "inofensivo por
+   * coincidência" é como um efeito duplicado passa a ser aceito num lugar
+   * onde ele não é.
    */
-  secao?: 'tudo' | 'gestao' | 'peca';
+  blocos?: BlocoDoFormulario[];
   /**
    * O que entra em "Mais opções", embaixo do formulário.
    *
@@ -214,7 +229,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
   aoGerarComIA,
   mostrarDeadline = false,
   avisarAtraso = true,
-  secao = 'tudo',
+  blocos = TODOS_OS_BLOCOS,
   children,
 }) => {
   const {
@@ -223,8 +238,15 @@ export const FormularioDoConteudo: React.FC<Props> = ({
     mediaUrls, storyMediaUrls, scheduledDate, deadlineApproval, responsaveis,
   } = valor;
 
-  const gestao = secao !== 'peca';
-  const peca = secao !== 'gestao';
+  const mostrar = (b: BlocoDoFormulario) => blocos.includes(b);
+
+  const identificacao = mostrar('identificacao');
+  const arte = mostrar('arte');
+  const texto = mostrar('texto');
+  const agenda = mostrar('agenda');
+
+  /* O efeito que revalida o formato acompanha o campo Formato. */
+  const gestao = identificacao;
 
   const platform = canais[0] || 'instagram';
 
@@ -319,7 +341,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
-      {gestao && (
+      {identificacao && (
       <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Cliente */}
@@ -504,7 +526,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
       </>
       )}
 
-      {peca && (
+      {(arte || texto) && (
       <>
       {/*
         **A arte e o texto ficam lado a lado a partir do lg.**
@@ -518,10 +540,13 @@ export const FormularioDoConteudo: React.FC<Props> = ({
         espremer a área de texto é pior que rolar. E sem arte (copy e roteiro)
         o texto ocupa a largura inteira, em vez de deixar meia tela vazia.
       */}
-      <div className={tipo.pedeArte ? 'grid grid-cols-1 lg:grid-cols-2 gap-5 lg:items-start' : ''}>
+      {/* O lado a lado só existe quando os **dois** estão na mesma tela: no
+          assistente do celular cada um tem o passo dele, e aí a grade de duas
+          colunas deixaria metade vazia. */}
+      <div className={tipo.pedeArte && arte && texto ? 'grid grid-cols-1 lg:grid-cols-2 gap-5 lg:items-start' : ''}>
       {/* Só quem tem arte pede arte. Copy e roteiro são texto: oferecer
           upload neles seria pedir aprovação de algo que não existe. */}
-      {tipo.pedeArte && (
+      {tipo.pedeArte && arte && (
         <div className="pt-1 space-y-5">
           <MediaUploader
             mediaUrls={mediaUrls}
@@ -572,6 +597,7 @@ export const FormularioDoConteudo: React.FC<Props> = ({
         rascunho junto na primeira vez que alguém esquecesse de apagar — e o
         que sai no perfil do cliente não volta.
       */}
+      {texto && (
       <Tabs
         value={abaDoTexto}
         onValueChange={(v) => setAbaDoTexto(v as 'legenda' | 'rascunho')}
@@ -668,12 +694,13 @@ export const FormularioDoConteudo: React.FC<Props> = ({
           </p>
         </TabsContent>
       </Tabs>
+      )}
       </div>
 
       </>
       )}
 
-      {gestao && (
+      {agenda && (
       <>
       {/* "Mais opções": só é desenhada quando a tela tem o que pôr dentro. */}
       {children && (

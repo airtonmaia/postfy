@@ -26,6 +26,8 @@ import {
 import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
+import { AssistenteDoConteudo, type PassoDoConteudo } from '../jobs/AssistenteDoConteudo';
+import { useTelaEstreita } from '../../lib/telaEstreita';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 /** Um conteúdo em branco, como ele nasce. */
@@ -108,6 +110,7 @@ export const CreateJobModal: React.FC = () => {
    * ninguém precisa clicar para ter o que já tinha.
    */
   const [previaAberta, setPreviaAberta] = useState(false);
+  const estreita = useTelaEstreita();
 
   // Keep clientId valid if clients list changes
   useEffect(() => {
@@ -384,83 +387,57 @@ export const CreateJobModal: React.FC = () => {
     }
   };
 
-  return (
-    /*
-      `Dialog` do shadcn. A tela cheia no celular e o X do canto agora vêm do
-      primitivo — eram escritos aqui, e em mais 24 lugares com três posições e
-      dois tamanhos diferentes entre si.
+  /**
+   * Os passos do celular, derivados do mesmo formulário.
+   *
+   * A arte entra **só quando o tipo pede arte**: copy e roteiro são texto, e
+   * um passo "Arte" vazio num assistente de quatro é a tela pedindo algo que
+   * não existe — a mesma razão de o upload não aparecer nesses tipos.
+   */
+  const campos = (blocos: Parameters<typeof FormularioDoConteudo>[0]['blocos']) => (
+    <FormularioDoConteudo
+      valor={dados}
+      aoMudar={mudar}
+      tipo={tipo}
+      clients={clients}
+      equipe={users}
+      aoGerarComIA={gerarTextoComIA}
+      blocos={blocos}
+    />
+  );
 
-      O ganho maior é o que não se vê: trava de foco, `Esc` e bloqueio da
-      rolagem do fundo. Num formulário desta altura o terceiro é o que mais
-      pesa — rolar até o fim passava a rolar a tela de trás.
-    */
-    <Dialog
-      open={isCreateJobModalOpen}
-      onOpenChange={(aberto) => !aberto && closeCreateJobModal()}
-    >
-      <DialogContent tamanho="editorComPrevia" className="p-0 gap-0">
-        {/* O formulário se explica sozinho e a faixa de cabeçalho comia
-            altura útil, então o título existe só para o leitor de tela. */}
-        <DialogTitle className="sr-only">Novo conteúdo</DialogTitle>
-
-        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
-        {/* Form */}
-        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-4 sm:p-6 space-y-4">
-          {/*
-            **O formulário é o mesmo da edição.** Ele mora em
-            `components/jobs/FormularioDoConteudo`, e as duas telas o montam
-            com o mesmo estado — era este arquivo que tinha campos que a modal
-            de detalhe não tinha, e quem criava aqui não conseguia corrigir lá.
-          */}
-          <FormularioDoConteudo
-            valor={dados}
-            aoMudar={mudar}
-            tipo={tipo}
-            clients={clients}
-            equipe={users}
-            aoGerarComIA={gerarTextoComIA}
-          />
-
-          {erro && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
-              {erro}
-            </p>
-          )}
-
-          {/* O resultado fica acima dos botões e não some sozinho: é a única
-              prova do que aconteceu, e some junto com a modal se ela fechar. */}
-          {resultado && (
-            <div
-              className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${
-                resultado.ok
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
-                  : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
-              }`}
-            >
-              {resultado.ok ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-              )}
-              <span className="font-semibold leading-relaxed">{resultado.texto}</span>
-            </div>
-          )}
-
-          {/*
-            Buttons
-
-            **No celular cada ação ocupa a linha inteira, na ordem da
-            decisão.** Com `flex-wrap justify-end` e o `mr-auto` do Cancelar,
-            os cinco botões caíam em três linhas desencontradas — uma com dois,
-            uma com dois e uma com um, todas alinhadas à direita e nenhuma
-            dizendo qual era a ação principal. Empilhados, a ordem do DOM vira
-            a ordem de leitura, e ela já está certa: cancelar, publicar agora,
-            ideia, agendar, enviar para aprovação.
-
-            `[&>*]:w-full` alcança os botões sem repetir a classe em cada um —
-            e sai sozinho no `sm`, onde a linha volta a ser linha.
-          */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-3 [&>*]:w-full sm:[&>*]:w-auto">
+  const passosDoConteudo: PassoDoConteudo[] = [
+    {
+      chave: 'identificacao',
+      rotulo: 'Básico',
+      descricao: 'De quem é a peça, onde ela sai e como ela se chama.',
+      conteudo: campos(['identificacao']),
+    },
+    ...(tipo.pedeArte
+      ? [
+          {
+            chave: 'arte',
+            rotulo: 'Arte',
+            descricao: 'As imagens ou os vídeos que vão publicados.',
+            conteudo: campos(['arte']),
+          },
+        ]
+      : []),
+    {
+      chave: 'texto',
+      rotulo: 'Texto',
+      descricao: 'A legenda que vai publicada, e o rascunho que fica aqui dentro.',
+      conteudo: campos(['texto']),
+    },
+    {
+      chave: 'agenda',
+      rotulo: 'Agenda',
+      descricao: 'Quando a peça sai.',
+      conteudo: campos(['agenda']),
+    },
+  ];
+  const botoesDeAcao = (
+    <>
             <Button variant="ghost"
               type="button"
               onClick={closeCreateJobModal}
@@ -533,6 +510,102 @@ export const CreateJobModal: React.FC = () => {
               <ThumbsUp className="w-3.5 h-3.5" />
               Enviar para aprovação
             </Button>
+    </>
+  );
+
+  return (
+    /*
+      `Dialog` do shadcn. A tela cheia no celular e o X do canto agora vêm do
+      primitivo — eram escritos aqui, e em mais 24 lugares com três posições e
+      dois tamanhos diferentes entre si.
+
+      O ganho maior é o que não se vê: trava de foco, `Esc` e bloqueio da
+      rolagem do fundo. Num formulário desta altura o terceiro é o que mais
+      pesa — rolar até o fim passava a rolar a tela de trás.
+    */
+    <Dialog
+      open={isCreateJobModalOpen}
+      onOpenChange={(aberto) => !aberto && closeCreateJobModal()}
+    >
+      <DialogContent tamanho="editorComPrevia" className="p-0 gap-0">
+        {/* O formulário se explica sozinho e a faixa de cabeçalho comia
+            altura útil, então o título existe só para o leitor de tela. */}
+        <DialogTitle className="sr-only">Novo conteúdo</DialogTitle>
+
+        {/*
+          **No celular o cadastro vira passos, e isso é decidido em
+          JavaScript.**
+
+          Empilhado, o formulário é uma lista de doze campos com uma área de
+          upload e duas de texto no meio — e rolar isso de ponta a ponta no
+          telefone é o que faz alguém preferir abrir o notebook.
+
+          Esconder por CSS montaria as duas versões e deixaria uma invisível: o formulário
+          seria montado o dobro de vezes, com o efeito que revalida o formato
+          rodando numa instância que ninguém vê.
+        */}
+        {estreita ? (
+          <AssistenteDoConteudo passos={passosDoConteudo} acoes={botoesDeAcao} />
+        ) : (
+        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
+        {/* Form */}
+        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-4 sm:p-6 space-y-4">
+          {/*
+            **O formulário é o mesmo da edição.** Ele mora em
+            `components/jobs/FormularioDoConteudo`, e as duas telas o montam
+            com o mesmo estado — era este arquivo que tinha campos que a modal
+            de detalhe não tinha, e quem criava aqui não conseguia corrigir lá.
+          */}
+          <FormularioDoConteudo
+            valor={dados}
+            aoMudar={mudar}
+            tipo={tipo}
+            clients={clients}
+            equipe={users}
+            aoGerarComIA={gerarTextoComIA}
+          />
+
+          {erro && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
+              {erro}
+            </p>
+          )}
+
+          {/* O resultado fica acima dos botões e não some sozinho: é a única
+              prova do que aconteceu, e some junto com a modal se ela fechar. */}
+          {resultado && (
+            <div
+              className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${
+                resultado.ok
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
+                  : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
+              }`}
+            >
+              {resultado.ok ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+              )}
+              <span className="font-semibold leading-relaxed">{resultado.texto}</span>
+            </div>
+          )}
+
+          {/*
+            Buttons
+
+            **No celular cada ação ocupa a linha inteira, na ordem da
+            decisão.** Com `flex-wrap justify-end` e o `mr-auto` do Cancelar,
+            os cinco botões caíam em três linhas desencontradas — uma com dois,
+            uma com dois e uma com um, todas alinhadas à direita e nenhuma
+            dizendo qual era a ação principal. Empilhados, a ordem do DOM vira
+            a ordem de leitura, e ela já está certa: cancelar, publicar agora,
+            ideia, agendar, enviar para aprovação.
+
+            `[&>*]:w-full` alcança os botões sem repetir a classe em cada um —
+            e sai sozinho no `sm`, onde a linha volta a ser linha.
+          */}
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-3 [&>*]:w-full sm:[&>*]:w-auto">
+            {botoesDeAcao}
           </div>
         </form>
 
@@ -575,6 +648,7 @@ export const CreateJobModal: React.FC = () => {
         </aside>
         )}
         </div>
+        )}
       </DialogContent>
 
       {dialogo}

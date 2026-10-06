@@ -729,3 +729,76 @@ describe('o mês no celular mostra todos os posts do dia', () => {
     );
   });
 });
+
+/**
+ * O conteúdo em passos, no celular.
+ *
+ * Empilhado, o formulário é uma lista de doze campos com uma área de upload e
+ * duas de texto no meio — e rolar isso de ponta a ponta no telefone é o que faz
+ * alguém preferir abrir o notebook, que é o oposto do que um produto usado no
+ * celular precisa.
+ */
+describe('o assistente do celular', () => {
+  const assistente = semComentarios(
+    readFileSync(join(RAIZ, 'src', 'components', 'jobs', 'AssistenteDoConteudo.tsx'), 'utf-8')
+  );
+  const telas = ['CreateJobModal', 'JobDetailModal'].map((n) =>
+    semComentarios(readFileSync(join(RAIZ, 'src', 'components', 'modals', `${n}.tsx`), 'utf-8'))
+  );
+
+  it('a escolha é em JavaScript, nunca com lg:hidden', () => {
+    /*
+      **Esta é a guarda que protege o produto, não o layout.** Esconder por CSS
+      montaria as duas versões — o assistente e as duas colunas — e deixaria uma
+      invisível: o formulário seria montado o dobro de vezes, com o efeito que
+      revalida o formato rodando numa instância que ninguém vê, e o aparelho
+      carregando duas árvores onde a memória é o que falta.
+
+      Nada local acusa isso: `tsc` compila, o vitest não monta componente e o
+      `vite build` não mede caixa. É a armadilha 0 na camada do layout.
+    */
+    for (const [i, tela] of telas.entries()) {
+      const nome = ['CreateJobModal', 'JobDetailModal'][i];
+      expect(tela, `${nome} deixou de escolher o assistente em JavaScript`).toMatch(
+        /\{estreita \?/
+      );
+      expect(
+        tela,
+        `${nome} voltou a esconder o assistente por CSS, montando as duas versões`
+      ).not.toMatch(/AssistenteDoConteudo[\s\S]{0,200}lg:hidden/);
+    }
+  });
+
+  it('dá para salvar em qualquer passo', () => {
+    /*
+      A referência que originou o pedido só mostra "Criar" no último passo.
+      Fechar no meio é **um toque** no celular, e perder o que foi digitado por
+      causa disso é o pior desfecho possível numa tela de produção. A peça
+      incompleta é um estado que o quadro já tem, e se chama Ideias.
+    */
+    /*
+      A âncora é o **uso**, não o nome: `/\{acoes/` casava com a
+      desestruturação das props (`({ passos, acoes })`), e a guarda passava com
+      a barra vazia. É a guarda medindo o vizinho, pela enésima vez neste
+      repositório.
+    */
+    expect(assistente, 'as ações sumiram da barra do assistente').toMatch(/\{acoes && \(/);
+
+    const barra = assistente.slice(assistente.indexOf('{acoes && ('));
+    expect(
+      barra,
+      'as ações do assistente voltaram a depender do último passo'
+    ).not.toMatch(/passos\.length - 1/);
+  });
+
+  it('a faixa de passos é a barra de abas do projeto', () => {
+    /*
+      Tocar um passo troca o painel sem navegar, que é a definição de aba — e a
+      peça já existe, com rolagem horizontal sem barra à mostra e navegação por
+      teclado. A primeira versão desenhou chips à mão pintando o atual com o
+      roxo do primário, e as duas guardas de `botoes.test.ts` reprovaram.
+    */
+    expect(assistente, 'a faixa de passos virou chip escrito à mão').toMatch(/<TabsTrigger/);
+    expect(assistente, 'a faixa de passos deixou de usar o primitivo').toMatch(/<TabsList/);
+  });
+});
