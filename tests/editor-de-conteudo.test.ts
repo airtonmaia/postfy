@@ -475,3 +475,54 @@ describe('as duas colunas saem do mesmo formulário', () => {
     expect(editor, 'o botão não diz mais para onde o clique leva').toMatch(/'Ocultar fluxo'/);
   });
 });
+
+/**
+ * Lista montada na hora não pode ler uma `const` declarada mais abaixo.
+ *
+ * `passosDoConteudo` é um **array**, construído no corpo do componente: ele
+ * chama o montador de campos na hora, e o montador lê `gerarTextoComIA`. Com a
+ * declaração dele mais abaixo, a leitura cai na zona morta temporal e a tela
+ * inteira cai com `Cannot access 'gerarTextoComIA' before initialization`.
+ *
+ * **Nada local acusa, e é por isso que esta guarda existe.** O `tsc` não vê
+ * através da chamada: para ele `camposDoPasso` é uma função, e funções podem
+ * ler o que quiserem — só que esta é *chamada* antes. O vitest não monta
+ * componente e o `vite build` compila feliz. É a armadilha 0 outra vez, e desta
+ * vez ela chegou a produção: a tela do quadro abriu em branco.
+ *
+ * A guarda compara **posições**, que é a única forma possível para uma regra
+ * que só se manifesta em tempo de execução — a mesma de
+ * `equipe-e-transferencia`, que compara a ordem dos dois `update`.
+ */
+describe('a ordem de declaração dentro das telas de conteúdo', () => {
+  for (const nome of ['CreateJobModal', 'JobDetailModal']) {
+    it(`${nome}: os passos são montados depois do que eles leem`, () => {
+      const fonte = semComentarios(
+        readFileSync(join(RAIZ, 'src', 'components', 'modals', `${nome}.tsx`), 'utf-8')
+      );
+
+      const passos = fonte.indexOf('const passosDoConteudo');
+      expect(passos, `${nome} não monta mais os passos do celular`).toBeGreaterThan(-1);
+
+      /*
+        Toda `const` que o montador de campos lê precisa estar **acima** da
+        linha que monta a lista. A lista é derivada da própria chamada: o que
+        for passado ao formulário entra aqui sem ninguém editar a guarda.
+      */
+      const montador = fonte.slice(
+        fonte.lastIndexOf('const ', fonte.indexOf('<FormularioDoConteudo')),
+        passos
+      );
+      const lidos = [...montador.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+
+      for (const nomeLido of new Set(lidos)) {
+        const declaracao = fonte.indexOf(`const ${nomeLido}`);
+        if (declaracao < 0) continue; // vem das props ou do contexto
+        expect(
+          declaracao,
+          `${nome}: "${nomeLido}" é declarado depois dos passos, e lê-lo ali derruba a tela`
+        ).toBeLessThan(passos);
+      }
+    });
+  }
+});
