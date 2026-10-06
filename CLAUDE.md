@@ -51,6 +51,26 @@ navegador afirma.
 **As consultas não filtram por `workspace_id` de propósito.** Quem recorta é a
 RLS. Filtrar no cliente daria a impressão de que a segurança mora lá.
 
+**Mas a RLS recorta por pessoa, não por agência aberta** — e essa diferença é
+um bug esperando acontecer. Quem participa de três agências recebe as linhas
+das três em toda consulta, porque as três são dela. O estado guarda o conjunto
+completo (`allX`, que é o que a persistência por diff precisa ver) e cada tela
+recebe o recorte: `belongsToWorkspace` em `src/lib/workspaceScope.ts`.
+
+`users` foi a única coleção que escapou disso, e ficou assim por meses.
+Apareceu no seletor de "Quem está nesta peça": **nove nomes numa agência de
+quatro pessoas**, com o mesmo nome repetido três vezes — uma linha por agência
+da mesma pessoa. Não é vazamento (é nome e avatar de quem divide uma agência
+com você), é a tela afirmando que aquelas pessoas são a equipe daqui — e
+atribuir ali gravaria em `jobs.responsaveis` o id de alguém que não é da
+agência da peça, que a tela do colega mostraria como "Fora da equipe" sem
+explicar por quê.
+
+A guarda de `tests/workspaceScope.test.ts` **deriva** a lista: todo
+`const [allX, setX] = useState` do contexto precisa de um
+`allX.filter(belongsToWorkspace)`. Coleção nova sem recorte reprova sem ninguém
+editar o teste.
+
 ### O aviso de falha era apagado pelo commit que o causava
 
 Esta é a razão de **todo** bug de gravação silenciosa deste arquivo ter
