@@ -121,7 +121,7 @@ export const CartaoDoQuadro: React.FC<{
 
   return (
     <div
-      className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/90 p-3.5 space-y-2.5 group ${
+      className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/90 p-2.5 sm:p-3.5 space-y-1.5 sm:space-y-2.5 group ${
         flutuando
           ? 'shadow-2xl border-purple-300 rotate-2 cursor-grabbing'
           : 'shadow-xs hover:bg-slate-50 hover:border-purple-300 transition-all'
@@ -191,14 +191,20 @@ export const CartaoDoQuadro: React.FC<{
             draggable={false}
           />
         )}
-        <div className="min-w-0 flex-1">
+        {/*
+          **Cliente e selos dividem a linha.** Eram duas linhas, e duas linhas
+          por card custam 34px num telefone onde só cabiam dois cards. O nome
+          é o que cede (`truncate`): os selos têm largura fixa e pequena, e
+          cortar o nome do cliente é barato onde a foto já o identifica.
+        */}
+        <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 min-w-0">
             <Avatar nome={client?.name || 'Cliente'} url={client?.avatar} tamanho={16} />
             <span className="font-semibold text-slate-600 dark:text-slate-400 text-[11px] truncate">
               {client?.name}
             </span>
           </div>
-          <div className="flex items-center gap-1 mt-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
             <PlatformBadge platform={job.platform} showLabel={false} className="px-1 py-0" />
             <FormatBadge format={job.format} />
             {/* Conteúdo é a maioria e o padrão: marcar só o que foge disso
@@ -251,10 +257,23 @@ export const CartaoDoQuadro: React.FC<{
       */}
       {!flutuando && (
         <div
-          className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1"
+          className="pt-1.5 sm:pt-2 border-t border-slate-100 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
+          {/*
+            **Uma linha só, e isto é altura de card.**
+
+            Eram duas: as ações numa e a gaveta noutra, cada uma com 32px de
+            botão. Num telefone o quadro mostrava **dois** cards, e essa
+            segunda linha valia um terço de um terceiro. Juntar as duas devolve
+            36px por card sem tirar nada da tela.
+
+            O rótulo "Ver histórico" some abaixo do `sm` — é ele que não cabe —,
+            e o `aria-label` fica no lugar: rótulo que some no celular sem nome
+            para o leitor de tela é trocar um problema de espaço por um de
+            acesso.
+          */}
           <div className="flex items-center justify-between gap-1">
             <Button
               variant="ghost"
@@ -262,9 +281,10 @@ export const CartaoDoQuadro: React.FC<{
               className="text-[11px] px-2"
               onClick={() => abrir('revisoes')}
               title="Versões entregues, pedidos de ajuste e a conversa com o cliente"
+              aria-label="Ver o histórico deste conteúdo"
             >
               <History className="w-3 h-3" />
-              Ver histórico
+              <span className="hidden sm:inline">Ver histórico</span>
             </Button>
 
             <div className="flex items-center gap-0.5">
@@ -299,28 +319,33 @@ export const CartaoDoQuadro: React.FC<{
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
+
+              {/*
+                **A gaveta é um botão cinza, não um link.** Na variante
+                `ghost` ela era texto solto: sem fundo, sem borda e sem nada em
+                volta, ela lia como rótulo — e rótulo ninguém clica.
+
+                O cinza é a `secondary`, que o produto já usa em ação
+                secundária e saiu de contagem, não de gosto. Cor nova aqui
+                competiria com o selo de prazo logo acima, que é o que precisa
+                saltar no card.
+              */}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-[11px] ml-1"
+                onClick={() => setAberto((a) => !a)}
+                aria-expanded={aberto}
+              >
+                {aberto ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+                {aberto ? 'Recolher' : 'Detalhes'}
+              </Button>
             </div>
           </div>
-
-          {/*
-            **A gaveta é um botão cinza, não um link.** Na variante `ghost`
-            ela era texto solto no fim do card: sem fundo, sem borda e sem nada
-            em volta, ela lia como rótulo — e rótulo ninguém clica.
-
-            O cinza é a `secondary`, que o produto já usa em ação secundária e
-            saiu de contagem, não de gosto. Cor nova aqui competiria com o selo
-            de prazo logo acima, que é o que precisa saltar no card.
-          */}
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full text-[11px]"
-            onClick={() => setAberto((a) => !a)}
-            aria-expanded={aberto}
-          >
-            {aberto ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {aberto ? 'Recolher' : 'Detalhes'}
-          </Button>
 
           {aberto && (
             <div className="pt-1 space-y-2 text-[11px]">

@@ -570,3 +570,75 @@ describe('nenhuma faixa de abas empurra a página', () => {
     }
   });
 });
+
+describe('o quadro mostra mais de dois cards no telefone', () => {
+  /**
+   * **O gargalo era o cabeçalho, não o card.**
+   *
+   * Medido no print que chegou (390px de largura, 705px de área útil do app):
+   * o que vinha **antes** do primeiro card somava 411px — título, selo de
+   * fixados, duas linhas de filtros, troca de visão, faixa de clientes e o
+   * respiro das colunas. Sobravam 294px para cards de 219px: um e meio.
+   *
+   * As três guardas abaixo prendem as três decisões que devolveram altura, e
+   * nenhuma delas é aparência: cada uma vale uma fração de card por tela.
+   */
+  const quadro = ler('src', 'components', 'kanban', 'KanbanBoard.tsx');
+  const cartao = ler('src', 'components', 'kanban', 'CartaoDoQuadro.tsx');
+  const faixa = ler('src', 'components', 'kanban', 'ClientesDoQuadro.tsx');
+
+  it('os filtros viram gaveta no celular, em vez de duas linhas', () => {
+    // Duas linhas de 42px saíam direto do espaço dos cards.
+    expect(quadro, 'a barra de filtros voltou a ficar inline no celular').toMatch(
+      /hidden sm:flex[\s\S]{0,120}<BarraDeFiltrosDoConteudo/
+    );
+    expect(quadro, 'sumiu o botão que abre os filtros no celular').toMatch(
+      /sm:hidden[\s\S]{0,200}Filtros/
+    );
+    /*
+      A gaveta monta a **mesma** peça, empilhada. Uma versão reduzida para o
+      telefone divergiria na primeira pressa — e divergir num filtro esconde
+      conteúdo sem dizer que escondeu.
+    */
+    expect(quadro, 'a gaveta deixou de montar a barra de filtros de verdade').toMatch(
+      /<BarraDeFiltrosDoConteudo empilhada/
+    );
+  });
+
+  it('o rodapé do card é uma linha, não duas', () => {
+    /*
+      Eram duas linhas de 32px: as ações numa e a gaveta noutra. Num telefone
+      que mostrava dois cards, a segunda valia um terço de um terceiro.
+    */
+    const rodape = cartao.slice(cartao.indexOf("abrir('revisoes')"));
+    const ateAGaveta = rodape.slice(0, rodape.indexOf("{aberto ? 'Recolher' : 'Detalhes'}"));
+
+    expect(
+      ateAGaveta,
+      'o botão Detalhes saiu da linha das ações e voltou a ocupar uma linha própria'
+    ).not.toMatch(/<\/div>\s*<\/div>/);
+
+    expect(
+      cartao,
+      'o botão Detalhes voltou a ser de largura cheia, o que o tira da linha das ações'
+    ).not.toMatch(/className="w-full text-\[11px\]"[\s\S]{0,400}Detalhes/);
+  });
+
+  it('a faixa de clientes esconde o nome no celular, não o avatar', () => {
+    /**
+     * O nome vale 33px de faixa — um terço de card. O que fica é o avatar, que
+     * `ClientesDoQuadro` já argumenta ser reconhecido antes de qualquer texto,
+     * com cor estável e iniciais para quem não tem foto.
+     *
+     * **E o nome não some para quem usa leitor de tela**: ele sai do fluxo
+     * visual com `aria-hidden` e volta como `aria-label` do botão. Esconder os
+     * dois seria trocar altura por acesso.
+     */
+    expect(faixa, 'o nome do cliente voltou a ocupar altura no celular').toMatch(
+      /hidden sm:block[\s\S]{0,400}\{item\.nome\}/
+    );
+    expect(faixa, 'o botão da faixa ficou sem nome para o leitor de tela').toMatch(
+      /aria-label=\{item\.nome\}/
+    );
+  });
+});

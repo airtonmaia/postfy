@@ -31,6 +31,17 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.0.2',
+    data: '2026-10-06',
+    resumo: 'O quadro no celular cabia dois cards. Agora cabe o dobro.',
+    melhorias: [
+      'Os filtros do quadro viram uma gaveta no celular, aberta pelo botão Filtros. Eram duas linhas de controles saindo direto do espaço dos cards.',
+      'A faixa de clientes ficou compacta no telefone: as fotos continuam, o nome embaixo delas sai. O avatar é reconhecido antes do texto, e o nome continua lá para quem usa leitor de tela.',
+      'O rodapé do card virou uma linha só: as ações e o botão Detalhes dividiam duas linhas de botão, uma em cima da outra.',
+      'Cliente e selos do card passaram a dividir a mesma linha, e as margens do card e das colunas encolheram no celular.',
+    ],
+  },
+  {
     versao: '3.0.1',
     data: '2026-10-06',
     resumo: 'As telas param de escorregar para o lado no celular.',

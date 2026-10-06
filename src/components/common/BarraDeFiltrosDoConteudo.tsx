@@ -59,7 +59,16 @@ const FORMATOS = Object.values(FORMATOS_POR_CANAL)
 
 const REDES = Object.entries(NOME_DA_REDE) as [JobPlatform, string][];
 
-export const BarraDeFiltrosDoConteudo: React.FC = () => {
+export const BarraDeFiltrosDoConteudo: React.FC<{
+  /**
+   * Empilhada e de largura cheia, para dentro da gaveta do celular.
+   *
+   * A mesma peça nos dois lugares — e não uma versão reduzida para o
+   * telefone: duas listas de filtro divergem na primeira pressa, e divergir
+   * aqui esconde conteúdo sem dizer que escondeu.
+   */
+  empilhada?: boolean;
+}> = ({ empilhada = false }) => {
   const {
     clients,
     clientFilter,
@@ -94,7 +103,13 @@ export const BarraDeFiltrosDoConteudo: React.FC = () => {
     PERIODOS.find((p) => p.valor === periodoFiltro)?.rotulo ?? 'Qualquer data';
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div
+      className={
+        empilhada
+          ? "flex flex-col items-stretch gap-2 [&>*]:w-full [&_button]:w-full [&_button]:justify-start"
+          : "flex items-center gap-2 flex-wrap"
+      }
+    >
       {/* O seletor de clientes é estreito de propósito: ele era o controle
           mais largo da barra e o nome do cliente já aparece na faixa de fotos
           logo abaixo, em tamanho que se lê de relance. Aqui ele é o caminho
