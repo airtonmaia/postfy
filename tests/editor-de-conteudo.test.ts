@@ -201,12 +201,16 @@ describe('nada é gravado sem alguém confirmar', () => {
     expect(rodape, 'o salvar saiu do rodapé fixo').toMatch(/Salvar/);
 
     /*
-      Um "Salvar alterações" só. Dois — um no rodapé e um no assistente, como
-      havia — fariam um ganhar o estado de "salvando" que o outro não tem, e a
-      pessoa clicaria num botão que não responde.
+      **Um controle de salvar, não uma palavra.** A primeira versão desta
+      asserção contava o texto "Salvar alterações" e exigia exatamente um — e
+      reprovou no dia em que o rótulo ganhou um `aria-label` com a mesma frase,
+      que é a guarda medindo a escrita em vez do efeito. O que não pode haver
+      são dois **botões** que gravam: um no rodapé e um no assistente, como
+      havia. Dois fariam um ganhar o estado de "salvando" que o outro não tem, e
+      a pessoa clicaria num botão que não responde.
     */
     expect(
-      (editor.match(/Salvar alterações/g) ?? []).length,
+      (editor.match(/onClick=\{\(\) => salvar\(\)\}/g) ?? []).length,
       'os botões de salvar viraram duas cópias'
     ).toBe(1);
     expect(editor, 'o assistente voltou a ter barra de ações própria').not.toMatch(

@@ -31,6 +31,14 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.7.2',
+    data: '2026-10-06',
+    resumo: 'Correção: o botão de salvar estava com um espaço a mais no rótulo.',
+    corrigido: [
+      'O botão "Salvar alterações" tinha um espaço duplo no meio do rótulo, que esticava o botão.',
+    ],
+  },
+  {
     versao: '3.7.1',
     data: '2026-10-06',
     resumo: 'Correção: a equipe mostrada na peça trazia gente de outras agências.',
