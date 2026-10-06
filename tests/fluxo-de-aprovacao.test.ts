@@ -134,20 +134,29 @@ describe('o cadastro decide pelo botão, não por um campo', () => {
   });
 });
 
-describe('o quadro junta aprovado e agendado', () => {
-  it('uma coluna só, alimentada pelos dois status', () => {
-    expect(kanban).toMatch(/statuses: \['approved', 'scheduled'\]/);
+describe('o quadro separa aprovado e agendado', () => {
+  it('uma coluna por etapa, e o título sai do fluxo', () => {
+    /*
+      **Eles dividiam uma coluna, e isso era um atalho com custo.** A junção
+      existia para o arrasto não poder escolher `scheduled` — enfileirar é um
+      clique —, e o preço era o quadro ter seis colunas para sete etapas, com
+      a peça que já está na fila misturada com a que ninguém mandou publicar.
+
+      A regra continua inteira do outro lado: soltar em "Agendado" abre a
+      confirmação, e quem enfileira é ela. `tests/quadro.test.ts` guarda essa
+      metade.
+    */
+    expect(kanban, 'a coluna juntada voltou').not.toMatch(/statuses: \['approved', 'scheduled'\]/);
+    expect(kanban).toMatch(/statuses: \['approved'\]/);
+    expect(kanban).toMatch(/statuses: \['scheduled'\]/);
 
     /*
-      **O título deixou de ser literal, e a guarda seguiu a decisão.**
+      **O título não é literal, e a guarda segue a decisão.**
 
-      Ele passou a sair dos rótulos das etapas, porque a agência renomeia o
-      fluxo em Configurações → Conteúdos: quem chama "Aprovado" de "Ok do
-      cliente" precisa ver isso na coluna. Exigir a string aqui obrigaria a
-      editar a guarda junto com o código, que é como ela deixa de guardar.
-
-      O que fica afirmado é o efeito: nenhuma coluna com título escrito à mão,
-      e o fluxo padrão continuando a produzir o nome de sempre.
+      Ele sai dos rótulos das etapas, porque a agência renomeia o fluxo em
+      Configurações → Conteúdos: quem chama "Aprovado" de "Ok do cliente"
+      precisa ver isso na coluna. Exigir a string aqui obrigaria a editar a
+      guarda junto com o código, que é como ela deixa de guardar.
     */
     expect(
       kanban,
@@ -155,12 +164,10 @@ describe('o quadro junta aprovado e agendado', () => {
     ).not.toMatch(/\btitle: '/);
 
     const etapas = etapasDoFluxo();
-    const titulo = (['approved', 'scheduled'] as const)
-      .map((s) => etapas.find((e) => e.status === s)!.rotulo)
-      .join(' / ');
-    expect(titulo, 'o fluxo padrão deixou de produzir o nome de sempre').toBe(
-      'Aprovado / Agendado'
-    );
+    expect(
+      etapas.filter((e) => e.status === 'approved' || e.status === 'scheduled').map((e) => e.rotulo),
+      'o fluxo padrão deixou de produzir os nomes de sempre'
+    ).toEqual(['Aprovado', 'Agendado']);
   });
 
   it('a coluna filtra pela lista de status, não pelo id', () => {

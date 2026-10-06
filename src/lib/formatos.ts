@@ -70,6 +70,49 @@ export const FORMATOS_POR_CANAL: Record<JobPlatform, OpcaoDeFormato[]> = {
 };
 
 /**
+ * Todos os formatos que existem, sem repetir, na ordem da tabela.
+ *
+ * A tabela é por rede e o mesmo formato aparece em várias; quem pergunta
+ * "qual formato", sem rede no meio, precisa da lista achatada. O rótulo que
+ * fica é o da **primeira** rede em que o formato aparece — `rotuloDoFormato`
+ * continua sendo o caminho para o nome dentro de uma rede.
+ */
+export const TODOS_OS_FORMATOS: OpcaoDeFormato[] = Object.values(FORMATOS_POR_CANAL)
+  .flat()
+  .filter((f, i, todos) => todos.findIndex((o) => o.valor === f.valor) === i);
+
+/**
+ * Os formatos que a agência **tem em conteúdo**, para o filtro oferecer.
+ *
+ * O filtro listava os oito que existem no produto, somando as seis redes.
+ * Numa agência que só faz Instagram, três deles — Vídeo, Artigo e o que mais
+ * vier — **não podem dar resultado nenhum**: escolher um esvazia o quadro, e
+ * quadro vazio depois de um clique num filtro é exatamente a tela que faz a
+ * pessoa concluir que o conteúdo sumiu.
+ *
+ * É a mesma regra de `FORMATOS_POR_CANAL` um degrau acima: *não oferecer
+ * combinação que não vai ao ar*. Lá o limite é o que a rede aceita; aqui, o
+ * que a agência tem.
+ *
+ * **O escolhido entra mesmo sem conteúdo**, e isso não é exceção decorativa:
+ * apagar a última peça de um formato enquanto ele é o filtro ativo tiraria da
+ * lista justamente a linha que está marcada — o menu abriria sem nada
+ * selecionado, afirmando um estado que não é o da tela.
+ *
+ * A contagem sai do que está carregado, que é trabalho aberto mais 90 dias de
+ * concluído. Formato que só existe em peça mais antiga não aparece — e também
+ * não daria resultado, porque a tela filtra o mesmo conjunto.
+ */
+export const formatosEmUso = (
+  jobs: { format: JobFormat }[],
+  selecionado?: string
+): OpcaoDeFormato[] => {
+  const usados = new Set<string>(jobs.map((j) => j.format));
+  if (selecionado) usados.add(selecionado);
+  return TODOS_OS_FORMATOS.filter((f) => usados.has(f.valor));
+};
+
+/**
  * Os formatos que existem em **todas** as redes escolhidas.
  *
  * Instagram e Facebook compartilham feed, carrossel, reel e story; já

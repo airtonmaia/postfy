@@ -37,6 +37,8 @@ export interface AjusteDaEtapa {
   rotulo?: string;
   /** Uma das chaves de `CORES_DA_ETAPA`. Ausente = a cor do produto. */
   cor?: string;
+  /** Uma das chaves de `ICONES_DA_ETAPA`. Ausente = o ícone do produto. */
+  icone?: string;
   /**
    * Quantos dias a peça deveria ficar nesta etapa.
    *
@@ -55,6 +57,7 @@ export interface EtapaDoFluxo {
   /** O nome que o produto dá, para a tela de ajuste mostrar de onde se partiu. */
   rotuloPadrao: string;
   cor: string;
+  icone: string;
   slaDias?: number;
   /** A agência mexeu nesta etapa. */
   ajustada: boolean;
@@ -84,9 +87,82 @@ export const CORES_DA_ETAPA: CorDaEtapa[] = [
   { valor: 'amber', rotulo: 'Âmbar', ponto: 'bg-amber-500', caixa: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300', borda: 'border-amber-300 dark:border-amber-900' },
   { valor: 'rose', rotulo: 'Rosa', ponto: 'bg-rose-500', caixa: 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-300', borda: 'border-rose-300 dark:border-rose-900' },
   { valor: 'emerald', rotulo: 'Verde', ponto: 'bg-emerald-500', caixa: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300', borda: 'border-emerald-300 dark:border-emerald-900' },
-  { valor: 'purple', rotulo: 'Roxo', ponto: 'bg-purple-500', caixa: 'bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-300', borda: 'border-purple-300 dark:border-purple-900' },
+  { valor: 'indigo', rotulo: 'Índigo', ponto: 'bg-indigo-500', caixa: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-300', borda: 'border-indigo-300 dark:border-indigo-900' },
   { valor: 'teal', rotulo: 'Turquesa', ponto: 'bg-teal-600', caixa: 'bg-teal-50 dark:bg-teal-950/40 text-teal-900 dark:text-teal-300', borda: 'border-teal-300 dark:border-teal-900' },
 ];
+
+/**
+ * **Nenhuma cor da paleta pode ser `purple`, e isso não é gosto.**
+ *
+ * `DynamicThemeProvider` injeta uma folha de `!important` que repinta **toda**
+ * classe `purple-*` com a cor da agência — é assim que o whitelabel funciona.
+ * A paleta tinha "Roxo", e numa agência de marca rosa a bolinha roxa saía
+ * **rosa**: dois botões idênticos no seletor, e a etapa escolhida como roxa
+ * aparecendo no quadro com a cor de outra. Relatado como *"não está
+ * sincronizado"*, que é exatamente o que parece — você escolhe uma cor e a
+ * tela mostra outra.
+ *
+ * O lugar que troca é a paleta, nunca a folha: o roxo **é** a marca neste
+ * produto, e tirá-lo de lá apagaria o whitelabel para consertar um seletor.
+ * `indigo` entrou no lugar porque já tem 77 usos no `src` — cor levantada por
+ * contagem, como manda a regra de desenho, e não inventada.
+ *
+ * A tradução existe para quem já tinha escolhido: sem ela, `sanearFluxo`
+ * descartaria o `purple` guardado como chave desconhecida e a etapa voltaria
+ * calada para a cor padrão. Quem escolheu continua com a cor que escolheu.
+ */
+const COR_RENOMEADA: Record<string, string> = { purple: 'indigo' };
+
+const corConhecida = (valor: unknown): string | undefined => {
+  if (typeof valor !== 'string') return undefined;
+  const traduzida = COR_RENOMEADA[valor] ?? valor;
+  return CORES_DA_ETAPA.some((c) => c.valor === traduzida) ? traduzida : undefined;
+};
+
+/**
+ * O ícone da etapa — lista fechada, pelo mesmo motivo da paleta.
+ *
+ * Um campo livre de nome de ícone erra na primeira letra trocada e a tela fica
+ * sem nada, sem dizer por quê. Aqui a chave ou está na lista ou é descartada,
+ * e o padrão do produto assume.
+ *
+ * **A lista são chaves, não componentes**, e isso é o que a mantém testável:
+ * `src/components/common/IconeDaEtapa.tsx` faz a tradução para o desenho, e a
+ * guarda exige que toda chave daqui tenha um lá. Pôr o componente nesta lista
+ * levaria React para dentro de um módulo que hoje é dado puro.
+ */
+export interface IconeDaEtapaOpcao {
+  valor: string;
+  rotulo: string;
+}
+
+export const ICONES_DA_ETAPA: IconeDaEtapaOpcao[] = [
+  { valor: 'ideia', rotulo: 'Ideia' },
+  { valor: 'prancheta', rotulo: 'Planejamento' },
+  { valor: 'texto', rotulo: 'Texto' },
+  { valor: 'design', rotulo: 'Design' },
+  { valor: 'camera', rotulo: 'Captação' },
+  { valor: 'video', rotulo: 'Vídeo' },
+  { valor: 'olho', rotulo: 'Revisão' },
+  { valor: 'conversa', rotulo: 'Conversa' },
+  { valor: 'voltar', rotulo: 'Ajuste' },
+  { valor: 'conferido', rotulo: 'Aprovado' },
+  { valor: 'calendario', rotulo: 'Agendado' },
+  { valor: 'enviar', rotulo: 'Envio' },
+  { valor: 'foguete', rotulo: 'Publicado' },
+  { valor: 'megafone', rotulo: 'Divulgação' },
+];
+
+/** O ícone que cada etapa tem quando a agência não escolheu nenhum. */
+const ICONE_PADRAO: Record<JobStatus, string> = {
+  ideas: 'ideia',
+  in_production: 'design',
+  for_approval: 'olho',
+  in_adjustment: 'voltar',
+  approved: 'conferido',
+  scheduled: 'calendario',
+  published: 'foguete',
+};
 
 /** A cor que cada etapa tem quando a agência não escolheu nenhuma. */
 const COR_PADRAO: Record<JobStatus, string> = {
@@ -95,12 +171,12 @@ const COR_PADRAO: Record<JobStatus, string> = {
   for_approval: 'amber',
   in_adjustment: 'rose',
   approved: 'emerald',
-  scheduled: 'purple',
+  scheduled: 'indigo',
   published: 'teal',
 };
 
 export const corDaEtapa = (cor: string) =>
-  CORES_DA_ETAPA.find((c) => c.valor === cor) ?? CORES_DA_ETAPA[0];
+  CORES_DA_ETAPA.find((c) => c.valor === (COR_RENOMEADA[cor] ?? cor)) ?? CORES_DA_ETAPA[0];
 
 /** Nome em branco não é nome: ele deixaria a coluna do quadro sem rótulo. */
 const textoUtil = (valor: unknown): string | undefined => {
@@ -129,8 +205,9 @@ export const sanearFluxo = (valor: unknown): FluxoDeProducao => {
 
     const campos = item as Record<string, unknown>;
     const rotulo = textoUtil(campos.rotulo);
-    const cor = CORES_DA_ETAPA.some((c) => c.valor === campos.cor)
-      ? (campos.cor as string)
+    const cor = corConhecida(campos.cor);
+    const icone = ICONES_DA_ETAPA.some((i) => i.valor === campos.icone)
+      ? (campos.icone as string)
       : undefined;
 
     const dias = Number(campos.slaDias);
@@ -142,7 +219,7 @@ export const sanearFluxo = (valor: unknown): FluxoDeProducao => {
 
     // Etapa sem nenhum ajuste não entra: ela é indistinguível do padrão, e
     // guardá-la vazia faria a tela dizer "ajustada" sobre o que ninguém mexeu.
-    if (rotulo || cor || slaDias) saida[status] = { rotulo, cor, slaDias };
+    if (rotulo || cor || icone || slaDias) saida[status] = { rotulo, cor, icone, slaDias };
   }
 
   return saida;
@@ -159,8 +236,9 @@ export const etapasDoFluxo = (fluxo?: FluxoDeProducao | null): EtapaDoFluxo[] =>
       rotulo: ajuste?.rotulo || rotulo,
       rotuloPadrao: rotulo,
       cor: ajuste?.cor || COR_PADRAO[valor],
+      icone: ajuste?.icone || ICONE_PADRAO[valor],
       slaDias: ajuste?.slaDias,
-      ajustada: Boolean(ajuste?.rotulo || ajuste?.cor || ajuste?.slaDias),
+      ajustada: Boolean(ajuste?.rotulo || ajuste?.cor || ajuste?.icone || ajuste?.slaDias),
     };
   });
 };

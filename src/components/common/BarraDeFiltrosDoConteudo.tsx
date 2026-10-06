@@ -13,8 +13,8 @@ import {
 import { Button } from '../ui/button';
 import { usePostfy } from '../../context/PostfyContext';
 import { PERIODOS, type Periodo } from '../../lib/ordemDoQuadro';
-import { FORMATOS_POR_CANAL } from '../../lib/formatos';
-import { NOME_DA_REDE } from '../../lib/redes';
+import { formatosEmUso } from '../../lib/formatos';
+import { NOME_DA_REDE, redesEmUso } from '../../lib/redes';
 import type { JobPlatform } from '../../types';
 
 /**
@@ -45,19 +45,20 @@ import type { JobPlatform } from '../../types';
  * `NOME_DA_REDE`, clientes do contexto. Lista literal numa tela de filtro é
  * pior que numa tela comum — quando ela diverge, o conteúdo some sem nada
  * dizer que sumiu.
- */
-
-/**
- * Todos os formatos que existem, sem repetir.
  *
- * A tabela é por rede e um formato aparece em várias; o filtro pergunta "qual
- * formato", sem rede no meio.
+ * ### E elas são recortadas pelo que a agência tem
+ *
+ * Formato e rede eram as listas **do produto**: oito formatos somando as seis
+ * redes, e as seis redes. Numa agência que só faz Instagram, metade dessas
+ * linhas **não pode dar resultado nenhum** — escolher "Artigo" ou "TikTok"
+ * esvazia o quadro, e quadro vazio depois de um clique num filtro é
+ * exatamente a tela que faz a pessoa concluir que o conteúdo sumiu.
+ *
+ * Quem decide são `formatosEmUso` e `redesEmUso`, que moram na mesma fonte das
+ * listas e são puras — o recorte é exercitado, não descrito. É a regra de
+ * `FORMATOS_POR_CANAL` um degrau acima: lá o limite é o que a rede aceita,
+ * aqui é o que a agência tem.
  */
-const FORMATOS = Object.values(FORMATOS_POR_CANAL)
-  .flat()
-  .filter((f, i, todos) => todos.findIndex((o) => o.valor === f.valor) === i);
-
-const REDES = Object.entries(NOME_DA_REDE) as [JobPlatform, string][];
 
 export const BarraDeFiltrosDoConteudo: React.FC<{
   /**
@@ -70,6 +71,7 @@ export const BarraDeFiltrosDoConteudo: React.FC<{
   empilhada?: boolean;
 }> = ({ empilhada = false }) => {
   const {
+    jobs,
     clients,
     clientFilter,
     setClientFilter,
@@ -82,6 +84,17 @@ export const BarraDeFiltrosDoConteudo: React.FC<{
     intervaloFiltro,
     setIntervaloFiltro,
   } = usePostfy();
+
+  /*
+    **O recorte é pelo conteúdo da agência inteira, não pelo que os outros
+    filtros deixaram passar.** Encadear os filtros faria as opções sumirem
+    conforme a pessoa escolhe — filtrar por um cliente que só faz Reels
+    apagaria "Feed" da lista, e desfazer a escolha exigiria adivinhar que ela
+    está lá. Filtro que esconde a própria saída é pior que filtro que oferece
+    uma opção vazia.
+  */
+  const FORMATOS = formatosEmUso(jobs, formatFilter === 'todos' ? undefined : formatFilter);
+  const REDES = redesEmUso(jobs, platformFilter === 'all' ? undefined : platformFilter);
 
   /*
     O gatilho diz o **valor escolhido**, não o nome do filtro. Um botão

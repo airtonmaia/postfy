@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.2.0',
+    data: '2026-10-06',
+    resumo: 'Cada etapa ganha um ícone, "Agendado" vira coluna própria, e os filtros passam a oferecer só o que a agência tem.',
+    novidades: [
+      'Cada etapa do fluxo pode ter um ícone, escolhido em Configurações → Conteúdos entre catorze opções. Ele aparece no selo da coluna do quadro.',
+      '"Aprovado" e "Agendado" viraram colunas separadas: o quadro passou a ter uma coluna por etapa.',
+      'Arrastar um card para "Agendado" abre a confirmação do agendamento — ela diz a data, avisa que publicação feita não volta, e é ela que põe na fila de verdade.',
+    ],
+    melhorias: [
+      'Os filtros de formato e de rede listam só o que a agência tem em conteúdo. Antes ofereciam os oito formatos e as seis redes do produto, e escolher um que ninguém usa esvaziava o quadro.',
+    ],
+    corrigido: [
+      'A cor "Roxo" das etapas aparecia com a cor da agência, idêntica a outra da paleta: o roxo é a cor da marca e é repintado pelo whitelabel. Ela virou "Índigo", e quem já tinha escolhido o roxo continua com a cor que escolheu.',
+    ],
+  },
+  {
     versao: '3.1.2',
     data: '2026-10-06',
     resumo: 'A faixa de clientes do quadro: o anel do selecionado parou de sair cortado, e todos ganharam contorno.',
