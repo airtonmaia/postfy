@@ -4007,6 +4007,7 @@ src/components/clients/EdicaoDeArquivo.tsx   corrige nome, categoria e — só e
 src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na mesma janela
 src/lib/arquivosDoCliente.ts  o que a linha é: anexo, link ou bloco de notas
 src/components/kanban/CartaoDoQuadro.tsx  o card do quadro: um desenho só, na coluna e sob o cursor
+src/components/common/AdicionarConteudo.tsx  criar peça: o mesmo botão no quadro e no calendário
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 

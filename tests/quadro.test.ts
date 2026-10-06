@@ -405,6 +405,35 @@ describe('o calendário é uma visão do WorkFlow, não um menu', () => {
     }
   });
 
+  it('as duas telas criam peça pelo mesmo botão', () => {
+    /*
+      **Eram dois botões diferentes para a mesma ação.** O quadro tinha
+      "Adicionar", com as três entregas do catálogo; o calendário tinha "Novo
+      Post", que criava sempre um conteúdo. As duas telas são visões da mesma
+      coisa — a troca entre elas é o botão logo ao lado deste —, então quem
+      criasse pelo calendário não descobria que copy e roteiro existem, e o
+      nome "Post" prometia algo que o produto não chama assim em lugar nenhum.
+
+      A guarda afirma as duas metades: as duas montam o componente, e **nenhuma
+      das duas escreve o próprio menu de tipos**. Uma cópia à mão divergiria na
+      primeira pressa, e divergir aqui é uma tela oferecendo um tipo de peça
+      que a outra esconde.
+    */
+    for (const arquivo of [
+      join(RAIZ, 'src', 'components', 'kanban', 'KanbanBoard.tsx'),
+      join(RAIZ, 'src', 'components', 'calendar', 'CalendarHeader.tsx'),
+    ]) {
+      const fonte = semComentarios(readFileSync(arquivo, 'utf-8'));
+      expect(fonte, `${arquivo} deixou de usar o botão compartilhado`).toMatch(
+        /<AdicionarConteudo/
+      );
+      expect(
+        fonte,
+        `${arquivo} voltou a escrever o próprio menu de tipos de peça`
+      ).not.toMatch(/TIPOS_DE_JOB/);
+    }
+  });
+
   it('a troca mexe no activeTab, nunca num estado de visão à parte', () => {
     /*
       Um estado novo de "visão" daria duas verdades para a mesma pergunta: a

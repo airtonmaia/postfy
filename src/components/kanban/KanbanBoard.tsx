@@ -17,15 +17,10 @@ import {
   Pin,
   Plus,
   Search,
-  ChevronDown,
-  Image as ImageIcon,
-  PenLine,
-  Clapperboard,
   MailCheck,
   SlidersHorizontal
 } from 'lucide-react';
-import { Job, JobStatus, Client, JobTipo, JobPlatform } from '../../types';
-import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
+import { Job, JobStatus, Client, JobPlatform } from '../../types';
 import { enviarAprovacaoEmLote } from '../../lib/automacoes';
 import { Button } from '../ui/button';
 import {
@@ -39,6 +34,7 @@ import { CartaoArrastavel, CartaoDoQuadro } from './CartaoDoQuadro';
 import { corDaEtapa, etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
+import { AdicionarConteudo } from '../common/AdicionarConteudo';
 import { IconeDaEtapa } from '../common/IconeDaEtapa';
 import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { ClientesDoQuadro } from './ClientesDoQuadro';
@@ -138,12 +134,6 @@ const ColunaDoQuadro: React.FC<{
 };
 
 
-/** Um ícone por tipo. Fica aqui e não no catálogo: lá é dado, aqui é desenho. */
-const ICONE_DO_TIPO: Record<JobTipo, React.FC<{ className?: string }>> = {
-  conteudo: ImageIcon,
-  copy: PenLine,
-  roteiro: Clapperboard,
-};
 
 export const KanbanBoard: React.FC = () => {
   const { 
@@ -206,7 +196,6 @@ export const KanbanBoard: React.FC = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
     useSensor(KeyboardSensor)
   );
-  const [menuDeTipoAberto, setMenuDeTipoAberto] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   /**
@@ -655,51 +644,10 @@ export const KanbanBoard: React.FC = () => {
               filtros, lia como mais um recorte do mesmo conteúdo. */}
           <AlternarVisaoDoWorkflow />
 
-          {/* Adicionar: a agência escolhe qual das três entregas vai criar. */}
-          <div className="relative">
-            <Button
-              onClick={() => setMenuDeTipoAberto((aberto) => !aberto)}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Adicionar
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${menuDeTipoAberto ? 'rotate-180' : ''}`}
-              />
-            </Button>
-
-            {menuDeTipoAberto && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuDeTipoAberto(false)} />
-                <div className="absolute right-0 top-full mt-1.5 w-64 z-50 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5">
-                  {TIPOS_DE_JOB.map((tipo) => {
-                    const Icone = ICONE_DO_TIPO[tipo.valor];
-                    return (
-                      <button
-                        key={tipo.valor}
-                        onClick={() => {
-                          setMenuDeTipoAberto(false);
-                          openCreateJobModal(undefined, tipo.valor);
-                        }}
-                        className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                          <Icone className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-xs font-bold text-slate-900 dark:text-white">
-                            {tipo.rotulo}
-                          </span>
-                          <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                            {tipo.descricao}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
+          {/* Adicionar: a agência escolhe qual das três entregas vai criar.
+              **É o mesmo componente do calendário** — as duas telas são visões
+              da mesma coisa, e a troca entre elas é o botão logo ao lado. */}
+          <AdicionarConteudo />
         </div>
       </div>
 
