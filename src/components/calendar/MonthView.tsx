@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
 import { Plus, MoreHorizontal, Clock, Sparkles } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
@@ -10,6 +10,8 @@ import { PreviaNoHover } from '../common/PreviaNoHover';
 import { proporcaoDoCriativo } from '../../lib/formatos';
 import { Button } from '../ui/button';
 import { urlDeExibicao } from '../../lib/midiaDoDrive';
+import { corDaEtapa, etapasDoFluxo } from '../../lib/fluxoDeProducao';
+import { ConteudosDoDia } from './ConteudosDoDia';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -26,8 +28,18 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
     periodoFiltro,
     intervaloFiltro, 
     setSelectedJob, 
-    openCreateJobModal 
+    openCreateJobModal,
+    currentWorkspace
   } = usePostfy();
+
+  /* Todos os hooks antes de qualquer return — armadilha 8.1. */
+  const [diaAberto, setDiaAberto] = useState<Date | null>(null);
+
+  // O pontinho do celular fala a língua do fluxo da agência: a mesma cor que
+  // a coluna do quadro usa para a etapa.
+  const etapas = etapasDoFluxo(currentWorkspace.fluxoDeProducao);
+  const pontoDaEtapa = (status: string) =>
+    corDaEtapa(etapas.find((e) => e.status === status)?.cor ?? "slate").ponto;
 
   const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -143,8 +155,13 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
 
       {/* Grid */}
       <div
-        style={{ gridTemplateRows: `repeat(${semanas}, minmax(110px, 1fr))` }}
-        className="flex-1 grid grid-cols-7 gap-[1px] bg-slate-200 dark:bg-slate-800 overflow-y-auto"
+        /*
+          A altura mínima da linha vira variável para poder mudar no celular:
+          110px × 6 semanas são 660px de grade num aparelho de 700, e o mês
+          inteiro virava uma rolagem longa de casinhas quase vazias.
+        */
+        style={{ ['--linhas' as string]: String(semanas) }}
+        className="flex-1 grid grid-cols-7 gap-[1px] bg-slate-200 dark:bg-slate-800 overflow-y-auto grid-rows-[repeat(var(--linhas),minmax(64px,1fr))] sm:grid-rows-[repeat(var(--linhas),minmax(110px,1fr))]"
       >
         {gridCells.map((cell, index) => {
           const dateISO = cell.date.toISOString();
@@ -191,7 +208,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
               </div>
 
               {/* Jobs inside day */}
-              <div className="flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+              <div className="hidden sm:block flex-1 space-y-1.5 overflow-y-auto pr-0.5">
                 {cell.jobs.slice(0, 3).map(job => {
                   const client = clientMap.get(job.clientId);
                   const scheduledTime = safeTimeFormat(job.scheduledDate);
@@ -259,8 +276,14 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                   <Button variant="soft"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Show all jobs for that date in detail
-                      openCreateJobModal(dateISO);
+                      /*
+                        **Ele abre a lista do dia, e antes abria o cadastro.**
+                        O comentário aqui dizia "show all jobs for that date" e
+                        a chamada era `openCreateJobModal`: o botão prometia
+                        ver os outros e abria "criar novo". Quem clicava
+                        concluía que as peças tinham sumido.
+                      */
+                      setDiaAberto(cell.date);
                     }}
                     className="w-full text-center text-purple-600 hover:text-purple-800"
                   >
@@ -268,10 +291,65 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
                   </Button>
                 )}
               </div>
+
+              {/*
+                **A casinha do celular: pontinhos e um toque.**
+
+                Sete colunas em 390px dão 55px por dia — não cabe cartão
+                nenhum. O que cabe é quantos são e em que etapa estão, na cor
+                que a coluna do quadro usa. O resto é a lista do dia, que abre
+                com o toque.
+
+                O botão cobre a célula inteira (`absolute inset-0`) de
+                propósito: num alvo de 55px, exigir mira no pontinho é exigir
+                o que o dedo não faz. E ele some no computador, onde o cartão
+                de verdade volta e o clique no vazio continua criando peça.
+              */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDiaAberto(cell.date);
+                }}
+                aria-label={`${cell.date.getDate()}: ${
+                  cell.jobs.length === 1 ? '1 conteúdo' : `${cell.jobs.length} conteúdos`
+                }`}
+                className="sm:hidden absolute inset-0 flex flex-col justify-end items-center gap-1 p-1 cursor-pointer"
+              >
+                <span className="flex flex-wrap justify-center items-center gap-1 w-full">
+                  {cell.jobs.slice(0, 6).map((job) => (
+                    <span
+                      key={job.id}
+                      className={`w-1.5 h-1.5 rounded-full ${pontoDaEtapa(job.status)}`}
+                    />
+                  ))}
+                  {cell.jobs.length > 6 && (
+                    <span className="text-[9px] font-bold text-slate-400 leading-none">
+                      +{cell.jobs.length - 6}
+                    </span>
+                  )}
+                </span>
+              </button>
             </div>
           );
         })}
       </div>
+
+      {/*
+        A lista do dia, usada pelos dois caminhos: o toque na casinha do
+        celular e o "+N mais" do computador. Uma peça só — duas divergiriam na
+        primeira pressa, e aqui divergir é mostrar conjuntos diferentes de
+        conteúdo para a mesma data.
+      */}
+      <ConteudosDoDia
+        dia={diaAberto}
+        jobs={
+          diaAberto
+            ? (gridCells.find((c) => c.date.getTime() === diaAberto.getTime())?.jobs ?? [])
+            : []
+        }
+        aoFechar={() => setDiaAberto(null)}
+      />
     </div>
   );
 };

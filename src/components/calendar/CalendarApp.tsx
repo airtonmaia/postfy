@@ -6,6 +6,7 @@ import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
 import { ListView } from './ListView';
+import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,18 @@ export const CalendarApp: React.FC = () => {
             <DialogHeader className="px-4 pt-4 pb-0">
               <DialogTitle>Filtros do calendário</DialogTitle>
             </DialogHeader>
+            {/*
+              **A barra de filtros entra na gaveta junto com a lateral.**
+
+              No celular ela aparecia nas duas: quatro chips no cabeçalho e o
+              botão "Filtros" logo abaixo, dois caminhos para a mesma pergunta
+              — e os quatro chips ocupavam duas linhas da altura que a grade do
+              mês precisa. Aqui é a mesma peça do computador, empilhada.
+            */}
+            <div className="px-4 pt-4">
+              <BarraDeFiltrosDoConteudo empilhada />
+            </div>
+
             <CalendarSidebar
               currentDate={currentDate}
               onSelectDate={handleSelectDate}

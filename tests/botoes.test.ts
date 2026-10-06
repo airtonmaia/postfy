@@ -118,6 +118,8 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/common/AlternarVisaoDoWorkflow.tsx',  // seletor de visão (quadro/calendário)
   'src/components/kanban/ClientesDoQuadro.tsx',         // card clicável: foto e nome em bloco
   'src/components/calendar/CalendarSidebar.tsx',        // dia do mini calendário
+  'src/components/calendar/ConteudosDoDia.tsx',         // card clicável: miniatura, título e selos em bloco
+  'src/components/calendar/MonthView.tsx',              // casinha do mês no celular: alvo que cobre a célula
   'src/components/calendar/WeekView.tsx',               // "+" na célula de 16px
   'src/components/clients/ClientDetail.tsx',            // aba
   'src/components/clients/ClientUsersTab.tsx',          // aba

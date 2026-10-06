@@ -642,3 +642,90 @@ describe('o quadro mostra mais de dois cards no telefone', () => {
     );
   });
 });
+
+describe('o mês no celular mostra todos os posts do dia', () => {
+  /**
+   * **Sete colunas em 390px dão 55px por dia.** O cartão do conteúdo era
+   * desenhado em tamanho de computador — selo de rede, horário, miniatura,
+   * título, formato e status — dentro dessa largura. Com um post por dia ele
+   * já saía cortado; com dois, o segundo ficava numa área de rolagem de poucos
+   * pixels, **invisível e sem como tocar**.
+   *
+   * E o "+N mais" do computador **abria o cadastro**: o comentário ao lado
+   * dizia "show all jobs for that date in detail" e a chamada era
+   * `openCreateJobModal`. Rótulo que descreve o que não acontece é a família
+   * do `trial_ends_at`, agora na interface — quem clicava concluía que as
+   * peças tinham sumido.
+   */
+  const mes = ler('src', 'components', 'calendar', 'MonthView.tsx');
+  const lista = ler('src', 'components', 'calendar', 'ConteudosDoDia.tsx');
+  const cabecalho = ler('src', 'components', 'calendar', 'CalendarHeader.tsx');
+  const app = ler('src', 'components', 'calendar', 'CalendarApp.tsx');
+
+  it('o cartão de computador não é desenhado no celular', () => {
+    expect(
+      mes,
+      'o cartão do conteúdo voltou a ser montado dentro de uma casinha de 55px'
+    ).toMatch(/hidden sm:block[\s\S]{0,80}space-y-1\.5 overflow-y-auto/);
+  });
+
+  it('a casinha do celular é tocável inteira', () => {
+    // Num alvo de 55px, exigir mira no pontinho é exigir o que o dedo não faz.
+    expect(mes, 'o alvo de toque da casinha sumiu ou encolheu').toMatch(
+      /sm:hidden absolute inset-0/
+    );
+    expect(mes, 'tocar na casinha deixou de abrir a lista do dia').toMatch(
+      /setDiaAberto\(cell\.date\)/
+    );
+  });
+
+  it('"+N mais" abre a lista do dia, não o cadastro', () => {
+    /*
+      Conferido pelo **efeito**: dentro do bloco do "+N mais" não pode haver
+      `openCreateJobModal`. Era exatamente ele que estava lá.
+    */
+    const inicio = mes.indexOf('cell.jobs.length > 3');
+    expect(inicio, 'o botão de excedente sumiu do mês').toBeGreaterThan(-1);
+
+    const bloco = mes.slice(inicio, inicio + 600);
+    expect(bloco, 'o "+N mais" voltou a abrir o cadastro em vez da lista').not.toMatch(
+      /openCreateJobModal/
+    );
+    expect(bloco, 'o "+N mais" deixou de abrir a lista do dia').toMatch(/setDiaAberto/);
+  });
+
+  it('a lista do dia é uma peça só para os dois caminhos', () => {
+    // Duas — uma de celular, outra de computador — divergiriam na primeira
+    // pressa, e divergir aqui é mostrar conjuntos diferentes para a mesma data.
+    expect(mes, 'o mês deixou de montar a lista do dia').toContain('<ConteudosDoDia');
+
+    /*
+      Tocar na casinha passou a abrir a lista, e antes tocava-se no vazio dela
+      para criar. Sem o botão de criar aqui dentro, a mudança teria **tirado**
+      o caminho de criar num dia específico do telefone inteiro.
+    */
+    expect(lista, 'a lista do dia ficou sem o caminho de criar peça naquela data').toMatch(
+      /openCreateJobModal\(dia\.toISOString\(\)\)/
+    );
+
+    /*
+      JSX avalia os filhos na criação do elemento: `dia.toISOString()` rodaria
+      com a lista fechada — o estado normal dela — e derrubaria a tela.
+    */
+    expect(lista, 'a guarda de estado nulo saiu de dentro do Dialog').toMatch(
+      /\{dia && \(/
+    );
+  });
+
+  it('os filtros do calendário não aparecem duas vezes no celular', () => {
+    // Quatro chips no cabeçalho e um botão "Filtros" logo ao lado eram dois
+    // caminhos para a mesma pergunta — e os chips comiam duas linhas da altura
+    // que a grade do mês precisa.
+    expect(cabecalho, 'a barra de filtros voltou a ficar inline no celular').toMatch(
+      /hidden lg:flex[\s\S]{0,120}<BarraDeFiltrosDoConteudo/
+    );
+    expect(app, 'a gaveta do calendário ficou sem a barra de filtros').toMatch(
+      /<BarraDeFiltrosDoConteudo empilhada/
+    );
+  });
+});
