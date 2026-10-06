@@ -31,6 +31,23 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.1.0',
+    data: '2026-10-06',
+    resumo: 'O calendário do celular passa a mostrar — e abrir — todos os conteúdos de um dia.',
+    novidades: [
+      'Tocar num dia do calendário abre a lista do dia: todos os conteúdos marcados, cada um com cliente, horário, formato e status, e um atalho para criar outro naquela data.',
+      'No celular, cada dia do mês mostra um pontinho por conteúdo, na cor da etapa em que ele está.',
+    ],
+    corrigido: [
+      'Com mais de um post no mesmo dia, o segundo ficava invisível e sem como tocar: o cartão era desenhado em tamanho de computador dentro de uma casinha de 55px.',
+      'O botão "+N mais" abria o cadastro de conteúdo em vez de mostrar os outros conteúdos do dia — em qualquer tamanho de tela.',
+      'No celular, os filtros do calendário apareciam duas vezes: quatro botões no cabeçalho e a gaveta "Filtros" logo ao lado. Agora só a gaveta, e ela traz os mesmos filtros.',
+    ],
+    melhorias: [
+      'As linhas do mês ficaram mais baixas no telefone, então o mês inteiro cabe sem rolar.',
+    ],
+  },
+  {
     versao: '3.0.2',
     data: '2026-10-06',
     resumo: 'O quadro no celular cabia dois cards. Agora cabe o dobro.',

@@ -117,7 +117,13 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           tinha formato nem janela de datas. Filtro que existe numa visão e não
           na outra é a tela escondendo conteúdo sem dizer que escondeu.
         */}
-        <BarraDeFiltrosDoConteudo />
+        {/* Abaixo do `lg` ela mora na gaveta, junto da barra lateral: aqui os
+            quatro chips ocupavam duas linhas da altura que a grade do mês
+            precisa, e o botão "Filtros" já estava logo ao lado oferecendo a
+            mesma coisa. */}
+        <div className="hidden lg:flex">
+          <BarraDeFiltrosDoConteudo />
+        </div>
       </div>
 
       {/* Right: View Switcher & Action buttons */}
