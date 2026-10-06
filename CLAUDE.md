@@ -3159,6 +3159,24 @@ primitivo** e exige rolagem de cada uma — lista literal teria de ser editada
 junto com o código. Conferido ao contrário: tirando o `overflow-x-auto` da
 variante padrão e renomeando a `@utility`, duas asserções reprovam.
 
+**E a recíproca apara o que é desenhado fora da caixa.** `overflow-x-auto`
+liga o recorte **vertical** pela mesma regra, e o `ring` do Tailwind é
+`box-shadow`: ele mora fora da caixa do elemento. Na faixa de clientes do
+quadro, os 2px do anel do cliente selecionado encostavam na borda do container
+e eram aparados — o topo do círculo saía reto, lido como *"a borda está
+cortando"*, que é o relato que chegou. O conserto é respiro (`py-1`) no
+container que recorta, e não mexer no anel.
+
+Vale a regra geral: **quem liga um eixo de rolagem precisa dar respiro no
+outro para o que é pintado fora da caixa** — `ring`, `shadow` e `outline`.
+
+**O anel também passou a existir em todos os itens**, cinza nos não
+selecionados. Um contorno numa foto no meio de oito sem contorno lê como
+"esta está em destaque", não como "esta é a escolhida" — o que distingue tem
+de ser a **cor**, não a presença. E a espessura é a mesma nos dois estados: um
+anel que engorda ao ser escolhido empurra o vizinho e faz a faixa tremer a
+cada troca de cliente.
+
 #### Painel de largura fixa no celular não fica apertado — fica inalcançável
 
 A barra lateral do calendário é `w-64`: **256px de uma tela de 390**. Como o

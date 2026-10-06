@@ -53,12 +53,38 @@ export const ClientesDoQuadro: React.FC<{
     clientes.map((c) => ({ id: c.id, nome: c.name, avatar: c.avatar }))
   );
 
+  /**
+   * **Todo item tem anel; o que muda é a cor.**
+   *
+   * Só o selecionado tinha, e sem o cinza dos outros a faixa ficava com uma
+   * foto de contorno e oito sem — a diferença lia como "esta está destacada",
+   * não como "esta é a escolhida". Com o anel neutro em volta de todas, o que
+   * distingue é a **cor**, que é a pergunta certa.
+   *
+   * O cinza também é o que fecha a foto contra o fundo: num tema escuro, logo
+   * de marca escura encosta no fundo da tela e o círculo some.
+   *
+   * A espessura é a mesma nos dois estados, de propósito. Anel que engorda ao
+   * ser escolhido empurra o vizinho meio pixel e faz a faixa inteira tremer na
+   * troca de cliente.
+   */
+  const anel = (ativo: boolean) =>
+    ativo ? 'ring-2 ring-purple-600' : 'ring-2 ring-slate-200 dark:ring-slate-700';
+
   return (
     <div className="px-4 sm:px-6 pt-2 sm:pt-4">
       {/* Rola na horizontal porque a lista cresce com a agência, e empilhar
           clientes em duas linhas empurraria o quadro para baixo justamente em
-          quem tem mais trabalho para ver. */}
-      <div className="flex items-start gap-3 sm:gap-4 overflow-x-auto no-scrollbar pb-1">
+          quem tem mais trabalho para ver.
+
+          **O `py-1` é o que impede o anel de sair cortado**, e a causa é a
+          regra do CSS que este arquivo já registra em outro lugar: quando um
+          eixo deixa de ser `visible`, o outro vira `auto`. O `overflow-x-auto`
+          daqui liga o recorte **vertical** junto — e o `ring` é desenhado
+          *fora* da caixa do elemento, então os 2px dele encostavam na borda do
+          container e eram aparados. O topo do círculo saía reto, com cara de
+          avatar mal cortado em vez de container recortando. */}
+      <div className="flex items-start gap-3 sm:gap-4 overflow-x-auto no-scrollbar py-1">
         {itens.map((item) => {
           const ativo = selecionado === item.id;
 
@@ -77,20 +103,20 @@ export const ClientesDoQuadro: React.FC<{
             >
               {item.id === 'all' ? (
                 <span
-                  className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 ${
-                    ativo ? 'ring-2 ring-purple-600' : ''
-                  }`}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 ${anel(
+                    ativo
+                  )}`}
                 >
                   <Users className="w-5 h-5" />
                 </span>
               ) : (
-                /* O anel é o mesmo da seleção da grade do Instagram — o
+                /* O anel roxo é o mesmo da seleção da grade do Instagram — o
                    vocabulário de seleção deste produto, não um inventado. */
                 <Avatar
                   nome={item.nome}
                   url={item.avatar}
                   tamanho={44}
-                  className={ativo ? 'ring-2 ring-purple-600' : ''}
+                  className={anel(ativo)}
                 />
               )}
 
