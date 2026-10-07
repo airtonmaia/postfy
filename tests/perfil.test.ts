@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { iniciaisDe } from '../src/components/common/Avatar';
+import { alterarSenha } from '../src/lib/perfil';
 import { semComentarios } from './util/semComentarios';
 
 const varrer = (dir: string): string[] =>
@@ -121,5 +122,101 @@ describe('perfil', () => {
     expect(trecho).toMatch(/return alvo/);
     const modal = readFileSync('src/components/auth/AuthModal.tsx', 'utf-8');
     expect(modal).toMatch(/Link de confirmação enviado/);
+  });
+});
+
+/**
+ * A tela da conta: o que ela pede, e em que ordem ela mostra.
+ *
+ * Ela era cinco blocos numa coluna, cada um com o seu botão de largura
+ * inteira — e o **endereço da foto** era o primeiro campo, logo abaixo do
+ * título: um `https://pub-...` ocupando a linha mais nobre de "Sua conta".
+ * Ninguém abre o próprio perfil para digitar uma URL.
+ *
+ * As guardas aqui medem as três decisões que isso virou, e nenhuma mede a
+ * aparência: o endereço continua alcançável, a saída de emergência aparece
+ * quando o envio falha, e sair da conta não depende de rolar.
+ */
+describe('a tela da conta', () => {
+  const modal = readFileSync('src/components/auth/AuthModal.tsx', 'utf-8');
+  const limpo = semComentarios(modal);
+
+  /**
+   * **O campo de endereço não some do produto — ele sai da primeira linha.**
+   *
+   * Sem balde configurado é por ele que se põe uma foto (armadilha 5), então
+   * esconder sem porta seria trocar um ruído por um beco. A guarda mede as
+   * duas metades: ele é condicional, e há mais de um jeito de chegar nele.
+   */
+  it('o endereço da foto fica atrás de uma escolha, e com porta de entrada', () => {
+    const campo = limpo.indexOf('value={avatar}');
+    expect(campo, 'o campo de endereço sumiu').toBeGreaterThan(-1);
+
+    const condicao = limpo.indexOf('{colarEndereco && (');
+    expect(condicao, 'o campo voltou a ser incondicional').toBeGreaterThan(-1);
+    expect(condicao).toBeLessThan(campo);
+
+    // Duas aberturas: o botão "Colar endereço" e a falha do envio. Com uma
+    // só, quem não achar o botão fica sem foto nenhuma.
+    const aberturas = limpo.match(/setColarEndereco\(true\)/g) || [];
+    expect(aberturas.length).toBeGreaterThanOrEqual(2);
+  });
+
+  /**
+   * A falha do envio abre a alternativa **no mesmo instante**. Dizer "cole o
+   * endereço" com o campo escondido manda procurar um controle que a tela não
+   * mostra.
+   */
+  it('quando o envio falha, a alternativa aparece junto com o aviso', () => {
+    const envio = limpo.slice(limpo.indexOf('const enviarFoto'));
+    const corpo = envio.slice(0, envio.indexOf('const perfilMudou'));
+    expect(corpo).toContain('setColarEndereco(true)');
+    expect(corpo).toContain('Cole o endereço da imagem');
+  });
+
+  /**
+   * **Sair da conta não pode depender de rolar.** Ele era o último item de
+   * uma coluna longa, atrás justamente dos campos que alguém talvez tivesse
+   * começado a preencher. Hoje ele é irmão das abas, no rodapé que não rola.
+   */
+  it('sair da conta fica fora da área que rola', () => {
+    const fimDasAbas = limpo.indexOf('</Tabs>');
+    expect(fimDasAbas, 'a tela deixou de ter abas — reveja esta guarda').toBeGreaterThan(-1);
+    expect(limpo.indexOf('logout()')).toBeGreaterThan(fimDasAbas);
+  });
+
+  /**
+   * `updateUser({ password })` grava sem conferir nada, e é a porta que a
+   * exigência da senha atual fecha. A conferência é de `perfil.ts`; esta tela
+   * não fala com o Supabase.
+   *
+   * Lida sem comentários, e a primeira versão desta asserção provou por quê:
+   * ela acusava o comentário que explica justamente por que `updateUser` não
+   * é chamado aqui.
+   */
+  it('a tela não grava senha por fora de alterarSenha', () => {
+    expect(limpo).not.toContain('updateUser');
+    expect(limpo).toContain('alterarSenha(senhaAtual, novaSenha, confirmacao)');
+  });
+});
+
+/**
+ * A nova senha é digitada duas vezes.
+ *
+ * Com um campo só, o erro de digitação é gravado em silêncio: o Supabase
+ * aceita, a tela diz "senha alterada", e a conta aparece trancada no próximo
+ * login — quando já não há como saber o que foi digitado.
+ */
+describe('a confirmação da nova senha', () => {
+  it('recusa quando as duas digitações não batem', async () => {
+    // Recusa **antes** de falar com o servidor: a confirmação não depende de
+    // sessão nenhuma para ser conferida.
+    await expect(alterarSenha('atual', 'senhanova1', 'senhanova2')).rejects.toThrow(
+      /confirmação/i
+    );
+  });
+
+  it('e continua recusando a senha curta, que é o outro erro', async () => {
+    await expect(alterarSenha('atual', '123', '123')).rejects.toThrow(/8 caracteres/);
   });
 });

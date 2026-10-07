@@ -31,6 +31,20 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.12.0',
+    data: '2026-10-07',
+    resumo: 'A tela da sua conta, reorganizada em Perfil e Acesso.',
+    novidades: [
+      'A nova senha agora é digitada duas vezes. Com um campo só, um erro de digitação era gravado em silêncio e a conta aparecia trancada no login seguinte.',
+    ],
+    melhorias: [
+      'Foto, nome, e-mail, papel e agência passaram para o cabeçalho: a tela diz de quem é a conta antes do primeiro campo.',
+      'Perfil e Acesso viraram abas, com um botão em cada uma — eram cinco botões de largura inteira empilhados numa coluna só.',
+      'Sair da conta e o estado da sincronização ficam num rodapé fixo, sem depender de rolar até o fim.',
+      'O endereço da foto deixou de ser o primeiro campo da tela e passou para "Colar endereço" — ele aparece sozinho quando o envio do arquivo falha.',
+    ],
+  },
+  {
     versao: '3.11.0',
     data: '2026-10-07',
     resumo: 'A ficha completa da agência, no painel do produto.',

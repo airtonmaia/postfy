@@ -133,13 +133,28 @@ export const pedirLinkParaCriarSenha = async (): Promise<string> => {
  * A conferência é feita entrando de novo com a senha informada, que é a única
  * forma de o cliente provar isso. `signInWithPassword` renova a sessão em vez
  * de derrubá-la, então a pessoa continua onde estava.
+ *
+ * **A nova senha é digitada duas vezes, e a conferência mora aqui.** Um
+ * campo só aceita o erro de digitação em silêncio: o Supabase grava o que
+ * veio, a tela diz "senha alterada" — e a verdade só aparece no próximo
+ * login, que é quando já não há como descobrir o que foi digitado. O preço de
+ * errar é a conta trancada, com a saída sendo o "esqueci minha senha"; o
+ * preço de conferir é um campo.
+ *
+ * E ela mora na função, não na tela: a tela desliga o botão para avisar antes
+ * do clique, mas quem **recusa** é quem grava — senão a regra vale só
+ * enquanto ninguém escrever uma segunda tela de troca de senha.
  */
 export const alterarSenha = async (
   senhaAtual: string,
-  novaSenha: string
+  novaSenha: string,
+  confirmacao: string
 ): Promise<void> => {
   if (novaSenha.length < 8) {
     throw new Error('A nova senha precisa ter pelo menos 8 caracteres.');
+  }
+  if (novaSenha !== confirmacao) {
+    throw new Error('A confirmação não é igual à nova senha.');
   }
   if (novaSenha === senhaAtual) {
     throw new Error('A nova senha é igual à atual.');
