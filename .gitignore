@@ -15,4 +15,9 @@ coverage/
 # um arquivo que nunca foi enviado.
 /data/
 .vercel
-supabase/.temp/
+# O `project-ref` é o que liga o repositório ao projeto: ignorá-lo inteiro
+# desfaz o `supabase link` no primeiro checkout que troca de branch, e o
+# `db push` para de achar o projeto. O que muda a cada chamada do CLI é o
+# resto da pasta.
+supabase/.temp/*
+!supabase/.temp/project-ref

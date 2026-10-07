@@ -1495,6 +1495,62 @@ SaaS inteiro" e repintar só metade seria a armadilha 9 de novo.
 
 ## Segurança
 
+### A ficha da agência: o que o banco mede, e o que ele não mede
+
+A lista de Agências do `/admin` respondia nome, slug, tamanho e fuso. A
+pergunta que o dono do produto faz olhando para ela é outra — *quem abriu
+isto, quando, de onde, e o que essa pessoa fez depois?* —, e as respostas
+existiam espalhadas por `workspaces`, `workspace_members`, `auth.users`,
+`activity_logs` e a auditoria do Supabase, nenhuma alcançável pela tela.
+
+`admin_detalhes_da_agencia(uuid)` junta tudo numa `security definer` com a
+conferência de `private.eh_admin_da_plataforma()` como primeira linha.
+
+**O risco desta tela é o do Financeiro que somava `agências × R$ 197`**, e por
+isso a decisão central não é o que ela mostra: é o que ela **recusa** a
+mostrar. Três coisas foram pedidas e não são medidas em lugar nenhum:
+
+- **cidade e país do IP.** Traduzir IP em lugar exige mandar o IP de uma
+  pessoa para um serviço de terceiro. Isso é dado pessoal saindo do produto, e
+  é decisão de quem é dono dele — não efeito colateral de abrir uma ficha. O
+  IP cru aparece; a tradução, não.
+- **tempo de sessão.** Ninguém grava entrada e saída. `last_sign_in_at` é um
+  instante, e subtrair instantes para fabricar uma duração é inventar um número
+  que vai para uma decisão.
+- **navegação.** Que tela alguém abriu não é registrado. O que existe é
+  `activity_logs`, que guarda **ações** — e é com esse nome que ele aparece.
+
+As três são ditas **na tela**, em texto. Campo vazio ali leria como dado
+faltando, e dado faltando no painel do dono do produto vira decisão.
+
+Três detalhes que não são detalhe:
+
+- **"Quem abriu" é derivado, e a tela diz de onde.** Não existe coluna de
+  autoria em `workspaces`: a resposta é o vínculo mais antigo, porque
+  `criar_agencia` faz de quem chama o dono no mesmo instante — a diferença
+  entre os dois `created_at` foi de 129 ms no caso que este arquivo já
+  investiga. Mostrar isso como "Criado por" sem dizer a origem seria afirmar um
+  registro que não existe.
+- **`auth.audit_log_entries` é opcional de propósito.** Ela é interna do
+  Supabase, pode não estar legível num projeto e **é podada** — acesso antigo
+  simplesmente não está lá. Com um `select` direto, a ficha inteira falharia
+  por causa da parte menos importante dela; por isso vai atrás de
+  `to_regclass` e de um `exception when others`, e devolve
+  `acessos_disponiveis` junto. Sem essa bandeira, lista vazia diria, com cara
+  de certo, que ninguém nunca entrou.
+- **Falha de leitura não vira ficha vazia.** Uma ficha sem equipe e sem
+  atividade depois de um erro afirma que a agência não tem ninguém e nunca foi
+  usada. O erro aparece em faixa, e o que estiver abaixo é declarado incompleto.
+
+#### `supabase/.temp/project-ref` fica no git, e o resto da pasta não
+
+Ignorar a pasta inteira **desfaz o `supabase link`**: o ref é o que liga o
+repositório ao projeto, e o primeiro `git checkout` que troca de branch apaga o
+arquivo não rastreado. O sintoma é `Cannot find project ref` no `db push`
+seguinte, longe da mudança que o causou — foi o que aconteceu ao tirar do git
+o `cli-latest`, que muda a cada chamada do CLI. O `.gitignore` ignora
+`supabase/.temp/*` com uma exceção para o `project-ref`.
+
 ### Papel na agência ≠ administrador da plataforma
 
 São eixos diferentes, e já foram confundidos: `gerenciar_saas` vivia no papel
@@ -4120,6 +4176,8 @@ src/lib/lixeira.ts         prazo da lixeira de agências, o mesmo que o expurgo 
 src/lib/assinatura.ts      acesso da agência ao produto, e o link do checkout
 src/components/common/AcessoBloqueado.tsx  a tela de teste vencido, com a saída à mão
 src/components/admin/      a área /admin: casca própria + as nove telas
+src/components/admin/FichaDaAgencia.tsx  a ficha da agência: o que o banco mede, e o que ele não mede
+src/lib/detalhesDaAgencia.ts  a ficha vinda do banco, por RPC de admin
 src/components/clients/ClientUsersTab.tsx  quem do cliente entra no portal, e com que papel
 src/components/clients/EdicaoDeArquivo.tsx   corrige nome, categoria e — só em link — a URL
 src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na mesma janela
