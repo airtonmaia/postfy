@@ -36,6 +36,13 @@ export const CAMINHOS: Record<TabType, string> = {
   publicacoes: '/publicacoes',
   relatorios: '/relatorios',
   automacoes: '/automacoes',
+  // O grupo do menu vira caminho de verdade: `/financeiro/receber` é um link
+  // que se manda, e não um estado interno de uma tela só.
+  financeiro: '/financeiro',
+  financeiro_receber: '/financeiro/receber',
+  financeiro_pagar: '/financeiro/pagar',
+  financeiro_caixa: '/financeiro/caixa',
+  financeiro_relatorios: '/financeiro/relatorios',
   configuracoes: '/configuracoes',
   admin_agencias: '/admin/agencias',
   admin_usuarios: '/admin/usuarios',

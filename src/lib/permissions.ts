@@ -17,11 +17,17 @@ import { Role, TabType } from '../types';
 const ABAS_POR_PAPEL: Record<Role, TabType[]> = {
   owner: [
     'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
-    'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
+    'comercial', 'publicacoes', 'relatorios', 'automacoes',
+    'financeiro', 'financeiro_receber', 'financeiro_pagar',
+    'financeiro_caixa', 'financeiro_relatorios',
+    'configuracoes',
   ],
   admin: [
     'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
-    'comercial', 'publicacoes', 'relatorios', 'automacoes', 'configuracoes',
+    'comercial', 'publicacoes', 'relatorios', 'automacoes',
+    'financeiro', 'financeiro_receber', 'financeiro_pagar',
+    'financeiro_caixa', 'financeiro_relatorios',
+    'configuracoes',
   ],
   manager: [
     'dashboard', 'calendario', 'producao', 'biblioteca', 'clientes',
@@ -36,7 +42,21 @@ const ABAS_POR_PAPEL: Record<Role, TabType[]> = {
   // gestão. O financeiro não — e o cliente vê pelo portal, não por aqui.
   designer: ['dashboard', 'calendario', 'producao', 'biblioteca'],
   copywriter: ['dashboard', 'calendario', 'producao', 'biblioteca'],
-  financial: ['dashboard', 'clientes', 'comercial', 'relatorios'],
+  /*
+    **O papel existia e o Financeiro não.** `financial` e a permissão
+    `ver_financeiro` estavam aqui desde a primeira versão deste arquivo, com
+    nenhuma tela atrás delas — a família do `trial_ends_at`. As cinco telas
+    são o que esse papel sempre prometeu.
+
+    E a lista de papéis é a **mesma** da RLS de `financeiro_lancamentos`:
+    esconder o menu deixando a tabela legível seria a armadilha 9 com a conta
+    bancária dentro.
+  */
+  financial: [
+    'dashboard', 'clientes', 'comercial', 'relatorios',
+    'financeiro', 'financeiro_receber', 'financeiro_pagar',
+    'financeiro_caixa', 'financeiro_relatorios',
+  ],
   /**
    * O cliente entra pelo **portal**, não por aqui — é o que o comentário
    * acima já dizia, e `client: ['aprovacoes']` o contradizia: era a única

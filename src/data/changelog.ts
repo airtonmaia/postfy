@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.13.0',
+    data: '2026-10-07',
+    resumo: 'O Financeiro da agência: receber, pagar, caixa e relatórios.',
+    novidades: [
+      'Menu Financeiro, com Visão geral, Receber, Pagar, Relatórios e Caixa — o primeiro menu do produto com submenus.',
+      'Contas a receber e a pagar, com vencimento, categoria, cliente ou fornecedor, e a data em que o dinheiro andou.',
+      'Caixas: conta do banco, carteira, espécie. O saldo sai dos lançamentos liquidados somados ao saldo inicial, e as entradas e saídas avulsas são lançamentos como os outros.',
+      'Relatórios com competência e caixa lado a lado, inadimplência, seis meses de entradas e saídas, e a soma por categoria.',
+      'Os vencidos de qualquer mês aparecem na visão geral e na lista — a conta esquecida há dois meses não vence no mês que está na tela.',
+    ],
+    melhorias: [
+      'O papel "Financeiro" e a permissão "ver financeiro" existiam desde a primeira versão sem nenhuma tela atrás delas. Agora têm — e quem recorta é o banco: designer, copywriter e social media não leem a tabela, não só não veem o menu.',
+      'O relatório diz o que ele não calcula: não há dedução de imposto nem lucro líquido, porque o produto não guarda o que é imposto.',
+    ],
+  },
+  {
     versao: '3.12.0',
     data: '2026-10-07',
     resumo: 'A tela da sua conta, reorganizada em Perfil e Acesso.',

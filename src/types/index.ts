@@ -599,7 +599,18 @@ export type TabType =
   | 'comercial' 
   | 'publicacoes' 
   | 'relatorios' 
-  | 'automacoes' 
+  | 'automacoes'
+  /*
+    O Financeiro é um **grupo** no menu, e cinco abas aqui: ele não é uma
+    tela com sub-abas internas porque cada parte precisa de endereço próprio
+    — mandar "olha as contas a pagar" é um link, e o F5 tem de voltar para
+    onde a pessoa estava.
+  */
+  | 'financeiro'
+  | 'financeiro_receber'
+  | 'financeiro_pagar'
+  | 'financeiro_caixa'
+  | 'financeiro_relatorios'
   | 'configuracoes'
   | 'admin_agencias'
   | 'admin_usuarios'

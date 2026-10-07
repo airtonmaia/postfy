@@ -30,7 +30,12 @@ import {
   Plug,
   AlertTriangle,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ChevronRight,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  PieChart
 } from 'lucide-react';
 
 // Modals
@@ -56,6 +61,12 @@ const PublicationsView = tela(() => import('./components/publications/Publicatio
 const ReportsView = tela(() => import('./components/reports/ReportsView'), 'ReportsView');
 const AutomationsView = tela(() => import('./components/automations/AutomationsView'), 'AutomationsView');
 const SettingsView = tela(() => import('./components/settings/SettingsView'), 'SettingsView');
+/*
+  As cinco telas do Financeiro vêm num chunk só: elas dividem o cabeçalho, o
+  seletor de mês e as consultas, e separá-las em cinco faria quem troca de
+  Receber para Pagar esperar um download no meio do trabalho.
+*/
+const FinanceiroView = tela(() => import('./components/financeiro/FinanceiroView'), 'FinanceiroView');
 const ClientPortalView = tela(() => import('./components/portal/ClientPortalView'), 'ClientPortalView');
 
 /**
@@ -91,6 +102,7 @@ import {
   SidebarMenuButton,
   SidebarMenuBadge,
   SidebarMenuDot,
+  SidebarMenuSub,
 } from './components/ui/sidebar';
 
 const MainLayout: React.FC = () => {
@@ -130,6 +142,13 @@ const MainLayout: React.FC = () => {
   } = usePostfy();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  /*
+    Grupo de menu aberto. "Não está no mapa" não é o mesmo que fechado: é
+    "ninguém mexeu ainda", e aí quem decide é a tela em que a pessoa está —
+    entrar em `/financeiro/pagar` por link e encontrar o grupo fechado
+    esconderia onde ela está.
+  */
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
   const [showNotifications, setShowNotifications] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
@@ -210,6 +229,52 @@ const MainLayout: React.FC = () => {
   ];
 
   const navItems = todasAsAbas.filter((item) => podeAcessarAba(currentUser?.role, item.id));
+
+  /**
+   * O Financeiro é um **grupo**, e é o primeiro do produto.
+   *
+   * São cinco telas do mesmo assunto: soltas no menu, a barra passaria a ter
+   * dezessete itens — e o item que a pessoa procura deixa de ser encontrado
+   * muito antes disso. O grupo responde "dinheiro" numa linha e abre o resto.
+   *
+   * Os filhos passam pela **mesma** `podeAcessarAba` dos outros itens: o grupo
+   * não é exceção na permissão, é um agrupamento visual dela. Sem nenhum filho
+   * permitido ele não existe — em vez de abrir vazio.
+   */
+  const filhosDoFinanceiro = [
+    { id: 'financeiro' as TabType, label: 'Visão geral', icon: PieChart },
+    { id: 'financeiro_receber' as TabType, label: 'Receber', icon: TrendingUp },
+    { id: 'financeiro_pagar' as TabType, label: 'Pagar', icon: TrendingDown },
+    { id: 'financeiro_relatorios' as TabType, label: 'Relatórios', icon: BarChart3 },
+    { id: 'financeiro_caixa' as TabType, label: 'Caixa', icon: Wallet },
+  ].filter((filho) => podeAcessarAba(currentUser?.role, filho.id));
+
+  const financeiroAtivo = String(activeTab).startsWith('financeiro');
+  const financeiroAberto = gruposAbertos.financeiro ?? financeiroAtivo;
+
+  /**
+   * A ordem do menu, com o grupo no lugar dele.
+   *
+   * O Financeiro entra **depois de Comercial & Vendas**: a venda vem antes do
+   * dinheiro, e ler na ordem contrária obriga a procurar. A reserva no fim não
+   * é zelo — um papel que tivesse o Financeiro e não tivesse o Comercial
+   * perderia o grupo inteiro sem ninguém notar, que é a mesma classe da coluna
+   * sumindo do quadro: trabalho escondido por um detalhe de ordenação.
+   */
+  type EntradaDoMenu =
+    | { tipo: 'item'; item: (typeof todasAsAbas)[number] }
+    | { tipo: 'grupo'; item?: undefined };
+
+  const navegacao: EntradaDoMenu[] = [];
+  for (const item of navItems) {
+    navegacao.push({ tipo: 'item', item });
+    if (item.id === 'comercial' && filhosDoFinanceiro.length > 0) {
+      navegacao.push({ tipo: 'grupo' });
+    }
+  }
+  if (filhosDoFinanceiro.length > 0 && !navegacao.some((e) => e.tipo === 'grupo')) {
+    navegacao.push({ tipo: 'grupo' });
+  }
 
   /**
    * O portal ocupa a tela sozinho.
@@ -355,7 +420,81 @@ const MainLayout: React.FC = () => {
                 entrada da peça. O `h-8` padrão dele é justamente os 32px que
                 o item já media — nenhuma medida mudou. */}
             <SidebarMenu>
-              {navItems.map(item => {
+              {navegacao.map((entrada) => {
+                if (entrada.tipo === 'grupo') {
+                  return (
+                    <SidebarMenuItem key="grupo-financeiro">
+                      <SidebarMenuButton
+                        ativo={financeiroAtivo}
+                        recolhida={recolhida}
+                        onClick={() =>
+                          setGruposAbertos((abertos) => ({
+                            ...abertos,
+                            financeiro: !financeiroAberto,
+                          }))
+                        }
+                        title={recolhida ? 'Financeiro' : undefined}
+                        aria-expanded={financeiroAberto}
+                        className="justify-between"
+                      >
+                        <span className="flex items-center gap-3">
+                          <DollarSign
+                            className={`w-4 h-4 shrink-0 ${
+                              financeiroAtivo ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'
+                            }`}
+                          />
+                          <span className={recolhida ? 'md:hidden' : ''}>Financeiro</span>
+                        </span>
+                        {/* A seta gira em vez de trocar de ícone: o mesmo
+                            desenho em dois estados diz que é o mesmo controle. */}
+                        <ChevronRight
+                          className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform ${
+                            financeiroAberto ? 'rotate-90' : ''
+                          } ${recolhida ? 'md:hidden' : ''}`}
+                        />
+                      </SidebarMenuButton>
+
+                      {/* No trilho de 64px os filhos continuam existindo, só
+                          perdem o recuo e o rótulo — como os itens de cima. */}
+                      {financeiroAberto && (
+                        <SidebarMenuSub
+                          className={recolhida ? 'md:ml-0 md:pl-0 md:border-l-0' : ''}
+                        >
+                          {filhosDoFinanceiro.map((filho) => {
+                            const IconeDoFilho = filho.icon;
+                            const filhoAtivo = activeTab === filho.id;
+                            return (
+                              <SidebarMenuItem key={filho.id}>
+                                <SidebarMenuButton
+                                  ativo={filhoAtivo}
+                                  recolhida={recolhida}
+                                  onClick={() => {
+                                    setActiveTab(filho.id);
+                                    setMobileMenuOpen(false);
+                                  }}
+                                  title={recolhida ? filho.label : undefined}
+                                >
+                                  <IconeDoFilho
+                                    className={`w-4 h-4 shrink-0 ${
+                                      filhoAtivo
+                                        ? 'text-purple-600 dark:text-purple-400'
+                                        : 'text-slate-400'
+                                    }`}
+                                  />
+                                  <span className={recolhida ? 'md:hidden' : ''}>
+                                    {filho.label}
+                                  </span>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                }
+
+                const item = entrada.item;
                 const Icon = item.icon;
                 // O WorkFlow acende também no calendário: são duas visões de
                 // um item só, e um menu apagado com a tela aberta faria a
@@ -815,6 +954,10 @@ const MainLayout: React.FC = () => {
           {abaPermitida && activeTab === 'comercial' && <CommercialView />}
           {abaPermitida && activeTab === 'publicacoes' && <PublicationsView />}
           {abaPermitida && activeTab === 'relatorios' && <ReportsView />}
+          {/* As cinco seções do Financeiro são um componente só: elas dividem
+              o mês, as consultas e a modal de lançamento, e separá-las faria
+              trocar de aba recarregar o mesmo mês. */}
+          {abaPermitida && financeiroAtivo && <FinanceiroView />}
           {abaPermitida && activeTab === 'automacoes' && <AutomationsView />}
           {abaPermitida && activeTab === 'configuracoes' && <SettingsView />}
           </Suspense>

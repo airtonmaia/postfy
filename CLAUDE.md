@@ -1493,6 +1493,118 @@ SaaS inteiro" e repintar só metade seria a armadilha 9 de novo.
 
 ---
 
+## O Financeiro da agência: duas tabelas, e nenhuma a mais
+
+O produto media o **trabalho** (Relatórios) e a **venda** (Comercial), e nunca
+mediu o caixa. `ver_financeiro` e o papel `financial` estavam em
+`permissions.ts` desde a primeira versão **sem nenhuma tela atrás deles** — a
+família do `trial_ends_at`, com um papel em cima.
+
+```
+financeiro_caixas       onde o dinheiro fica (conta, carteira, espécie)
+financeiro_lancamentos  o que se tem a receber e a pagar
+```
+
+**Não existe tabela de movimentação de caixa, e a ausência é a decisão.** As
+"Entrada" e "Saída" avulsas da tela de Caixa gravam um **lançamento já
+liquidado** naquele caixa. Duas tabelas respondendo *quanto entrou este mês*
+divergem na primeira pressa, e divergir aqui é pior que no resto do produto: o
+saldo passa a sair de uma e o relatório da outra, com as duas telas certas cada
+uma pelo seu lado. O saldo é `saldo_inicial + liquidados do caixa`, que é a
+**mesma** soma do relatório — e é derivado, nunca gravado: uma coluna `saldo`
+exigiria uma segunda escrita a cada lançamento, podendo falhar sozinha e
+produzindo um saldo que não bate com as linhas que o explicam.
+
+Quatro decisões que não são detalhe:
+
+- **Centavos inteiros, nunca `numeric` nem ponto flutuante.** O valor chega
+  ao JavaScript como `number`, e `0.1 + 0.2` ali é `0.30000000000000004` —
+  um centavo por soma, invisível numa linha e visível no fechamento do mês. A
+  divisão por 100 acontece uma vez, na hora de escrever. E `centavosDe`
+  devolve **`null`** para o que não entendeu: `parseFloat('abc') || 0` é
+  zero, e um campo digitado errado viraria um lançamento de R$ 0,00 gravado com
+  cara de certo.
+- **`vencimento` e `liquidado_em` são `date`, não `timestamptz`.** Conta
+  vence num dia, não num instante: converter por fuso moveria o vencimento um
+  dia para quem abre a tela de outro estado (armadilha 8.2). E `liquidado_em`
+  é data, não booleano — "pago" sem *quando* não separa competência de caixa,
+  que é a razão de o relatório existir.
+- **Competência e caixa aparecem separados na tela.** *Quanto vence no mês* e
+  *quanto entrou no mês* são perguntas diferentes: a conta de setembro paga em
+  outubro responde as duas em meses distintos. Juntá-las numa linha só produz um
+  número que não fecha nem com o extrato nem com o contrato — e é esse número
+  que decide contratar alguém.
+- **Os vencidos são buscados por fora do mês.** A conta esquecida há dois meses
+  não vence nem é liquidada dentro do mês que está na tela: sem a segunda
+  consulta, ela não apareceria em mês nenhum. Uma tela de cobrança que esconde o
+  atrasado é o contrário do que ela existe para fazer.
+
+**Nada disso entra no estado global.** Lançamento é como conteúdo concluído:
+cresce com o *tempo de uso*, não com o tamanho da agência — entrar na carga
+inicial repetiria a dívida que a janela de 90 dias veio pagar. O preço é que
+nenhuma gravação é automática: cada uma é chamada explícita, com a falha em
+faixa. Em dinheiro é a troca certa, porque a persistência por diff mostra o
+resultado **antes** de o banco responder.
+
+### Quem recorta é a RLS, e a lista de papéis é uma só
+
+Esconder o menu deixando a tabela legível para a equipe inteira seria a
+armadilha 9 com a conta bancária dentro: o designer não vê o item e a consulta
+responde do mesmo jeito. As políticas usam `private.papel_na_agencia` com
+`owner`, `admin` e `financial` — **nunca `e_membro`** —, e leitura e
+escrita têm a mesma lista: não existe aqui o caso de "vê e não mexe".
+
+A guarda de `tests/financeiro.test.ts` **deriva** as duas listas — a do
+`ABAS_POR_PAPEL` e a da política na migração — e exige que sejam iguais. Duas
+listas divergem, e divergir aqui dá os dois piores desfechos: um papel que vê o
+menu e leva `42501` ao abrir, ou um papel que não vê o menu e lê a tabela por
+outro caminho.
+
+Conferido no banco com impersonação, num `qa-` descartável e com contagem
+antes e depois: **8 asserções** — o dono grava e lê, um **designer da mesma
+agência** lê zero e leva `42501` ao inserir lançamento e ao criar caixa, e a
+limpeza devolve a base ao estado anterior. O vínculo de designer existia só
+para o teste, e é ele que prova que o corte é por **papel**: um intruso de fora
+não distinguiria `papel_na_agencia` de `e_membro`.
+
+### O relatório diz o que ele não calcula
+
+A referência que originou a tela trazia um DRE completo, com dedução de
+impostos *"classificada automaticamente por nome de categoria (heurística)"*.
+Adivinhar que uma linha chamada "DAS" é imposto produz um lucro líquido que
+ninguém conferiu, numa tela que existe para decidir — é o Financeiro do SaaS
+outra vez, que dizia R$ 591,00 num dia de R$ 0,00. Enquanto não houver um campo
+dizendo o que é imposto, o relatório soma o que foi lançado e **escreve na
+tela** que não deduz nada.
+
+A guarda disso mede o **efeito**, não a palavra: a primeira versão proibia
+"lucro líquido" no arquivo e reprovou justamente a frase que diz, na tela, que
+ele não é calculado. É a quinta vez que este arquivo registra o mesmo erro.
+
+### O menu com submenus, e o que ele cobra
+
+É o primeiro grupo da barra lateral. Três coisas:
+
+- **Cinco telas, cinco `TabType` e cinco caminhos** — e não uma tela com
+  sub-abas internas: `/financeiro/pagar` é um link que se manda, e o F5 tem de
+  voltar para onde a pessoa estava. As cinco vêm num **chunk só**, porque
+  trocar de aba é o que mais acontece ali.
+- **Os filhos passam pela mesma `podeAcessarAba`.** O grupo não é exceção na
+  permissão, é agrupamento visual dela; sem nenhum filho permitido ele não
+  existe, em vez de abrir vazio.
+- **O `SidebarMenuSub` não traz botão próprio.** O do shadcn é `h-7` com
+  `rounded-md`; adotá-lo poria um segundo tamanho de item de menu no produto,
+  e item filho menor que o pai é a inconsistência das doze alturas de botão
+  vista de perto. O filho é o **mesmo** `SidebarMenuButton` — o que muda é o
+  recuo e o trilho à esquerda. No trilho de 64px os filhos continuam existindo,
+  só perdem o rótulo, como os itens de cima.
+
+Protegido por `tests/financeiro.test.ts`, conferido ao contrário: trocando a
+política por `e_membro`, tirando o Financeiro do papel `financial` e
+removendo a regra do ponto de milhar, três asserções reprovam.
+
+---
+
 ## Segurança
 
 ### A ficha da agência: o que o banco mede, e o que ele não mede
@@ -4184,6 +4296,8 @@ src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na m
 src/lib/arquivosDoCliente.ts  o que a linha é: anexo, link ou bloco de notas
 src/components/kanban/CartaoDoQuadro.tsx  o card do quadro: um desenho só, na coluna e sob o cursor
 src/components/common/AdicionarConteudo.tsx  criar peça: o mesmo botão no quadro e no calendário
+src/lib/financeiro.ts      lançamentos, caixas e as somas do mês; centavos inteiros
+src/components/financeiro/ as cinco telas do Financeiro, num chunk só
 src/lib/automacoes.ts      motor: evento tipado → ação
 src/context/PostfyContext.tsx   o estado inteiro (~1600 linhas)
 

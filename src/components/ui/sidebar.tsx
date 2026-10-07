@@ -115,6 +115,33 @@ export const SidebarMenuButton = React.forwardRef<
 SidebarMenuButton.displayName = 'SidebarMenuButton';
 
 /**
+ * A lista de um grupo de menu — hoje, o Financeiro.
+ *
+ * **Ela não traz botão próprio, e isso é a decisão.** O shadcn tem um
+ * `SidebarMenuSubButton` com `h-7` e `rounded-md`; adotá-lo poria um
+ * segundo tamanho de item de menu no produto, e item filho menor que o pai é
+ * a mesma inconsistência das doze alturas de botão vista de perto. O filho é
+ * o **mesmo** `SidebarMenuButton`; o que muda é o recuo e o trilho à
+ * esquerda, que é o que diz "isto pertence ao de cima".
+ */
+export const SidebarMenuSub = React.forwardRef<
+  HTMLUListElement,
+  React.ComponentPropsWithoutRef<'ul'>
+>(({ className, ...props }, ref) => (
+  <ul
+    ref={ref}
+    data-slot="sidebar-menu-sub"
+    className={cn(
+      'ml-4 mt-1 flex min-w-0 flex-col gap-1 pl-2 ' +
+        'border-l border-slate-200 dark:border-slate-800',
+      className
+    )}
+    {...props}
+  />
+));
+SidebarMenuSub.displayName = 'SidebarMenuSub';
+
+/**
  * A contagem do item — aprovações pendentes, ajustes.
  *
  * `rounded-full` aqui é a exceção escrita do vocabulário de canto: é o papel
