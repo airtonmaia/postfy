@@ -43,14 +43,15 @@ describe('a carga inicial tem janela', () => {
   });
 
   it('as coleções que só crescem vêm limitadas', () => {
-    // activity_logs, notifications, client_materials e timesheet_logs são as
-    // que mais crescem por agência e as que ninguém lê inteiras.
-    for (const tabela of [
-      'activity_logs',
-      'notifications',
-      'client_materials',
-      'timesheet_logs',
-    ]) {
+    // activity_logs, notifications e client_materials são as que mais crescem
+    // por agência e as que ninguém lê inteiras.
+    //
+    // `timesheet_logs` estava nesta lista e **saiu da carga**: o apontamento de
+    // horas perdeu a tela, e com ela o leitor e o escritor. Ficou uma entrega
+    // inteira sendo lida em toda sessão e passada pelo `diferenciar()` a cada
+    // edição sem ninguém olhar. A tabela continua no banco com o que já foi
+    // apontado — o que saiu foi a carga.
+    for (const tabela of ['activity_logs', 'notifications', 'client_materials']) {
       expect(db, `${tabela} voltou a vir inteira`).toMatch(
         new RegExp(`listarRecentes\\('${tabela}'`)
       );
@@ -64,7 +65,8 @@ describe('a carga inicial tem janela', () => {
       'db.notifications.listar()',
       'db.activityLogs.listar()',
       'db.clientMaterials.listar()',
-      'db.timesheetLogs.listar()',
+      // `db.timesheetLogs` não existe mais: a coleção inteira saiu da carga.
+      'timesheet_logs',
     ]) {
       expect(corpo, `${colecao} voltou para a carga inicial`).not.toContain(colecao);
     }

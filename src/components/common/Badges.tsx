@@ -12,6 +12,11 @@ import {
   Smartphone,
   PenLine,
   Clapperboard,
+  Palette,
+  Presentation,
+  Camera,
+  MonitorSmartphone,
+  Mail,
 } from 'lucide-react';
 
 import { JobPlatform, JobFormat, JobStatus, JobPriority, JobTipo } from '../../types';
@@ -98,14 +103,24 @@ export const FormatBadge: React.FC<{ format: JobFormat; rotulo?: string }> = ({
   );
 };
 
+/*
+  O tom distingue, não decora: um selo cinza ao lado de outro cinza devolve o
+  problema que o selo veio resolver. Os tons saem da paleta fechada do `Badge`,
+  nunca de uma cor inventada — é a regra de desenho do projeto.
+*/
 const TIPOS: Record<JobTipo, { rotulo: string; tom: TomDoBadge; icone: React.ReactNode }> = {
   conteudo: { rotulo: 'Conteúdo', tom: 'neutro', icone: <ImageIcon /> },
   copy: { rotulo: 'Copy', tom: 'indigo', icone: <PenLine /> },
   roteiro: { rotulo: 'Roteiro', tom: 'turquesa', icone: <Clapperboard /> },
+  branding: { rotulo: 'Branding', tom: 'roxo', icone: <Palette /> },
+  apresentacao: { rotulo: 'Apresentação', tom: 'ambar', icone: <Presentation /> },
+  foto: { rotulo: 'Foto', tom: 'ceu', icone: <Camera /> },
+  landing: { rotulo: 'Landing page', tom: 'esmeralda', icone: <MonitorSmartphone /> },
+  email: { rotulo: 'E-mail marketing', tom: 'rubi', icone: <Mail /> },
 };
 
 /**
- * O que está sendo aprovado: conteúdo, copy ou roteiro.
+ * O que está sendo aprovado.
  *
  * Sem este selo, um card de copy e um de arte pronta ficam idênticos no
  * quadro — e a diferença é justamente o que o cliente vai olhar.

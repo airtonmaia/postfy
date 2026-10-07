@@ -1,5 +1,16 @@
 import React from 'react';
-import { Plus, ChevronDown, Image as ImageIcon, PenLine, Clapperboard } from 'lucide-react';
+import {
+  Plus,
+  ChevronDown,
+  Image as ImageIcon,
+  PenLine,
+  Clapperboard,
+  Palette,
+  Presentation,
+  Camera,
+  MonitorSmartphone,
+  Mail,
+} from 'lucide-react';
 
 import { Button } from '../ui/button';
 import {
@@ -51,6 +62,11 @@ export const AdicionarConteudo: React.FC<{
     conteudo: ImageIcon,
     copy: PenLine,
     roteiro: Clapperboard,
+    branding: Palette,
+    apresentacao: Presentation,
+    foto: Camera,
+    landing: MonitorSmartphone,
+    email: Mail,
   };
 
   return (

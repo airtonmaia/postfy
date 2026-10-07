@@ -332,7 +332,15 @@ export interface JobChecklistItem {
  * pronta, `copy` e `roteiro` são texto — pedir aprovação de imagem neles
  * seria pedir aprovação de algo que não existe.
  */
-export type JobTipo = 'conteudo' | 'copy' | 'roteiro';
+export type JobTipo =
+  | 'conteudo'
+  | 'copy'
+  | 'roteiro'
+  | 'branding'
+  | 'apresentacao'
+  | 'foto'
+  | 'landing'
+  | 'email';
 
 export interface Job {
   id: string;
@@ -633,19 +641,6 @@ export interface ClientMaterial {
   createdAt: string;
 }
 
-export interface TimesheetLog {
-  id: string;
-  workspaceId?: string;
-  jobId: string;
-  jobTitle: string;
-  clientId: string;
-  clientName: string;
-  userId: string;
-  userName: string;
-  minutes: number;
-  notes?: string;
-  createdAt: string;
-}
 
 
 /**

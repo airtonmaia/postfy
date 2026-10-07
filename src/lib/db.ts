@@ -9,13 +9,12 @@ import {
   notificationDaLinha, notificationParaLinha,
   activityLogDaLinha, activityLogParaLinha,
   clientMaterialDaLinha, clientMaterialParaLinha,
-  timesheetLogDaLinha, timesheetLogParaLinha,
   workspaceDaLinha, workspaceParaLinha,
   clientUserDaLinha, clientUserParaLinha,
 } from './mappers';
 import type {
   Client, Job, Lead, Proposal, Contract, Automation,
-  Notification, ActivityLog, ClientMaterial, TimesheetLog, Workspace,
+  Notification, ActivityLog, ClientMaterial, Workspace,
   ClientUser,
 } from '../types';
 import type { EventoDeEtapa } from './historicoDeEtapas';
@@ -130,7 +129,6 @@ export const db = {
   notifications: criarRepositorio<Notification>('notifications', notificationDaLinha, notificationParaLinha),
   activityLogs: criarRepositorio<ActivityLog>('activity_logs', activityLogDaLinha, activityLogParaLinha),
   clientMaterials: criarRepositorio<ClientMaterial>('client_materials', clientMaterialDaLinha, clientMaterialParaLinha),
-  timesheetLogs: criarRepositorio<TimesheetLog>('timesheet_logs', timesheetLogDaLinha, timesheetLogParaLinha),
 };
 
 /**
@@ -467,7 +465,7 @@ const listarRecentes = async <T extends { id: string }>(
 export const carregarTudo = async () => {
   const [
     workspaces, membros, clients, jobs, leads, proposals, contracts,
-    automations, notifications, activityLogs, clientMaterials, timesheetLogs,
+    automations, notifications, activityLogs, clientMaterials,
   ] = await Promise.all([
     listarWorkspaces(),
     listarMembros(),
@@ -480,11 +478,10 @@ export const carregarTudo = async () => {
     listarRecentes('notifications', notificationDaLinha, 100),
     listarRecentes('activity_logs', activityLogDaLinha),
     listarRecentes('client_materials', clientMaterialDaLinha),
-    listarRecentes('timesheet_logs', timesheetLogDaLinha),
   ]);
 
   return {
     workspaces, membros, clients, jobs, leads, proposals, contracts,
-    automations, notifications, activityLogs, clientMaterials, timesheetLogs,
+    automations, notifications, activityLogs, clientMaterials,
   };
 };

@@ -107,6 +107,69 @@ describe('arrastar muda de etapa, e só isso', () => {
     );
   });
 
+  it('sair de "Agendado" pergunta pelo disparo, e a pergunta cancela a fila', () => {
+    /**
+     * **A regra simétrica, e ela faltava.** O estado da peça e a
+     * `publish_queue` são duas coisas diferentes — a distinção que este
+     * produto já registrou como bug real, a "fila de mentira em cima de uma
+     * fila vazia". Arrastar o card para fora de "Agendado" mudava só o status:
+     * o item continuava na fila e **no dia ele publicava**, com o quadro
+     * mostrando a peça em "Em Ajuste". Nada na tela indicava que ia sair, e o
+     * que sai no perfil do cliente não volta.
+     *
+     * Cancelar sozinho seria o mesmo erro na direção contrária: um gesto
+     * desfazendo o disparo que alguém decidiu. Por isso o gesto **pergunta**, e
+     * é a confirmação que faz as duas coisas.
+     */
+    const corpo = quadro.slice(quadro.indexOf('const aoTerminarArrasto'));
+    const ate = corpo.slice(0, corpo.indexOf('const indice') + 1 || 2600);
+
+    expect(
+      ate,
+      'sair de "Agendado" voltou a gravar direto, deixando o disparo de pé na fila'
+    ).toMatch(/job\.status === 'scheduled'[\s\S]{0,200}return;/);
+
+    expect(
+      ate,
+      'o arrasto passou a cancelar a fila sozinho, sem perguntar'
+    ).not.toMatch(/cancelarFilaDoConteudo/);
+
+    const pergunta = quadro.slice(
+      quadro.indexOf('const pedirCancelamento'),
+      quadro.indexOf('const aoComecarArrasto')
+    );
+    expect(pergunta, 'a saída de "Agendado" deixou de perguntar').toMatch(/pedir\(\{/);
+    expect(pergunta, 'a pergunta não diz mais o que acontece se não cancelar').toMatch(
+      /descricao:/
+    );
+
+    /*
+      **A fila é lida antes de perguntar.** Peça marcada como agendada sem item
+      na fila existe — era o normal antes de a fila ter produtor —, e perguntar
+      "cancelar o disparo?" onde não há disparo nenhum ensina a responder sim no
+      automático. É assim que a pergunta que importa deixa de ser lida.
+    */
+    expect(pergunta, 'a pergunta passou a aparecer mesmo sem nada na fila').toMatch(
+      /filaCancelavelDoConteudo\(job\.id\)[\s\S]{0,400}naFila === 0/
+    );
+    expect(pergunta, 'a confirmação deixou de cancelar a fila').toMatch(/moverECancelar/);
+  });
+
+  it('cancelar a fila não apaga o que já foi publicado', () => {
+    /*
+      Apagar uma linha `publicado` não desfaz o post — apaga o registro de que
+      ele saiu, e o histórico é a única coisa que resta quando alguém pergunta
+      o que foi ao ar. É a mesma regra do "tirar da fila" da tela de
+      Publicações.
+    */
+    const redes = semComentarios(readFileSync(join(RAIZ, 'src', 'lib', 'redes.ts'), 'utf-8'));
+    const corpo = redes.slice(redes.indexOf('export const filaCancelavelDoConteudo'));
+
+    expect(corpo.slice(0, 600), 'o cancelamento deixou de recortar por status').toMatch(
+      /\.in\('status', \['pendente', 'falhou'\]\)/
+    );
+  });
+
   it('soltar onde a peça já estava não grava nada', () => {
     // Sem isto, arrastar e desistir gravaria o mesmo status de novo — e cada
     // gravação dessas vira uma linha no histórico de atividade que não

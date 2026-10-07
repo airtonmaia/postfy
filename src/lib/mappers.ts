@@ -8,7 +8,7 @@ import type {
   Notification,
   ActivityLog,
   ClientMaterial,
-  TimesheetLog,
+
   Workspace,
   ClientUser,
 } from '../types';
@@ -473,33 +473,4 @@ export const clientMaterialParaLinha = (m: Partial<ClientMaterial>): Linha =>
     file_type: m.fileType,
     size: m.size,
     status: m.status,
-  });
-
-// ------------------------------------------------------------ TimesheetLog
-
-export const timesheetLogDaLinha = (l: Linha): TimesheetLog => ({
-  id: l.id,
-  workspaceId: l.workspace_id,
-  jobId: l.job_id ?? '',
-  jobTitle: l.job_title ?? '',
-  clientId: l.client_id ?? '',
-  clientName: l.client_name ?? '',
-  userId: l.user_id ?? '',
-  userName: l.user_name ?? '',
-  minutes: l.minutes ?? 0,
-  notes: ounull(l.notes),
-  createdAt: l.created_at,
-});
-
-export const timesheetLogParaLinha = (t: Partial<TimesheetLog>): Linha =>
-  semNulos({
-    workspace_id: t.workspaceId,
-    job_id: t.jobId,
-    job_title: t.jobTitle,
-    client_id: t.clientId,
-    client_name: t.clientName,
-    user_id: t.userId,
-    user_name: t.userName,
-    minutes: t.minutes,
-    notes: t.notes,
   });

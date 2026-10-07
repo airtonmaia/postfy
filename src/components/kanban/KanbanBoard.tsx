@@ -39,7 +39,12 @@ import { IconeDaEtapa } from '../common/IconeDaEtapa';
 import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { ClientesDoQuadro } from './ClientesDoQuadro';
 import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
-import { agendarPublicacao, textoDoAgendamento } from '../../lib/redes';
+import {
+  agendarPublicacao,
+  textoDoAgendamento,
+  filaCancelavelDoConteudo,
+  cancelarFilaDoConteudo,
+} from '../../lib/redes';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { dataCompacta } from '../../lib/utils';
 import {
@@ -487,6 +492,81 @@ export const KanbanBoard: React.FC = () => {
     }
   };
 
+  /**
+   * Sair de "Agendado" pergunta se o disparo vai junto.
+   *
+   * **A fila é lida antes de perguntar**, e isso não é zelo: peça marcada como
+   * agendada sem item na fila existe — é o estado que a tela de Publicações
+   * mostra, e era o normal antes de a fila ter produtor. Perguntar "cancelar o
+   * disparo?" onde não há disparo nenhum ensina a responder sim no automático,
+   * e é assim que a pergunta que importa deixa de ser lida.
+   *
+   * **Falha de leitura pergunta assim mesmo**, dizendo que não deu para
+   * conferir. Errar para este lado custa uma pergunta a mais; errar para o
+   * outro é a peça publicando num dia em que o quadro diz que ela está em
+   * ajuste.
+   */
+  const pedirCancelamento = async (job: Job, novoStatus: JobStatus) => {
+    let naFila: number;
+    try {
+      naFila = (await filaCancelavelDoConteudo(job.id)).length;
+    } catch {
+      naFila = -1;
+    }
+
+    if (naFila === 0) {
+      moveJobStatus(job.id, novoStatus);
+      return;
+    }
+
+    pedir({
+      titulo: 'Cancelar o disparo desta peça?',
+      descricao:
+        naFila > 0
+          ? `"${job.title}" tem ${naFila === 1 ? 'um disparo agendado' : `${naFila} disparos agendados`} ` +
+            'na fila de publicação. Tirar o card de "Agendado" muda a etapa no quadro e **não** ' +
+            'cancela a fila: sem cancelar, a peça vai ao ar na data assim mesmo.'
+          : 'Não foi possível ler a fila de publicação agora. Se houver disparo agendado para ' +
+            'esta peça, ele continua valendo mesmo com o card fora de "Agendado" — e a peça vai ' +
+            'ao ar na data.',
+      rotuloConfirmar: 'Mover e cancelar o disparo',
+      rotuloCancelar: 'Deixar como está',
+      destrutivo: true,
+      aoConfirmar: () => void moverECancelar(job, novoStatus),
+    });
+  };
+
+  const moverECancelar = async (job: Job, novoStatus: JobStatus) => {
+    setAviso(null);
+    /*
+      O status primeiro, pela mesma razão do agendar: `moveJobStatus` carimba o
+      histórico da etapa. Se o cancelamento falhar depois, o aviso diz
+      exatamente isso — e a peça fora de "Agendado" com item na fila aparece na
+      tela de Publicações, que é onde se olha.
+    */
+    moveJobStatus(job.id, novoStatus);
+    try {
+      const cancelados = await cancelarFilaDoConteudo(job.id);
+      setAviso({
+        ok: true,
+        texto:
+          cancelados === 0
+            ? 'A peça mudou de etapa. Não havia disparo na fila para cancelar.'
+            : cancelados === 1
+              ? 'A peça saiu da fila: o disparo agendado foi cancelado.'
+              : `A peça saiu da fila: ${cancelados} disparos agendados foram cancelados.`,
+      });
+    } catch (err) {
+      setAviso({
+        ok: false,
+        texto:
+          (err instanceof Error ? err.message : 'Não foi possível cancelar o disparo.') +
+          ' A peça mudou de etapa, mas a fila continua com o item — tire-o à mão em Publicações, ' +
+          'senão ela vai ao ar na data.',
+      });
+    }
+  };
+
   const aoComecarArrasto = (evento: DragStartEvent) => setArrastando(String(evento.active.id));
 
   const aoTerminarArrasto = (evento: DragEndEvent) => {
@@ -536,6 +616,29 @@ export const KanbanBoard: React.FC = () => {
     */
     if (novoStatus === 'scheduled') {
       pedirAgendamento(job);
+      return;
+    }
+
+    /*
+      **E sair de "Agendado" também pergunta, pela razão simétrica.**
+
+      O estado da peça e a fila são duas coisas diferentes — é a distinção que
+      este produto já registrou como bug real, a "fila de mentira em cima de
+      uma fila vazia". Arrastar o card para fora da coluna mudava só o status:
+      a `publish_queue` continuava com o item, e **no dia ele publicava**, com
+      o quadro mostrando a peça em "Em Ajuste" ou "Ideias". É o pior desfecho
+      possível, porque o que sai no perfil do cliente não volta e nada na tela
+      indicava que ia sair.
+
+      Cancelar sozinho seria tão errado quanto: um gesto de arrastar
+      desfazendo o disparo que alguém agendou é a mesma classe de decisão
+      silenciosa, só que na direção contrária. Então o gesto abre a pergunta,
+      e é ela que faz as duas coisas.
+    */
+    /* `novoStatus` já não pode ser 'scheduled' aqui: a saída acima cuidou
+       desse caso. O que resta é sair da coluna. */
+    if (job.status === 'scheduled' && novoStatus) {
+      void pedirCancelamento(job, novoStatus);
       return;
     }
 

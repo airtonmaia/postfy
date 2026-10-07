@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.9.0',
+    data: '2026-10-06',
+    resumo:
+      'Cinco tipos novos de entrega, e tirar um card de "Agendado" passou a perguntar pelo disparo.',
+    novidades: [
+      'Cinco entregas novas para aprovação: Branding, Apresentação, Foto, Landing page e E-mail marketing. Cada uma com o nome certo no campo de texto e sem o contador de caracteres da rede, que ali não mede nada.',
+      'Arrastar um card para fora de "Agendado" agora pergunta se o disparo agendado vai junto. Antes a peça saía da coluna, a fila continuava com o item e a publicação saía na data assim mesmo.',
+    ],
+    melhorias: [
+      'No calendário, Mês / Semana / Dia / Lista viraram um seletor: os filtros voltaram a caber numa linha só, devolvendo altura para a grade do mês.',
+    ],
+    corrigido: [
+      'O apontamento de horas era carregado em toda sessão desde que saiu da tela, sem ninguém ler nem escrever. O que já foi apontado continua no banco.',
+    ],
+  },
+  {
     versao: '3.8.2',
     data: '2026-10-06',
     resumo: 'O calendário e o quadro passaram a criar peça pelo mesmo botão.',

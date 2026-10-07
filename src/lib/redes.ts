@@ -607,6 +607,55 @@ export const cancelarPublicacao = async (id: string): Promise<void> => {
 };
 
 /**
+ * Os disparos desta peça que ainda dá para cancelar.
+ *
+ * **`pendente` e `falhou`, nunca `publicado`.** É a mesma regra do "tirar da
+ * fila" da tela de Publicações: apagar uma linha publicada não desfaz o post —
+ * apaga o registro de que ele saiu, e o histórico é a única coisa que resta
+ * quando alguém pergunta o que foi ao ar. `publicando` fica de fora porque a
+ * passada do cron já está com ele na mão.
+ *
+ * Isto existe porque o estado da peça e a fila são **duas coisas diferentes**
+ * — é a distinção que este projeto já registrou como bug real, a "fila de
+ * mentira em cima de uma fila vazia". Tirar o card de "Agendado" no quadro não
+ * cancelava disparo nenhum: a peça saía da coluna, a `publish_queue` continuava
+ * com o item, e no dia ele publicava.
+ */
+export const filaCancelavelDoConteudo = async (jobId: string): Promise<ItemDaFila[]> => {
+  const { data, error } = await supabase
+    .from('publish_queue')
+    .select('*')
+    .eq('job_id', jobId)
+    .in('status', ['pendente', 'falhou']);
+
+  if (error) throw new Error(error.message);
+  return (data || []).map((l: any) => ({
+    id: l.id,
+    jobId: l.job_id,
+    connectionId: l.connection_id,
+    scheduledFor: l.scheduled_for,
+    status: l.status,
+    attempts: l.attempts,
+    lastError: l.last_error ?? undefined,
+    publishedAt: l.published_at ?? undefined,
+  }));
+};
+
+/**
+ * Tira a peça inteira da fila, e **diz quantos disparos saíram**.
+ *
+ * O número importa: uma peça com Instagram e Facebook marcados tem dois itens,
+ * e "cancelado" no singular esconderia o segundo — a mesma razão de
+ * `agendarPublicacao` devolver `enfileiradas`, `jaNaFila`, `semConta` e
+ * `manuais` em vez de lançar exceção.
+ */
+export const cancelarFilaDoConteudo = async (jobId: string): Promise<number> => {
+  const itens = await filaCancelavelDoConteudo(jobId);
+  for (const item of itens) await cancelarPublicacao(item.id);
+  return itens.length;
+};
+
+/**
  * Espera o conteúdo existir no banco.
  *
  * A persistência é derivada de diff e roda em segundo plano: `createJob`
