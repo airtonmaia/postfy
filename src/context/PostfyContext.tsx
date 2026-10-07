@@ -24,7 +24,6 @@ import {
   ClientFile,
   ClientAnnotation,
   ClientMaterial,
-  TimesheetLog,
   TabType,
   AbaDoConteudo
 } from '../types';
@@ -362,8 +361,6 @@ interface PostfyContextType {
   addClientMaterial: (material: Omit<ClientMaterial, 'id' | 'createdAt'>) => void;
   deleteClientMaterial: (id: string) => void;
 
-  // Timesheet
-  timesheetLogs: TimesheetLog[];
 
   // AI Operations (Gemini)
   generateAiCopy: (params: { theme: string; format?: string; platform?: string; clientId?: string; additionalNotes?: string }) => Promise<{ caption: string; hook: string; cta: string; hashtags: string[]; reelsScript?: string }>;
@@ -798,7 +795,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentWorkspaceState(AGENCIA_VAZIA);
     setAllClients([]); setAllJobs([]); setAllLeads([]); setAllProposals([]);
     setAllContracts([]); setAllAutomations([]); setAllNotifications([]);
-    setAllActivityLogs([]); setAllClientMaterials([]); setAllTimesheetLogs([]);
+    setAllActivityLogs([]); setAllClientMaterials([]);
     hidratado.current = false;
   };
 
@@ -1072,7 +1069,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
   const [allActivityLogs, setAllActivityLogs] = useState<ActivityLog[]>([]);
   const [allClientMaterials, setAllClientMaterials] = useState<ClientMaterial[]>([]);
-  const [allTimesheetLogs, setAllTimesheetLogs] = useState<TimesheetLog[]>([]);
 
   const belongsToWorkspace = (row: { workspaceId?: string }) =>
     pertenceAoWorkspace(row, currentWsId);
@@ -1105,7 +1101,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const notifications = useMemo(() => allNotifications.filter(belongsToWorkspace), [allNotifications, currentWsId]);
   const activityLogs = useMemo(() => allActivityLogs.filter(belongsToWorkspace), [allActivityLogs, currentWsId]);
   const clientMaterials = useMemo(() => allClientMaterials.filter(belongsToWorkspace), [allClientMaterials, currentWsId]);
-  const timesheetLogs = useMemo(() => allTimesheetLogs.filter(belongsToWorkspace), [allTimesheetLogs, currentWsId]);
 
   /**
    * Carga do portal por token.
@@ -1556,7 +1551,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useColecaoSincronizada('notifications', allNotifications);
   useColecaoSincronizada('activityLogs', allActivityLogs);
   useColecaoSincronizada('clientMaterials', allClientMaterials);
-  useColecaoSincronizada('timesheetLogs', allTimesheetLogs);
 
   /*
     **O efeito que baixava a bandeira saiu junto com ela.**
@@ -1600,7 +1594,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notifications: dados.notifications,
       activityLogs: dados.activityLogs,
       clientMaterials: dados.clientMaterials,
-      timesheetLogs: dados.timesheetLogs,
     };
     for (const [nome, linhas] of Object.entries(carga)) {
       marcarComoVindoDoBanco(nome, (linhas as { id: string }[]).map((l) => l.id));
@@ -1615,7 +1608,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAllNotifications(dados.notifications);
     setAllActivityLogs(dados.activityLogs);
     setAllClientMaterials(dados.clientMaterials);
-    setAllTimesheetLogs(dados.timesheetLogs);
 
     const alvo =
       dados.workspaces.find((w) => w.id === currentUser.workspaceId) || dados.workspaces[0];
@@ -2717,9 +2709,12 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     `trial_ends_at`, que é a razão de ele sair agora e não "quando sobrar
     tempo".
 
-    `timesheet_logs` continua sendo lida na carga e sincronizada: a tabela tem
-    dados de agência de verdade, e tirá-la da carga é uma entrega própria —
-    mexer na ordem dos `useColecaoSincronizada` é o que a armadilha 3 guarda.
+    **E a coleção saiu junto da carga e da sincronização.** Ela ficou uma
+    entrega inteira sendo lida em toda sessão e passada pelo `diferenciar()` a
+    cada edição, sem nenhum leitor nem escritor — custo de carga e de diff por
+    nada, e a aparência de uma regra que não existe mais. A **tabela fica no
+    banco**, com o que já foi apontado: `drop` de tabela com dado de agência é
+    outra decisão, e esta entrega não precisa dela.
   */
 
   // ============================================================
@@ -2954,7 +2949,6 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         clientMaterials,
         addClientMaterial,
         deleteClientMaterial,
-        timesheetLogs,
         generateAiCopy,
         generateEditorialIdeas,
         aparencia,

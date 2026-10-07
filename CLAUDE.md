@@ -2465,10 +2465,20 @@ v2 existe.
   prompt `convert-feedback` de `api/gemini.ts` e os três itens de checklist que
   `createJob` semeava.
 
-  **As colunas ficam.** `jobs.checklist` é `not null` e o acervo tem itens
-  gravados; `timesheet_logs` continua carregada e sincronizada, porque mexer na
-  ordem dos `useColecaoSincronizada` é o que a armadilha 3 guarda. O que some é
-  o que afirmava existir.
+  **As tabelas ficam; a carga não.** `jobs.checklist` é `not null` e o acervo
+  tem itens gravados. `timesheet_logs` passou uma entrega inteira sendo **lida
+  em toda sessão e passada pelo `diferenciar()` a cada edição**, sem nenhum
+  leitor nem escritor — custo de carga e de diff por nada, e a aparência de uma
+  regra que não existe mais, que é exatamente a família do `trial_ends_at`.
+  Saíram o repositório, a coleção do contexto, o `useColecaoSincronizada`, os
+  mapeadores e o tipo `TimesheetLog`; **a tabela continua no banco** com o que
+  já foi apontado, porque `drop` de tabela com dado de agência é outra decisão e
+  esta entrega não precisava dela.
+
+  Mexer na lista de `useColecaoSincronizada` é o que a armadilha 3 guarda — e
+  por isso a conferência foi essa: `timesheetLogs` não aparece em nenhum par de
+  dependência de `tests/ordem-de-gravacao.test.ts`, então tirá-la não reordena
+  pai e filho nenhum.
 
 **A coluna da direita é a do cadastro, com o que só existe depois de salvar**:
 prévia, decisão do cliente, gestão, versão, criado em e última atualização.
@@ -3231,6 +3241,30 @@ A versão que ficou não tem curinga entre `create table` e o nome da tabela. E 
 guarda foi conferida ao contrário, tirando a migração do lugar: sem ela, as duas
 asserções do `feed_story` reprovam.
 
+**E foi ela que carregou `jobs.tipo` de três para oito valores sem susto.**
+`conteudo`, `copy` e `roteiro` descrevem o que uma agência de social media
+entrega; agência de conteúdo entrega mais — o manual de marca, o deck, a
+seleção do ensaio, o layout da página, o e-mail antes do disparo. Entraram
+`branding`, `apresentacao`, `foto`, `landing` e `email`, nas **duas** metades:
+a união `JobTipo` e o `check`.
+
+Duas coisas que o TypeScript cobrou sozinho, e é por isso que elas são
+`Record<JobTipo, …>` e não um objeto solto: o mapa de ícones do menu Adicionar
+e o mapa de selos em `Badges.tsx` deixaram de compilar até cada tipo novo ter o
+seu. Tipo sem ícone não quebra nada visível — fica um buraco onde a pessoa
+escolheu alguma coisa, que é a mesma lição do ícone da etapa.
+
+E **nenhum dos cinco respeita limite de rede.** `respeitaLimiteDaRede` liga o
+contador "280 / 2.200", e ele só faz sentido onde o texto vira legenda. No
+corpo de um e-mail ou num manual de marca o número não mede nada — e pior que
+não medir: faria alguém encurtar o texto para caber num limite que não existe.
+É a mesma razão de o roteiro já estar de fora.
+
+Recriar o `check` é **reescrever a lista inteira**, e esquecer um valor que já
+está gravado é pior que esquecer o novo: o `add constraint` valida as linhas
+existentes, então a migração falharia na primeira agência que já usou copy ou
+roteiro.
+
 #### O quadro arrasta, e o mesmo gesto abre e move
 
 O comentário de `moveJobStatus` dizia, havia meses, que arrastar o card para
@@ -3274,6 +3308,31 @@ que não são gosto:
   ela sairia na primeira passada do cron —; `faltaArteDoStory` é a conferência
   que mora antes da ação; e a `descricao` do diálogo nomeia a consequência, que
   é a razão de ela ser obrigatória.
+- **E sair de "Agendado" pergunta pelo disparo, pela razão simétrica.** Esta
+  metade faltou por três entregas, e era a cara: arrastar o card para fora da
+  coluna mudava **só o status**. A `publish_queue` continuava com o item, e **no
+  dia ele publicava** — com o quadro mostrando a peça em "Em Ajuste" ou
+  "Ideias", nada na tela indicando que ia sair, e o post no perfil do cliente
+  sem volta. É a distinção que este arquivo já registra em outro lugar: *`job.
+  status` é uma coisa e a fila é outra.*
+
+  Cancelar sozinho seria o mesmo erro na direção contrária — um gesto
+  desfazendo o disparo que alguém decidiu —, então o gesto abre a pergunta e é
+  ela que faz as duas coisas.
+
+  **A fila é lida antes de perguntar**, e isso não é zelo: peça marcada como
+  agendada sem item na fila existe (era o normal antes de a fila ter produtor),
+  e perguntar "cancelar o disparo?" onde não há disparo nenhum ensina a
+  responder sim no automático — é assim que a pergunta que importa deixa de ser
+  lida. Falha de leitura **pergunta assim mesmo**, dizendo que não deu para
+  conferir: errar para esse lado custa uma pergunta a mais; errar para o outro é
+  a peça publicando num dia em que o quadro diz que ela está em ajuste.
+
+  `cancelarFilaDoConteudo` apaga só `pendente` e `falhou`, nunca `publicado` —
+  mesma regra do "tirar da fila" da tela de Publicações: apagar uma linha
+  publicada não desfaz o post, apaga o registro de que ele saiu. E ela devolve
+  **quantos** disparos saíram, porque uma peça com Instagram e Facebook tem
+  dois: "cancelado" no singular esconderia o segundo.
 - **Soltar onde a peça já estava não grava nada.** `statusAoSoltar` devolve
   `null` quando a coluna de destino já contém o status atual: sem isso,
   arrastar e desistir gravaria o mesmo status de novo, e cada gravação dessas
@@ -3589,6 +3648,25 @@ Duas coisas que a mudança corrigiu de brinde, e uma que ela custou:
 Protegido por `tests/celular.test.ts`, conferido ao contrário: devolvendo o
 `touch-none`, tirando o `comStatus` de uma das montagens da barra e o
 `flex-wrap` do cabeçalho, três asserções reprovam.
+
+#### Uma linha de cabeçalho não comporta tudo, e o que cede é sempre o errado
+
+O cabeçalho do calendário carrega o mês, a navegação, **cinco** filtros, a troca
+de visão e o Adicionar. Mês/Semana/Dia/Lista em fileira levavam ~380px, e o que
+quebrava para a segunda linha era a **barra de filtros** — roubando a altura de
+que a grade do mês precisa, que é o assunto da tela.
+
+Recolhido num seletor, aquilo ocupa ~110px e a linha fecha inteira. **O preço é
+real e foi escolhido:** em fileira as quatro opções estão à vista e trocar é um
+clique; recolhido são dois, e quem nunca abrir não descobre que "Lista" existe.
+O que compensa é o gatilho **dizer a visão escolhida** — ele é "Mês" com o ícone
+do mês, não um botão "Visão" —, que é a regra que a barra de filtros ao lado já
+segue: o controle mostra o valor, não o nome do campo.
+
+Vale a generalização: **quando uma linha não fecha, o que some é o que estava
+mais à direita, não o menos importante.** Decidir qual controle recolhe é parte
+do desenho da linha; deixar o `flex-wrap` decidir é deixar a largura da tela
+decidir.
 
 #### O canto da modal é da caixa, e o filho pinta por cima dele
 

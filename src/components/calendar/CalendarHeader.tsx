@@ -2,9 +2,9 @@ import React from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
   Calendar as CalendarIcon, 
   Filter,
-  Layers,
   Columns,
   List,
   Clock
@@ -14,6 +14,14 @@ import { CalendarViewMode } from '../../types';
 import { AlternarVisaoDoWorkflow } from '../common/AlternarVisaoDoWorkflow';
 import { BarraDeFiltrosDoConteudo } from '../common/BarraDeFiltrosDoConteudo';
 import { AdicionarConteudo } from '../common/AdicionarConteudo';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 
 interface CalendarHeaderProps {
@@ -55,6 +63,10 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     { id: 'day', label: 'Dia', icon: <Clock className="w-3.5 h-3.5" /> },
     { id: 'list', label: 'Lista', icon: <List className="w-3.5 h-3.5" /> },
   ];
+
+  /* O gatilho diz a visão escolhida, não o nome do campo — a mesma regra dos
+     chips de filtro ao lado. Visão desconhecida cai no mês, que é o padrão. */
+  const visaoAtual = viewOptions.find((v) => v.id === calendarView) ?? viewOptions[0];
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-3.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
@@ -152,27 +164,46 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           Filtros
         </Button>
 
-        {/* View Switcher: Month, Week, Day, List */}
-        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
-          {viewOptions.map(view => {
-            const isActive = calendarView === view.id;
-            return (
-              <button
-                key={view.id}
-                id={`btn-cal-view-${view.id}`}
-                onClick={() => setCalendarView(view.id)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
-                  isActive
-                    ? 'bg-white dark:bg-slate-900 text-purple-700 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white'
-                }`}
-              >
-                {view.icon}
-                <span>{view.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/*
+          **Mês / Semana / Dia / Lista virou um seletor, e isso custou uma
+          afordância de propósito.**
+
+          Os quatro em fileira levavam ~380px de uma linha que também carrega o
+          mês, a navegação, cinco filtros, a troca de visão e o Adicionar — e o
+          que cedia era a **barra de filtros**, que quebrava para uma segunda
+          linha e roubava a altura de que a grade do mês precisa. Recolhido, o
+          seletor ocupa ~110px e a linha fecha inteira.
+
+          O preço é real: em fileira, as quatro opções estão à vista e trocar é
+          um clique; recolhido são dois, e quem nunca abrir não descobre que
+          "Lista" existe. O que compensa é o gatilho **dizer a visão escolhida**
+          — ele não é um botão "Visão", é "Mês" com o ícone do mês —, que é a
+          mesma regra dos chips de filtro ao lado: o controle mostra o valor,
+          não o nome do campo.
+        */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" aria-label={`Visão: ${visaoAtual.label}`}>
+              {visaoAtual.icon}
+              {visaoAtual.label}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel>Desenhar o mês como</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={calendarView}
+              onValueChange={(v) => setCalendarView(v as CalendarViewMode)}
+            >
+              {viewOptions.map((view) => (
+                <DropdownMenuRadioItem key={view.id} value={view.id}>
+                  {view.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* A troca de visão fica colada no botão de criar, à direita: ela não
             é um filtro, é a escolha de qual tela se está olhando. No meio dos

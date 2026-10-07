@@ -16,8 +16,13 @@ auth.users ──< workspace_members >── workspaces
                                           │
         clients, jobs, leads, proposals, contracts,
         automations, notifications, activity_logs,
-        client_materials, timesheet_logs, squads
+        client_materials, timesheet_logs*, squads
 ```
+
+`*` `timesheet_logs` continua no banco com o que já foi apontado, mas **o app
+não a carrega nem a sincroniza** desde a 3.9.0: o apontamento de horas perdeu a
+tela, e com ela o leitor e o escritor. A tabela não foi removida porque `drop`
+de tabela com dado de agência é outra decisão.
 
 Criar agência passa obrigatoriamente pela RPC `public.criar_agencia(nome, nome_do_usuario)`:
 `workspaces` não tem política de INSERT, então não há caminho direto.
