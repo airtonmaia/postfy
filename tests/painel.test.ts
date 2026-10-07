@@ -165,3 +165,41 @@ describe('o interruptor é uma peça só', () => {
     expect(culpados).toEqual([]);
   });
 });
+
+describe('a linha de cima do painel', () => {
+  const painel = semComentarios(
+    readFileSync('src/components/dashboard/DashboardView.tsx', 'utf-8')
+  );
+
+  /**
+   * O botão de personalizar ficava sozinho numa linha inteira, à direita de um
+   * vazio. Linha com um controle só e nada do outro lado lê como pedaço que
+   * falta carregar — e ela estava no topo, que é a primeira coisa que se vê.
+   */
+  it('o cumprimento ocupa o lado que estava vazio', () => {
+    const cumprimento = painel.indexOf('Olá{primeiroNome');
+    const botao = painel.indexOf('Personalizar o painel');
+    expect(cumprimento).toBeGreaterThan(-1);
+    expect(cumprimento).toBeLessThan(botao);
+  });
+
+  /**
+   * **O primeiro nome, não o nome inteiro:** "Olá, Ana Paula Souza" é um
+   * cumprimento que ninguém faz.
+   */
+  it('cumprimenta pelo primeiro nome', () => {
+    expect(painel).toMatch(/primeiroNome = \(currentUser\?\.name \|\| ''\)/);
+    expect(painel).toContain(".split(/\s+/)[0]");
+  });
+
+  /**
+   * A data é do fuso da **agência**. Num aparelho com fuso errado, ou numa
+   * pessoa em outro estado, o "hoje" do cumprimento brigaria com o "hoje" das
+   * publicações logo abaixo (armadilha 8.2). `safeDateFormat` já aplica o fuso
+   * por omissão — escrever `toLocaleDateString` aqui seria o caminho de errar.
+   */
+  it('a data passa pelo formatador do projeto', () => {
+    expect(painel).toContain('safeDateFormat(new Date()');
+    expect(painel).not.toContain('toLocaleDateString');
+  });
+});

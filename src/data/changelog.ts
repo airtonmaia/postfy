@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.16.1',
+    data: '2026-10-07',
+    resumo: 'O painel abre cumprimentando, com a data do dia.',
+    melhorias: [
+      'A linha de cima do Dashboard traz "Olá, {seu nome}" e a data por extenso — o botão de personalizar estava sozinho ali, à direita de um vazio.',
+      'A data é a do fuso da agência, como o resto do produto: num aparelho com fuso errado, o "hoje" do cumprimento brigaria com o "hoje" das publicações logo abaixo.',
+    ],
+  },
+  {
     versao: '3.16.0',
     data: '2026-10-07',
     resumo: 'Você escolhe o que o painel mostra.',

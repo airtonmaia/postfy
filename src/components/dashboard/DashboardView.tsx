@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { safeTimeFormat } from '../../lib/utils';
+import { safeTimeFormat, safeDateFormat } from '../../lib/utils';
 import { 
   TrendingUp, 
   AlertTriangle, 
@@ -57,6 +57,7 @@ export const DashboardView: React.FC = () => {
     activityLogs,
     clientFilter,
     currentWorkspace,
+    currentUser,
     painelOculto,
     setPainelOculto
   } = usePostfy();
@@ -111,6 +112,8 @@ export const DashboardView: React.FC = () => {
     espaço do que saiu: o card fica com metade da largura e um vazio ao lado,
     que lê como defeito e não como escolha.
   */
+  const primeiroNome = (currentUser?.name || '').trim().split(/s+/)[0] || '';
+
   const topoCheio = !estreita && mostra('saude') && mostra('insights');
   const meioCheio = mostra('publicacoes') && mostra('clientes');
 
@@ -121,12 +124,34 @@ export const DashboardView: React.FC = () => {
         tela, e no cabeçalho global apareceria em todas as outras, oferecendo
         um ajuste que não existe lá.
       */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          {/*
+            **O primeiro nome, não o nome inteiro.** "Olá, Ana Paula Souza" é
+            um cumprimento que ninguém faz; e ele não é capitalizado aqui
+            porque foi a pessoa quem o escreveu no próprio perfil — arrumar a
+            caixa seria a tela corrigindo o nome de alguém.
+          */}
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-white truncate">
+            Olá{primeiroNome ? `, ${primeiroNome}` : ''} <span aria-hidden>👋</span>
+          </h2>
+          {/*
+            A data é do fuso da **agência**, como todo formatador deste
+            projeto: num aparelho com fuso errado — ou numa pessoa em outro
+            estado — o "hoje" do cumprimento brigaria com o "hoje" das
+            publicações logo abaixo (armadilha 8.2).
+          */}
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            {safeDateFormat(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+
         <Button
           variant="ghost"
           onClick={() => setPersonalizando(true)}
           aria-label="Personalizar o painel"
           title="Personalizar o painel"
+          className="shrink-0"
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Personalizar</span>
