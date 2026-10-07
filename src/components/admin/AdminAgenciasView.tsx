@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
-import { Plus, Trash2, ExternalLink, Search, Edit3, Users, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Search, Edit3, Users, RotateCcw, AlertTriangle, FileSearch } from 'lucide-react';
 import { DIAS_NA_LIXEIRA, diasAteOExpurgo } from '../../lib/lixeira';
 import { carregarContagensPorAgencia, type ContagensDaAgencia } from '../../lib/numerosDoSaas';
 import { safeDateFormat } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { FichaDaAgencia } from './FichaDaAgencia';
 
 export const AdminAgenciasView: React.FC = () => {
   /**
@@ -28,6 +29,9 @@ export const AdminAgenciasView: React.FC = () => {
   } = usePostfy();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingWs, setEditingWs] = useState<any | null>(null);
+  /* A ficha guarda só o id: o objeto da lista tem o que a lista carregou, e a
+     ficha lê o que o banco sabe — manter os dois seria duas verdades. */
+  const [fichaDe, setFichaDe] = useState<string | null>(null);
 
   /**
    * Quantas pessoas, clientes e conteúdos cada agência tem.
@@ -235,6 +239,17 @@ export const AdminAgenciasView: React.FC = () => {
                   <ExternalLink className="w-3.5 h-3.5" />
                   {isCurrent ? 'Atual' : 'Acessar'}
                 </button>
+
+                {/* A ficha vem **antes** do editar: a pergunta que se faz
+                    olhando para um card é "o que é isto?", e editar é o que se
+                    faz depois de saber. */}
+                <Button variant="secondary" size="icon-sm"
+                  onClick={() => setFichaDe(ws.id)}
+                  title="Ver a ficha completa da agência"
+                  className="text-slate-600 hover:text-purple-600 dark:hover:text-purple-400"
+                >
+                  <FileSearch className="w-4 h-4" />
+                </Button>
 
                 <Button variant="secondary" size="icon-sm"
                   onClick={() => handleOpenEdit(ws)}
@@ -469,6 +484,8 @@ export const AdminAgenciasView: React.FC = () => {
           </DialogContent>
         )}
       </Dialog>
+
+      <FichaDaAgencia workspaceId={fichaDe} aoFechar={() => setFichaDe(null)} />
 
       {/* Sem isto na árvore, o botão da lixeira não faz nada — sem erro, sem
           pergunta, sem pista. É a falha silenciosa do `useConfirmacao`. */}

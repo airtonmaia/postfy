@@ -31,6 +31,18 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.11.0',
+    data: '2026-10-07',
+    resumo: 'A ficha completa da agência, no painel do produto.',
+    novidades: [
+      'Cada agência em Admin → Agências ganhou uma ficha: quem a abriu, quando, a equipe inteira com papel e último acesso, o tamanho da base, o histórico de ações e a cobrança.',
+      'Os acessos registrados aparecem com IP e data, quando o registro do Supabase está disponível — ele é podado, e a tela diz isso em vez de mostrar uma lista vazia.',
+    ],
+    melhorias: [
+      'A ficha nomeia o que não é medido: cidade do IP, tempo de sessão e navegação. Campo vazio ali leria como dado faltando.',
+    ],
+  },
+  {
     versao: '3.10.0',
     data: '2026-10-07',
     resumo: 'A ordem das colunas do quadro passou a ser da agência.',

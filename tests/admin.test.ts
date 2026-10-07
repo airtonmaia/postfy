@@ -11,6 +11,7 @@ import {
 } from '../src/lib/rotas';
 import { podeAcessarAba } from '../src/lib/permissions';
 import type { TabType } from '../src/types';
+import { semComentarios } from './util/semComentarios';
 
 /**
  * A área do dono do produto.
@@ -228,5 +229,89 @@ describe('SEO alcança quem a tela diz que alcança', () => {
     expect(componente).toMatch(/seoTitulo/);
     expect(componente).toMatch(/seoDescricao/);
     expect(componente).toMatch(/seoImagemUrl/);
+  });
+});
+
+/**
+ * **A ficha da agência diz o que mediu, e nomeia o que não mediu.**
+ *
+ * Ela reúne o que estava espalhado — `workspaces`, `workspace_members`,
+ * `auth.users`, `activity_logs`, a auditoria do Supabase — e o risco dela é o
+ * do Financeiro que somava `agências × R$ 197`: três coisas foram pedidas e
+ * **não são medidas** (cidade do IP, tempo de sessão, navegação). Campo vazio
+ * para essas três leria como dado faltando, e dado faltando numa tela do dono
+ * do produto vira decisão.
+ */
+describe('a ficha da agência', () => {
+  const migracao = readFileSync(
+    'supabase/migrations/20261007140000_detalhes_da_agencia.sql',
+    'utf-8'
+  );
+  const ficha = readFileSync('src/components/admin/FichaDaAgencia.tsx', 'utf-8');
+
+  it('só o admin da plataforma lê, e `anon` não alcança', () => {
+    expect(migracao, 'a ficha deixou de conferir quem está chamando').toMatch(
+      /if not private\.eh_admin_da_plataforma\(\)/
+    );
+    expect(migracao, 'a ficha ficou alcançável por sessão anônima').toMatch(
+      /revoke all on function public\.admin_detalhes_da_agencia\(uuid\) from public, anon/
+    );
+  });
+
+  it('a auditoria do Supabase é opcional, e a tela sabe disso', () => {
+    /*
+      `auth.audit_log_entries` é interna, pode não estar legível e **é
+      podada**. Com um `select` direto, a ficha inteira falharia por causa da
+      parte menos importante dela; e sem a bandeira, uma lista vazia diria com
+      cara de certo que ninguém nunca entrou.
+    */
+    expect(migracao, 'a leitura da auditoria voltou a ser obrigatória').toMatch(
+      /to_regclass\('auth\.audit_log_entries'\)/
+    );
+    expect(migracao, 'a falha na auditoria voltou a derrubar a ficha inteira').toMatch(
+      /exception when others then/
+    );
+    expect(migracao, 'a bandeira de "dá para ler acessos" sumiu').toMatch(
+      /'acessos_disponiveis'/
+    );
+    expect(
+      ficha,
+      'a tela deixou de distinguir "nenhum acesso" de "não dá para ler acessos"'
+    ).toMatch(/!dados\.acessosDisponiveis/);
+  });
+
+  it('a tela nomeia as três coisas que não são medidas', () => {
+    /*
+      Não é ressalva, é o conteúdo da tela: quem lê precisa saber que o traço
+      ali é ausência de medição, e não ausência do fato.
+    */
+    const semComentario = semComentarios(ficha);
+    for (const [assunto, trecho] of [
+      ['cidade do IP', /não são\s*\{?'?\s*\}?\s*medidos|Cidade e país não são/],
+      ['tempo de sessão', /quanto tempo ficou não são medidos|não há registro de/],
+      ['navegação', /navegação|Que tela cada pessoa abriu/],
+    ] as const) {
+      expect(semComentario, `a ficha parou de dizer que ${assunto} não é medido`).toMatch(
+        trecho
+      );
+    }
+  });
+
+  it('quem abriu a agência é derivado, e a tela diz de onde', () => {
+    /*
+      Não existe coluna de autoria em `workspaces`: a resposta é o vínculo mais
+      antigo, porque `criar_agencia` faz de quem chama o dono no mesmo instante.
+      Uma tela que mostrasse isso como "Criado por" sem dizer a origem estaria
+      afirmando um registro que não existe.
+    */
+    expect(migracao, 'a ficha passou a ler uma coluna de autoria que não existe').not.toMatch(
+      /ws\.created_by/
+    );
+    expect(migracao, 'o vínculo mais antigo deixou de ser quem abriu').toMatch(
+      /order by m\.created_at asc/
+    );
+    expect(semComentarios(ficha), 'a tela não diz mais de onde sai "quem abriu"').toMatch(
+      /vínculo mais antigo/
+    );
   });
 });
