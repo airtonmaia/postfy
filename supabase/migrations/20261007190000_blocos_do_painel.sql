@@ -1,0 +1,31 @@
+-- =====================================================================
+-- Quais blocos do painel cada pessoa quer ver.
+--
+-- A preferência é **da pessoa**, não da agência: duas pessoas da mesma equipe
+-- olham o painel por motivos diferentes — quem produz quer as publicações de
+-- hoje, quem administra quer a saúde e os clientes. E ela mora no Postgres
+-- pela armadilha 4: no `localStorage` a escolha ficaria presa a um navegador,
+-- e a mesma pessoa abriria o celular com tudo de volta.
+--
+-- ### Guarda o que está **escondido**, não o que está visível
+--
+-- Essa inversão é a decisão inteira. Guardando a lista do que aparece, todo
+-- bloco novo nasceria **fora** dela — e nunca apareceria para ninguém que já
+-- tivesse salvado a preferência uma vez, sem erro em lugar nenhum. É a mesma
+-- razão de `fluxoDeProducao` não gravar as sete etapas na primeira abertura:
+-- o que a pessoa não mexeu não é guardado, senão o padrão de hoje fica
+-- congelado e a próxima melhoria do produto não chega nela.
+--
+-- Com a lista do que está escondido, bloco novo aparece para todo mundo por
+-- omissão, e a pessoa esconde se quiser.
+--
+-- ### Sem `check` de lista fechada, de propósito
+--
+-- Um id desconhecido aqui não quebra nada: a tela ignora o que não reconhece.
+-- Um `check` faria o bloco renomeado no código derrubar a gravação inteira das
+-- preferências — a troca errada para um campo de aparência, como em
+-- `sanearFluxo`.
+-- =====================================================================
+
+alter table public.user_settings
+    add column if not exists painel_oculto text[] not null default '{}'::text[];

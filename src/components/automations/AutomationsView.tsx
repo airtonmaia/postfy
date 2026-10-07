@@ -14,6 +14,7 @@ import {
 import { EVENTOS_DISPONIVEIS, ACOES_DISPONIVEIS } from '../../lib/automacoes';
 import type { Automation } from '../../types';
 import { Button } from '../ui/button';
+import { Interruptor } from '../ui/interruptor';
 
 /**
  * Automações.
@@ -268,15 +269,13 @@ export const AutomationsView: React.FC = () => {
                     <Trash2 className="w-4 h-4" />
                   </Button>
 
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={auto.enabled}
-                      onChange={() => toggleAutomation(auto.id)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600" />
-                  </label>
+                  {/* O interruptor virou peça: ele passou a existir em duas
+                      telas, e duas cópias divergem na primeira pressa. */}
+                  <Interruptor
+                    ligado={auto.enabled}
+                    aoMudar={() => toggleAutomation(auto.id)}
+                    rotulo={auto.enabled ? 'Desligar automação' : 'Ligar automação'}
+                  />
                 </div>
               </div>
             </div>

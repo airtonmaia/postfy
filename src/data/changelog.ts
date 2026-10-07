@@ -31,6 +31,21 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.16.0',
+    data: '2026-10-07',
+    resumo: 'Você escolhe o que o painel mostra.',
+    novidades: [
+      'Botão "Personalizar" no Dashboard: cada bloco liga e desliga — saúde operacional, insights, atalhos, indicadores, publicações de hoje, saúde dos clientes e atividades.',
+      'A escolha é sua e segue com você: fica na sua conta, não no navegador, e não muda o painel de quem divide a agência.',
+    ],
+    melhorias: [
+      'A lista oferecida é a da tela em que você está: no celular não aparecem interruptores para blocos que o celular não desenha.',
+      'Com um lado escondido, a linha encolhe em vez de deixar metade vazia ao lado do card.',
+      'O que é guardado é o que você escondeu — bloco novo do produto nasce visível para todo mundo, em vez de ficar de fora para quem já tinha personalizado.',
+      'O interruptor virou peça do sistema: ele existia escrito à mão só em Automações, e agora é o mesmo nos dois lugares.',
+    ],
+  },
+  {
     versao: '3.15.0',
     data: '2026-10-07',
     resumo: 'No celular, o Dashboard abre com o menu na mão.',

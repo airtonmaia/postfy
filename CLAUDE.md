@@ -5537,6 +5537,58 @@ sobre a arte no portal (onde o `ghost` do primitivo sumiria sobre a foto). O que
 a guarda reprova é um X desenhado no cabeçalho — o mesmo botão, em outra
 posição.
 
+#### O painel é personalizável, e o que se guarda é o que foi **escondido**
+
+Cada pessoa olha o Dashboard por um motivo: quem produz quer as publicações de
+hoje, quem administra quer a saúde e os clientes. A preferência é **da
+pessoa**, em `user_settings.painel_oculto` — no `localStorage` ficaria presa
+a um navegador (armadilha 4), e a mesma pessoa abriria o celular com tudo de
+volta.
+
+**A coluna guarda o que está escondido, e essa inversão é a decisão inteira.**
+Guardando a lista do que *aparece*, todo bloco novo nasceria fora dela — e
+nunca chegaria a quem já salvou a preferência uma vez, sem erro em lugar
+nenhum. É a mesma razão de `sanearFluxo` não gravar as sete etapas na
+primeira abertura: *o que a pessoa não mexeu não é guardado*, senão o padrão de
+hoje congela e a próxima melhoria do produto não alcança quem já configurou.
+
+Pelo mesmo motivo a coluna **não tem `check` de lista fechada**: id
+desconhecido ali não quebra nada, porque a tela ignora o que não reconhece —
+enquanto um `check` faria o bloco renomeado no código derrubar a gravação
+inteira das preferências.
+
+Quatro decisões no desenho:
+
+- **A lista de blocos mora fora do componente** (`src/lib/blocosDoPainel.ts`):
+  ela é desenhada pelo Dashboard e configurada pela tela de personalização.
+  Duas listas dão os dois piores desfechos — um bloco que ninguém consegue
+  desligar, ou um interruptor que não liga nada —, e os dois são mudos. A
+  guarda **deriva**: todo bloco da lista precisa de `mostra('id')` na tela.
+- **Só se oferece o que a largura tem.** A saúde e os insights não existem no
+  celular; os atalhos não existem no computador. Interruptor para o que a tela
+  não desenha é oferecer o que não acontece — a família do "Feed + Story" no
+  Facebook antes de existir publicador de story lá.
+- **A linha encolhe quando sobra um lado só.** Os dois cards do topo dividem
+  uma linha de três colunas, e os dois do meio uma de duas: com um escondido, a
+  grade continuaria reservando o espaço do que saiu, e meia largura com um
+  vazio ao lado lê como defeito, não como escolha.
+- **Grava a cada toque, sem botão de salvar.** O resultado está atrás do
+  diálogo e aparece quando ele fecha; um "salvar" criaria o estado em que a
+  tela já mudou e o banco ainda não — e quem fechasse sem clicar perderia a
+  escolha sem aviso.
+
+**E o interruptor virou peça.** Ele existia escrito à mão numa tela só
+(Automações) e passou a existir em duas — que é exatamente onde as doze
+alturas de botão começaram. `src/components/ui/interruptor.tsx` tem as
+**mesmas** classes levantadas de lá, e é `<label>` com `checkbox` escondido,
+não um `div` com `onClick`: assim vêm de graça o foco pelo teclado, o espaço
+alternando e o estado lido por leitor de tela. A guarda deriva de novo — quem
+escrever `peer-checked` fora do primitivo aparece nela.
+
+Protegido por `tests/painel.test.ts`, conferido ao contrário: fazendo
+`blocoVisivel` recusar id desconhecido e tirando a guarda de um bloco da tela,
+duas asserções reprovam.
+
 #### No celular o Dashboard abre com o menu, e a lista do menu é uma só
 
 O cartão de saúde da agência e os insights ocupam **duas telas inteiras** de um
@@ -5979,6 +6031,8 @@ src/components/kanban/CartaoDoQuadro.tsx  o card do quadro: um desenho só, na c
 src/components/common/AdicionarConteudo.tsx  criar peça: o mesmo botão no quadro e no calendário
 src/components/layout/menuDaAgencia.ts  a lista do menu: barra lateral e atalhos leem a mesma
 src/components/dashboard/AtalhosDoMenu.tsx  o menu em ladrilhos, no Dashboard do celular
+src/lib/blocosDoPainel.ts  os blocos do painel; guarda o que foi escondido, não o que aparece
+src/components/ui/interruptor.tsx  liga e desliga, com as classes que já estavam em tela
 src/lib/financeiro.ts      lançamentos, caixas e as somas do mês; centavos inteiros
 src/components/financeiro/ as cinco telas do Financeiro, num chunk só
 src/lib/automacoes.ts      motor: evento tipado → ação

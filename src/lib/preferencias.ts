@@ -17,18 +17,28 @@ export interface Preferencias {
   lastWorkspaceId: string | null;
   /** Barra lateral em modo trilho, só com os ícones. */
   sidebarRecolhida: boolean;
+  /**
+   * Os blocos do painel que esta pessoa **escondeu**.
+   *
+   * Guarda o que está escondido, nunca o que aparece: com a lista do que
+   * aparece, todo bloco novo nasceria fora dela e não chegaria a quem já
+   * salvou a preferência uma vez — sem erro em lugar nenhum. É a mesma razão
+   * de `sanearFluxo` não gravar as sete etapas na primeira abertura.
+   */
+  painelOculto: string[];
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   theme: 'light',
   lastWorkspaceId: null,
   sidebarRecolhida: false,
+  painelOculto: [],
 };
 
 export const carregarPreferencias = async (): Promise<Preferencias> => {
   const { data, error } = await supabase
     .from('user_settings')
-    .select('theme, last_workspace_id, sidebar_recolhida')
+    .select('theme, last_workspace_id, sidebar_recolhida, painel_oculto')
     .maybeSingle();
 
   if (error) {
@@ -41,6 +51,7 @@ export const carregarPreferencias = async (): Promise<Preferencias> => {
     theme: data.theme === 'dark' ? 'dark' : 'light',
     lastWorkspaceId: data.last_workspace_id ?? null,
     sidebarRecolhida: Boolean(data.sidebar_recolhida),
+    painelOculto: Array.isArray(data.painel_oculto) ? data.painel_oculto : [],
   };
 };
 
@@ -60,6 +71,7 @@ export const salvarPreferencias = async (mudancas: Partial<Preferencias>): Promi
   if (mudancas.theme !== undefined) linha.theme = mudancas.theme;
   if (mudancas.lastWorkspaceId !== undefined) linha.last_workspace_id = mudancas.lastWorkspaceId;
   if (mudancas.sidebarRecolhida !== undefined) linha.sidebar_recolhida = mudancas.sidebarRecolhida;
+  if (mudancas.painelOculto !== undefined) linha.painel_oculto = mudancas.painelOculto;
 
   const { error } = await supabase.from('user_settings').upsert(linha, { onConflict: 'user_id' });
 

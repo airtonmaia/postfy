@@ -115,6 +115,9 @@ interface PostfyContextType {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   sidebarRecolhida: boolean;
+  /** Blocos do painel que esta pessoa escondeu. */
+  painelOculto: string[];
+  setPainelOculto: (ocultos: string[]) => void;
   setSidebarRecolhida: (recolhida: boolean) => void;
   
   // Workspaces & Users
@@ -670,9 +673,11 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       lastWorkspaceId,
       theme: temaSalvo,
       sidebarRecolhida: recolhidaSalva,
+      painelOculto: painelSalvo,
     } = await carregarPreferencias();
     setThemeState(temaSalvo);
     setSidebarRecolhidaState(recolhidaSalva);
+    setPainelOcultoState(painelSalvo);
     let sessao = await carregarSessao(lastWorkspaceId);
 
     /*
@@ -920,6 +925,18 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setSidebarRecolhida = (recolhida: boolean) => {
     setSidebarRecolhidaState(recolhida);
     void salvarPreferencias({ sidebarRecolhida: recolhida });
+  };
+
+  /*
+    Mora aqui pela mesma razão da barra recolhida: é preferência da pessoa,
+    vem do banco com o tema, e no `localStorage` ficaria presa a um navegador
+    (armadilha 4) — a mesma pessoa abriria o celular com tudo de volta.
+  */
+  const [painelOculto, setPainelOcultoState] = useState<string[]>([]);
+
+  const setPainelOculto = (ocultos: string[]) => {
+    setPainelOcultoState(ocultos);
+    void salvarPreferencias({ painelOculto: ocultos });
   };
 
   // Sync theme with document class
@@ -2834,6 +2851,8 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         theme,
         setTheme,
         sidebarRecolhida,
+        painelOculto,
+        setPainelOculto,
         setSidebarRecolhida,
         workspaces,
         currentWorkspace,

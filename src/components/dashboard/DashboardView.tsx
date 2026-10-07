@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Activity,
   Layers,
-  ArrowRight
+  ArrowRight,
+  SlidersHorizontal
 } from 'lucide-react';
 import { PlatformBadge, StatusBadge, FormatBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
@@ -22,6 +23,8 @@ import { Button } from '../ui/button';
 import { derivarInsights, type ParteDoTexto } from '../../lib/insights';
 import { useTelaEstreita } from '../../lib/telaEstreita';
 import { AtalhosDoMenu } from './AtalhosDoMenu';
+import { PersonalizarPainel } from './PersonalizarPainel';
+import { blocoVisivel, type IdDoBloco } from '../../lib/blocosDoPainel';
 
 /**
  * O texto do insight, com o nome do cliente em negrito.
@@ -53,7 +56,9 @@ export const DashboardView: React.FC = () => {
     openCreateJobModal,
     activityLogs,
     clientFilter,
-    currentWorkspace
+    currentWorkspace,
+    painelOculto,
+    setPainelOculto
   } = usePostfy();
 
   const primary = currentWorkspace?.primaryColor || '#9333ea';
@@ -91,9 +96,43 @@ export const DashboardView: React.FC = () => {
   */
   const insights = derivarInsights(displayedJobs, clients);
   const estreita = useTelaEstreita();
+  const [personalizando, setPersonalizando] = React.useState(false);
+
+  /*
+    O que aparece é decisão da pessoa, lida do banco. A lista guardada é a do
+    que está **escondido**: com a lista do que aparece, bloco novo nasceria
+    fora dela e nunca chegaria a quem já salvou a preferência uma vez.
+  */
+  const mostra = (id: IdDoBloco) => blocoVisivel(id, painelOculto);
+
+  /*
+    Os dois do topo dividem uma linha de três colunas, e os dois de baixo
+    dividem uma de duas. Com um deles escondido, a linha continua reservando o
+    espaço do que saiu: o card fica com metade da largura e um vazio ao lado,
+    que lê como defeito e não como escolha.
+  */
+  const topoCheio = !estreita && mostra('saude') && mostra('insights');
+  const meioCheio = mostra('publicacoes') && mostra('clientes');
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 space-y-6">
+      {/*
+        O botão fica **aqui**, e não no cabeçalho do app: ele personaliza esta
+        tela, e no cabeçalho global apareceria em todas as outras, oferecendo
+        um ajuste que não existe lá.
+      */}
+      <div className="flex items-center justify-end">
+        <Button
+          variant="ghost"
+          onClick={() => setPersonalizando(true)}
+          aria-label="Personalizar o painel"
+          title="Personalizar o painel"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Personalizar</span>
+        </Button>
+      </div>
+
       {/*
         **No celular o cartão de saúde e os insights saem da tela, e no lugar
         deles entram os atalhos.**
@@ -111,13 +150,15 @@ export const DashboardView: React.FC = () => {
         nenhum.
       */}
       {estreita ? (
-        <AtalhosDoMenu />
+        mostra('atalhos') && <AtalhosDoMenu />
       ) : (
         <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {(mostra('saude') || mostra('insights')) && (
+      <div className={`grid grid-cols-1 gap-5 ${topoCheio ? 'lg:grid-cols-3' : ''}`}>
         {/* Main Agency Health Card */}
+        {mostra('saude') && (
         <div 
-          className="lg:col-span-2 text-white rounded-2xl shadow-md relative overflow-hidden flex flex-col"
+          className={`${topoCheio ? 'lg:col-span-2' : ''} text-white rounded-2xl shadow-md relative overflow-hidden flex flex-col`}
           style={{
             background: `linear-gradient(to bottom right, ${primary}, ${secondary})`,
             border: `1px solid ${secondary}66`
@@ -240,7 +281,10 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
+        )}
+
         {/* Quick Insights Card */}
+        {mostra('insights') && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -310,11 +354,14 @@ export const DashboardView: React.FC = () => {
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>
         </div>
+        )}
       </div>
+      )}
         </>
       )}
 
       {/* KPI Cards Row */}
+      {mostra('indicadores') && (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-slate-400 block">Em Produção</span>
@@ -352,10 +399,13 @@ export const DashboardView: React.FC = () => {
           <span className="text-[10px] text-slate-400 block mt-0.5">Concluídos</span>
         </div>
       </div>
+      )}
 
       {/* Grid: Publicações de Hoje + Gargalos por Cliente */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {(mostra('publicacoes') || mostra('clientes')) && (
+      <div className={`grid grid-cols-1 gap-6 ${meioCheio ? 'lg:grid-cols-2' : ''}`}>
         {/* Publicações de Hoje */}
+        {mostra('publicacoes') && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -405,7 +455,10 @@ export const DashboardView: React.FC = () => {
           </Button>
         </div>
 
+        )}
+
         {/* Clientes & Retrabalho */}
+        {mostra('clientes') && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -463,9 +516,12 @@ export const DashboardView: React.FC = () => {
             })}
           </div>
         </div>
+        )}
       </div>
+      )}
 
       {/* Atividades Recentes (Audit log) */}
+      {mostra('atividades') && (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -492,6 +548,15 @@ export const DashboardView: React.FC = () => {
           ))}
         </div>
       </div>
+      )}
+
+      <PersonalizarPainel
+        aberto={personalizando}
+        aoFechar={() => setPersonalizando(false)}
+        estreita={estreita}
+        ocultos={painelOculto}
+        aoMudar={setPainelOculto}
+      />
     </div>
   );
 };
