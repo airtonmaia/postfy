@@ -31,6 +31,15 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.10.0',
+    data: '2026-10-07',
+    resumo: 'A ordem das colunas do quadro passou a ser da agência.',
+    novidades: [
+      'Em Configurações → Conteúdos, arraste as etapas pela alça para mudar a ordem. Ela vale no quadro, na trilha da peça e no filtro de etapa.',
+      'As sete etapas continuam todas lá: a ordem muda onde cada uma aparece, nunca quem aparece — coluna escondida é trabalho escondido.',
+    ],
+  },
+  {
     versao: '3.9.1',
     data: '2026-10-07',
     resumo: 'A navegação do mês ficou numa peça só, e o botão "Hoje" saiu.',

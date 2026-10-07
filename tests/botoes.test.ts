@@ -114,10 +114,9 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/admin/AdminAgenciasView.tsx',         // aba
   'src/components/admin/AdminSeoView.tsx',              // aba
   'src/components/auth/LoginView.tsx',                  // alternador de modo
-  'src/components/calendar/CalendarHeader.tsx',         // seletor de visão
+  'src/components/calendar/CalendarHeader.tsx',         // rótulo do mês, que é o atalho para hoje
   'src/components/common/AlternarVisaoDoWorkflow.tsx',  // seletor de visão (quadro/calendário)
   'src/components/kanban/ClientesDoQuadro.tsx',         // card clicável: foto e nome em bloco
-  'src/components/calendar/CalendarSidebar.tsx',        // dia do mini calendário
   'src/components/calendar/ConteudosDoDia.tsx',         // card clicável: miniatura, título e selos em bloco
   'src/components/calendar/MonthView.tsx',              // casinha do mês no celular: alvo que cobre a célula
   'src/components/calendar/WeekView.tsx',               // "+" na célula de 16px
@@ -135,6 +134,7 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/modals/SearchModal.tsx',              // resultado de busca
   'src/components/portal/ClientPortalView.tsx',         // card de job no portal
   'src/components/reports/ReportsView.tsx',             // aba
+  'src/components/settings/tabs/SettingsConteudos.tsx', // alça de arrastar: afordância de 16px
   'src/components/settings/tabs/SettingsPreferences.tsx', // opção selecionável
   'src/components/settings/tabs/SettingsUsers.tsx',     // aba
 ]);

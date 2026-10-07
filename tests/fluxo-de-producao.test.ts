@@ -7,6 +7,7 @@ import {
   ICONES_DA_ETAPA,
   estourouOSla,
   etapasDoFluxo,
+  reordenarFluxo,
   sanearFluxo,
 } from '../src/lib/fluxoDeProducao';
 import { ETAPAS_DO_CONTEUDO } from '../src/lib/etapasDoConteudo';
@@ -360,5 +361,113 @@ describe('o ícone da etapa', () => {
 
     const ruim = sanearFluxo({ ideas: { icone: 'nave-espacial' } });
     expect(ruim.ideas, 'ícone inventado virou um ajuste vazio').toBeUndefined();
+  });
+});
+
+/**
+ * **A ordem das etapas é da agência — e nenhuma pode sumir por causa dela.**
+ *
+ * O quadro desenhava sempre a mesma sequência, que é a de quem faz post. Quem
+ * aprova antes de produzir lia o quadro de trás para frente toda vez.
+ *
+ * O risco de deixar a ordem ser editada é um só, e é grave: uma coluna que
+ * desaparece esconde o trabalho que está dentro dela. Por isso a ordem é um
+ * **número por etapa** e não uma lista de status — a lista desenhada continua
+ * sendo `ETAPAS_DO_CONTEUDO` inteira, ordenada por um critério.
+ */
+describe('a ordem das etapas', () => {
+  const statusDe = (fluxo?: Parameters<typeof etapasDoFluxo>[0]) =>
+    etapasDoFluxo(fluxo).map((e) => e.status);
+
+  it('sem ordem salva, é a do produto', () => {
+    expect(statusDe({})).toEqual(ETAPAS_DO_CONTEUDO.map((e) => e.valor));
+  });
+
+  it('arrastar muda a ordem, e `reordenarFluxo` numera as sete', () => {
+    const invertida = [...ETAPAS_DO_CONTEUDO].reverse().map((e) => e.valor);
+    const fluxo = reordenarFluxo({}, invertida);
+
+    expect(statusDe(fluxo), 'a ordem escolhida não chegou à tela').toEqual(invertida);
+
+    /*
+      Gravar só o que se moveu deixaria o resto com a posição do produto, e uma
+      etapa parada ficaria entre duas movidas sem ninguém ter pedido. A ordem é
+      uma sequência: sequência meio escrita não é sequência.
+    */
+    for (const { valor } of ETAPAS_DO_CONTEUDO) {
+      expect(fluxo[valor]?.ordem, `"${valor}" ficou sem posição`).toBeTypeOf('number');
+    }
+  });
+
+  it('a primeira posição é zero, e zero não é "sem ajuste"', () => {
+    /*
+      **O `0` é falso em JavaScript.** Num `||` junto dos outros campos, a
+      etapa que a pessoa arrastou para o começo seria a única descartada pelo
+      saneador — e voltaria calada para o lugar antigo, que é o defeito mais
+      difícil de acreditar quando se vê.
+    */
+    const salvo = sanearFluxo({ published: { ordem: 0 } });
+    expect(salvo.published?.ordem, 'a posição zero foi descartada pelo saneador').toBe(0);
+
+    /*
+      E o caminho de verdade — arrastar "Publicado" para o topo — põe ela no
+      topo. A ida por `reordenarFluxo` é a que importa: um jsonb com uma etapa
+      numerada e seis sem é dado de edição à mão, e ali o empate com a posição
+      do produto é desfeito pela posição do produto, não por sorteio.
+    */
+    const arrastada = reordenarFluxo({}, [
+      'published',
+      ...ETAPAS_DO_CONTEUDO.map((e) => e.valor).filter((v) => v !== 'published'),
+    ]);
+    expect(statusDe(arrastada)[0], 'a etapa movida para o começo não ficou no começo').toBe(
+      'published'
+    );
+  });
+
+  it('ordem inválida ou incompleta nunca some com uma etapa', () => {
+    /*
+      Este é **o** risco de deixar a ordem ser editada: coluna que some esconde
+      o trabalho que está dentro dela. A lista desenhada é sempre a inteira.
+    */
+    const todas = ETAPAS_DO_CONTEUDO.map((e) => e.valor).sort();
+
+    for (const bruto of [
+      { ideas: { ordem: 99 } },
+      { ideas: { ordem: -1 } },
+      { ideas: { ordem: 1.5 } },
+      { ideas: { ordem: 'primeiro' } },
+      // Duas etapas na mesma posição: o empate é desfeito, não dropado.
+      { ideas: { ordem: 3 }, approved: { ordem: 3 } },
+      // Só uma numerada, as outras seis sem nada.
+      { published: { ordem: 0 } },
+    ]) {
+      const lista = statusDe(sanearFluxo(bruto));
+      expect(lista.length, `faltou etapa com ${JSON.stringify(bruto)}`).toBe(
+        ETAPAS_DO_CONTEUDO.length
+      );
+      expect([...lista].sort(), `etapa repetida com ${JSON.stringify(bruto)}`).toEqual(todas);
+    }
+  });
+
+  it('a ordem não marca a etapa como "ajustada"', () => {
+    /*
+      O selo marca quem a agência repintou ou renomeou. Arrastar a fileira uma
+      vez marcaria as sete de uma vez, e um selo que vale para todos não
+      distingue ninguém.
+    */
+    const fluxo = reordenarFluxo({}, [...ETAPAS_DO_CONTEUDO].reverse().map((e) => e.valor));
+    expect(
+      etapasDoFluxo(fluxo).some((e) => e.ajustada),
+      'reordenar passou a marcar as etapas como ajustadas'
+    ).toBe(false);
+  });
+
+  it('o nome e a cor sobrevivem ao arrasto', () => {
+    // Reordenar não pode apagar o que a agência escolheu na mesma tela.
+    const comNome = sanearFluxo({ ideas: { rotulo: 'Briefing', cor: 'amber' } });
+    const depois = reordenarFluxo(comNome, ['published', 'ideas'] as any);
+
+    expect(depois.ideas?.rotulo, 'o nome da etapa sumiu ao reordenar').toBe('Briefing');
+    expect(depois.ideas?.cor, 'a cor da etapa sumiu ao reordenar').toBe('amber');
   });
 });
