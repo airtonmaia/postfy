@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
-import { Check, AlertCircle, RotateCcw, Layers, Archive } from 'lucide-react';
+import { Check, AlertCircle, RotateCcw, Layers, Archive, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import { usePostfy } from '../../../context/PostfyContext';
 import { atualizarWorkspace } from '../../../lib/db';
@@ -9,6 +26,7 @@ import {
   ICONES_DA_ETAPA,
   corDaEtapa,
   etapasDoFluxo,
+  reordenarFluxo,
   sanearFluxo,
   type FluxoDeProducao,
 } from '../../../lib/fluxoDeProducao';
@@ -53,6 +71,66 @@ import type { JobPlatform, JobStatus } from '../../../types';
 
 const TODAS_AS_REDES = Object.keys(FORMATOS_POR_CANAL) as JobPlatform[];
 
+/**
+ * Uma etapa que se arrasta — **pela alça, nunca pelo card.**
+ *
+ * O card tem campo de texto, seletor de cor e fileira de ícones dentro: com o
+ * arrasto saindo do corpo, selecionar o nome da etapa com o mouse viraria um
+ * gesto de mover, e a pessoa perderia a edição no meio. A alça resolve isso
+ * sem `activationConstraint` nenhum — ela não é um alvo que se encosta por
+ * acaso.
+ *
+ * `setActivatorNodeRef` é o que faz o dnd-kit medir o **card** e não a alça ao
+ * desenhar o item em movimento: sem ele, o que segue o cursor é um retângulo
+ * de 24px, e quem arrasta perde de vista o que está carregando.
+ */
+const EtapaArrastavel: React.FC<{
+  status: JobStatus;
+  podeMover: boolean;
+  children: React.ReactNode;
+}> = ({ status, podeMover, children }) => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: status, disabled: !podeMover });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`rounded-xl border bg-slate-50 dark:bg-slate-950 p-3 flex items-start gap-2 ${
+        isDragging
+          ? 'border-purple-400 dark:border-purple-700 shadow-lg relative z-10'
+          : 'border-slate-200 dark:border-slate-800'
+      }`}
+    >
+      {podeMover && (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Mover a etapa ${status}`}
+          title="Arraste para mudar a ordem"
+          /*
+            Afordância minúscula: um punho de 16px ao lado de um card. Qualquer
+            degrau da escala de botão é maior que ele — é o terceiro papel que a
+            seção de botões nomeia como exceção.
+
+            `touch-none` aqui é a exceção nomeada do projeto: a área é pequena e
+            deliberada, e o arrasto começa no toque. Num card que ocupa a
+            coluna inteira isso desligaria a rolagem do telefone; numa alça de
+            16px, não há o que rolar.
+          */
+          className="shrink-0 mt-1 p-1 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-slate-200/70 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing touch-none transition"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
+
+      <div className="flex-1 min-w-0 space-y-3">{children}</div>
+    </div>
+  );
+};
+
 export const SettingsConteudos: React.FC = () => {
   const { currentWorkspace, updateWorkspace, currentUser } = usePostfy();
 
@@ -82,6 +160,29 @@ export const SettingsConteudos: React.FC = () => {
       // cujo ajuste vai ser jogado fora.
       return sanearFluxo(proximo);
     });
+
+  /*
+    Arrastar pela alça: distância zero não atrapalha, porque a alça não é um
+    alvo que se encosta por acaso — e o teclado entra junto, que é o que torna
+    a ordem alcançável para quem não usa mouse.
+  */
+  const sensores = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const aoSoltarEtapa = (evento: DragEndEvent) => {
+    const de = String(evento.active.id);
+    const para = String(evento.over?.id ?? '');
+    if (!para || de === para) return;
+
+    const ordemAtual = etapas.map((e) => e.status);
+    const i = ordemAtual.indexOf(de as JobStatus);
+    const j = ordemAtual.indexOf(para as JobStatus);
+    if (i < 0 || j < 0) return;
+
+    setFluxo((atual) => reordenarFluxo(atual, arrayMove(ordemAtual, i, j)));
+  };
 
   const limpar = (status: JobStatus) =>
     setFluxo((atual) => {
@@ -162,13 +263,36 @@ export const SettingsConteudos: React.FC = () => {
         </div>
 
         <div className="space-y-3">
+          {/*
+            **A ordem das etapas é da agência, e ela é a ordem das colunas.**
+
+            O quadro desenhava sempre Ideias → Produção → Aprovação → Ajuste →
+            Aprovado → Agendado → Publicado, que é o fluxo de quem faz post.
+            Quem aprova antes de produzir, ou quem trata "Ajuste" como a coluna
+            de entrada do dia, lia o quadro de trás para frente toda vez.
+
+            **Arrastar aqui muda o quadro, a trilha da peça e o filtro de
+            etapa** — as três leem `etapasDoFluxo`. O que não muda é **quem**
+            está na lista: as sete continuam todas lá, porque esconder uma
+            coluna é esconder o trabalho que está dentro dela.
+          */}
+          <DndContext
+            sensors={sensores}
+            collisionDetection={closestCenter}
+            onDragEnd={aoSoltarEtapa}
+          >
+          <SortableContext
+            items={etapas.map((e) => e.status)}
+            strategy={verticalListSortingStrategy}
+          >
           {etapas.map((etapa) => {
             const cor = corDaEtapa(etapa.cor);
 
             return (
-              <div
+              <EtapaArrastavel
                 key={etapa.status}
-                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 space-y-3"
+                status={etapa.status}
+                podeMover={podeSalvar}
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="flex items-center gap-2 min-w-0">
@@ -313,9 +437,11 @@ export const SettingsConteudos: React.FC = () => {
                     })}
                   </div>
                 </div>
-              </div>
+              </EtapaArrastavel>
             );
           })}
+          </SortableContext>
+          </DndContext>
         </div>
 
         {/*

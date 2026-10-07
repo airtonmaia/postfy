@@ -47,6 +47,19 @@ export interface AjusteDaEtapa {
    * atraso em toda peça de toda agência no primeiro dia.
    */
   slaDias?: number;
+  /**
+   * Em que posição a etapa aparece. Ausente = a posição do produto.
+   *
+   * **É um número por etapa, e não uma lista de status no topo do jsonb**, e a
+   * diferença é de segurança: uma lista pode vir incompleta — de uma versão
+   * mais nova, de uma edição à mão, de uma etapa que o produto acrescente
+   * depois — e aí falta decidir o que fazer com quem não está nela. Com um
+   * número por etapa não existe esse estado: a lista desenhada continua sendo
+   * `ETAPAS_DO_CONTEUDO`, ordenada por um critério. **Nenhuma etapa pode sumir
+   * do quadro por causa da ordem**, porque sumir uma coluna é esconder o
+   * trabalho que está dentro dela.
+   */
+  ordem?: number;
 }
 
 export type FluxoDeProducao = Partial<Record<JobStatus, AjusteDaEtapa>>;
@@ -59,8 +72,12 @@ export interface EtapaDoFluxo {
   cor: string;
   icone: string;
   slaDias?: number;
-  /** A agência mexeu nesta etapa. */
+  /** A agência mexeu nesta etapa. Não conta a ordem — ver `etapasDoFluxo`. */
   ajustada: boolean;
+  /** Onde ela aparece hoje: a escolhida pela agência, ou a do produto. */
+  posicao: number;
+  /** Onde o produto a põe. É ela que desempata, e é ela que "restaurar" devolve. */
+  posicaoPadrao: number;
 }
 
 /**
@@ -217,19 +234,50 @@ export const sanearFluxo = (valor: unknown): FluxoDeProducao => {
     const slaDias =
       Number.isFinite(dias) && dias > 0 && dias <= 365 ? Math.round(dias) : undefined;
 
-    // Etapa sem nenhum ajuste não entra: ela é indistinguível do padrão, e
-    // guardá-la vazia faria a tela dizer "ajustada" sobre o que ninguém mexeu.
-    if (rotulo || cor || icone || slaDias) saida[status] = { rotulo, cor, icone, slaDias };
+    /*
+      A posição só vale se couber na lista: fora do intervalo, fracionada ou
+      não numérica, ela volta a ser a do produto. Lista de sete não tem
+      posição 9 nem 2,5.
+    */
+    const pos = Number(campos.ordem);
+    const ordem =
+      Number.isInteger(pos) && pos >= 0 && pos < ETAPAS_DO_CONTEUDO.length ? pos : undefined;
+
+    /*
+      Etapa sem nenhum ajuste não entra: ela é indistinguível do padrão, e
+      guardá-la vazia faria a tela dizer "ajustada" sobre o que ninguém mexeu.
+
+      **`ordem` entra por `!== undefined`, nunca por verdade.** A primeira
+      posição é `0`, que é falso em JavaScript: num `||` junto dos outros
+      campos, a etapa que a pessoa arrastou para o começo seria a única
+      descartada — e ela voltaria calada para o lugar antigo, que é o defeito
+      mais difícil de acreditar quando se vê.
+    */
+    if (rotulo || cor || icone || slaDias || ordem !== undefined) {
+      saida[status] = { rotulo, cor, icone, slaDias, ordem };
+    }
   }
 
   return saida;
 };
 
-/** As sete etapas como **esta** agência as vê, na ordem do fluxo. */
+/**
+ * As sete etapas como **esta** agência as vê, na ordem que ela escolheu.
+ *
+ * A lista desenhada é sempre `ETAPAS_DO_CONTEUDO` inteira — o que a agência
+ * escolhe é a ordem, nunca quem entra. Etapa sem `ordem` fica na posição do
+ * produto, e empate é desfeito pela posição do produto também: ordenar é
+ * mudar de lugar, e duas etapas no mesmo lugar não podem trocar de lugar entre
+ * si a cada render.
+ *
+ * **O `ajustada` não conta a ordem**, de propósito: ele marca a etapa que a
+ * agência repintou ou renomeou, e arrastar a fileira uma vez marcaria as sete
+ * de uma vez — um selo que vale para todos não distingue ninguém.
+ */
 export const etapasDoFluxo = (fluxo?: FluxoDeProducao | null): EtapaDoFluxo[] => {
   const ajustes = fluxo ?? {};
 
-  return ETAPAS_DO_CONTEUDO.map(({ valor, rotulo }) => {
+  return ETAPAS_DO_CONTEUDO.map(({ valor, rotulo }, i) => {
     const ajuste = ajustes[valor];
     return {
       status: valor,
@@ -239,8 +287,32 @@ export const etapasDoFluxo = (fluxo?: FluxoDeProducao | null): EtapaDoFluxo[] =>
       icone: ajuste?.icone || ICONE_PADRAO[valor],
       slaDias: ajuste?.slaDias,
       ajustada: Boolean(ajuste?.rotulo || ajuste?.cor || ajuste?.icone || ajuste?.slaDias),
+      posicao: ajuste?.ordem ?? i,
+      posicaoPadrao: i,
     };
+  }).sort((a, b) => a.posicao - b.posicao || a.posicaoPadrao - b.posicaoPadrao);
+};
+
+/**
+ * O fluxo com as etapas renumeradas na ordem recebida.
+ *
+ * **As sete saem numeradas, não só as que se moveram.** Gravar só o que mudou
+ * deixaria o resto com a posição do produto, e aí uma etapa parada ficaria
+ * entre duas movidas sem que ninguém tivesse pedido isso — a ordem é uma
+ * sequência, e sequência meio escrita não é sequência.
+ */
+export const reordenarFluxo = (
+  fluxo: FluxoDeProducao | null | undefined,
+  statusEmOrdem: JobStatus[]
+): FluxoDeProducao => {
+  const atual = fluxo ?? {};
+  const proximo: FluxoDeProducao = { ...atual };
+
+  statusEmOrdem.forEach((status, i) => {
+    proximo[status] = { ...(atual[status] ?? {}), ordem: i };
   });
+
+  return sanearFluxo(proximo);
 };
 
 /** O nome de uma etapa só, com recuo para status que a lista não conheça. */

@@ -2799,6 +2799,46 @@ a pessoa concluindo que o sistema perdeu as publicações. O recorte alcança s�
 `published`: esconder peça **aberta** por idade seria o quadro omitindo trabalho
 que ainda precisa ser feito.
 
+##### A ordem das colunas é da agência, e nenhuma pode sumir por causa dela
+
+O quadro desenhava sempre Ideias → Produção → Aprovação → Ajuste → Aprovado →
+Agendado → Publicado, que é o fluxo de quem faz post. Quem aprova antes de
+produzir, ou quem trata "Ajuste" como a coluna de entrada do dia, lia o quadro
+de trás para frente toda vez — a mesma queixa que originou renomear as etapas,
+um degrau acima.
+
+**A ordem é um número por etapa (`AjusteDaEtapa.ordem`), não uma lista de
+status no topo do jsonb**, e a diferença é de segurança, não de gosto. Uma
+lista pode vir incompleta — de uma versão mais nova, de uma edição à mão, de
+uma etapa que o produto acrescente depois — e aí falta decidir o que fazer com
+quem não está nela, com uma resposta errada custando **uma coluna inteira
+sumindo do quadro**, isto é, trabalho escondido. Com um número por etapa esse
+estado não existe: a lista desenhada continua sendo `ETAPAS_DO_CONTEUDO`
+inteira, ordenada por um critério. Posição fora do intervalo, fracionada ou
+repetida volta a valer a do produto, e o empate é desfeito por ela também.
+
+Três detalhes que custariam uma ida e volta cada:
+
+- **`ordem` entra no saneador por `!== undefined`, nunca por verdade.** A
+  primeira posição é `0`, que é falso em JavaScript: num `||` junto dos outros
+  campos, a etapa arrastada para o começo seria a única descartada — e voltaria
+  calada para o lugar antigo. Conferido ao contrário: devolvendo o `||`, duas
+  asserções reprovam.
+- **`reordenarFluxo` numera as sete, não só as que se moveram.** Ordem é
+  sequência, e sequência meio escrita deixa uma etapa parada entre duas movidas
+  sem ninguém ter pedido.
+- **Reordenar não marca a etapa como "ajustada".** O selo diz quem a agência
+  repintou ou renomeou; arrastar a fileira uma vez marcaria as sete, e um selo
+  que vale para todos não distingue ninguém.
+
+Na tela, o arrasto sai de uma **alça**, nunca do corpo do card: ali dentro há
+campo de texto, paleta e fileira de ícones, e selecionar o nome da etapa com o
+mouse viraria um gesto de mover. `touch-none` na alça é a segunda exceção
+nomeada daquela regra — numa alça de 16px não há o que rolar.
+
+E a ordem vale nos três lugares que leem `etapasDoFluxo`: as colunas do quadro,
+a trilha da peça e o filtro de etapa. É o ponto de eles lerem a mesma função.
+
 ##### A paleta da etapa não pode usar a cor da marca
 
 `DynamicThemeProvider` injeta uma folha de `!important` que repinta **toda**
