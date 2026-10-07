@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
 } from '../ui/dropdown-menu';
 import { usePostfy } from '../../context/PostfyContext';
-import { TIPOS_DE_JOB } from '../../lib/tiposDeJob';
+import { TIPOS_OFERECIDOS } from '../../lib/tiposDeJob';
 import type { JobTipo } from '../../types';
 
 /**
@@ -80,7 +80,7 @@ export const AdicionarConteudo: React.FC<{
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-64">
-        {TIPOS_DE_JOB.map((tipo) => {
+        {TIPOS_OFERECIDOS.map((tipo) => {
           const Icone = ICONE_DO_TIPO[tipo.valor];
           return (
             <DropdownMenuItem

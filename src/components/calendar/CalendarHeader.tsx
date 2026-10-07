@@ -79,41 +79,49 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         ficava inalcançável em vez de apertada.
       */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-        <div className="flex items-center">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <span>{currentMonthName}</span>
-            <span className="text-slate-400 font-normal text-base">{currentYear}</span>
-          </h2>
-        </div>
-
         {/*
-          **A altura é a da escala de botão, como a dos vizinhos.** O grupo
-          tinha `p-1` em volta de botões de 32px e fechava em 40px, ao lado de
-          quatro chips de filtro de 32 — a mesma inconsistência das doze alturas
-          de botão, agora entre um grupo e os controles da mesma linha. `h-8`
-          com o respiro só na horizontal mantém o desenho de grupo e devolve os
-          8px.
+          **O mês virou o miolo da navegação, e o "Hoje" saiu.**
+
+          Eram duas peças lado a lado — um título de 20px e um grupo com
+          `‹ Hoje ›` — dizendo a mesma coisa em dois pesos. Juntas em
+          `‹ Outubro 2026 ›` elas ocupam menos da linha, que é o que a barra de
+          filtros precisava para caber inteira.
+
+          **O rótulo é o "Hoje" agora**, e isso não é enfeite: ele era o único
+          caminho de volta desde que o mini-calendário da barra lateral saiu.
+          Sem ele, voltar de março de 2027 custa dez cliques em `‹`. Clicar no
+          mês volta para hoje, com o `title` dizendo isso — esconder a volta
+          seria a tela tirando um caminho sem avisar que tirou.
         */}
-        <div className="flex items-center gap-0.5 h-8 px-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800">
-          <Button variant="ghost" size="icon-sm"
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm"
             id="btn-cal-prev"
             onClick={onPrev}
-            className="hover:bg-white dark:bg-slate-900 dark:text-white"
+            aria-label="Mês anterior"
             title="Anterior"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button variant="ghost"
-            id="btn-cal-today"
-            onClick={onToday}
-            className="text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-900"
-          >
-            Hoje
-          </Button>
-          <Button variant="ghost" size="icon-sm"
+
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+            <button
+              type="button"
+              id="btn-cal-today"
+              onClick={onToday}
+              title="Ir para hoje"
+              /* Afordância discreta: ele é o rótulo da navegação primeiro, e o
+                 atalho depois. Um botão desenhado aqui competiria com as duas
+                 setas pelo olho de quem só quer trocar de mês. */
+              className="px-1.5 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer whitespace-nowrap"
+            >
+              {currentMonthName} {currentYear}
+            </button>
+          </h2>
+
+          <Button variant="outline" size="icon-sm"
             id="btn-cal-next"
             onClick={onNext}
-            className="hover:bg-white dark:bg-slate-900 dark:text-white"
+            aria-label="Próximo mês"
             title="Próximo"
           >
             <ChevronRight className="w-4 h-4" />

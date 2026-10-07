@@ -510,10 +510,18 @@ describe('o calendário cabe na tela do celular', () => {
     const i = cabecalho.indexOf('btn-cal-prev');
     expect(i, 'a navegação do mês sumiu do cabeçalho').toBeGreaterThan(-1);
 
-    const grupo = cabecalho.slice(cabecalho.lastIndexOf('<div', i), i);
-    expect(grupo, 'o grupo de navegação perdeu a altura da escala de botão').toMatch(/h-8/);
+    /*
+      Quem dá a altura são as setas, e elas saem da **escala de botão** —
+      `icon-sm` é o quadrado de 32px, a mesma altura dos chips de filtro ao
+      lado. O que a guarda proíbe é o respiro vertical escrito à mão em volta
+      delas, que foi o que fez o grupo fechar em 40.
+    */
+    const navegacao = cabecalho.slice(cabecalho.lastIndexOf('<div', i), i);
+    expect(navegacao, 'as setas do mês saíram da escala de botão').toMatch(
+      /size="icon-sm"/
+    );
     expect(
-      grupo,
+      navegacao,
       'o grupo voltou a ter respiro vertical, e fica mais alto que os filtros ao lado'
     ).not.toMatch(/\bp-\d|\bpy-\d/);
   });
@@ -906,5 +914,38 @@ describe('a moldura da modal', () => {
       comXNoCabecalho,
       'uma modal voltou a desenhar o próprio X no cabeçalho, fora da posição que todas as outras usam'
     ).toEqual([]);
+  });
+});
+
+/**
+ * **Tirar um controle da tela é tirar o que ele fazia, e isso precisa ser
+ * decidido — não descoberto depois.**
+ *
+ * O calendário perdeu duas voltas para "hoje" em duas entregas seguidas: o
+ * mini-calendário saiu com a barra lateral, e o botão "Hoje" saiu quando o mês
+ * virou o miolo da navegação. Juntas, elas deixariam quem navegou até março de
+ * 2027 a dez cliques em `‹` de distância do mês de hoje.
+ */
+describe('o calendário sempre tem volta para hoje', () => {
+  const cabecalho = ler('src', 'components', 'calendar', 'CalendarHeader.tsx');
+
+  it('alguma coisa na linha do mês chama onToday', () => {
+    /*
+      A guarda mede o **efeito** — existe um caminho de volta —, não o botão:
+      ela passou de um `<Button>Hoje</Button>` para o próprio rótulo do mês sem
+      precisar ser editada, e é isso que uma guarda de efeito tem de fazer.
+    */
+    expect(cabecalho, 'a volta para hoje sumiu do calendário').toMatch(/onClick=\{onToday\}/);
+
+    /*
+      E o caminho **se anuncia**: um atalho sem `title` nem rótulo é um atalho
+      que só existe para quem já sabe que ele está lá.
+    */
+    const i = cabecalho.indexOf('onClick={onToday}');
+    const controle = cabecalho.slice(Math.max(0, i - 300), i + 300);
+    expect(
+      controle,
+      'a volta para hoje virou um clique escondido, sem dizer que existe'
+    ).toMatch(/title="|aria-label="|Hoje</);
   });
 });

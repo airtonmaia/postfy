@@ -40,6 +40,18 @@ export interface DefinicaoDeTipo {
    * nada mede.
    */
   respeitaLimiteDaRede: boolean;
+  /**
+   * Aparece no menu de criar? **O catálogo é maior do que o que se oferece.**
+   *
+   * São duas perguntas diferentes, e juntá-las num array só custaria dado: um
+   * tipo que sai da lista continua existindo em `jobs.tipo` das peças já
+   * gravadas, e sem a definição dele o card perderia o rótulo, o ícone e o
+   * `pedeArte` — a peça abriria pedindo arte que ela não tem, ou sem a área de
+   * arte que ela tem.
+   *
+   * Então `definicaoDoTipo` enxerga os oito e o menu enxerga `TIPOS_OFERECIDOS`.
+   */
+  oferecido: boolean;
 }
 
 export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
@@ -51,6 +63,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Legenda Proposta',
     exemploDoTexto: 'Digite aqui o texto que acompanhará a publicação...',
     respeitaLimiteDaRede: true,
+    oferecido: true,
   },
   {
     valor: 'copy',
@@ -60,6 +73,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Texto para aprovação',
     exemploDoTexto: 'Escreva aqui a copy que o cliente vai aprovar...',
     respeitaLimiteDaRede: true,
+    oferecido: true,
   },
   {
     valor: 'roteiro',
@@ -69,6 +83,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Roteiro',
     exemploDoTexto: 'Cena 1 — abertura, fala do apresentador...',
     respeitaLimiteDaRede: false,
+    oferecido: false,
   },
 
   /*
@@ -94,6 +109,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Descrição da peça',
     exemploDoTexto: 'O que esta aplicação resolve, onde ela vai ser usada...',
     respeitaLimiteDaRede: false,
+    oferecido: false,
   },
   {
     valor: 'apresentacao',
@@ -103,6 +119,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Roteiro da apresentação',
     exemploDoTexto: 'Slide 1 — abertura. Slide 2 — o problema do cliente...',
     respeitaLimiteDaRede: false,
+    oferecido: false,
   },
   {
     valor: 'foto',
@@ -112,6 +129,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Observações da seleção',
     exemploDoTexto: 'Tratamento, recorte, quais entram no feed...',
     respeitaLimiteDaRede: false,
+    oferecido: true,
   },
   {
     valor: 'landing',
@@ -121,6 +139,7 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Texto da página',
     exemploDoTexto: 'Título, subtítulo, benefícios, chamada do botão...',
     respeitaLimiteDaRede: false,
+    oferecido: false,
   },
   {
     valor: 'email',
@@ -130,8 +149,23 @@ export const TIPOS_DE_JOB: DefinicaoDeTipo[] = [
     rotuloDoTexto: 'Corpo do e-mail',
     exemploDoTexto: 'Assunto, abertura, oferta, chamada para ação...',
     respeitaLimiteDaRede: false,
+    oferecido: false,
   },
 ];
+
+/**
+ * O que o menu de criar oferece **hoje**: conteúdo, copy e foto.
+ *
+ * Os oito continuam no catálogo, e isso é a parte que importa: peça já gravada
+ * precisa da definição dela para ter rótulo, ícone e `pedeArte`. Tirar a linha
+ * do array faria uma peça de Branding abrir como Conteúdo — pedindo a arte com
+ * outro nome e perdendo o selo que a distingue no quadro.
+ *
+ * O recorte é do **produto**, por enquanto, e esse "por enquanto" é o ponto: a
+ * lista precisa ser da agência, que é quem sabe o que entrega. Enquanto ela não
+ * for, o recorte mora num lugar só.
+ */
+export const TIPOS_OFERECIDOS: DefinicaoDeTipo[] = TIPOS_DE_JOB.filter((t) => t.oferecido);
 
 const PADRAO = TIPOS_DE_JOB[0];
 

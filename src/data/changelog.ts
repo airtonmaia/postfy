@@ -31,6 +31,16 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.9.1',
+    data: '2026-10-07',
+    resumo: 'A navegação do mês ficou numa peça só, e o botão "Hoje" saiu.',
+    melhorias: [
+      'O mês passou a ficar entre as setas: "‹ Outubro 2026 ›". Eram duas peças dizendo a mesma coisa lado a lado.',
+      'O "Hoje" saiu, e clicar no nome do mês passou a fazer o que ele fazia — voltar para o mês de hoje.',
+      'O menu de criar voltou a oferecer três tipos: Conteúdo, Copy e Foto. Os outros cinco continuam valendo nas peças já criadas.',
+    ],
+  },
+  {
     versao: '3.9.0',
     data: '2026-10-06',
     resumo:
