@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { TIPOS_DE_JOB, TIPOS_OFERECIDOS } from '../src/lib/tiposDeJob';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
@@ -655,5 +656,50 @@ describe('o anel da faixa de clientes', () => {
     /* E ele é aplicado nos dois desenhos da faixa — o "Todos", que é um ícone,
        e o avatar do cliente. Um deles de fora deixa um buraco na fileira. */
     expect(faixa.match(/anel\(\s*ativo\s*\)/g)?.length, 'um dos itens ficou sem o anel').toBe(2);
+  });
+});
+
+/**
+ * **O catálogo de tipos é maior do que o que o menu oferece, e isso é dado.**
+ *
+ * Tirar um tipo da lista de criação não pode tirar a definição dele: peça já
+ * gravada com `tipo = 'branding'` precisa do rótulo, do ícone e do `pedeArte`
+ * dela. Sem a definição, `definicaoDoTipo` cai no padrão e a peça abre como
+ * Conteúdo — pedindo a arte com outro nome e perdendo o selo que a distingue
+ * no quadro.
+ */
+describe('o que o menu de criar oferece', () => {
+  it('o catálogo continua inteiro, e o menu é um recorte dele', () => {
+    expect(TIPOS_OFERECIDOS.length, 'o menu de criar ficou vazio').toBeGreaterThan(0);
+    expect(
+      TIPOS_OFERECIDOS.length,
+      'o recorte sumiu: o menu voltou a oferecer o catálogo inteiro'
+    ).toBeLessThan(TIPOS_DE_JOB.length);
+
+    for (const t of TIPOS_OFERECIDOS) {
+      expect(t.oferecido, `${t.valor} está no menu sem estar marcado como oferecido`).toBe(true);
+    }
+  });
+
+  it('todo tipo do catálogo tem definição, oferecido ou não', () => {
+    /*
+      A guarda **deriva do próprio tipo**: um valor novo em `JobTipo` sem linha
+      no catálogo reprova aqui, sem ninguém editar o teste. É a mesma razão de a
+      lista de formatos ser derivada.
+    */
+    const tipos = semComentarios(
+      readFileSync(join(RAIZ, 'src', 'types', 'index.ts'), 'utf-8')
+    );
+    const inicio = tipos.indexOf('export type JobTipo');
+    const corpo = tipos.slice(inicio, tipos.indexOf(';', inicio));
+    const valores = [...corpo.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+
+    expect(valores.length, 'JobTipo sumiu ou mudou de nome').toBeGreaterThan(2);
+    for (const v of valores) {
+      expect(
+        TIPOS_DE_JOB.some((t) => t.valor === v),
+        `"${v}" existe em JobTipo e não tem definição: a peça abriria como Conteúdo`
+      ).toBe(true);
+    }
   });
 });
