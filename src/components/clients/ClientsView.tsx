@@ -23,7 +23,7 @@ import { CAMINHOS, clienteDoCaminho, urlDoCliente } from '../../lib/rotas';
 import { FileUpload } from '../ui/file-upload';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
-import { formatCurrency } from '../../lib/utils';
+import { mensalidadeDoCliente, formatarCentavos } from '../../lib/financeiro';
 
 export const ClientsView: React.FC = () => {
   const {
@@ -283,7 +283,14 @@ export const ClientsView: React.FC = () => {
         {displayedClients.map(client => {
           const clientJobs = jobs.filter(j => j.clientId === client.id);
           const pendingApproval = clientJobs.filter(j => j.status === 'for_approval').length;
-          const totalMonthly = client.services.reduce((acc, s) => acc + s.monthlyValue, 0);
+          /*
+            A soma mora em `mensalidadeDoCliente`, e não aqui, porque o
+            Financeiro gera a conta a receber a partir **deste** número. Duas
+            somas do mesmo valor divergem na primeira pressa, e divergir aqui
+            é a ficha do cliente dizendo R$ 2.500 e a cobrança saindo
+            R$ 2.000, com as duas telas certas cada uma pelo seu lado.
+          */
+          const totalMonthly = mensalidadeDoCliente(client);
 
           const healthConfig = {
             green: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Operação Saudável' },
@@ -334,7 +341,7 @@ export const ClientsView: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Investimento Mensal</span>
                     <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                      {formatCurrency(totalMonthly)} /mês
+                      {formatarCentavos(totalMonthly)} /mês
                     </span>
                   </div>
                   <div className="text-right">

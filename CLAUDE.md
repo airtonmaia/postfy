@@ -1567,6 +1567,1640 @@ limpeza devolve a base ao estado anterior. O vínculo de designer existia só
 para o teste, e é ele que prova que o corte é por **papel**: um intruso de fora
 não distinguiria `papel_na_agencia` de `e_membro`.
 
+### A mensalidade do cliente vira conta a receber — uma vez por mês
+
+O cadastro já guarda o que o cliente paga: `clients.services`, somado como
+**"Investimento mensal"** no card dele. Pedir para digitar o mesmo número todo
+mês no Financeiro é o caminho mais curto para os dois divergirem — a ficha sobe
+para R$ 2.500 e a cobrança continua saindo R$ 2.000, com as duas telas certas
+cada uma pelo seu lado.
+
+**A soma mora em `mensalidadeDoCliente`, e as duas telas a leem.** A
+`ClientsView` fazia o `reduce` à mão; agora ela chama a mesma função que
+gera a conta. Duas somas do mesmo número são duas verdades esperando divergir,
+e a guarda reprova o `reduce` de volta na tela.
+
+Quatro decisões:
+
+- **Gerar é um clique, nunca um efeito.** Nem na abertura da tela, nem por
+  cron. Cobrança e postagem são as duas coisas deste produto que não voltam, e
+  um disparo a partir de um render é a forma mais barata de cobrar o que
+  ninguém decidiu cobrar — a mesma regra que impede o arrasto do quadro de
+  enfileirar publicação.
+- **O plano aparece antes de gravar**: quem será cobrado, de quanto, o total —
+  e quem ficou de fora **com o motivo**. Cliente inativo nunca entra (cobrar
+  quem saiu é o pior erro desta tela) e cliente ativo sem valor no cadastro é
+  listado pelo nome. Lista que filtra em silêncio faz procurar o cliente que
+  "sumiu", e a resposta está a uma tela de distância.
+- **Quem recusa o repetido é o índice único, não a conferência da tela.**
+  `unique (workspace_id, client_id, mensalidade_de) where mensalidade_de is not
+  null`. Conferir antes de inserir deixa a janela entre a conferência e a
+  gravação aberta, e é nela que dois cliques no mesmo dia — duas pessoas da
+  agência — se encontram. É a decisão do `unique (job_id, connection_id)` da
+  `publish_queue`, pelo mesmo motivo. O índice é **parcial** porque
+  lançamento avulso não tem competência, e dois serviços extras do mesmo
+  cliente no mesmo mês existem.
+- **O formato da competência é conferido no banco** (`^d{4}-d{2}# Orquesia
+
+SaaS de gestão para agências de conteúdo. React 19 + TypeScript + Vite, dados
+no Supabase, funções serverless na Vercel.
+
+Este arquivo registra as decisões e as armadilhas que já custaram caro. Cada
+item aqui existe porque um bug real passou por ele.
+
+---
+
+## Como rodar
+
+```bash
+bun install          # o lockfile é bun.lock; npm install também funciona
+bun run dev          # http://localhost:5173 — só o front
+bun run lint         # tsc --noEmit
+bun run test         # vitest
+bun run build
+```
+
+**As rotas `/api` não sobem com o Vite.** São funções serverless; o Vite serve
+só o front, então upload, IA e e-mail falham com erro de rede em
+`bun run dev`. Para testá-las:
+
+```bash
+vercel dev           # sobe front e /api juntos, lendo .env
+```
+
+A URL e a chave publicável do Supabase têm padrão embutido em
+`src/lib/supabase.ts`, apontando para o projeto de produção. O app sobe sem
+`.env` — e isso significa que **o banco local é o de produção**. Cliente
+criado em desenvolvimento aparece no app publicado.
+
+---
+
+## Arquitetura
+
+O navegador fala **direto** com o Supabase. Não há servidor de aplicação.
+
+```
+navegador ──► Supabase (Postgres + Auth)   ← RLS recorta por agência
+    │
+    └──────► /api/*  ← só o que precisa de segredo
+```
+
+Em `/api` fica exclusivamente o que não pode ir para o bundle: chave da IA,
+credenciais do R2, chave do Resend, segredo do OAuth. Toda rota valida o JWT
+do Supabase e **reconfere a permissão no banco** — nenhuma confia no que o
+navegador afirma.
+
+**As consultas não filtram por `workspace_id` de propósito.** Quem recorta é a
+RLS. Filtrar no cliente daria a impressão de que a segurança mora lá.
+
+**Mas a RLS recorta por pessoa, não por agência aberta** — e essa diferença é
+um bug esperando acontecer. Quem participa de três agências recebe as linhas
+das três em toda consulta, porque as três são dela. O estado guarda o conjunto
+completo (`allX`, que é o que a persistência por diff precisa ver) e cada tela
+recebe o recorte: `belongsToWorkspace` em `src/lib/workspaceScope.ts`.
+
+`users` foi a única coleção que escapou disso, e ficou assim por meses.
+Apareceu no seletor de "Quem está nesta peça": **nove nomes numa agência de
+quatro pessoas**, com o mesmo nome repetido três vezes — uma linha por agência
+da mesma pessoa. Não é vazamento (é nome e avatar de quem divide uma agência
+com você), é a tela afirmando que aquelas pessoas são a equipe daqui — e
+atribuir ali gravaria em `jobs.responsaveis` o id de alguém que não é da
+agência da peça, que a tela do colega mostraria como "Fora da equipe" sem
+explicar por quê.
+
+A guarda de `tests/workspaceScope.test.ts` **deriva** a lista: todo
+`const [allX, setX] = useState` do contexto precisa de um
+`allX.filter(belongsToWorkspace)`. Coleção nova sem recorte reprova sem ninguém
+editar o teste.
+
+### O aviso de falha era apagado pelo commit que o causava
+
+Esta é a razão de **todo** bug de gravação silenciosa deste arquivo ter
+passado despercebido, e ela vale mais que qualquer um deles isolado.
+
+A fila de gravação sempre capturou o erro e acendeu uma faixa no topo da tela.
+O que faltava é que as dez coleções dividem a fila e dividiam **um**
+`syncState`. `createJob` mexe em duas delas no mesmo render:
+
+```
+setAllJobs(...)    → insert em `jobs`           falha  → faixa acende
+logActivity(...)   → insert em `activity_logs`  passa  → faixa APAGA
+```
+
+A fila é sequencial e `activityLogs` vem depois de `jobs`, então o `'saved'`
+do log chegava milissegundos depois do `'error'` do conteúdo. **O registro de
+"Criou o conteúdo" era exatamente o que apagava o aviso de que o conteúdo não
+foi criado.**
+
+Os números de produção fecham com isso: numa tarde, **dez** linhas
+`Criou o conteúdo` em `activity_logs` e **uma** em `jobs`, sem ninguém ver
+erro nenhum. O `feed_story` que o banco recusava, a bandeira que descartava a
+edição seguinte e o canal que não entrava na fila — os três só ficaram caros
+porque o aviso não sobrevivia ao próprio commit.
+
+`src/lib/errosDeGravacao.ts` guarda um erro **por origem**, e a saída
+antecipada de `deuCerto` é a correção inteira: quem não tinha erro não tem o
+que limpar, e com outra origem em aberto não pode silenciar o aviso dela.
+
+**A lógica mora fora do componente porque assim ela é exercitada, não
+descrita.** `tests/erros-de-gravacao.test.ts` reproduz o caso do `createJob`
+com o painel de verdade — e foi conferido ao contrário, com o `erros.clear()`
+de volta: três asserções reprovam. As quatro guardas da bandeira booleana
+passavam enquanto o produto perdia dado, porque descreviam o mecanismo;
+guarda que descreve o mecanismo aprova qualquer mecanismo com aquela forma.
+
+**E a faixa diz a consequência antes do motivo.** Ela mostrava só
+`syncError`, que numa recusa do Postgres é a mensagem crua — em inglês,
+nomeando uma constraint (`violates check constraint "jobs_format_check"`).
+Quem lê isso não conclui "meu conteúdo não foi salvo"; conclui que teve um
+soluço técnico, e a tela continua mostrando a peça, porque a pintura vem
+antes da resposta do banco. Agora ela abre dizendo que a alteração não chegou
+ao banco e que vale recarregar para ver o que está gravado — com o detalhe
+técnico embaixo, menor, que é o que torna o relato acionável.
+
+### Persistência derivada de diff
+
+`src/context/PostfyContext.tsx` tem dezenas de mutações no formato
+`setAllX(prev => ...)`. Em vez de reescrever cada uma para chamar o banco,
+`useColecaoSincronizada` compara o estado anterior com o novo e deriva os
+inserts, updates e deletes.
+
+Consequência: **qualquer mutação nova é persistida sem precisar lembrar de
+nada** — e qualquer erro na camada de diff some com o dado em silêncio, porque
+a tela já mostrou o resultado antes de o banco responder.
+
+---
+
+## Armadilhas
+
+Onze regras. Todas vieram de bugs que chegaram a produção.
+
+### 0. Import relativo em `api/` precisa da extensão `.js`
+
+```ts
+import { json } from './_lib/auth.js';   // ✅
+// import { json } from './_lib/auth';   // ❌ derruba a função inteira
+```
+
+O `package.json` tem `"type": "module"`, então o Node carrega as funções como
+ESM — e **em ESM a extensão é obrigatória no import relativo**. Sem ela o
+módulo nem carrega: `ERR_MODULE_NOT_FOUND`, a função morre antes da primeira
+linha, e a Vercel devolve `FUNCTION_INVOCATION_FAILED` — 500 sem corpo, sem
+stack.
+
+Foi isto que derrubou **todas** as rotas `/api` desde o primeiro dia, e custou
+quatro rodadas de diagnóstico. O que torna a armadilha cara é que nenhuma
+ferramenta local reclama: o TypeScript resolve `./x.js` para `./x.ts`, o
+vitest usa a resolução do Vite, e o `vite build` nem olha para `api/`. Tudo
+verde, produção morta.
+
+O TypeScript aceita a extensão `.js` apontando para um arquivo `.ts` — é a
+convenção do NodeNext e funciona nos dois lados.
+
+Protegido por `tests/rotas-api.test.ts`.
+
+### 1. Rota `/api` exporta um handler `(req, res)` pelo adaptador
+
+```ts
+async function handler(request: Request): Promise<Response> { ... }
+export const POST = handler;      // para os testes chamarem direto
+export default rota(handler);     // ✅ o que a Vercel executa
+```
+
+Escrevemos as rotas com `Request`/`Response`, que é o formato bom de testar.
+Mas **a Vercel decide a assinatura inspecionando o formato do export, e essa
+regra muda entre versões do builder** — e a versão que roda na nuvem não é a
+do `package.json`, então não dá para fixá-la.
+
+Isso quebrou duas vezes, com o mesmo sintoma:
+
+1. `export default` com assinatura Web → tratado como handler do Node, chamado
+   com `(req, res)`; `request.headers.get(...)` estoura num `IncomingMessage`
+   e a função morre antes de responder.
+2. `export const POST` sem default → reconhecido pelos builders novos,
+   ignorado pelos antigos, que procuram só o default. Sem handler, crash de
+   novo.
+
+O adaptador em `api/_lib/rota.ts` sai desse jogo: exporta o formato que
+**toda** versão entende e converte para Web por dentro. A detecção deixa de
+importar.
+
+O sintoma, das duas vezes: `FUNCTION_INVOCATION_FAILED` na URL, e
+`"Falha na requisição (500)"` no app — que só aparece quando a resposta não é
+JSON. Todos os nossos erros são JSON, então esse texto significa **crash**,
+não erro tratado.
+
+O adaptador também precisa ler o corpo de `req.body`, e não do stream: a
+Vercel entrega handlers `(req, res)` com o corpo **já consumido e parseado**.
+Montar o Request a partir do stream esgotado produz um corpo que nunca
+termina — `request.json()` espera para sempre, a função não responde, não
+estoura e não gera log. O sintoma é a requisição pendurada: foi assim que o
+upload ficou parado em 0%, e as rotas GET esconderam o problema porque não
+têm corpo para ler.
+
+Protegido por `tests/rotas-api.test.ts`, que chama o default como a Vercel
+chama — inclusive com corpo já parseado — e exige que ele escreva uma
+resposta.
+
+### 2. Id gerado no cliente tem que ser uuid
+
+```ts
+import { novoId } from './lib/sincronizacao';
+id: novoId(),              // ✅
+// id: `job-${Date.now()}`  // ❌ o Postgres recusa a linha inteira
+```
+
+Toda tabela usa `id uuid primary key`. Um id fora desse formato faz o insert
+falhar com `invalid input syntax for type uuid` — e como a persistência roda
+em segundo plano, **a tela segue mostrando o item que nunca foi salvo**.
+
+`criarRepositorio.criar` manda o `id` junto no insert. Sem isso o Postgres
+gera outro, a tela guarda o antigo, e a cada recarga o app não reconhece as
+linhas e insere tudo de novo: um cliente virou 76 assim.
+
+Protegido por `tests/ids.test.ts`, que varre o `src` atrás do padrão antigo.
+
+### 3. Gravação entre tabelas segue a ordem de dependência
+
+Uma ação pode tocar duas coleções ligadas por chave estrangeira — converter
+lead em cliente cria o cliente e o contrato no mesmo render. As gravações
+passam por uma fila única (`filaDeGravacao`), na ordem em que os hooks
+`useColecaoSincronizada` são declarados.
+
+**Reordenar esses hooks quebra isso sem nenhum sintoma imediato**: o filho é
+gravado antes do pai, o Postgres recusa com `23503` e ninguém repete.
+
+Protegido por `tests/ordem-de-gravacao.test.ts`.
+
+### 4. Nada de dado da aplicação no navegador
+
+Sem `localStorage` para dado de agência. Ele existia como cache e cobrou caro:
+um cliente com logo em base64 ocupou 4,8 MB e estourou a cota. Pior que o
+aviso era o efeito silencioso — parte do estado ficava só ali, e o que a tela
+mostrava dependia de qual máquina abriu.
+
+Preferências (tema, última agência) ficam em `user_settings`, com RLS por
+linha. A sessão do Supabase Auth continua no `localStorage`: é o que mantém o
+login entre reloads, e não é dado de agência.
+
+Protegido pelo teste de guarda em `tests/ids.test.ts`, com essa exceção
+escrita.
+
+### 5. Arquivo vai para o R2, nunca para dentro do registro — e o bucket precisa de CORS
+
+Sem `readAsDataURL`. Use `arquivosApi.enviar`, que pede URL pré-assinada e
+manda o binário do navegador direto para o R2.
+
+Sem armazenamento configurado, **não caia de volta no base64** — era ele o
+problema. A tela oferece colar a URL.
+
+O bucket precisa de **política de CORS**, e isso não é opcional: o PUT parte
+do navegador, então sem a origem liberada ele é bloqueado antes de sair e a
+barra trava em 0% — sem erro no console da função, porque a função nem é
+chamada. O bucket `orquesia-midia` estava sem nenhuma regra, e foi essa a
+causa da primeira falha de upload em produção. Ver `.env.example`.
+
+### 6. `vercel.json` não é validado pelo CI
+
+O CI roda `tsc`, testes e `vite build`. **Nenhum deles olha o `vercel.json`**,
+que só é validado no deploy de verdade.
+
+Já passou um cron de 5 minutos com o CI verde: contas Hobby da Vercel só
+aceitam cron diário, e isso derruba o deploy inteiro. Por isso o agendamento
+da fila de publicação nunca morou no `vercel.json` — ele mora no `pg_cron`,
+dentro do Postgres (ver **O agendador mora no banco**, abaixo).
+
+O `rewrite` para `/index.html` também mora ali, e é **ele** que faz o F5
+funcionar fora da raiz: agora que cada menu tem URL própria, sem o rewrite
+recarregar em `/calendario` devolve 404 da Vercel antes de o app existir. O
+padrão exclui `/api/` de propósito — engolir esse prefixo faria toda função
+serverless devolver HTML.
+
+A **ordem** dos rewrites também é regra: a Vercel avalia de cima para baixo e
+para no primeiro que casa, e o coringa `/((?!api/).*)` casa com tudo. Se ele
+subir, `/robots.txt` e o desvio dos robôs de prévia de link (por `user-agent`,
+para `/api/seo`) deixam de existir — sem erro nenhum, só voltam a servir o
+`index.html`.
+
+**E o plano Hobby aceita 12 funções serverless por deploy.** Passar disso não
+dá erro de código: `tsc`, vitest e `vite build` ficam verdes — nenhum deles
+conta arquivos em `api/` — e **o deploy inteiro falha**, com a produção presa
+na versão anterior. A branch da lixeira ficou quatro deploys sem subir por
+causa de duas rotas novas, que levaram o total a 14.
+
+Rota nova, portanto, significa **juntar duas que já existem**. Foi o que
+aconteceu com a exclusão imediata de agência: virou um modo de
+`api/expurgar-lixeira.ts` (GET com o segredo do cron varre; POST com sessão de
+admin apaga uma), porque as duas já chamavam a mesma `apagarAgenciaDeVez`. E
+foi por isso que a sonda `api/ping.ts` saiu — ela não fazia parte do produto,
+e o slot dela era a diferença entre subir e não subir.
+
+`tests/rotas.test.ts` lê o `vercel.json` e confere as quatro coisas — inclusive
+que o padrão do desvio casa com `facebookexternalhit` e **não** casa com Chrome
+ou Safari — e conta as funções em `api/`. É a única guarda que existe para
+esse arquivo e para o limite do plano.
+
+Mudança nesse arquivo merece desconfiança dobrada — CI verde ali não
+significa nada.
+
+### 7. Helper de RLS no schema `private` mantém o EXECUTE padrão
+
+```sql
+create function private.eh_admin_da_plataforma() ... security definer;
+grant execute on function private.eh_admin_da_plataforma() to public;  -- ✅
+-- revoke all on function ... from authenticated;                       -- ❌
+```
+
+A policy resolve a função pelo OID, mas o privilégio de execução é conferido
+**em tempo de execução, como o usuário da sessão**. Revogar o `EXECUTE` faz
+toda leitura da tabela protegida falhar com `42501`.
+
+Quem impede a chamada direta é o schema `private` não conceder `USAGE` — e o
+PostgREST só expõe `public`.
+
+---
+
+### 8. Quem chega por convite já tem agência
+
+`garantirAgencia()` cria a agência de quem não tem nenhuma. No fluxo de
+convite isso é errado: a agência é a de quem convidou.
+
+```ts
+cadastrar({ ..., criarAgenciaPropria: false });   // ✅ na tela de convite
+```
+
+O convidado ficava em duas agências e entrava na própria, vazia. **No banco a
+diferença entre as duas linhas foi de 129 ms** — a agência nasceu antes do
+vínculo, e a escolha da agência inicial era `membros[0]` de uma consulta sem
+`order`, que o Postgres não promete.
+
+O sintoma engana dos dois lados: para quem convidou, o convite parece não ter
+funcionado; para o convidado, o sistema parece vazio. As duas chamadas
+funcionam — só estão na ordem errada.
+
+Só a correção na tela não cobre tudo. Com confirmação de e-mail ligada o
+cadastro não abre sessão, e a criação automática dispara depois, no login
+normal. Por isso `garantirAgencia` também pergunta ao banco
+(`tenho_convite_pendente()`, `security definer` porque a RLS de `invites` só
+deixa owner/admin ler).
+
+Protegido por `tests/convite.test.ts`.
+
+---
+
+### 9. Tela não afirma o que não mediu
+
+O Financeiro do SaaS calculava `MRR = agências × R$ 197` — contando toda
+agência criada, inclusive as em teste —, projetava o ARR em cima disso, e
+trazia `100% adimplentes`, `+18,4% este mês` e `Ticket Médio R$ 197,00` como
+texto fixo. Embaixo, quatro "transações" de agências que nunca existiram na
+base: Vanguarda Social, Pixel Mídia, Creative Hub.
+
+**No dia em que isso foi encontrado eram três agências, todas em teste, R$ 0,00
+de receita. A tela dizia R$ 591,00.**
+
+Não existe assinatura da agência com o SaaS nem registro de cobrança no banco
+— `plans` é outra coisa, é o catálogo que cada agência monta para os clientes
+dela. Sem esses dados, qualquer número ali é chute.
+
+Número inventado em tela financeira é pior que tela vazia: ele é usado para
+decidir. Enquanto o dado não existir, a tela mostra o que o banco sabe e
+**diz o que falta, com nome** — a mesma regra da aba Integrações.
+
+Protegido por `tests/telas-honestas.test.ts`, que varre `src/components`
+depois de remover os comentários: o projeto registra o bug nos comentários, e
+sem essa limpeza a guarda acusaria a própria memória do bug.
+
+---
+
+### 8.1 Hook depois do `return null` derruba o app inteiro
+
+```tsx
+const [aberto, setAberto] = useState(false);   // ✅ todos aqui em cima
+if (!isOpen) return null;
+// const [texto, setTexto] = useState('');     // ❌ erro #310, tela branca
+```
+
+O React exige a **mesma lista de hooks em toda renderização**. Um componente
+que faz `if (!isOpen) return null;` e declara `useState` depois disso roda
+dois conjuntos diferentes — poucos com a modal fechada, todos quando ela abre
+— e o React não degrada: derruba a árvore com `Rendered more hooks than
+during the previous render`, que em produção chega minificado como
+**`Minified React error #310`**, na tela de erro genérica.
+
+O que torna a armadilha cara é que **nada local acusa**: `tsc` não sabe o que
+é hook, o vitest não monta componente, e o `vite build` compila feliz. É a
+mesma família da armadilha 0 — tudo verde, produção morta. O projeto não roda
+eslint (`bun run lint` é `tsc --noEmit`), então a regra
+`react-hooks/rules-of-hooks`, que pegaria isso de graça, não existe aqui.
+
+Só acontece quando o componente **fica montado** com a prop falsa. Se o pai
+escreve `{aberto && <Modal/>}`, ele monta e desmonta, e a contagem nunca
+diverge. Escrevendo `<Modal isOpen={aberto}/>`, que é o padrão aqui, diverge
+sempre. Foi assim nos dois casos que existiram: o botão de teste da
+publicação em `CreateJobModal`, e o `useState(defaultMessage)` do
+`WhatsAppShareModal` — este último quebrava "compartilhar no WhatsApp" desde
+que foi escrito, e ninguém tinha percebido. (Aquele arquivo não existe mais:
+virou a aba Compartilhamento, e deixar de ser modal com `isOpen` tirou a
+armadilha da raiz, em vez de contorná-la.)
+
+A ordem certa é sempre a mesma: **todos os hooks no topo, antes de qualquer
+`return`**. Quando o valor inicial depende de algo que só existe depois da
+guarda, o estado nasce vazio e um `useEffect` o preenche — que também
+conserta o valor velho preso do `useState(x)`, lido só na primeira
+renderização.
+
+Protegido por `tests/hooks-antes-do-return.test.ts`.
+
+---
+
+### 8.2 Toda data é do fuso da **agência**, nunca do dispositivo
+
+`workspaces.timezone` ficou desde a primeira migração **sem ninguém ler** —
+aparecia como rótulo em duas telas e nada mais. É a mesma classe do
+`trial_ends_at`: coluna que parece uma regra e não é.
+
+O que segurava era um acidente. `datetime-local` interpreta no fuso do
+navegador, `toLocaleString` também, e a grade do calendário comparava
+`getDate()` dos dois lados — tudo no fuso do dispositivo, e portanto coerente
+**desde que uma pessoa só, num aparelho só, agende e leia**. Quebra em três
+casos que existem:
+
+- membro da equipe em outro estado vê horário diferente do colega, no mesmo
+  post;
+- o **portal do cliente** formata no fuso do aparelho *dele*: "sai às 10:00"
+  vira 11:00 para um cliente em Brasília;
+- celular com fuso automático errado agenda errado, sem aviso nenhum.
+
+`src/lib/fusoHorario.ts` guarda o fuso num lugar só, definido **durante a
+renderização** do contexto (efeito seria tarde: a primeira pintura após trocar
+de agência mostraria o fuso anterior). Os formatadores de `utils.ts` o aplicam
+por padrão.
+
+**O padrão é por omissão, e isso é a decisão central.** São 72 pontos que
+mostram data, em 26 arquivos; exigir o fuso em cada chamada garantiria
+esquecer algum, e esquecer aqui **não quebra nada visível** — mostra o horário
+errado com cara de certo. Mesma lógica da persistência derivada de diff: o
+caminho certo é o que não exige lembrar de nada.
+
+Três detalhes que custaram tempo:
+
+- **`new Date(':00Z')` devolve 1º de janeiro de 2000**, não data inválida. O
+  V8 é permissivo aqui, então `deParedeParaUtc` confere o formato com regex
+  **antes** de o `Date` ver o texto — um campo vazio viraria um agendamento em
+  2000, que o cron publicaria na primeira passada por já estar vencido.
+- **A casinha do calendário é rótulo, não instante.** Ela nasce de
+  `new Date(ano, mes, dia)`, meia-noite local; convertê-la pelo fuso a moveria
+  um dia. Por isso `chaveDoDia` sai dos números da grade, e quem é convertido
+  é o conteúdo.
+- **O teste de `descreverBuild` não testava nada disso.** Ele criava a data no
+  fuso do runner e conferia a saída no mesmo fuso: os dois lados se
+  cancelavam, e ele passava em qualquer máquina sem nunca afirmar em que fuso
+  o rodapé deveria estar. Agora o fuso vai explícito em toda asserção.
+
+E a tela de `Configurações → Preferências` **mentia**: o botão de salvar era
+`setSaved(true)` e mais nada, seguido de "Preferências salvas com sucesso!".
+Nenhuma chamada ao banco. Quatro campos saíram junto — idioma, prazo de
+auto-aprovação, prazo padrão de entrega e os dois alertas —, porque nenhum
+tinha efeito em lugar nenhum. Campo que não faz nada é pior que campo ausente:
+ele é configurado, e a pessoa passa a contar com o que ele promete.
+
+Protegido por `tests/fuso-horario.test.ts`, que reprova qualquer `toLocale*`
+de data sem fuso em `src` — depois de remover os comentários, senão a guarda
+acusaria a própria memória do bug.
+
+---
+
+### 9.1 O navegador enfileira, o cron envia
+
+O e-mail automático saía do navegador (`emailApi.disparar`) logo depois de a
+mudança estar gravada. Fechar a aba no mesmo segundo interrompia o envio: o
+conteúdo ficava aprovado e o aviso não saía, sem erro em lugar nenhum.
+
+Agora `dispararAutomacoes` só faz um insert em `email_queue` — que acaba
+antes de a aba fechar — e quem envia é `api/publicar.ts`, a mesma rota que o
+agendador chama de 5 em 5 minutos. Três tentativas por item; depois disso
+fica em `falhou` com o motivo à vista, em vez de ser retentado para sempre.
+
+Note que o e-mail depende do agendador, então **tudo o que atrasa a
+publicação atrasa o aviso junto** — foi o que aconteceu enquanto o cron
+morava no GitHub Actions (ver a seção do agendador, abaixo).
+
+**O destinatário é congelado no insert.** O modelo diz "cliente" ou
+"agência", e quando é a agência o destino é quem está na sessão — o cron não
+tem sessão para perguntar isso depois.
+
+Duas coisas que parecem detalhe e não são:
+
+- A tela diz **"e-mail na fila"**, não "enviado". Quem envia é o cron, daqui
+  a alguns minutos, e um endereço inválido só se revela lá.
+- O **webhook continua saindo do navegador**: ele é ida e volta que a tela
+  mostra na hora ("destino respondeu 200"). Enfileirá-lo trocaria uma
+  resposta útil por um "na fila" que não diz nada.
+
+`email_queue` não tem política de UPDATE para sessão autenticada, de
+propósito: quem marca como enviado é o cron, com a chave de serviço. Uma
+política aqui deixaria o navegador afirmar que enviou o que nunca saiu.
+
+A rota `api/send-email.ts` deixou de existir — o corpo dela virou
+`api/_lib/emails.ts`, chamável dos dois lados. Isso também devolveu um slot
+de função, que é o que o Stripe ocupou (ver armadilha 6).
+
+---
+
+### 9.2 O aviso ao cliente tem dois modos, e o motor é quem decide
+
+Dez peças enviadas na segunda-feira viravam dez e-mails em quinze minutos. O
+efeito não é o cliente ficar bem informado — é ele parar de abrir todos, e aí
+o aviso que importa se perde junto.
+
+`workspaces.notificacao_aprovacao` escolhe entre `cada` (o de sempre, e o
+padrão) e `lote`. No modo de lote **nenhum e-mail automático sai**; quem
+avisa é a agência, pelo botão "Aprovação em massa" no quadro.
+
+**A checagem mora em `enfileirarEmail`, não nas telas.** O evento
+`conteudo_aguardando_aprovacao` é disparado de vários lugares — o seletor do
+card, o detalhe do conteúdo, o botão da modal —, e filtrar em cada um
+garantiria esquecer um. Esquecer aqui é o pior caso: o cliente recebe os dois
+avisos, e a preferência vira enfeite.
+
+`email_queue` passou a aceitar uma linha que fala de **vários** conteúdos:
+`job_id` deixou de ser obrigatório, e entraram `client_id` e `quantidade`. O
+check `job_id is not null or client_id is not null` é o que impede a linha
+órfã — sem ele, uma linha sem os dois só revelaria o problema na hora de
+enviar, tarde demais.
+
+**A contagem é congelada no insert**, pela mesma razão que o destinatário já
+era: o cron envia minutos depois, e o número de "depois" já seria outro se
+alguém aprovasse no meio-tempo.
+
+O botão exige **um cliente escolhido** no filtro. Com "todos", o lote
+misturaria clientes e o aviso iria para quem não deveria ver o conteúdo dos
+outros.
+
+Protegido por `tests/fluxo-de-aprovacao.test.ts`.
+
+---
+
+### 10. No portal não há sessão — logo, não há persistência por diff
+
+`useColecaoSincronizada` sai cedo quando `isAuthenticated` é falso. **Toda
+mutação feita de dentro do Portal do Cliente morre no estado da aba**: a tela
+mostra o resultado, o banco nunca é chamado, e o F5 apaga tudo sem erro
+nenhum. Foi assim que o envio de material do cliente ficou decorativo por
+meses — a galeria exibia o arquivo, `client_materials` não tinha a linha.
+
+Quem grava ali é RPC `security definer`, com o token da sessão como
+credencial:
+
+```ts
+if (noPortal) { void gravarClienteNoPortal({ passwords: proximas }); return; }
+```
+
+`noPortal` (`portalToken && !isAuthenticated`) fica no contexto, num lugar só.
+Mutação nova que o portal possa disparar precisa do desvio — ou volta a ser
+uma tela que mente sobre o que gravou.
+
+E o recorte por papel é do **banco**, não da tela: `portal_dados` não devolve
+`passwords`, `invoices`, `briefing` nem `files` para o aprovador. Esconder aba
+com o dado já no navegador seria a armadilha 9 outra vez. `portal_token`
+também não sai mais de lá, para papel nenhum — e `annotations` e `notes`
+acompanham, pela mesma regra e para papel nenhum: é o que a agência escreve
+*sobre* o cliente, lido pelo próprio cliente.
+
+**A função responde com `to_jsonb(cliente)`, que é a linha inteira.** Coluna
+nova, portanto, nasce visível no portal sem ninguém ter decidido isso — foi
+assim que `passwords`, `invoices` e `briefing` saíram na primeira versão. Toda
+coluna acrescentada a `clients` passa por esta decisão, e a subtração que vale
+para todos os papéis vai **antes** do `if usuario.role`: dentro dele, ela
+poupa só quem não é editor, e o editor é o cliente.
+
+Protegido por `tests/usuarios-do-cliente.test.ts`, que lê a migração depois de
+remover os comentários e confere o recorte, o papel em cada escrita, os
+`grant ... to anon` e que cada `supabase.rpc` do portal aponta para função que
+existe — nome de RPC é string, e um erro de digitação só aparece na frente do
+cliente. `tests/anotacoes-do-cliente.test.ts` cobre a parte que envelhece
+sozinha: `portal_dados` é redefinida por `create or replace` em mais de uma
+migração, e ler a primeira que aparecer afirmaria o recorte de uma versão que
+o banco já não tem — a guarda toma a **última** pelo nome do arquivo.
+
+### 10.1 O que o cliente faz no portal não chegava à agência por e-mail
+
+O painel sempre recebeu: `portal_aprovar`, `portal_pedir_ajuste`,
+`portal_comentar` e `portal_enviar_material` gravam em `notifications` desde
+que existem. **O e-mail nunca saiu**, e não foi esquecimento — é a armadilha
+10 num degrau acima.
+
+Quem enfileira e-mail é `dispararAutomacoes`, que roda no navegador **com
+sessão**, e `email_queue` só aceita insert de membro da agência. No portal não
+há sessão. Então a ação do cliente morria no painel, enquanto a tela de
+Automações oferecia o gatilho *"quando o cliente aprova um conteúdo"* — que só
+disparava quando a **agência** mudava o status na própria tela. Rótulo que
+descreve o que não acontece é a família do `trial_ends_at`, agora no motor de
+automações.
+
+Quem enfileira agora é `private.enfileirar_email_do_portal`, chamada pelas
+RPCs. Três decisões:
+
+- **Isso é uma segunda resposta para "este e-mail sai?", e é deliberado.** O
+  lado do navegador pergunta às `automations`; este pergunta ao modelo
+  (`email_templates.ativo`). Se o portal também exigisse regra de automação,
+  **nada sairia por padrão** — não há automação semeada em agência nenhuma —, e
+  a agência concluiria que o aviso não funciona.
+- **A preferência é conferida no enfileirar, nunca em quem dispara.** O evento
+  sai de três funções, e filtrar em cada uma garante esquecer uma. Esquecer
+  aqui é o pior caso: a agência desliga na tela e continua recebendo, e a chave
+  vira enfeite. É a mesma razão de `notificacao_aprovacao` morar em
+  `enfileirarEmail`.
+- **O destinatário é o dono e os admins ativos**, resolvido por
+  `private.destinatarios_da_agencia` — `auth.users` não é legível por sessão
+  nenhuma, e uma coluna `email` em `workspace_members` envelheceria em silêncio
+  no dia em que alguém trocasse o endereço da conta.
+
+**"Abriu o portal" não pode se apoiar no login**: a sessão do portal dura 30
+dias, então a agência saberia de uma visita por mês. E não pode se apoiar em
+`portal_dados`, que é `stable` e não escreve. Por isso existe
+`portal_registrar_acesso`, chamada uma vez por abertura do portal — do
+contexto, não da `ClientPortalView`, onde qualquer remontagem viraria um aviso
+novo.
+
+**Não há janela de silêncio, e isso foi escolhido sabendo do risco.** Cada
+visita rende um aviso × cada admin; o precedente está na seção 9.2, onde dez
+peças viraram dez e-mails e o efeito foi o cliente parar de abrir todos. As
+saídas existem e estão em `Configurações → Preferências`
+(`workspaces.avisar_acesso_do_portal` e `avisar_acoes_do_cliente`, as duas
+ligadas por padrão) e em `Admin → E-mails`, pelo modelo. Se virar ruído, a
+janela entra em `portal_registrar_acesso`, num lugar só.
+
+`ultimo_acesso` passou a ser carimbado a cada visita, e **antes** da chave: ele
+não é aviso, é o fato. Ele só marcava o login, então a ficha dizia "último
+acesso há 29 dias" de quem entrava todo dia — uma data verdadeira medindo a
+coisa errada.
+
+#### O sino não era tempo real, e o popover afirmava que era
+
+`Notificações da Agência` trazia o texto fixo **"Tempo Real"** e não havia
+assinatura nem sondagem: as notificações vinham na carga inicial e só. Como
+tudo o que o cliente faz é gravado por RPC no servidor, **nada disso chegava a
+uma aba já aberta** — quem deixasse o Orquesia aberto a manhã inteira não via
+nada até o F5, com a tela dizendo o contrário. Armadilha 9 dentro do painel de
+avisos.
+
+A sondagem é de um minuto, com o padrão do `AvisoDeAtualizacao`: intervalo
+**e** volta do foco, porque o navegador estrangula timer de aba em segundo
+plano, que é onde essa aba passa o dia.
+
+Não é Realtime do Supabase de propósito: ele depende de a tabela estar na
+publicação do projeto, que é um botão fora deste repositório — dependência que
+ninguém vê quebrar é como o agendador do GitHub Actions morreu por 52 horas
+sem sintoma.
+
+As linhas que a sondagem traz entram pelo `marcarComoVindoDoBanco`, e **só as
+que faltam**: sem a marca o diff tentaria gravá-las de volta, e reaproveitar as
+que já estão no estado desfaria o "lida" de quem acabou de clicar no sino.
+
+Protegido por `tests/avisos-do-portal.test.ts`. A guarda das duas listas
+fechadas existe por um erro cometido escrevendo a própria migração: recriar o
+`check` de `email_queue.evento` é **reescrever a lista inteira**, e a primeira
+versão saiu sem `lote_aguardando_aprovacao`. Esquecer um valor que já existe é
+pior que esquecer o novo — o `add constraint` valida as linhas gravadas, então
+a migração falharia na agência que já usou o lote, ou passaria limpa e
+derrubaria o próximo aviso em massa.
+
+
+---
+
+---
+
+## Performance: o gargalo é o que se carrega, não o que se guarda
+
+`carregarTudo` puxava a agência **inteira** em toda sessão — todos os jobs,
+logs, notificações, materiais e apontamentos, sem limite e sem paginação. Com
+100 jobs é instantâneo; com 5.000 o login demora segundos e **cada edição**
+passa pelo `diferenciar()`, que faz um `JSON.stringify` por linha.
+
+O que torna isso perigoso é que não dependia de a agência crescer. Nada era
+arquivado, então toda agência caminhava para lá só pelo tempo de uso.
+
+**A regra que substitui isso: trabalho aberto sempre vem; trabalho concluído
+só o recente.** Uma agência com três anos tem dezenas de jobs abertos e
+milhares de publicados, e são os abertos que a tela precisa para funcionar.
+`DIAS_DE_HISTORICO = 90` em `src/lib/db.ts`.
+
+Clientes, leads, propostas e contratos continuam vindo inteiros, de
+propósito: são limitados pelo tamanho do negócio, não pelo tempo. Paginá-los
+quebraria o seletor de cliente e o funil sem ganho nenhum.
+
+### O que sai da janela é buscado sob demanda — e vem **marcado**
+
+Calendário navegando para trás e relatório de período longo chamam
+`garantirJobsDoPeriodo`, que busca o que falta e junta ao estado.
+
+Essas linhas precisam ser invisíveis para o diff: sem isso o
+`useColecaoSincronizada` as vê como inserção e tenta **gravar de volta tudo
+que acabou de ler** — a chave primária recusaria uma a uma, em silêncio,
+dentro da fila. É a mesma razão de a carga inicial marcar as dela.
+
+#### A bandeira booleana era o bug, não a solução
+
+O que existia aqui era um `aplicandoCargaDoBanco.current = true`: uma bandeira
+global que dizia "pule este commit inteiro", baixada por um efeito **sem lista
+de dependências** — ou seja, no próximo render que acontecesse.
+
+```ts
+aplicandoCargaDoBanco.current = true;          // ❌ antes do updater
+setAllJobs((atuais) => {
+  const novos = encontrados.filter((j) => !conhecidos.has(j.id));
+  return novos.length > 0 ? [...atuais, ...novos] : atuais;   // ← mesma referência
+});
+```
+
+**Quando não há linha nova, o updater devolve `atuais` — a mesma referência —
+e o React desiste do render.** Sem render, o efeito que baixa a bandeira não
+roda. Ela fica erguida, esperando um commit que não vem.
+
+E aí a próxima edição de verdade é **descartada**, porque o efeito pula a
+gravação *e ainda avança `anterior.current`*:
+
+```ts
+const antes = anterior.current;
+anterior.current = linhas;          // ← avança sempre
+if (aplicandoCargaDoBanco.current) return;   // ← e só então desiste
+```
+
+Avançado o ponteiro, aquela mudança nunca mais entra num diff. Não há erro,
+não há repetição, não há sintoma: **a tela mostra o valor novo e o banco fica
+com o velho**, até o F5. Foi assim que uma data editada de 12 para 14 voltou a
+12, e que uma ideia recém-criada não chegou ao banco — dois relatos, uma causa.
+
+**A correção é recortar por linha, não por commit.** `idsVindosDoBanco` guarda
+os ids que acabaram de ser lidos, e o efeito remove **só esses** das inserções:
+
+```ts
+const d = diferenciar(antes, linhas);
+const doBanco = idsVindosDoBanco.current[nome];
+if (doBanco?.size) {
+  d.inseridos = d.inseridos.filter((l) => !doBanco.has(l.id));
+  doBanco.clear();
+}
+```
+
+Só `inseridos` precisa do filtro, e isso é o que torna a correção correta:
+linha vinda do banco é **nova** para o diff, enquanto a edição do usuário
+sobre uma linha que já existia cai em `atualizados` e passa. Uma carga e uma
+edição no mesmo commit deixam de se atrapalhar — o caso que a bandeira também
+errava, e que ninguém tinha notado.
+
+A marca é feita **dentro do updater**, depois da saída que devolve `atuais`:
+fora dele ela valeria mesmo quando o estado não muda, e ficaria pendurada
+exatamente como a bandeira ficava.
+
+**As quatro guardas que existiam aqui passavam.** Elas exigiam que a bandeira
+fosse levantada antes do `setAll`, baixada depois das coleções e testada no
+efeito — descreviam o mecanismo com precisão, e o mecanismo perdia dado. Agora
+elas exercitam a decisão com o `diferenciar` de verdade: carga não vira
+insert, edição vira update, e as duas juntas num lote continuam valendo as
+duas. Guarda que descreve o mecanismo aprova qualquer mecanismo com aquela
+forma.
+
+### Cache: quase nenhum, e não no navegador
+
+O estado em memória do React já é o cache da sessão. A armadilha 4 proíbe
+`localStorage` para dado de agência, e o ganho de guardar mais é pequeno
+perto do de carregar menos — foi por isso que a resposta aqui foi janela, e
+não cache.
+
+Dois lugares onde ele vale, e são os dois que já existem:
+
+- **`carregarAparencia()`** é memoizada por sessão. É a consulta mais chamada
+  do produto — entrada, cadastro e porta do portal são anônimas e a leem em
+  toda abertura — e devolve uma linha que muda quando o dono mexe no Design.
+  `esquecerAparencia()` limpa depois de salvar, senão quem trocou o logo
+  continuaria vendo o antigo.
+- **`api/seo.ts`** responde com `cache-control: public, max-age=300`, para o
+  robô de prévia não bater no banco a cada compartilhamento.
+
+**Redis não entra.** Não há servidor de aplicação onde ele ficaria: o
+navegador fala direto com o Supabase, e as funções serverless são efêmeras —
+um cache dentro delas nasce frio e morre em minutos. O único caso legítimo
+seria limite de taxa global entre containers, e esse já é resolvido contando
+em `portal_codigos`.
+
+### O agendador tem orçamento de tempo, não lote fixo
+
+`api/publicar.ts` publicava `LOTE = 10` por passada. Lote fixo só funciona se
+a estimativa de tempo estiver certa: alto demais estoura o tempo da função
+**no meio de uma publicação** — a peça vai ao ar e a fila não sabe, que é o
+pior desfecho desta rota —, baixo demais segura a fila no pico, e todo mundo
+agenda para 9h e 18h.
+
+Agora a passada publica o que couber em `ORCAMENTO_MS` (45s numa função de
+60s) e para. O resto é o primeiro da próxima, cinco minutos depois. A
+resposta traz `adiados`: diferente de zero de forma seguida é o sinal de que
+cinco minutos já não bastam.
+
+Protegido por `tests/carregamento.test.ts`.
+
+---
+
+## O agendador mora no banco, e isso foi medido
+
+`/api/publicar` é a rota que publica a fila, renova os tokens do Instagram e
+esvazia `email_queue`. Ela não se chama sozinha — alguém precisa bater nela
+de 5 em 5 minutos.
+
+Esse alguém **já foi o `schedule` do GitHub Actions**, e o número que tirou
+ele de lá:
+
+| | |
+|---|---|
+| workflow ativo | 52,6 horas |
+| passadas que `*/5` pedia | 631 |
+| passadas reais | **15** |
+| taxa | **2,4%** |
+
+Intervalos reais de 2 a 5 horas entre uma passada e outra. O comentário que
+estava no workflow assumia o contrário — "pode atrasar sob carga, aceitável
+para post agendado, que já tolera minutos". Tolera minutos; não tolera horas.
+Um post marcado para as 10:00 saindo às 14:00 é a agência explicando ao
+cliente dela.
+
+**Não era erro de configuração.** O `schedule` do GitHub é best-effort por
+definição, e a documentação deles diz isso. Para CI não custa nada; para hora
+de publicação, custa tudo. A lição que fica é mais ampla: *serviço grátis
+best-effort não vira compromisso de produto porque o cron está escrito
+certo.*
+
+Quem agenda agora é o **`pg_cron`**, no Postgres que já é nosso — sem
+fornecedor novo e sem o segredo sair de casa. O cron da Vercel seria o lugar
+natural e não serve: conta Hobby só aceita cron diário, e `*/5` derruba o
+deploy inteiro (armadilha 6).
+
+Três coisas que não são detalhe:
+
+- **O `CRON_SECRET` vive no Vault do Supabase, nunca na migração.** Migração
+  é arquivo versionado, e o projeto já carrega uma senha no histórico do git
+  por ter esquecido isso uma vez. `private.disparar_publicador()` lê
+  `vault.decrypted_secrets` pelo nome; quem cadastra o valor é uma pessoa, no
+  SQL Editor, fora do git. O comando está no cabeçalho da migração.
+- **Um agendador só.** O `schedule:` saiu de `publicar.yml` de propósito —
+  deixá-lo "como reserva" faria os dois esconderem a morte um do outro, e o
+  `pg_cron` parado passaria despercebido enquanto posts saíssem atrasados.
+  Com um só, a parada aparece na fila da tela de Publicações, em pendente. O
+  `workflow_dispatch` continua, para disparar à mão ao testar.
+- **A passada é assíncrona.** `net.http_get` enfileira e volta na hora, então
+  o cron não fica preso nos 45 s de orçamento da função. A resposta cai em
+  `net._http_response`.
+
+Onde olhar quando a publicação não sai:
+
+```sql
+select start_time, status, return_message
+  from cron.job_run_details
+ where jobid = (select jobid from cron.job where jobname = 'publicar-fila')
+ order by start_time desc limit 20;
+
+select created, status_code, content::text
+  from net._http_response order by created desc limit 20;
+```
+
+`status_code` 401 significa que o valor no Vault e o da Vercel divergiram —
+o mesmo sintoma que derrubava o workflow.
+
+### `extensions.net.http_get` não é schema errado — é nome de três partes
+
+`create extension pg_net with schema extensions` registra a extensão ali, mas
+as funções **não** vão junto: o pg_net fixa o schema `net` no próprio control
+file, e é em `net.http_get` que elas ficam. Escrever `extensions.net.http_get`
+faz o Postgres ler *banco*.*schema*.*função* e recusar com
+`0A000: cross-database references are not implemented`.
+
+O que torna isso caro é o momento em que aparece. **A migração aplica limpa**:
+PL/pgSQL só resolve nome na execução, então `create or replace function`
+aceita o corpo sem conferir nada e o `cron.schedule` grava. A primeira falha
+chega na primeira passada, como uma linha em `cron.job_run_details` que
+ninguém abre — nada publica, a fila enche de `pendente`, e não há erro em
+lugar nenhum. Exatamente o sintoma que o `pg_cron` veio resolver.
+
+`net` também precisa estar no `search_path` da função: ela é `security
+definer` com caminho fixo, então o schema não entra por herança da sessão.
+
+**E migração escrita não é migração aplicada.** Esta ficou quatro commits no
+repositório sem nunca ter sido aplicada — com o `schedule:` do GitHub já
+removido, o produto passou esse tempo **sem agendador nenhum**. A regra do
+banco compartilhado corta nos dois sentidos: aplicar cedo demais quebra a
+`main`, e aplicar nunca desliga o produto em silêncio. Antes de fechar a
+entrega, confira no banco (`select * from cron.job`), não no arquivo.
+
+`tests/agendador.test.ts` já existia e conferia a **fiação de fora** — um
+`cron.schedule` só, com `unschedule` antes, workflow sem `schedule`,
+`vercel.json` sem `crons`, segredo fora do git. Nada olhava para dentro do
+corpo da função, que é onde o erro estava. Agora olha: o disparo tem que usar
+`net.http_get` com `net` no `search_path`, e nenhuma migração pode conter nome
+de três partes.
+
+---
+
+## A Biblioteca lê o balde, e a pasta do cliente é derivada
+
+`Biblioteca` mostra todo arquivo que a agência tem no R2. Duas decisões de
+desenho, e as duas têm alternativa óbvia que não serve:
+
+**Ela lê o balde, não uma tabela de índice.** Índice seria mais simples de
+consultar e só conheceria o que foi enviado **depois de ele existir** — o
+acervo de uma agência em uso já está no R2, e a tela começaria vazia
+escondendo meses de arquivo. Mentir por omissão no primeiro dia é a armadilha
+9 com outra roupa.
+
+**A pasta do cliente sai do uso, não da chave.** A chave é
+`workspaceId/timestamp-uuid-nome`: plana, sem cliente. Pôr o cliente ali
+resolveria os arquivos novos e deixaria os antigos órfãos para sempre — e o
+mesmo arquivo pode servir a dois clientes, que uma pasta física não
+representa. `levantarUsos()` cruza `jobs.media_urls`, `client_materials.url` e
+`clients.files`, e isso dá de graça a resposta que importa antes de excluir:
+*em quantos conteúdos esta mídia está?*
+
+As três consultas vão ao **banco**, e não ao estado já carregado: `carregarTudo`
+traz só 90 dias de conteúdo concluído, então contar pelo estado marcaria como
+"sem uso" a mídia de um post mais antigo — exatamente no momento em que a
+pessoa confia no número para decidir se pode apagar.
+
+Três coisas que não são detalhe:
+
+- **Listar e apagar são modos de `api/upload-url.ts`**, não rotas novas. São
+  12 de 12 funções (armadilha 6), e as credenciais do R2 já moram lá. `GET`
+  lista, `DELETE` apaga, `POST` continua pedindo a URL de envio.
+- **A chave é conferida contra a agência antes de apagar.** A conferência de
+  membro olha o `workspaceId` da query; sem `chave.startsWith(workspaceId + '/')`
+  ela vira enfeite — quem tem uma agência qualquer mandaria a chave de outra e
+  apagaria o arquivo dela. Pelo mesmo motivo a listagem usa o prefixo **com a
+  barra**: `abc` casaria com `abcdef/`.
+- **Balde sem credencial não é biblioteca vazia.** `listarObjetos` devolve `[]`
+  sem configuração, então a checagem de `r2Configurado()` vem **antes** do
+  desvio de GET/DELETE, e a tela mostra o nome das variáveis que faltam. Pela
+  mesma razão o estado vazio não aparece quando a leitura falhou: "nenhum
+  arquivo" depois de um erro é a frase que faz a pessoa concluir que perdeu o
+  acervo.
+
+Protegido por `tests/biblioteca.test.ts`.
+
+### Teste com data absoluta apodrece sozinho
+
+Dois testes do agendamento comparavam a saída de `quandoDeveSair` com
+`2026-09-14T00:05:00.000Z`. Passaram cinco dias e começaram a falhar **com o
+código intacto**: `quandoDeveSair` trata data no passado como agora — que é a
+regra do "agendei para agora" —, então assim que o calendário alcançou a data
+escrita no teste, as asserções passaram a receber a próxima passada a partir
+de *hoje*.
+
+É a mesma família do teste de `descreverBuild` (armadilha 8.2), e a regra que
+fica é: **asserção com instante absoluto vai na função que não olha o
+relógio.** `proximaPassada` arredonda e não lê `Date.now()`; `quandoDeveSair`
+lê, e o teste dela usa `Date.now()`, por isso não envelhece.
+
+A primeira guarda que escrevi para isso procurava o literal colado em
+`quandoDeveSair(` e não achava nada — na prática o literal chega por um
+helper, que era o caso real. Guarda que só procura o que você lembrou de
+escrever não é guarda.
+
+---
+
+## Instagram: é o login do **Instagram**, não o do Facebook
+
+Existem dois caminhos para publicar, e escolher o errado não dá erro nenhum
+até a pessoa já ter digitado a senha:
+
+| | login do Facebook | **login do Instagram** ← o nosso |
+|---|---|---|
+| entra com | conta do Facebook | conta do Instagram |
+| exige Página | sim | não |
+| token que publica | o **da Página**, via `/me/accounts` | o da conta |
+| autorização | `www.facebook.com/.../dialog/oauth` | `www.instagram.com/oauth/authorize` |
+| troca do código | `graph.facebook.com` (query) | `api.instagram.com` (**POST form**) |
+| chamadas | `graph.facebook.com` | `graph.instagram.com` |
+| app id | o do app da Meta | **outro**, em Instagram → Configuração da API |
+
+O projeto nasceu com o primeiro implementado e o segundo configurado na
+Meta. A prova de qual é o nosso está no teste manual que passou: `/me`
+devolveu `28732739896414585` e **esse mesmo id** publicou em `/media`. No
+fluxo do Facebook, `/me` devolve o usuário do Facebook, e um POST em
+`/{id-do-facebook}/media` é recusado.
+
+Três armadilhas dentro dessa, todas com o mesmo sintoma — falha depois do
+login, com mensagem que não nomeia a causa:
+
+1. **`INSTAGRAM_APP_ID` não é `META_APP_ID`.** São apps diferentes, com ids
+   diferentes, no mesmo painel.
+2. **`pages_show_list` e `pages_read_engagement` invalidam a autorização.**
+   São escopos do fluxo do Facebook. Só `instagram_business_basic` e
+   `instagram_business_content_publish` entram.
+3. **A URL de retorno tem que bater caractere a caractere** entre o que
+   mandamos ao abrir a autorização, o que mandamos ao trocar o código e o que
+   está cadastrado no painel. `Admin → Integrações` mostra o valor exato,
+   vindo do servidor, com botão de copiar — escrito à mão na tela ele
+   envelheceria, e o valor certo depende de `APP_URL`.
+
+### Publicar são dois passos, e o segundo espera o primeiro — para foto também
+
+`POST /{conta}/media` cria um **contêiner**: a Meta guarda a URL e vai
+**baixar e processar** o arquivo por conta dela. `POST /{conta}/media_publish`
+só funciona depois que esse processamento termina. Publicar antes devolve
+
+```
+The media is not ready for publishing, please wait for a moment
+```
+
+A espera existia aqui **só para vídeo**, com a suposição de que foto fica
+pronta na hora. Não fica — e foi essa a falha da primeira publicação real.
+
+O que torna essa armadilha cara é depender de tempo: com a mídia já no cache
+da Meta o erro não acontece, então **o mesmo conteúdo falha na primeira
+tentativa e passa na segunda**. Um bug que some quando você repete é o que
+mais custa para diagnosticar, e leva direto a culpar a rede, o R2 ou o token.
+
+`esperarProcessamento` consulta `status_code` do contêiner até `FINISHED`, com
+teto de tempo — sem teto a função serverless estoura, e estourar no meio é o
+pior desfecho, porque o post pode ter saído e a fila não fica sabendo.
+`ERROR` e `EXPIRED` param na hora, com o motivo que a Meta dá em `status`.
+
+Protegido por `tests/instagram.test.ts`, que reprova a espera voltando a ser
+condicional ao vídeo.
+
+O token de longa duração vale **60 dias e é renovável**. `api/publicar.ts`
+renova o que vence em menos de 10 dias, em toda passada do agendador, e olha
+todas as conexões — não só as que têm item na fila, porque é justamente quem
+não publica há tempos que corre o risco. Sem isso a conta cai sozinha depois
+de dois meses, e o sintoma é a publicação agendada falhando de madrugada.
+
+Protegido por `tests/instagram.test.ts`, que varre os arquivos **depois de
+remover os comentários** — o porquê de cada host do Facebook ter saído está
+registrado neles.
+
+### "Feed + Story" é uma peça com duas saídas, e o story não era story
+
+`publicarNoInstagram` **nunca mandou `media_type: 'STORIES'`**. Um conteúdo com
+formato `story` criava um contêiner comum e ia parar **no feed**, com legenda e
+tudo — a Meta aceita e publica, então não havia erro em lugar nenhum e a fila
+marcava "publicado". O formato nem chegava ao publicador: a assinatura era
+`(accountId, token, mediaUrl, legenda)`.
+
+O formato `feed_story` obrigou a consertar isso, e trouxe três decisões:
+
+- **A arte do story tem coluna própria** (`jobs.story_media_urls`), não é o
+  segundo item de `media_urls`. Ali o segundo item já significa "página 2 do
+  carrossel", e misturar os dois faria um carrossel de duas páginas virar
+  feed+story sozinho. E as proporções são outras — 4:5 e 9:16 —, então a mesma
+  imagem nos dois sai cortada num deles.
+- **`STORIES` vence `REELS`, e story não leva legenda.** Um vídeo publicado
+  como story é story, não reel. E a Meta **ignora** `caption` em story: mandá-la
+  faria a tela prometer um texto que nunca aparece.
+- **A falha do story não pode propagar.** Uma linha da fila publica dois
+  contêineres, feed primeiro. Se a exceção do story subir, o laço marca
+  `pendente` e a passada seguinte chama `publicarItem` de novo — que **começa
+  publicando o feed**. O cliente fica com dois posts iguais no perfil, e post
+  duplicado não volta.
+
+  Por isso a falha do story é capturada dentro de `publicarItem`: o item fecha
+  como **publicado**, com o motivo em `last_error` e `story_external_id` nulo.
+  `falhou` ali seria a fila mentindo nos dois sentidos — o feed saiu, e a
+  próxima passada republicaria.
+
+`external_id` continua sendo o do **feed**, que é o que `post_metrics` mede:
+story expira em 24h e não entra em relatório.
+
+#### A arte do story nunca é substituída pela do feed
+
+O publicador tinha `(job.story_media_urls || [])[0] || midia`: **faltando a
+arte vertical, ele mandava a do feed para o story.** O fallback parece
+generoso e é o oposto — as proporções são 4:5 e 9:16, que é a razão de
+`story_media_urls` ser coluna própria, e a mesma imagem nos dois sai cortada
+num deles.
+
+**O que torna isso caro é que a Meta aceita.** Ela publica, então não há erro
+em lugar nenhum: o item fecha como `publicado`, com `story_external_id`
+preenchido e `last_error` nulo. Sucesso completo na fila, story errado no
+perfil do cliente. Foi o desfecho do primeiro teste real de feed+story —
+verificado na `publish_queue` depois: item publicado, os dois ids, nenhum
+erro, e `story_media_urls` da peça **vazio**.
+
+Substituir uma arte por outra é decisão de quem produz a peça, nunca do
+publicador. Sem a arte, o story não sai: o feed fica no ar (ele está certo), o
+item fecha como **publicado** — marcar `falhou` republicaria o feed na passada
+seguinte — e o motivo vai para `last_error`, que é o mesmo desfecho da falha
+do story. As duas redes davam a mesma resposta, então o texto é uma constante
+(`SEM_ARTE_DE_STORY`), e ele diz o que fazer, porque chega à tela de
+Publicações.
+
+**E a conferência também mora antes da ação**, em `faltaArteDoStory` de
+`src/lib/formatos.ts`. Descobrir no publicador é tarde: o feed já está no
+perfil e a peça ficou pela metade; antes da ação ainda dá para subir a arte.
+Ela fica na fonte única pela mesma razão de `FORMATOS_POR_CANAL` ter saído da
+`CreateJobModal` — são **quatro botões em três telas** que disparam
+publicação, e repetir a regra em cada um garante esquecer um. Que é
+literalmente o que havia acontecido: a modal de cadastro **descartava o
+`aviso`** que o servidor já devolvia e dizia "Publicado em @conta" onde houve
+uma saída de duas, enquanto a modal de detalhe o mostrava.
+
+A guarda de `tests/feed-mais-story.test.ts` procura o **efeito**, não o nome
+da variável: nenhuma leitura de `story_media_urls` seguida de `|| midia`. E a
+lista das telas que conferem é **derivada** — todo arquivo de
+`src/components` que chame `agendarPublicacao` ou `publicarAgora` precisa ter
+o `faltaArteDoStory`. Conferida ao contrário, recolocando o `|| midia`: duas
+asserções reprovam.
+
+**E o formato é oferecido só onde as duas saídas existem.** A primeira versão
+desta entrega ofereceu "Feed + Story" para o **Facebook**, onde `publicarItem`
+retornava logo depois do feed: a arte do story era **descartada em silêncio**,
+com a fila dizendo "publicado". A pessoa subia duas artes, aprovava as duas com
+o cliente, e uma não saía.
+
+O Facebook passou a oferecer o formato — **depois** de `publicarStoryNoFacebook`
+existir, e essa ordem é a regra. Story de Página é outro fluxo, e ele tem três
+diferenças que já custaram tentativa:
+
+- **A foto entra não publicada.** `/{page-id}/photos` com `published: false`
+  devolve um `id`, e é esse `id` que `/photo_stories` transforma em story.
+  Mandar a URL direto para `/photo_stories` é recusado — ele só aceita
+  `photo_id`. E sem o `published: false` a arte vertical aparece **também no
+  feed** da Página: o cliente fica com uma peça a mais, cortada, sem nada
+  avisar.
+- **Vídeo é outro endpoint e outro protocolo.** `/video_stories` é upload em
+  fases: `start` devolve `video_id` e uma `upload_url` própria, o arquivo vai
+  **para essa URL** (não para o Graph, e com o token em `Authorization: OAuth`),
+  e um `finish` fecha.
+- **A permissão é a mesma do feed** (`pages_manage_posts`), então a conexão que
+  já publica no feed publica story. Se a Meta pedir mais alguma coisa, o erro
+  **aparece**: o feed sai primeiro e a falha do story vira `last_error`, à vista
+  na fila e na tela do conteúdo. É a diferença que importa em relação ao bug
+  antigo — antes a arte sumia calada; agora ou sai, ou a tela nomeia o motivo.
+
+**O `throw` que recusava feed+story no Facebook saiu junto.** Ele era o cinto de
+quando não havia publicador; o que o substitui não é confiança, é a captura do
+story — a mesma do Instagram. E a guarda deixou de exigir a lista literal
+`['instagram']`: ela agora deriva as redes que oferecem o formato e exige, de
+cada uma, um caminho de story no publicador e um `avisoDoStory` no despacho.
+Lista literal obriga a editar a guarda junto com o código, e é assim que ela
+deixa de guardar.
+
+É exatamente o motivo de `FORMATOS_POR_CANAL` ser por rede, escrito no próprio
+arquivo: *oferecer a lista inteira em toda rede deixava escolher combinação que
+não vai ao ar, e o erro só apareceria na hora de publicar.*
+
+**A tabela mora em `src/lib/formatos.ts`, e saiu da `CreateJobModal` quando a
+modal de detalhe passou a editar o formato.** Duas cópias divergem na primeira
+pressa, e divergir *aqui* é caro nos dois sentidos: a rede que ganhasse
+"Feed + Story" num lado só voltaria a descartar a arte do story em silêncio, e
+o formato que sumisse do outro deixaria de ser oferecido sem ninguém notar. A
+guarda seguiu a tabela — é ela que decide, não o arquivo onde ela mora.
+
+A guarda deriva do
+código quais redes oferecem o formato e exige que o publicador de cada uma
+aceite o destino `story` — e o publicador do Facebook **recusa** feed+story com
+`throw`, que é o cinto para quando a lista e o publicador divergirem numa edição
+futura: a falha fica em `last_error`, à vista na fila, em vez de meia publicação
+com cara de sucesso.
+
+Protegido por `tests/feed-mais-story.test.ts`. A guarda do despacho por rede,
+em `tests/facebook.test.ts`, precisou sair da sintaxe: ela exigia o ternário
+literal `conexao.platform === 'facebook' ? publicarNoFacebook` e reprovou quando
+o bloco virou um `if` — porque o caminho do Instagram passou a ter dois passos e
+não cabia numa expressão. Guarda presa à forma obriga a editá-la junto com o
+código, e editar a guarda junto com o código é como ela deixa de guardar.
+
+### O agendador tinha tudo, menos as duas pontas
+
+Publicar de verdade precisa de três peças, e por meses existiam só a do meio:
+
+1. **Alguém põe na fila.** `agendarPublicacao` existia **sem nenhum chamador**.
+   A `publish_queue` nunca recebeu uma linha, então `api/publicar.ts` rodava de
+   cinco em cinco minutos sobre uma fila vazia e não publicava nada — nem no
+   Instagram. O card ficava "Agendado", a data passava, e a peça não ia ao ar.
+   A tela ainda chamava de "fila de disparos" a lista de jobs com status
+   `scheduled`, que é outra coisa: uma fila de mentira em cima de uma fila
+   vazia.
+2. **O cron publica.** Esta parte estava pronta desde o começo.
+3. **A conta tem dono.** `social_connections.client_id` estava no schema e
+   **ninguém escrevia** — toda conexão nascia órfã. Sem saber de quem é a
+   conta, não há como escolher o perfil: todo conteúdo tem cliente, e uma
+   conexão sem cliente não publica coisa nenhuma. É a mesma classe de bug de
+   `trial_ends_at`: coluna que parece uma regra e não é.
+
+Três decisões que saíram disso:
+
+- **Enfileirar é um clique, nunca um efeito.** Não sai de `useEffect`, nem de
+  arrastar o card para "Agendado". Postagem publicada no perfil do cliente não
+  volta, e um disparo automático a partir de um render é a forma mais barata de
+  publicar o que ninguém decidiu publicar. O botão mostra em qual `@conta` e em
+  que data.
+- **E tem porta de saída.** `cancelarPublicacao` também existia sem chamador;
+  agora a fila tem "tirar da fila" enquanto o item não foi ao ar. Só para
+  `pendente` e `falhou` — apagar um `publicado` apagaria o histórico.
+- **O cliente da conta viaja no `state` assinado**, nunca na query do retorno.
+  Quem chega em `api/social-callback.ts` veio da Meta, sem sessão: um
+  `clientId` na URL seria escolhido por quem quisesse, e postaria o conteúdo de
+  um cliente no perfil de outro. A rota confere pela RLS que o cliente é da
+  agência **antes** de assinar.
+
+#### Agendar é um item por canal, e a escolha da conta mora numa função só
+
+`agendarPublicacao` recebia um `connectionId`, e as **três** telas que agendam
+faziam, cada uma com sua cópia:
+
+```ts
+const conta = (await listarContas()).find(
+  (c) => publicaSozinho(c.platform) && c.clientId === job.clientId
+);
+```
+
+`find` devolve **uma** conta — a mais antiga, porque `listarContas` ordena por
+`created_at`. Com Instagram **e** Facebook marcados no mesmo conteúdo, só a
+primeira entrava na `publish_queue`: **a segunda rede não publicava, em
+silêncio**, e a tela dizia "Na fila para @conta" nomeando só a que entrou.
+Verdadeira sobre o que ia sair, muda sobre o que não ia.
+
+É a família que este arquivo já registra três vezes — o `feed_story` que o
+banco recusava, o `|| midia` que trocava a arte do story, a fila sem produtor:
+**a tela oferece mais do que o servidor honra.**
+
+Três decisões:
+
+- **A escolha da conta mora em `agendarPublicacao`, não em cada tela.** Três
+  cópias divergem na primeira pressa, e aqui foi pior: elas não divergiram,
+  ficaram as três com o **mesmo** defeito. Quem chama passa a peça; quem
+  decide em quais contas ela entra é a função.
+- **O `workspace_id` sai do job, não de um parâmetro.** A agência aberta na
+  tela não é necessariamente a dona do conteúdo, e passar a errada gravaria a
+  linha da fila em outra agência.
+- **A função não lança quando um canal fica de fora.** Ela devolve
+  `enfileiradas`, `jaNaFila`, `semConta` e `manuais` — "agendei em uma de
+  duas" precisa ser dito por inteiro, e uma exceção esconderia a que deu
+  certo. `jaEstava` também deixou de ser exceção: com vários canais, uma conta
+  já enfileirada não pode derrubar as outras.
+
+**`textoDoAgendamento` é o texto, num lugar só, e ele nomeia o que não
+entrou.** As frases eram copiadas nas três telas, ao lado do `find` errado.
+E `ok` é `false` quando nada foi para a fila: a versão antiga devolvia verde
+com *"a postagem na data é sua"*, o que fez o primeiro agendamento parecer
+resolvido sem estar.
+
+**Duas guardas quebraram nesta entrega, e as duas pelo motivo certo:** elas
+exigiam as frases **dentro** do corpo de cada tela, e o texto mudou de casa —
+a mesma lição das cinco guardas ancoradas em `CreateJobModal`. Agora medem
+`textoDoAgendamento`, exigem que as três telas o usem, e reprovam qualquer
+tela que volte a escolher a conta sozinha. Conferidas ao contrário, com o
+`find` recolocado numa tela e com o laço de canais reduzido a um: as duas
+reprovam.
+
+E `textoDoAgendamento` é **pura**, então ela tem teste de comportamento, não de
+fonte — sem afirmar data nenhuma, porque `quandoDeveSair` lê o relógio e
+asserção com instante absoluto apodrece sozinha.
+
+O `unique (job_id, connection_id)` da `publish_queue` é o que deixa um item
+por canal ser seguro: ele recusa o par repetido, então reagendar cai em
+`jaNaFila` em vez de duplicar o post.
+
+`REDES_QUE_PUBLICAM` em `src/lib/redes.ts` é a fonte única de quem publica
+sozinho, e hoje tem **só o Instagram**. `tests/publicacao.test.ts` falha se uma
+rede entrar nessa lista sem `publicarNo<Rede>` existir no servidor — a tela
+deriva dela o que dizer, então acrescentar um nome ali é prometer disparo.
+
+**O Facebook não é "mais um nome na lista", e por isso ele é outro arquivo.**
+`api/_lib/facebook.ts` tem o fluxo inteiro, separado de `instagram.ts`:
+
+| | login do Instagram | login do Facebook |
+|---|---|---|
+| autorização | `www.instagram.com/oauth/authorize` | `www.facebook.com/.../dialog/oauth` |
+| troca do código | `api.instagram.com` (POST form) | `graph.facebook.com` (query) |
+| chamadas | `graph.instagram.com` | `graph.facebook.com` |
+| token que publica | o da conta | o **da Página**, via `/me/accounts` |
+| app id | `INSTAGRAM_APP_ID` | `FACEBOOK_APP_ID` — **outro app** |
+| publicar | contêiner + espera | um passo (`/photos` ou `/videos`) |
+
+Três coisas que não são detalhe:
+
+- **Os escopos nunca vão no mesmo pedido.** `pages_show_list`,
+  `pages_read_engagement` e `pages_manage_posts` fazem a tela do Instagram
+  recusar, com um erro que aparece só depois do login e não nomeia o escopo.
+  `api/_lib/meta.ts`, que tinha o caminho misturado, foi apagado em `e9e7792`.
+- **O token guardado é o da Página, não o do usuário.** O login devolve o do
+  usuário, que só serve para listar as Páginas; guardá-lo faz a publicação
+  falhar com "permissão insuficiente" **depois** de a conexão já parecer
+  pronta — o pior momento para descobrir.
+- **A rede viaja no `state` assinado**, como o cliente e pela mesma razão: no
+  retorno não há sessão. Uma `rede` na query faria o retorno do Instagram cair
+  no fluxo do Facebook, que bate em outro endpoint com outro segredo, e o erro
+  sairia como "código inválido". Ela só é lida **depois** de a assinatura
+  conferir.
+
+#### `/me/accounts` esconde a Página do cliente, e não avisa
+
+**`business_management` não é "mais um escopo": sem ela o produto não enxerga
+a Página que o cliente tem, que é o caso de uso inteiro.**
+
+`/me/accounts` **não devolve Página que pertence a um Portfólio de Negócios**.
+E agência não administra a Página do cliente pelo perfil pessoal dela — ela
+administra pelo portfólio. Com `pages_show_list` + `pages_read_engagement` +
+`pages_manage_posts`, a mesma conta devolveu **uma** Página; acrescentando
+`business_management`, **duas**. Medido no Explorador da Graph API, mesmo app,
+mesmo token de usuário, `v26.0`.
+
+**O que torna isso caro é que não há erro em lugar nenhum.** A lista volta
+curta, o produto conecta a única que veio e diz "Conta conectada", e ninguém
+tem como saber que a Meta omitiu o resto. O diagnóstico queimou quatro
+rodadas perseguindo a hipótese errada — liberação curta na tela da
+autorização —, enquanto a tela da Meta dizia, com todas as letras, *"Aceitou a
+totalidade de Páginas atuais e no futuro"*. **A liberação estava completa o
+tempo todo.** É a mesma família da armadilha 0: tudo verde, resposta
+incompleta.
+
+Duas lições que ficam, e a segunda vale fora da Meta:
+
+- **Antes de culpar o próprio código ou o consentimento do usuário, chame a
+  API crua.** O Explorador da Graph API responde em um minuto o que nenhuma
+  leitura de código responde: o que a Meta **de fato** devolve. Foi ele que
+  encerrou a discussão.
+- **Lista que a tela recebe filtrada precisa dizer que filtrou.**
+  `paginasDoUsuario` descartava em silêncio toda Página sem `access_token` —
+  certo em descartar, errado em calar. Hoje devolve `semPermissao` junto, e as
+  frases de recusa escolhem a explicação pelo que foi **medido**: "a Meta
+  mandou uma" e "a Meta mandou cinco e quatro vieram sem permissão" pedem
+  coisas opostas, e tratar as duas igual manda a pessoa repetir um caminho que
+  o produto já sabe que não resolve.
+
+A métrica continua só do Instagram: `buscarMetricas` fala com
+`graph.instagram.com`, e a fila de medição filtra por `platform` — medir uma
+Página por ali falharia sempre e encheria `ultimo_erro` de falha previsível,
+escondendo as reais.
+
+Protegido por `tests/facebook.test.ts`. E a guarda de
+`REDES_QUE_PUBLICAM` deixou de conferir uma lista literal: agora ela exige
+`publicarNo<Rede>` existir em `api/_lib/` — era a lista que teria de ser
+editada à mão para o Facebook entrar, e editar a guarda junto com o código é
+como ela deixa de guardar.
+
+---
+
+## Relatórios media produção; métrica real é outra tabela
+
+Relatórios sempre somou o que a agência **faz** — quantas peças, prazos
+cumpridos, o que está atrasado. Isso responde como ela trabalha, e não
+responde a pergunta que o cliente dela faz ao ler o relatório: *o que isso
+deu?* `post_metrics` é o que responde.
+
+**Quem mede é o cron, e isso não é escolha de arquitetura — é a única opção.**
+O número vem da Meta pelo token, e `social_tokens` tem RLS ligada com zero
+políticas: nem o dono da agência alcança. O navegador não tem como buscar isso,
+então a tela lê `post_metrics`, que só a chave de serviço escreve. Pela mesma
+razão de `subscriptions`, a tabela **não tem política de escrita** para sessão
+autenticada: uma ali deixaria qualquer dono de agência afirmar o alcance que
+quisesse — e o número existe justamente para ser mostrado ao cliente.
+
+**Nulo é "não medi"; zero é "medi e deu zero".** É a regra central, e ela
+aparece em quatro lugares: nenhuma coluna de métrica tem `default 0`,
+`agregar()` pula os nulos **e devolve `medidos`** junto do total, a tela mostra
+`—` quando `medidos === 0`, e o rodapé explica o traço. Somar nulo como zero
+produziria um total que parece medido e não é — dez posts sem medição viram
+"alcance: 0", e a agência leva esse número para a reunião com o cliente. É a
+armadilha 9 na tela que mais custa caro: diferente do Financeiro, aqui quem é
+enganado não é o dono do produto, é o cliente de quem paga por ele.
+
+Quatro decisões que não são detalhe:
+
+- **Duas chamadas por post, de propósito.** `like_count` e `comments_count`
+  vêm no objeto da mídia; `reach`, `saved` e `shares` vêm de `/insights`, que
+  tem outras permissões e um catálogo que a Meta **muda entre versões**
+  (`impressions` saiu para mídia criada depois de julho de 2024). O
+  `/insights` fica num `try` próprio: perder o alcance não pode levar junto as
+  curtidas que já vieram.
+- **`medido_em` avança mesmo quando a medição falha.** A fila de medição é
+  ordenada por ele; sem avançar, a linha quebrada é tentada em toda passada e
+  segura todas as outras atrás dela — a medição para sem dar erro visível.
+- **A linha nasce sem número, com `medido_em` no epoch**, e o cron faz
+  *backfill* do que já foi publicado. Começar do deploy esconderia o histórico,
+  que é a mesma razão de a Biblioteca ler o balde e não um índice.
+- **A medição vem depois da fila na passada**, dentro do mesmo `ORCAMENTO_MS`.
+  Publicar é o compromisso desta rota; medir pode esperar cinco minutos.
+
+**Cobre só o que saiu pela fila do Orquesia**, e a tela diz isso. Post
+publicado à mão no Instagram não tem como ser associado a um conteúdo daqui, e
+omitir o recorte faria o número parecer o desempenho do perfil inteiro.
+
+Protegido por `tests/metricas.test.ts`.
+
+---
+
+## Cobrança: `subscriptions` é a agência com o produto, `plans` é outra coisa
+
+Os dois nomes parecem a mesma coisa e não são. Confundi-los é o caminho mais
+curto para um número errado numa tela financeira:
+
+| | o que é | quem escreve |
+|---|---|---|
+| `plans` | o catálogo que **cada agência** monta para os clientes dela | a agência, pela tela de Planos |
+| `subscriptions` | a assinatura **da agência com o Orquesia** | só o webhook do Stripe |
+
+`subscriptions` tem RLS ligada e **nenhuma política de escrita** para sessão
+autenticada — só SELECT, para a agência ver a própria e o admin da plataforma
+ver todas. Uma política de update aqui deixaria qualquer dono de agência se
+marcar como pagante. Quem escreve é `api/assinatura.ts`, com a chave de
+serviço, a partir do que o Stripe responde.
+
+**O MRR é somado no banco** (`admin_numeros_de_cobranca`), nunca calculado na
+tela. Era o cálculo local — `agências × R$ 197` — que dizia R$ 591,00 num dia
+de R$ 0,00. `tests/telas-honestas.test.ts` falha se um `const mrr =` voltar
+ao componente.
+
+### O webhook não confere a assinatura do jeito padrão, e isso é de propósito
+
+`stripe.webhooks.constructEvent` exige o corpo **byte a byte** como o Stripe
+assinou. Não temos isso: a Vercel entrega o corpo já parseado e
+`api/_lib/rota.ts` o re-serializa com `JSON.stringify` (armadilha 1). Ordem de
+chaves e espaços mudam, e a conferência falharia em 100% das chamadas — o
+pior tipo de falha, porque pareceria ataque.
+
+A saída é **mais forte**, não mais fraca: nada do corpo é gravado. O corpo só
+diz "olhe a assinatura X"; em seguida a rota busca essa assinatura na API do
+Stripe, autenticada com a nossa chave, e grava o que **eles** responderem. Um
+corpo forjado não escreve dado falso — ou o id não existe lá, ou existe e o
+que gravamos é a verdade do Stripe de qualquer jeito.
+
+Quando o corpo cru sobrevive, a assinatura é conferida também. Não custa nada.
+
+### O teste grátis: duas metades, e as duas precisam existir
+
+`workspaces.trial_ends_at` ficou no schema desde o começo **sem ninguém
+escrever nem ler**. Nenhuma agência tinha data, `criar_agencia` inseria só
+nome e slug, e nada no app bloqueava. Quem lesse o schema concluiria que
+havia limite de teste — e a 2.16.0 chegou a anunciar que o teste passava a
+terminar, sem que terminasse.
+
+Uma coluna que parece uma regra e não é engana mais que a ausência dela. Para
+o teste existir de verdade são necessárias as duas metades:
+
+1. `criar_agencia` carimba `trial_ends_at = now() + 14 dias` e `is_trial`.
+2. `App.tsx` consulta `acesso_da_agencia()` e monta `AcessoBloqueado` quando
+   `liberado` é falso.
+
+Três regras do bloqueio, todas na mesma direção:
+
+- **Só bloqueia com resposta do banco.** `acessoDaAgencia` em `null` — consulta
+  pendente ou que falhou — passa direto. Derrubar quem está trabalhando porque
+  a rede oscilou é pior que deixar passar quem não pagou. O guard é
+  `acessoDaAgencia && !acessoDaAgencia.liberado`, nunca `!…?.liberado`.
+- **Depois do `/admin` e do portal.** O dono do produto não pode perder a
+  própria área por causa de uma agência de teste dele, e o cliente que entra no
+  portal não decide nada sobre a cobrança da agência.
+- **Sempre há porta de saída.** Quem pode assinar vê o botão, quem não pode vê
+  de quem cobrar, e sair da conta está sempre disponível. Bloqueio sem saída é
+  armadilha, não cobrança.
+
+**Agências criadas antes disto continuam sem data, e é decisão.**
+`trial_ends_at` nulo vale como teste aberto. Carimbar uma data retroativa
+derrubaria de uma vez gente que nunca foi avisada de que havia prazo.
+
+Protegido por `tests/assinatura.test.ts`.
+
+### Uma rota para três coisas
+
+`api/assinatura.ts` é checkout, portal de cobrança **e** webhook, separados
+pelo cabeçalho `stripe-signature` e pelo campo `acao`. É o limite de 12
+funções da armadilha 6: o webhook precisa de URL fixa (é ela que vai
+cadastrada no painel do Stripe), então é ele quem define o caminho.
+
+`STRIPE_WEBHOOK_SECRET` é o único que **não se resolve na Vercel** — ele nasce
+no painel do Stripe no momento em que o endpoint é cadastrado lá. Por isso
+`Admin → Integrações` mostra a URL exata com botão de copiar, como faz com a
+URL de retorno da Meta.
+
+---
+
+## Duas marcas, e elas não se misturam
+
+`saas_settings` (uma linha só) é a cara do **produto**: a marca do Orquesia, a
+paleta, as artes das telas de entrada, o que vai para os buscadores. Escreve
+quem está em `platform_admins`; lê qualquer um, mas por
+`aparencia_do_saas()`, função de lista fechada — a tela de entrada é anônima
+por definição.
+
+`workspaces` (logo, cores, favicon) é a cara de **cada agência**, e é ela que
+pinta o portal do cliente daquela agência.
+
+**A agência sobrepõe o produto, nunca o contrário** (`DynamicThemeProvider`).
+A paleta do SaaS vale onde não há agência aberta: entrada, cadastro, porta do
+portal e a área `/admin`. Sobrepor na direção oposta apagaria a marca que o
+cliente da agência espera ver — que é o motivo de o whitelabel existir.
+
+A tela de Design diz isso em texto, e não por acaso: prometer "personalize o
+SaaS inteiro" e repintar só metade seria a armadilha 9 de novo.
+
+---
+
+## O Financeiro da agência: duas tabelas, e nenhuma a mais
+
+O produto media o **trabalho** (Relatórios) e a **venda** (Comercial), e nunca
+mediu o caixa. `ver_financeiro` e o papel `financial` estavam em
+`permissions.ts` desde a primeira versão **sem nenhuma tela atrás deles** — a
+família do `trial_ends_at`, com um papel em cima.
+
+```
+financeiro_caixas       onde o dinheiro fica (conta, carteira, espécie)
+financeiro_lancamentos  o que se tem a receber e a pagar
+```
+
+**Não existe tabela de movimentação de caixa, e a ausência é a decisão.** As
+"Entrada" e "Saída" avulsas da tela de Caixa gravam um **lançamento já
+liquidado** naquele caixa. Duas tabelas respondendo *quanto entrou este mês*
+divergem na primeira pressa, e divergir aqui é pior que no resto do produto: o
+saldo passa a sair de uma e o relatório da outra, com as duas telas certas cada
+uma pelo seu lado. O saldo é `saldo_inicial + liquidados do caixa`, que é a
+**mesma** soma do relatório — e é derivado, nunca gravado: uma coluna `saldo`
+exigiria uma segunda escrita a cada lançamento, podendo falhar sozinha e
+produzindo um saldo que não bate com as linhas que o explicam.
+
+Quatro decisões que não são detalhe:
+
+- **Centavos inteiros, nunca `numeric` nem ponto flutuante.** O valor chega
+  ao JavaScript como `number`, e `0.1 + 0.2` ali é `0.30000000000000004` —
+  um centavo por soma, invisível numa linha e visível no fechamento do mês. A
+  divisão por 100 acontece uma vez, na hora de escrever. E `centavosDe`
+  devolve **`null`** para o que não entendeu: `parseFloat('abc') || 0` é
+  zero, e um campo digitado errado viraria um lançamento de R$ 0,00 gravado com
+  cara de certo.
+- **`vencimento` e `liquidado_em` são `date`, não `timestamptz`.** Conta
+  vence num dia, não num instante: converter por fuso moveria o vencimento um
+  dia para quem abre a tela de outro estado (armadilha 8.2). E `liquidado_em`
+  é data, não booleano — "pago" sem *quando* não separa competência de caixa,
+  que é a razão de o relatório existir.
+- **Competência e caixa aparecem separados na tela.** *Quanto vence no mês* e
+  *quanto entrou no mês* são perguntas diferentes: a conta de setembro paga em
+  outubro responde as duas em meses distintos. Juntá-las numa linha só produz um
+  número que não fecha nem com o extrato nem com o contrato — e é esse número
+  que decide contratar alguém.
+- **Os vencidos são buscados por fora do mês.** A conta esquecida há dois meses
+  não vence nem é liquidada dentro do mês que está na tela: sem a segunda
+  consulta, ela não apareceria em mês nenhum. Uma tela de cobrança que esconde o
+  atrasado é o contrário do que ela existe para fazer.
+
+**Nada disso entra no estado global.** Lançamento é como conteúdo concluído:
+cresce com o *tempo de uso*, não com o tamanho da agência — entrar na carga
+inicial repetiria a dívida que a janela de 90 dias veio pagar. O preço é que
+nenhuma gravação é automática: cada uma é chamada explícita, com a falha em
+faixa. Em dinheiro é a troca certa, porque a persistência por diff mostra o
+resultado **antes** de o banco responder.
+
+### Quem recorta é a RLS, e a lista de papéis é uma só
+
+Esconder o menu deixando a tabela legível para a equipe inteira seria a
+armadilha 9 com a conta bancária dentro: o designer não vê o item e a consulta
+responde do mesmo jeito. As políticas usam `private.papel_na_agencia` com
+`owner`, `admin` e `financial` — **nunca `e_membro`** —, e leitura e
+escrita têm a mesma lista: não existe aqui o caso de "vê e não mexe".
+
+A guarda de `tests/financeiro.test.ts` **deriva** as duas listas — a do
+`ABAS_POR_PAPEL` e a da política na migração — e exige que sejam iguais. Duas
+listas divergem, e divergir aqui dá os dois piores desfechos: um papel que vê o
+menu e leva `42501` ao abrir, ou um papel que não vê o menu e lê a tabela por
+outro caminho.
+
+Conferido no banco com impersonação, num `qa-` descartável e com contagem
+antes e depois: **8 asserções** — o dono grava e lê, um **designer da mesma
+agência** lê zero e leva `42501` ao inserir lançamento e ao criar caixa, e a
+limpeza devolve a base ao estado anterior. O vínculo de designer existia só
+para o teste, e é ele que prova que o corte é por **papel**: um intruso de fora
+não distinguiria `papel_na_agencia` de `e_membro`.
+
+): um
+  `2026-9` entraria sem reclamar e **nunca casaria** com o `2026-09` do mês
+  seguinte — a cobrança dobraria sem ninguém ver.
+
+Dois detalhes que custariam uma ida e volta cada:
+
+- **Dia 31 em fevereiro não existe.** `new Date(2026, 1, 31)` vira 3 de
+  março: a conta venceria no mês seguinte ao da competência, calada. O dia é
+  preso ao último do mês.
+- **A inserção é em lote, e a recusa derruba o lote inteiro.** Por isso a
+  segunda tentativa é linha a linha: o que não é duplicado entra, e o que é
+  duplicado é **contado** — *"gerei 8 de 10, duas já existiam"* é a frase que a
+  tela precisa dizer, e um erro genérico esconderia as oito que deram certo.
+
+**O recorrente contratado é derivado, nunca guardado.** A faixa da visão geral
+soma o cadastro na hora e compara com o que já virou conta no mês. Uma cópia
+desse número no Financeiro envelheceria no dia em que alguém mudasse o valor na
+ficha — e ninguém veria, porque os dois continuariam parecendo certos. Sem essa
+linha, a diferença entre *"a agência vende R$ 12.000/mês"* e *"o mês tem
+R$ 4.000 lançados"* não apareceria em tela nenhuma, e a primeira conclusão de
+quem olha o resultado é que o mês foi ruim.
+
+`services[].recurrence` existe no tipo e **ninguém escreve nada além de
+`monthly`**: os dois lugares que criam serviço gravam o valor fixo, e o card
+sempre somou tudo como mensal. `mensalidadeDoCliente` faz o mesmo — e é o
+lugar único onde a recorrência entra no dia em que ela passar a ser escolhida.
+
+Conferido no banco, em competência de 2030 para não encostar no dado real: a
+segunda mensalidade do mesmo cliente no mesmo mês leva `23505`, outro mês
+passa, dois avulsos do mesmo cliente passam, e `2030-9` leva `23514`. Oito
+asserções, com contagem antes e depois.
+
 ### O relatório diz o que ele não calcula
 
 A referência que originou a tela trazia um DRE completo, com dedução de

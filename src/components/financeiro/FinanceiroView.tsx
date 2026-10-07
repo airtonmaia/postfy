@@ -6,6 +6,7 @@ import {
   TrendingDown,
   AlertTriangle,
   RefreshCw,
+  Repeat,
 } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { Button } from '../ui/button';
@@ -29,12 +30,14 @@ import {
   salvarCaixa,
   salvarLancamento,
   excluirCaixa,
+  mensalidadeDoCliente,
 } from '../../lib/financeiro';
 import { VisaoGeralDoFinanceiro } from './VisaoGeralDoFinanceiro';
 import { ListaDeLancamentos } from './ListaDeLancamentos';
 import { CaixasDaAgencia } from './CaixasDaAgencia';
 import { RelatorioFinanceiro } from './RelatorioFinanceiro';
 import { ModalDeLancamento } from './ModalDeLancamento';
+import { GerarMensalidades } from './GerarMensalidades';
 
 /**
  * O Financeiro da agência — cinco telas num componente.
@@ -82,6 +85,7 @@ export const FinanceiroView: React.FC = () => {
   const [emEdicao, setEmEdicao] = useState<Lancamento | null>(null);
   const [caixaDaModal, setCaixaDaModal] = useState<string | undefined>(undefined);
   const [nasceLiquidado, setNasceLiquidado] = useState(false);
+  const [mensalidadesAbertas, setMensalidadesAbertas] = useState(false);
 
   /*
     `clients` já vem recortado pela agência aberta — o contexto deriva o
@@ -145,6 +149,24 @@ export const FinanceiroView: React.FC = () => {
     () => resumoDoPeriodo(doMes, vencidos, mes, hoje),
     [doMes, vencidos, mes, hoje]
   );
+
+  /*
+    O recorrente é **derivado do cadastro**, não guardado: ele é a soma do que
+    os clientes ativos pagam, lida na hora. Uma cópia dele no financeiro
+    envelheceria no dia em que alguém mudasse o valor na ficha — e ninguém
+    veria, porque os dois números continuariam parecendo certos.
+  */
+  const recorrente = useMemo(() => {
+    const ativos = clientesDaAgencia.filter((c) => c.status === 'active');
+    const comValor = ativos.filter((c) => mensalidadeDoCliente(c) > 0);
+    return {
+      contratado: comValor.reduce((t, c) => t + mensalidadeDoCliente(c), 0),
+      lancado: doMes
+        .filter((l) => l.mensalidadeDe === mes)
+        .reduce((t, l) => t + l.valorCentavos, 0),
+      clientes: comValor.length,
+    };
+  }, [clientesDaAgencia, doMes, mes]);
 
   const comErro = async (acao: () => Promise<void>) => {
     setErro(null);
@@ -246,6 +268,12 @@ export const FinanceiroView: React.FC = () => {
           )}
 
           {(ehVisaoGeral || ehReceber) && (
+            <Button variant="outline" onClick={() => setMensalidadesAbertas(true)}>
+              <Repeat className="w-3.5 h-3.5" />
+              Mensalidades
+            </Button>
+          )}
+          {(ehVisaoGeral || ehReceber) && (
             <Button variant="success" onClick={() => abrirNovo('receber')}>
               <TrendingUp className="w-3.5 h-3.5" />
               Novo recebimento
@@ -284,6 +312,8 @@ export const FinanceiroView: React.FC = () => {
         <>
           {ehVisaoGeral && (
             <VisaoGeralDoFinanceiro
+              recorrente={recorrente}
+              aoGerarMensalidades={() => setMensalidadesAbertas(true)}
               resumo={resumo}
               doMes={doMes}
               vencidos={vencidos}
@@ -333,6 +363,16 @@ export const FinanceiroView: React.FC = () => {
           )}
         </>
       )}
+
+      <GerarMensalidades
+        aberta={mensalidadesAbertas}
+        aoFechar={() => setMensalidadesAbertas(false)}
+        mes={mes}
+        clientes={clientesDaAgencia}
+        lancamentosDoMes={doMes}
+        workspaceId={workspaceId}
+        aoGerar={() => setVersao((v) => v + 1)}
+      />
 
       <ModalDeLancamento
         aberta={modalAberta}

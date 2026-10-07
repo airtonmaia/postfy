@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.14.0',
+    data: '2026-10-07',
+    resumo: 'O que o cliente paga vira conta a receber, sem digitar de novo.',
+    novidades: [
+      'O botão "Mensalidades" gera as contas a receber do mês a partir do cadastro dos clientes — o mesmo "Investimento mensal" que aparece no card de cada um.',
+      'A visão geral mostra o recorrente contratado, quanto dele já virou conta neste mês e quanto falta.',
+      'O plano aparece antes de gravar: quem vai ser cobrado, de quanto, o total — e quem ficou de fora, com o motivo.',
+    ],
+    melhorias: [
+      'Cliente inativo nunca entra, e cliente ativo sem valor no cadastro aparece na lista de quem não foi cobrado, com nome.',
+      'O banco recusa a segunda mensalidade do mesmo cliente no mesmo mês. Clicar duas vezes, ou duas pessoas clicarem no mesmo dia, não dobra a cobrança.',
+      'Em mês curto o vencimento é preso ao último dia: dia 31 em fevereiro venceria em março, fora do mês da competência.',
+      'O card do cliente e o Financeiro passaram a somar pelo mesmo lugar — antes eram duas somas do mesmo número, esperando divergir.',
+    ],
+  },
+  {
     versao: '3.13.0',
     data: '2026-10-07',
     resumo: 'O Financeiro da agência: receber, pagar, caixa e relatórios.',

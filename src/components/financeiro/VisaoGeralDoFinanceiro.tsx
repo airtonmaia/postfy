@@ -1,5 +1,6 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Scale, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Scale, AlertTriangle, Repeat } from 'lucide-react';
+import { Button } from '../ui/button';
 import {
   Lancamento,
   ResumoDoFinanceiro,
@@ -126,7 +127,17 @@ const ListaDeVencidos: React.FC<{
   </Cartao>
 );
 
+export interface Recorrente {
+  /** A soma do "Investimento mensal" dos clientes ativos. */
+  contratado: number;
+  /** O que já virou conta a receber neste mês, a partir do cadastro. */
+  lancado: number;
+  clientes: number;
+}
+
 interface Props {
+  recorrente: Recorrente;
+  aoGerarMensalidades: () => void;
   resumo: ResumoDoFinanceiro;
   doMes: Lancamento[];
   vencidos: Lancamento[];
@@ -135,6 +146,8 @@ interface Props {
 }
 
 export const VisaoGeralDoFinanceiro: React.FC<Props> = ({
+  recorrente,
+  aoGerarMensalidades,
   resumo,
   doMes,
   vencidos,
@@ -143,8 +156,46 @@ export const VisaoGeralDoFinanceiro: React.FC<Props> = ({
 }) => {
   const positivo = resumo.resultadoDeCaixa >= 0;
 
+  /*
+    **A faixa compara o contratado com o lançado, e é ela que avisa quando os
+    dois lados saíram do lugar.** O valor do cliente mora na ficha dele; o
+    financeiro só sabe dele quando alguém gera a conta. Sem esta linha, a
+    diferença entre "a agência vende R$ 12.000/mês" e "o mês tem R$ 4.000
+    lançados" não apareceria em tela nenhuma — e a primeira coisa que alguém
+    concluiria, olhando o resultado, é que o mês foi ruim.
+  */
+  const faltam = Math.max(0, recorrente.contratado - recorrente.lancado);
+
   return (
     <div className="space-y-6">
+      {recorrente.contratado > 0 && (
+        <Cartao className="p-4 flex flex-wrap items-center gap-4">
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 shrink-0">
+            <Repeat className="w-4 h-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-slate-900 dark:text-white">
+              Recorrente contratado: {formatarCentavos(recorrente.contratado)} /mês
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              {recorrente.clientes} cliente(s) ativo(s) com valor no cadastro.{' '}
+              {faltam > 0 ? (
+                <>
+                  Neste mês, <strong>{formatarCentavos(recorrente.lancado)}</strong> viraram conta
+                  a receber — faltam {formatarCentavos(faltam)}.
+                </>
+              ) : (
+                <>Tudo lançado neste mês.</>
+              )}
+            </p>
+          </div>
+          <Button variant={faltam > 0 ? 'primary' : 'outline'} onClick={aoGerarMensalidades}>
+            <Repeat className="w-3.5 h-3.5" />
+            Gerar mensalidades
+          </Button>
+        </Cartao>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <CartaoDoLado
           titulo="A receber"

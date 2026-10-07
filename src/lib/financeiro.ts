@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { Client } from '../types';
 import { formatCurrency } from './utils';
 import { diaNoFuso } from './fusoHorario';
 
@@ -59,6 +60,15 @@ export interface Lancamento {
   caixaId?: string;
   observacao?: string;
   criadoEm?: string;
+  /**
+   * O mês de competência da mensalidade deste cliente (`YYYY-MM`).
+   *
+   * Só lançamento **gerado** a partir do cadastro do cliente carrega isto, e é
+   * ele que o índice único usa para recusar a cobrança dobrada. Lançamento
+   * digitado à mão não tem competência — dois serviços extras no mesmo mês
+   * existem, e o índice não pode barrá-los.
+   */
+  mensalidadeDe?: string;
 }
 
 export interface Caixa {
@@ -315,6 +325,7 @@ const daLinha = (l: any): Lancamento => ({
   caixaId: l.caixa_id || undefined,
   observacao: l.observacao || undefined,
   criadoEm: l.created_at || undefined,
+  mensalidadeDe: l.mensalidade_de || undefined,
 });
 
 const paraLinha = (l: Partial<Lancamento>) => ({
@@ -328,6 +339,7 @@ const paraLinha = (l: Partial<Lancamento>) => ({
   liquidado_em: l.liquidadoEm || null,
   caixa_id: l.caixaId || null,
   observacao: l.observacao?.trim() || null,
+  mensalidade_de: l.mensalidadeDe || null,
 });
 
 const doCaixa = (c: any): Caixa => ({
@@ -557,4 +569,155 @@ export const excluirCaixa = async (workspaceId: string, id: string): Promise<voi
     .eq('workspace_id', workspaceId);
 
   if (error) throw new Error(error.message);
+};
+
+// ---------------------------------------------------------------------
+// A mensalidade do cliente
+// ---------------------------------------------------------------------
+
+/**
+ * Quanto este cliente paga por mês, em centavos.
+ *
+ * **É a mesma soma que o card do cliente mostra como "Investimento mensal".**
+ * Ela mora aqui, e não nas duas telas, porque duas somas do mesmo número
+ * divergem na primeira pressa — e divergir *neste* número significa a ficha do
+ * cliente dizendo R$ 2.500 e a cobrança saindo R$ 2.000, com as duas telas
+ * certas cada uma pelo seu lado.
+ *
+ * `services[].recurrence` existe no tipo e **ninguém escreve nada além de
+ * `monthly`**: os dois lugares que criam serviço gravam o valor fixo. Somar
+ * tudo como mensal é portanto o que o produto faz hoje — e é o que o card já
+ * fazia. No dia em que a recorrência passar a ser escolhida, esta função é o
+ * lugar único onde ela entra.
+ */
+export const mensalidadeDoCliente = (cliente: Client): number =>
+  Math.round(
+    (cliente.services || []).reduce((total, s) => total + (s.monthlyValue || 0), 0) * 100
+  );
+
+export interface MensalidadeAGerar {
+  cliente: Client;
+  valorCentavos: number;
+  vencimento: string;
+}
+
+export interface PlanoDeMensalidades {
+  aGerar: MensalidadeAGerar[];
+  jaLancados: { cliente: Client; lancamento: Lancamento }[];
+  /** Cliente ativo sem valor no cadastro: ele não é cobrado, e a tela diz. */
+  semValor: Client[];
+  totalCentavos: number;
+}
+
+/**
+ * O que seria criado se alguém clicasse — antes de criar.
+ *
+ * A função é **pura** e devolve as três listas inteiras, porque a tela mostra
+ * o plano antes de gravar. Cobrança não volta: um botão que gera trinta contas
+ * sem dizer quais precisa ser clicado às cegas, e aí ninguém clica — ou pior,
+ * clica e descobre depois.
+ */
+export const planejarMensalidades = (
+  clientes: Client[],
+  lancamentosDoMes: Lancamento[],
+  mes: string,
+  diaDoVencimento: number
+): PlanoDeMensalidades => {
+  const { ate } = limitesDoMes(mes);
+  const ultimoDia = Number(ate.slice(-2));
+  /*
+    Dia 31 em fevereiro não existe, e `new Date` o empurraria para março — a
+    conta venceria no mês seguinte ao da competência, calada. O dia é preso ao
+    último do mês.
+  */
+  const dia = Math.min(Math.max(1, Math.trunc(diaDoVencimento) || 1), ultimoDia);
+  const vencimento = `${mes}-${String(dia).padStart(2, '0')}`;
+
+  const lancadoPorCliente = new Map<string, Lancamento>();
+  for (const l of lancamentosDoMes) {
+    if (l.mensalidadeDe === mes && l.clientId) lancadoPorCliente.set(l.clientId, l);
+  }
+
+  const plano: PlanoDeMensalidades = {
+    aGerar: [],
+    jaLancados: [],
+    semValor: [],
+    totalCentavos: 0,
+  };
+
+  for (const cliente of clientes) {
+    // Cliente inativo não é cobrado: gerar a conta dele faria a agência
+    // cobrar quem saiu, que é o erro mais caro que esta tela pode produzir.
+    if (cliente.status !== 'active') continue;
+
+    const existente = lancadoPorCliente.get(cliente.id);
+    if (existente) {
+      plano.jaLancados.push({ cliente, lancamento: existente });
+      continue;
+    }
+
+    const valorCentavos = mensalidadeDoCliente(cliente);
+    if (valorCentavos <= 0) {
+      plano.semValor.push(cliente);
+      continue;
+    }
+
+    plano.aGerar.push({ cliente, valorCentavos, vencimento });
+    plano.totalCentavos += valorCentavos;
+  }
+
+  return plano;
+};
+
+export interface ResultadoDaGeracao {
+  criados: number;
+  /** Recusados pelo índice único: alguém gerou antes, entre o plano e o clique. */
+  jaExistiam: number;
+}
+
+/**
+ * Grava as mensalidades planejadas.
+ *
+ * **Quem recusa o repetido é o índice único do banco, não esta função.**
+ * Conferir antes de inserir deixa a janela entre a conferência e a gravação, e
+ * é nela que dois cliques simultâneos — duas pessoas da agência no mesmo dia —
+ * se encontram. O plano já tira o que existe; isto aqui é o cinto.
+ *
+ * A tentativa é em lote, e a recusa derruba o lote inteiro (`23505`). Por isso
+ * a segunda tentativa é linha a linha: assim o que não é duplicado entra, e o
+ * que é duplicado é **contado**, não escondido — "gerei 8 de 10, duas já
+ * existiam" é a frase que a tela precisa dizer.
+ */
+export const gerarMensalidades = async (
+  workspaceId: string,
+  mes: string,
+  itens: MensalidadeAGerar[]
+): Promise<ResultadoDaGeracao> => {
+  if (itens.length === 0) return { criados: 0, jaExistiam: 0 };
+
+  const linhas = itens.map((item) => ({
+    workspace_id: workspaceId,
+    tipo: 'receber',
+    descricao: `Mensalidade ${rotuloDoMes(mes)}`,
+    categoria: 'Mensalidade',
+    client_id: item.cliente.id,
+    contraparte: item.cliente.name,
+    valor_centavos: item.valorCentavos,
+    vencimento: item.vencimento,
+    mensalidade_de: mes,
+  }));
+
+  const emLote = await supabase.from('financeiro_lancamentos').insert(linhas);
+  if (!emLote.error) return { criados: linhas.length, jaExistiam: 0 };
+  if (emLote.error.code !== '23505') throw new Error(emLote.error.message);
+
+  let criados = 0;
+  let jaExistiam = 0;
+  for (const linha of linhas) {
+    const { error } = await supabase.from('financeiro_lancamentos').insert(linha);
+    if (!error) criados += 1;
+    else if (error.code === '23505') jaExistiam += 1;
+    else throw new Error(error.message);
+  }
+  return { criados, jaExistiam };
 };

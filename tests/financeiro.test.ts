@@ -10,6 +10,8 @@ import {
   saldoDoCaixa,
   situacaoDoLancamento,
   porCategoria,
+  mensalidadeDoCliente,
+  planejarMensalidades,
   type Lancamento,
   type Caixa,
 } from '../src/lib/financeiro';
@@ -366,5 +368,202 @@ describe('as telas do financeiro', () => {
   it('nenhuma grava por setAll — a chamada é explícita', () => {
     const culpadas = fontes.filter((f) => /setAll[A-Z]/.test(f.texto)).map((f) => f.nome);
     expect(culpadas).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------
+// A mensalidade do cliente
+// ---------------------------------------------------------------------
+
+const cliente = (parcial: any): any => ({
+  id: Math.random().toString(36).slice(2),
+  name: 'Cliente',
+  status: 'active',
+  services: [],
+  ...parcial,
+});
+
+describe('a mensalidade que vem do cadastro do cliente', () => {
+  /**
+   * **É a mesma soma que o card do cliente mostra.** Ela mora em
+   * `financeiro.ts` porque duas somas do mesmo número divergem na primeira
+   * pressa — e divergir aqui é a ficha dizendo R$ 2.500 e a cobrança saindo
+   * R$ 2.000, com as duas telas certas cada uma pelo seu lado.
+   */
+  it('soma os serviços e devolve em centavos', () => {
+    expect(
+      mensalidadeDoCliente(
+        cliente({ services: [{ monthlyValue: 1000 }, { monthlyValue: 1500.5 }] })
+      )
+    ).toBe(250050);
+    expect(mensalidadeDoCliente(cliente({ services: [] }))).toBe(0);
+  });
+
+  /**
+   * **Cliente inativo nunca é cobrado.** Gerar a conta de quem saiu é o erro
+   * mais caro que esta tela pode produzir: ele chega como cobrança na caixa de
+   * entrada de um ex-cliente.
+   */
+  it('o plano deixa de fora quem está inativo', () => {
+    const plano = planejarMensalidades(
+      [
+        cliente({ id: 'a', status: 'active', services: [{ monthlyValue: 1000 }] }),
+        cliente({ id: 'b', status: 'inactive', services: [{ monthlyValue: 9999 }] }),
+      ],
+      [],
+      '2026-10',
+      10
+    );
+    expect(plano.aGerar.map((i) => i.cliente.id)).toEqual(['a']);
+    expect(plano.totalCentavos).toBe(100000);
+  });
+
+  /**
+   * Quem já tem a mensalidade do mês não entra de novo — e aparece na lista de
+   * quem ficou de fora, com nome. Filtrar em silêncio faz procurar o cliente
+   * que "sumiu".
+   */
+  it('não repete quem já tem a conta do mês, e diz quem são', () => {
+    const existente = lancamento({ clientId: 'a', mensalidadeDe: '2026-10' });
+    const plano = planejarMensalidades(
+      [
+        cliente({ id: 'a', services: [{ monthlyValue: 1000 }] }),
+        cliente({ id: 'c', services: [{ monthlyValue: 500 }] }),
+      ],
+      [existente],
+      '2026-10',
+      10
+    );
+    expect(plano.aGerar.map((i) => i.cliente.id)).toEqual(['c']);
+    expect(plano.jaLancados.map((j) => j.cliente.id)).toEqual(['a']);
+  });
+
+  /**
+   * A competência de **outro** mês não vale: a conta de setembro não pode
+   * impedir a de outubro.
+   */
+  it('a conta de outro mês não bloqueia a deste', () => {
+    const plano = planejarMensalidades(
+      [cliente({ id: 'a', services: [{ monthlyValue: 1000 }] })],
+      [lancamento({ clientId: 'a', mensalidadeDe: '2026-09' })],
+      '2026-10',
+      10
+    );
+    expect(plano.aGerar).toHaveLength(1);
+  });
+
+  it('cliente ativo sem valor é separado, não cobrado de zero', () => {
+    const plano = planejarMensalidades(
+      [cliente({ id: 'z', services: [] })],
+      [],
+      '2026-10',
+      10
+    );
+    expect(plano.aGerar).toHaveLength(0);
+    expect(plano.semValor.map((c) => c.id)).toEqual(['z']);
+  });
+
+  /**
+   * **Dia 31 em fevereiro não existe.** `new Date(2026, 1, 31)` vira 3 de
+   * março: a conta venceria no mês seguinte ao da competência, calada.
+   */
+  it('o vencimento é preso ao último dia do mês', () => {
+    const emFevereiro = planejarMensalidades(
+      [cliente({ id: 'a', services: [{ monthlyValue: 1000 }] })],
+      [],
+      '2026-02',
+      31
+    );
+    expect(emFevereiro.aGerar[0].vencimento).toBe('2026-02-28');
+
+    const emOutubro = planejarMensalidades(
+      [cliente({ id: 'a', services: [{ monthlyValue: 1000 }] })],
+      [],
+      '2026-10',
+      5
+    );
+    expect(emOutubro.aGerar[0].vencimento).toBe('2026-10-05');
+  });
+});
+
+describe('a cobrança dobrada', () => {
+  const PASTA = 'supabase/migrations';
+  const arquivo = readdirSync(PASTA).filter((n) => n.includes('mensalidade_do_cliente')).sort().pop();
+  const sql = readFileSync(join(PASTA, arquivo as string), 'utf-8');
+
+  /**
+   * **Quem recusa o repetido é o índice único, não a tela.** Conferir antes de
+   * inserir deixa a janela entre a conferência e a gravação — e é nela que
+   * dois cliques no mesmo dia se encontram. Mesma decisão do
+   * `unique (job_id, connection_id)` da `publish_queue`.
+   */
+  it('o banco recusa duas mensalidades do mesmo cliente no mesmo mês', () => {
+    expect(sql).toMatch(
+      /create unique index[^;]*financeiro_lancamentos \(workspace_id, client_id, mensalidade_de\)/
+    );
+    // Parcial: lançamento avulso não tem competência, e dois serviços extras
+    // do mesmo cliente no mesmo mês existem.
+    expect(sql).toMatch(/where mensalidade_de is not null/);
+  });
+
+  /**
+   * `2026-9` entraria sem reclamar e nunca casaria com o `2026-09` do mês
+   * seguinte — a cobrança dobraria sem ninguém ver.
+   */
+  it('o formato da competência é conferido no banco', () => {
+    expect(sql).toContain('financeiro_mensalidade_formato');
+    expect(sql).toContain(String.raw`mensalidade_de ~ '^\d{4}-\d{2}$'`);
+  });
+
+  /**
+   * Gerar é um **clique**, nunca um efeito: criar cobrança a partir de um
+   * render é a forma mais barata de cobrar o que ninguém decidiu cobrar — a
+   * mesma regra que impede o arrasto do quadro de enfileirar publicação.
+   */
+  it('a geração não sai de um efeito', () => {
+    const tela = semComentarios(
+      readFileSync('src/components/financeiro/GerarMensalidades.tsx', 'utf-8')
+    );
+
+    /*
+      O corpo do efeito é recortado por contagem de parênteses, e não por uma
+      janela de N caracteres. A primeira versão desta guarda olhava os 400
+      caracteres seguintes ao `useEffect` e reprovou o código **correto**: o
+      efeito daqui tem três linhas, e a janela alcançava a função de clique
+      logo abaixo. É a guarda medindo o vizinho no lugar do alvo, de novo.
+    */
+    const corpoDoEfeito = (fonte: string, de: number): string => {
+      let profundidade = 0;
+      for (let i = de; i < fonte.length; i++) {
+        if (fonte[i] === '(') profundidade += 1;
+        if (fonte[i] === ')') {
+          profundidade -= 1;
+          if (profundidade === 0) return fonte.slice(de, i);
+        }
+      }
+      return fonte.slice(de);
+    };
+
+    const efeitos: string[] = [];
+    for (let i = tela.indexOf('useEffect('); i > -1; i = tela.indexOf('useEffect(', i + 1)) {
+      efeitos.push(corpoDoEfeito(tela, i + 'useEffect'.length));
+    }
+
+    expect(efeitos.length).toBeGreaterThan(0);
+    expect(efeitos.some((corpo) => corpo.includes('gerarMensalidades('))).toBe(false);
+    expect(tela).toContain('onClick={() => void gerar()}');
+  });
+});
+
+describe('a ficha do cliente e o financeiro somam igual', () => {
+  /**
+   * O card do cliente mostrava a soma à mão, e o Financeiro geraria a conta a
+   * partir dela. Duas somas do mesmo número são duas verdades esperando
+   * divergir — a guarda exige que a tela de Clientes leia a função.
+   */
+  it('a tela de clientes não soma os serviços à mão', () => {
+    const tela = semComentarios(readFileSync('src/components/clients/ClientsView.tsx', 'utf-8'));
+    expect(tela).toContain('mensalidadeDoCliente(client)');
+    expect(tela).not.toMatch(/reduce\(\s*\(acc[^)]*\)\s*=>\s*acc \+ s\.monthlyValue/);
   });
 });
