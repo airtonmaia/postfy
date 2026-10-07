@@ -83,6 +83,7 @@ const CarregandoTela: React.FC = () => (
 );
 import { TabType } from './types';
 import { podeAcessarAba } from './lib/permissions';
+import { ITENS_DO_MENU, FILHOS_DO_FINANCEIRO } from './components/layout/menuDaAgencia';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { PlanoDaAgencia } from './components/layout/PlanoDaAgencia';
 import { ClientSwitcher } from './components/layout/ClientSwitcher';
@@ -100,8 +101,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuBadge,
-  SidebarMenuDot,
   SidebarMenuSub,
 } from './components/ui/sidebar';
 
@@ -212,21 +211,13 @@ const MainLayout: React.FC = () => {
 
   const abaPermitida = podeAcessarAba(currentUser?.role, activeTab as TabType);
 
-  const todasAsAbas: { id: TabType; label: string; icon: React.FC<{ className?: string }>; badge?: number; badgeColor?: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    // O calendário não está aqui de propósito: ele virou uma visão do
-    // WorkFlow, alternada por `AlternarVisaoDoWorkflow`. A aba continua
-    // existindo em `TabType`, nas permissões e em `/calendario` — tirar a
-    // rota quebraria o favorito de quem já usa o endereço.
-    { id: 'producao', label: 'WorkFlow', icon: Kanban },
-    { id: 'biblioteca', label: 'Biblioteca', icon: Images },
-    { id: 'clientes', label: 'Clientes (360°)', icon: Users },
-    { id: 'comercial', label: 'Comercial & Vendas', icon: Briefcase },
-    { id: 'publicacoes', label: 'Fila de Publicações', icon: Send },
-    { id: 'relatorios', label: 'Relatórios & BI', icon: BarChart3 },
-    { id: 'automacoes', label: 'Automações', icon: Zap },
-    { id: 'configuracoes', label: 'Configurações', icon: Settings },
-  ];
+  /*
+    A lista mora em `menuDaAgencia`: o Dashboard do celular desenha os mesmos
+    itens como atalhos, e duas listas do mesmo menu divergem na primeira pressa
+    — com um custo próprio aqui, que é a tela nova não aparecer nos atalhos e
+    simplesmente não ser encontrada no telefone.
+  */
+  const todasAsAbas = ITENS_DO_MENU;
 
   const navItems = todasAsAbas.filter((item) => podeAcessarAba(currentUser?.role, item.id));
 
@@ -241,13 +232,9 @@ const MainLayout: React.FC = () => {
    * não é exceção na permissão, é um agrupamento visual dela. Sem nenhum filho
    * permitido ele não existe — em vez de abrir vazio.
    */
-  const filhosDoFinanceiro = [
-    { id: 'financeiro' as TabType, label: 'Visão geral', icon: PieChart },
-    { id: 'financeiro_receber' as TabType, label: 'Receber', icon: TrendingUp },
-    { id: 'financeiro_pagar' as TabType, label: 'Pagar', icon: TrendingDown },
-    { id: 'financeiro_relatorios' as TabType, label: 'Relatórios', icon: BarChart3 },
-    { id: 'financeiro_caixa' as TabType, label: 'Caixa', icon: Wallet },
-  ].filter((filho) => podeAcessarAba(currentUser?.role, filho.id));
+  const filhosDoFinanceiro = FILHOS_DO_FINANCEIRO.filter((filho) =>
+    podeAcessarAba(currentUser?.role, filho.id)
+  );
 
   const financeiroAtivo = String(activeTab).startsWith('financeiro');
   const financeiroAberto = gruposAbertos.financeiro ?? financeiroAtivo;
@@ -502,7 +489,15 @@ const MainLayout: React.FC = () => {
                 const isActive =
                   activeTab === item.id ||
                   (item.id === 'producao' && activeTab === 'calendario');
-                const temBadge = item.badge !== undefined && item.badge > 0;
+                /*
+                  O selo do item saiu junto com a lista: ele era alimentado por
+                  `pendingApprovalsCount`, que foi embora com o menu
+                  Aprovações. O que ficou renderizava uma contagem que ninguém
+                  escrevia — `item.badge` era sempre indefinido, então o selo
+                  e o pontinho do trilho nunca apareciam. Código morto que
+                  parece uma regra é a armadilha do `trial_ends_at` com outra
+                  roupa: quem lesse concluiria que o menu acusa pendência.
+                */
 
                 return (
                   <SidebarMenuItem key={item.id}>
@@ -525,16 +520,7 @@ const MainLayout: React.FC = () => {
                           }`}
                         />
                         <span className={recolhida ? 'md:hidden' : ''}>{item.label}</span>
-                        {recolhida && temBadge && <SidebarMenuDot />}
                       </span>
-
-                      {temBadge && (
-                        <SidebarMenuBadge
-                          className={`${item.badgeColor} ${recolhida ? 'md:hidden' : ''}`}
-                        >
-                          {item.badge}
-                        </SidebarMenuBadge>
-                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

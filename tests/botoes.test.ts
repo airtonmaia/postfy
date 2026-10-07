@@ -123,6 +123,7 @@ const COM_BOTAO_A_MAO = new Set([
   'src/components/clients/ClientDetail.tsx',            // aba
   'src/components/clients/ClientUsersTab.tsx',          // aba
   'src/components/common/AtalhosDoConteudo.tsx',        // atalho com badge
+  'src/components/dashboard/AtalhosDoMenu.tsx',         // ladrilho: ícone sobre rótulo de duas linhas
   'src/components/common/MediaUploader.tsx',            // área quadrada de soltar arquivo
   'src/components/common/PreviaDaRede.tsx',             // navegação do carrossel
   'src/components/kanban/KanbanBoard.tsx',              // card do quadro

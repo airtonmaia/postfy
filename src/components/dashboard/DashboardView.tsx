@@ -20,6 +20,8 @@ import { PlatformBadge, StatusBadge, FormatBadge } from '../common/Badges';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
 import { derivarInsights, type ParteDoTexto } from '../../lib/insights';
+import { useTelaEstreita } from '../../lib/telaEstreita';
+import { AtalhosDoMenu } from './AtalhosDoMenu';
 
 /**
  * O texto do insight, com o nome do cliente em negrito.
@@ -88,10 +90,30 @@ export const DashboardView: React.FC = () => {
     falam de um cliente só.
   */
   const insights = derivarInsights(displayedJobs, clients);
+  const estreita = useTelaEstreita();
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 space-y-6">
-      {/* Top Welcome & Agency Health Banner */}
+      {/*
+        **No celular o cartão de saúde e os insights saem da tela, e no lugar
+        deles entram os atalhos.**
+
+        Os dois juntos ocupam duas telas inteiras de um aparelho de 390px antes
+        do primeiro número — e os dois respondem a mesma coisa, *como a operação
+        está*, que é consulta, não trabalho. Quem abre o produto no telefone
+        está a caminho de algum lugar.
+
+        A escolha é em **JavaScript, não em `lg:hidden`**: esconder por CSS
+        monta tudo assim mesmo — a arte da personagem é baixada e os insights
+        são calculados — justamente no aparelho onde isso custa mais. É a mesma
+        decisão do assistente da tela de conteúdo, e o corte é o mesmo
+        `useTelaEstreita`, para não existir faixa de largura com os dois ou com
+        nenhum.
+      */}
+      {estreita ? (
+        <AtalhosDoMenu />
+      ) : (
+        <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main Agency Health Card */}
         <div 
@@ -289,6 +311,8 @@ export const DashboardView: React.FC = () => {
           </Button>
         </div>
       </div>
+        </>
+      )}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

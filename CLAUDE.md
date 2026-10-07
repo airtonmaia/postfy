@@ -5537,6 +5537,53 @@ sobre a arte no portal (onde o `ghost` do primitivo sumiria sobre a foto). O que
 a guarda reprova é um X desenhado no cabeçalho — o mesmo botão, em outra
 posição.
 
+#### No celular o Dashboard abre com o menu, e a lista do menu é uma só
+
+O cartão de saúde da agência e os insights ocupam **duas telas inteiras** de um
+aparelho de 390px antes do primeiro número — e os dois respondem a mesma
+pergunta, *como a operação está*, que é consulta e não trabalho. Quem abre o
+produto no telefone está a caminho de algum lugar, e o Dashboard era a única
+tela sem nenhum caminho para as outras: a barra lateral ali é gaveta, então
+chegar a qualquer lugar custa dois toques, e o primeiro é num hambúrguer que
+não diz o que tem dentro.
+
+**A troca é em JavaScript, não em `lg:hidden`.** Esconder por CSS monta os
+dois assim mesmo: a arte da personagem é baixada e `derivarInsights` roda,
+justamente no aparelho onde isso custa mais. É a mesma decisão do assistente da
+tela de conteúdo, e o corte é o mesmo `useTelaEstreita` — dois números
+diferentes criariam uma faixa de largura com os dois ao mesmo tempo, ou com
+nenhum.
+
+**E a lista do menu saiu do `App.tsx`.** Ela morava lá, e bastava enquanto a
+barra lateral era a única a desenhá-la; com os atalhos passariam a existir duas
+listas do mesmo menu. Divergir aqui tem um custo próprio: a tela nova que não
+entra nos atalhos **não é encontrada** por quem usa o telefone, e nada quebra.
+`src/components/layout/menuDaAgencia.ts` guarda a lista, a ordem e o ícone;
+quem desenha continua sendo cada tela.
+
+Três decisões no ladrilho:
+
+- **O Financeiro entra pela cabeça, não pelos cinco filhos.** Um atalho é um
+  toque para chegar a um assunto; cinco ladrilhos de dinheiro ao lado de nove
+  telas diria que o Financeiro é metade do produto.
+- **O ladrilho é `<button>` à mão, e isso é a regra.** Ícone sobre rótulo é
+  conteúdo em bloco: o `size` do `Button` fixa `h-8` e o conteúdo
+  transbordaria — é o erro dos nove cards migrados por engano. O arquivo entra
+  na lista fechada de `tests/botoes.test.ts`, com o motivo escrito.
+- **O rótulo quebra em duas linhas em vez de ser cortado.** "Fila de
+  Publicações" vira "Fila de" num ladrilho de 80px, e meia palavra não diz para
+  onde o toque leva.
+
+**O selo de contagem do item de menu era código morto**, e saiu junto. Ele era
+alimentado por `pendingApprovalsCount`, que foi embora com o menu Aprovações:
+`item.badge` era sempre indefinido, então o selo e o pontinho do trilho nunca
+apareciam. Quem lesse o código concluiria que o menu acusa pendência — a
+armadilha do `trial_ends_at` na interface.
+
+Protegido por `tests/menu.test.ts`, conferido ao contrário: trocando a escolha
+por uma classe `lg:hidden` e tirando a inserção do Financeiro depois do
+Comercial, duas asserções reprovam.
+
 #### O celular não é o desktop estreito
 
 O produto é usado no telefone, e **nada local acusa quando ele quebra lá**:
@@ -5930,6 +5977,8 @@ src/components/clients/EditorDeNota.tsx      o bloco de notas: ler e editar na m
 src/lib/arquivosDoCliente.ts  o que a linha é: anexo, link ou bloco de notas
 src/components/kanban/CartaoDoQuadro.tsx  o card do quadro: um desenho só, na coluna e sob o cursor
 src/components/common/AdicionarConteudo.tsx  criar peça: o mesmo botão no quadro e no calendário
+src/components/layout/menuDaAgencia.ts  a lista do menu: barra lateral e atalhos leem a mesma
+src/components/dashboard/AtalhosDoMenu.tsx  o menu em ladrilhos, no Dashboard do celular
 src/lib/financeiro.ts      lançamentos, caixas e as somas do mês; centavos inteiros
 src/components/financeiro/ as cinco telas do Financeiro, num chunk só
 src/lib/automacoes.ts      motor: evento tipado → ação

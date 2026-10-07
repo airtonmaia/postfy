@@ -31,6 +31,22 @@ export interface EntradaDoChangelog {
 
 export const CHANGELOG: EntradaDoChangelog[] = [
   {
+    versao: '3.15.0',
+    data: '2026-10-07',
+    resumo: 'No celular, o Dashboard abre com o menu na mão.',
+    novidades: [
+      'Atalhos do menu em ladrilhos no Dashboard do celular: cada tela a um toque, em vez de dois pela gaveta.',
+    ],
+    melhorias: [
+      'O cartão de saúde da agência e os insights saem da tela no celular. Juntos, eles ocupavam duas telas antes do primeiro número — e os dois respondem a mesma coisa, que é consulta e não trabalho.',
+      'Eles não são escondidos por classe: no celular não são montados, então a arte não é baixada e os insights não são calculados no aparelho onde isso custa mais.',
+      'Os atalhos saem da mesma lista da barra lateral e passam pela mesma permissão — tela nova aparece nos dois lugares sem ninguém lembrar.',
+    ],
+    corrigido: [
+      'O selo de contagem do item de menu era código morto desde que o menu Aprovações saiu: ninguém escrevia o número, então ele nunca aparecia. Quem lesse o código concluiria que o menu acusa pendência.',
+    ],
+  },
+  {
     versao: '3.14.0',
     data: '2026-10-07',
     resumo: 'O que o cliente paga vira conta a receber, sem digitar de novo.',
