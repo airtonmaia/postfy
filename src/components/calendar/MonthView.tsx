@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { chaveDoDia, diaNoFuso } from '../../lib/fusoHorario';
-import { Plus, MoreHorizontal, Clock, Sparkles } from 'lucide-react';
+import { Plus, MoreHorizontal, Clock, Sparkles, Film } from 'lucide-react';
 import { usePostfy } from '../../context/PostfyContext';
 import { passaNosFiltros } from '../../lib/filtrosDoConteudo';
 import { safeTimeFormat } from '../../lib/utils';
@@ -9,7 +9,7 @@ import { PlatformBadge, FormatBadge, StatusBadge } from '../common/Badges';
 import { PreviaNoHover } from '../common/PreviaNoHover';
 import { proporcaoDoCriativo } from '../../lib/formatos';
 import { Button } from '../ui/button';
-import { urlDeExibicao } from '../../lib/midiaDoDrive';
+import { urlDeExibicao, ehVideo, ehDoDrive } from '../../lib/midiaDoDrive';
 import { corDaEtapa, etapasDoFluxo } from '../../lib/fluxoDeProducao';
 import { ConteudosDoDia } from './ConteudosDoDia';
 
@@ -249,13 +249,27 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate }) => {
 
                       {/* Content preview: Thumbnail if available + Title */}
                       <div className="flex items-center gap-1.5">
-                        {job.mediaUrls && job.mediaUrls.length > 0 && (
-                          <img
-                            src={urlDeExibicao(job.mediaUrls[0])}
-                            alt=""
-                            className="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-200 dark:border-slate-800"
-                          />
-                        )}
+                        {job.mediaUrls && job.mediaUrls.length > 0 && (() => {
+                          const previewUrl = urlDeExibicao(job.mediaUrls[0]);
+                          if (previewUrl) {
+                            return (
+                              <img
+                                src={previewUrl}
+                                alt=""
+                                className="w-6 h-6 rounded-md object-cover shrink-0 border border-slate-200 dark:border-slate-800"
+                              />
+                            );
+                          }
+                          // Vídeo do Drive sem miniatura: mostra ícone de filme
+                          if (ehDoDrive(job.mediaUrls[0]) && ehVideo(job.mediaUrls[0])) {
+                            return (
+                              <div className="w-6 h-6 rounded-md shrink-0 border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                <Film className="w-3.5 h-3.5 text-slate-400" />
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200 line-clamp-1 group-hover/card:text-purple-900 leading-tight">
                           {job.title}
                         </p>

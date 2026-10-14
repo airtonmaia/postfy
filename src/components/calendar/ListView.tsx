@@ -11,12 +11,13 @@ import {
   ArrowRight, 
   Clock, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  Film
 } from 'lucide-react';
 import { Job, Client } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../ui/button';
-import { urlDeExibicao } from '../../lib/midiaDoDrive';
+import { urlDeExibicao, ehVideo, ehDoDrive } from '../../lib/midiaDoDrive';
 
 export const ListView: React.FC = () => {
   const { 
@@ -108,13 +109,31 @@ export const ListView: React.FC = () => {
               >
                 {/* Left: Thumbnail & Client & Details */}
                 <div className="flex items-start gap-4 min-w-0">
-                  {job.mediaUrls && job.mediaUrls.length > 0 ? (
-                    <img
-                      src={urlDeExibicao(job.mediaUrls[0])}
-                      alt=""
-                      className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
-                    />
-                  ) : (
+                  {job.mediaUrls && job.mediaUrls.length > 0 ? (() => {
+                    const previewUrl = urlDeExibicao(job.mediaUrls[0]);
+                    if (previewUrl) {
+                      return (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                        />
+                      );
+                    }
+                    // Vídeo do Drive sem miniatura: placeholder com ícone
+                    if (ehDoDrive(job.mediaUrls[0]) && ehVideo(job.mediaUrls[0])) {
+                      return (
+                        <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                          <Film className="w-6 h-6" />
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                        <CalendarIcon className="w-6 h-6" />
+                      </div>
+                    );
+                  })() : (
                     <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 shrink-0">
                       <CalendarIcon className="w-6 h-6" />
                     </div>
