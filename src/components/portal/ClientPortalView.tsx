@@ -36,7 +36,8 @@ import {
   Plus,
   Save,
   Grid3X3,
-  X
+  X,
+  Film
 } from 'lucide-react';
 import { PlatformBadge, FormatBadge, StatusBadge, TipoBadge } from '../common/Badges';
 import { PreviaNoHover } from '../common/PreviaNoHover';
@@ -69,7 +70,7 @@ import {
   DialogBody,
   DialogFooter,
 } from '../ui/dialog';
-import { urlDeExibicao, videoParaTocar, idDeVideoNoDrive } from '../../lib/midiaDoDrive';
+import { urlDeExibicao, videoParaTocar, idDeVideoNoDrive, ehVideo, ehDoDrive } from '../../lib/midiaDoDrive';
 import { baixarArquivo } from '../../lib/baixar';
 import {
   Carousel,
@@ -492,18 +493,32 @@ const ClientPortalMonthGrid: React.FC<ClientPortalMonthGridProps> = ({ month, jo
                     className="group/job relative w-full text-left bg-slate-50 dark:bg-slate-950 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-slate-800 hover:border-purple-300 rounded-lg p-1 transition cursor-pointer"
                   >
                     <div className="flex items-start gap-1.5">
-                      {capa ? (
-                        <img
-                          src={capa}
-                          alt=""
-                          loading="lazy"
-                          className="w-8 h-10 rounded-md object-cover border border-slate-200 dark:border-slate-800 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-8 h-10 rounded-md bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                          <Layers className="w-3 h-3 text-slate-400" />
-                        </div>
-                      )}
+                      {(() => {
+                        const capaUrl = capa ? urlDeExibicao(capa) : null;
+                        if (capaUrl) {
+                          return (
+                            <img
+                              src={capaUrl}
+                              alt=""
+                              loading="lazy"
+                              className="w-8 h-10 rounded-md object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                            />
+                          );
+                        }
+                        // Vídeo do Drive sem miniatura gerada ainda
+                        if (capa && ehDoDrive(capa) && ehVideo(capa)) {
+                          return (
+                            <div className="w-8 h-10 rounded-md bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                              <Film className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="w-8 h-10 rounded-md bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                            <Layers className="w-3 h-3 text-slate-400" />
+                          </div>
+                        );
+                      })()}
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1 mb-0.5">
