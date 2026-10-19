@@ -57,12 +57,15 @@ const quando = (job: Job): number => {
 /**
  * A grade do cliente: o que vai ao Instagram, do mais novo para o mais antigo.
  *
- * **Ideia não entra**, e é a regra que mais importa aqui. A coluna Ideias é o
- * rascunho da agência — pauta anotada, tema em estudo, o que foi levantado na
- * reunião e ainda pode não virar nada. Mostrar isso ao cliente como parte do
- * feed dele promete publicação que ninguém decidiu fazer, e é a família de bug
- * que este projeto já pagou várias vezes: *a tela oferece mais do que o
- * servidor honra*.
+ * **Apenas peças em aprovação, aprovadas ou agendadas entram.** Ideia e
+ * produção são rascunho interno da agência — pauta anotada, tema em estudo,
+ * arte ainda sendo montada. Mostrar isso ao cliente como parte do feed dele
+ * promete publicação que ninguém decidiu fazer, e é a família de bug que este
+ * projeto já pagou várias vezes: *a tela oferece mais do que o servidor honra*.
+ *
+ * `in_adjustment` também fica de fora: a peça voltou para a agência e ainda
+ * não está pronta para ir ao ar — exibi-la na grade antecipa algo que o
+ * cliente acabou de pedir para mudar.
  *
  * **A ordem é a do Instagram, não a do quadro**: mais recente no canto
  * superior esquerdo, descendo pela data. É o que faz a simulação valer — uma
@@ -73,7 +76,9 @@ const quando = (job: Job): number => {
  * da agência decide como a data é *escrita* na tela (armadilha 8.2), e a
  * conversão não muda qual peça vem antes.
  */
+const STATUSES_DO_FEED: readonly string[] = ['for_approval', 'approved', 'scheduled'];
+
 export const feedDoCliente = (jobs: Job[]): Job[] =>
   jobs
-    .filter((job) => job.status !== 'ideas' && vaiParaOInstagram(job))
+    .filter((job) => STATUSES_DO_FEED.includes(job.status) && vaiParaOInstagram(job))
     .sort((a, b) => quando(b) - quando(a));
