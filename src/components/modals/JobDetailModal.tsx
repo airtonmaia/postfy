@@ -617,7 +617,7 @@ export const JobDetailModal: React.FC = () => {
               controles disputavam os 390px, e quem perdia era a identidade.
             */}
             <div className="p-4 sm:p-5 pr-12 lg:pr-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-50 dark:bg-slate-950/70">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="flex-1 min-w-0 w-full flex items-start sm:items-center gap-3">
                 <Avatar
                   nome={client?.name || 'Cliente'}
                   url={client?.avatar}
@@ -658,6 +658,7 @@ export const JobDetailModal: React.FC = () => {
                     value={dados.title}
                     onChange={(e) => mudar({ title: e.target.value })}
                     placeholder="Sem título"
+                    title={dados.title}
                     aria-label="Título do conteúdo"
                     className="block w-full bg-transparent border border-transparent rounded-lg -ml-1.5 px-1.5 py-0.5 mt-0.5 text-base font-bold text-slate-900 dark:text-white truncate hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30 outline-hidden transition"
                   />

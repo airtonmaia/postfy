@@ -48,23 +48,27 @@ describe('o que entra na grade do feed', () => {
     expect(ids(lista)).toEqual(['agendada']);
   });
 
-  it('todos os outros estágios entram, inclusive o que ainda está em produção', () => {
-    const estagios: Job['status'][] = [
-      'in_production',
+  it('apenas peças em aprovação, aprovadas ou agendadas entram na grade', () => {
+    const estagiosPermitidos: Job['status'][] = [
       'for_approval',
-      'in_adjustment',
       'approved',
       'scheduled',
+    ];
+
+    const estagiosBloqueados: Job['status'][] = [
+      'ideas',
+      'in_production',
+      'in_adjustment',
       'published',
     ];
 
     const lista = feedDoCliente(
-      estagios.map((status, i) =>
+      [...estagiosPermitidos, ...estagiosBloqueados].map((status, i) =>
         job({ id: status, status, scheduledDate: `2026-10-0${i + 1}T10:00:00Z` })
       )
     );
 
-    expect(lista).toHaveLength(estagios.length);
+    expect(ids(lista).sort()).toEqual([...estagiosPermitidos].sort());
   });
 
   /**
