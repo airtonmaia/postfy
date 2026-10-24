@@ -67,6 +67,7 @@ import {
   quandoDeveSair,
   listarContas,
   publicaSozinho,
+  clienteTemIntegracao,
 } from '../../lib/redes';
 
 /**
@@ -392,6 +393,10 @@ export const JobDetailModal: React.FC = () => {
     const atualizado = salvar();
     if (!atualizado) return;
 
+    const temIntegracao =
+      clienteTemIntegracao(atualizado.clientId, undefined, atualizado.canais) ||
+      redesConectadas.some((r) => publicaSozinho(r) && (atualizado.canais || []).includes(r));
+
     /**
      * Feed+story sem a arte vertical **não entra na fila**.
      *
@@ -400,7 +405,7 @@ export const JobDetailModal: React.FC = () => {
      * está no perfil e a peça ficou pela metade. Aqui ainda dá para subir a
      * arte.
      */
-    if (faltaArteDoStory(atualizado)) {
+    if (temIntegracao && faltaArteDoStory(atualizado)) {
       setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
       return;
     }
@@ -410,10 +415,17 @@ export const JobDetailModal: React.FC = () => {
     try {
       updateJob(selectedJob.id, { status: 'scheduled' });
 
-      // Um item por canal marcado, e a escolha da conta mora em
-      // `agendarPublicacao`: o `find` que estava aqui pegava uma conta só.
-      const resultadoDoAgendamento = await agendarPublicacao(atualizado);
-      setResultado(textoDoAgendamento(resultadoDoAgendamento, atualizado.scheduledDate));
+      if (temIntegracao) {
+        // Um item por canal marcado, e a escolha da conta mora em
+        // `agendarPublicacao`: o `find` que estava aqui pegava uma conta só.
+        const resultadoDoAgendamento = await agendarPublicacao(atualizado);
+        setResultado(textoDoAgendamento(resultadoDoAgendamento, atualizado.scheduledDate));
+      } else {
+        setResultado({
+          ok: true,
+          texto: 'Conteúdo agendado no calendário.',
+        });
+      }
     } catch (err) {
       setResultado({
         ok: false,

@@ -90,7 +90,7 @@ export const PublicationsView: React.FC = () => {
   const enfileirar = async (job: Job) => {
     // Feed+story sem a arte vertical não entra na fila: ver `faltaArteDoStory`.
     // Esta tela não abre o formulário, então o aviso aponta onde subir a arte.
-    if (faltaArteDoStory(job)) {
+    if (contaDoJob(job) && faltaArteDoStory(job)) {
       setErro(`${job.title}: ${AVISO_SEM_ARTE_DE_STORY}`);
       return;
     }

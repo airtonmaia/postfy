@@ -44,6 +44,9 @@ import {
   textoDoAgendamento,
   filaCancelavelDoConteudo,
   cancelarFilaDoConteudo,
+  clienteTemIntegracao,
+  listarContas,
+  type ContaConectada,
 } from '../../lib/redes';
 import { useConfirmacao } from '../ui/alert-dialog';
 import { dataCompacta } from '../../lib/utils';
@@ -216,6 +219,18 @@ export const KanbanBoard: React.FC = () => {
   const { pedir, dialogo } = useConfirmacao();
   const [enviandoLote, setEnviandoLote] = useState(false);
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [contasConectadas, setContasConectadas] = useState<ContaConectada[]>([]);
+
+  useEffect(() => {
+    let vivo = true;
+    void listarContas()
+      .then((c) => vivo && setContasConectadas(c))
+      .catch(() => vivo && setContasConectadas([]));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   const agrupaAvisos = currentWorkspace.notificacaoAprovacao === 'lote';
 
   /*
@@ -447,30 +462,38 @@ export const KanbanBoard: React.FC = () => {
    *   obrigatória: "tem certeza?" não ajuda ninguém a decidir.
    */
   const pedirAgendamento = (job: Job) => {
-    if (!job.scheduledDate) {
-      setAviso({
-        ok: false,
-        texto:
-          'Esta peça não tem data de publicação. Abra o conteúdo e marque a data antes de ' +
-          'agendar — sem ela, a fila entenderia "agora" e o disparo sairia na próxima passada.',
+    const temIntegracao = clienteTemIntegracao(job.clientId, contasConectadas, job.canais);
+
+    if (temIntegracao) {
+      if (!job.scheduledDate) {
+        setAviso({
+          ok: false,
+          texto:
+            'Esta peça não tem data de publicação. Abra o conteúdo e marque a data antes de ' +
+            'agendar — sem ela, a fila entenderia "agora" e o disparo sairia na próxima passada.',
+        });
+        return;
+      }
+
+      if (faltaArteDoStory(job)) {
+        setAviso({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
+        return;
+      }
+
+      pedir({
+        titulo: `Agendar "${job.title}"?`,
+        descricao:
+          `A peça entra na fila de publicação e vai ao ar sozinha em ` +
+          `${dataCompacta(job.scheduledDate, { comAno: true })}, nas contas conectadas deste ` +
+          'cliente. Publicação feita não volta — até lá, dá para tirar da fila em Publicações.',
+        rotuloConfirmar: 'Agendar publicação',
+        aoConfirmar: () => void agendar(job),
       });
       return;
     }
 
-    if (faltaArteDoStory(job)) {
-      setAviso({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
-      return;
-    }
-
-    pedir({
-      titulo: `Agendar "${job.title}"?`,
-      descricao:
-        `A peça entra na fila de publicação e vai ao ar sozinha em ` +
-        `${dataCompacta(job.scheduledDate, { comAno: true })}, nas contas conectadas deste ` +
-        'cliente. Publicação feita não volta — até lá, dá para tirar da fila em Publicações.',
-      rotuloConfirmar: 'Agendar publicação',
-      aoConfirmar: () => void agendar(job),
-    });
+    // Cliente sem integração ativa: ignora as regras e deixa passar para agendado direto
+    void agendar(job);
   };
 
   const agendar = async (job: Job) => {
@@ -483,7 +506,9 @@ export const KanbanBoard: React.FC = () => {
         sem item na fila aparece na tela de Publicações, que é onde se olha.
       */
       moveJobStatus(job.id, 'scheduled');
-      setAviso(textoDoAgendamento(await agendarPublicacao(job), job.scheduledDate));
+      if (clienteTemIntegracao(job.clientId, contasConectadas, job.canais)) {
+        setAviso(textoDoAgendamento(await agendarPublicacao(job), job.scheduledDate));
+      }
     } catch (err) {
       setAviso({
         ok: false,
@@ -765,14 +790,24 @@ export const KanbanBoard: React.FC = () => {
 
       {aviso && (
         <div
-          className={`mx-6 mt-4 flex items-start gap-2 text-xs p-3 rounded-xl border ${
+          className={`mx-6 mt-4 flex items-start justify-between gap-2 text-xs p-3 rounded-xl border ${
             aviso.ok
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
               : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300'
           }`}
         >
-          <MailCheck className="w-4 h-4 shrink-0 mt-px" />
-          <span className="font-semibold leading-relaxed">{aviso.texto}</span>
+          <div className="flex items-start gap-2 min-w-0">
+            <MailCheck className="w-4 h-4 shrink-0 mt-px" />
+            <span className="font-semibold leading-relaxed">{aviso.texto}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAviso(null)}
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded-md cursor-pointer shrink-0 font-bold"
+            aria-label="Fechar aviso"
+          >
+            ✕
+          </button>
         </div>
       )}
 

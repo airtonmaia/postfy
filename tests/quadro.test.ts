@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TIPOS_DE_JOB, TIPOS_OFERECIDOS } from '../src/lib/tiposDeJob';
+import { clienteTemIntegracao } from '../src/lib/redes';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { semComentarios } from './util/semComentarios';
@@ -701,5 +702,49 @@ describe('o que o menu de criar oferece', () => {
         `"${v}" existe em JobTipo e não tem definição: a peça abriria como Conteúdo`
       ).toBe(true);
     }
+  });
+
+  it('cliente sem integração ativa passa para agendado sem exigir conta nem arte de story', () => {
+    expect(clienteTemIntegracao('cli_sem_conta', [])).toBe(false);
+    expect(
+      clienteTemIntegracao(
+        'cli_com_fb',
+        [
+          {
+            id: '1',
+            workspaceId: 'w1',
+            clientId: 'cli_com_fb',
+            platform: 'facebook',
+            accountId: 'fb1',
+            accountName: 'pagina',
+            createdAt: '2026-01-01',
+          },
+        ],
+        ['instagram']
+      )
+    ).toBe(false);
+    expect(
+      clienteTemIntegracao(
+        'cli_com_ig',
+        [
+          {
+            id: '2',
+            workspaceId: 'w1',
+            clientId: 'cli_com_ig',
+            platform: 'instagram',
+            accountId: 'ig1',
+            accountName: 'perfil',
+            createdAt: '2026-01-01',
+          },
+        ],
+        ['instagram']
+      )
+    ).toBe(true);
+
+    const pergunta = quadro.slice(
+      quadro.indexOf('const pedirAgendamento'),
+      quadro.indexOf('const agendar =')
+    );
+    expect(pergunta, 'o quadro confere integração antes de exigir regras').toMatch(/clienteTemIntegracao/);
   });
 });

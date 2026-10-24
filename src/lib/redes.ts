@@ -214,31 +214,75 @@ export interface ItemDaFila {
   publishedAt?: string;
 }
 
-export const listarContas = async (): Promise<ContaConectada[]> => {
-  const { data, error } = await supabase
+let cacheContas: ContaConectada[] | null = null;
+let promessaContas: Promise<ContaConectada[]> | null = null;
+
+export const listarContas = async (forcar = false): Promise<ContaConectada[]> => {
+  if (!forcar && cacheContas) return cacheContas;
+  if (!forcar && promessaContas) return promessaContas;
+
+  promessaContas = supabase
     .from('social_connections')
     .select('*')
-    .order('created_at');
+    .order('created_at')
+    .then(({ data, error }) => {
+      promessaContas = null;
+      if (error) throw new Error(error.message);
+      cacheContas = (data || []).map((l: any) => ({
+        id: l.id,
+        workspaceId: l.workspace_id,
+        clientId: l.client_id ?? undefined,
+        platform: l.platform,
+        accountId: l.account_id,
+        accountName: l.account_name,
+        createdAt: l.created_at,
+        seguidores: l.seguidores ?? undefined,
+        seguidoresEm: l.seguidores_em ?? undefined,
+        fotoUrl: l.foto_url ?? undefined,
+        nomeDoPerfil: l.nome_do_perfil ?? undefined,
+        tipoDeConta: l.tipo_de_conta ?? undefined,
+        publicacoes: l.publicacoes ?? undefined,
+      }));
+      return cacheContas;
+    })
+    .catch((err) => {
+      promessaContas = null;
+      throw err;
+    });
 
-  if (error) throw new Error(error.message);
-  return (data || []).map((l: any) => ({
-    id: l.id,
-    workspaceId: l.workspace_id,
-    clientId: l.client_id ?? undefined,
-    platform: l.platform,
-    accountId: l.account_id,
-    accountName: l.account_name,
-    createdAt: l.created_at,
-    seguidores: l.seguidores ?? undefined,
-    seguidoresEm: l.seguidores_em ?? undefined,
-    fotoUrl: l.foto_url ?? undefined,
-    nomeDoPerfil: l.nome_do_perfil ?? undefined,
-    tipoDeConta: l.tipo_de_conta ?? undefined,
-    publicacoes: l.publicacoes ?? undefined,
-  }));
+  return promessaContas;
+};
+
+export const limparCacheContas = (): void => {
+  cacheContas = null;
+  promessaContas = null;
+};
+
+/**
+ * Confere se o cliente tem integração ativa.
+ *
+ * Se canais forem passados, confere se tem conta conectada em ao menos um canal
+ * que publica sozinho (Instagram ou Facebook). Se não tiver integração ativa,
+ * as regras de agendamento automático e exigência de story são ignoradas.
+ */
+export const clienteTemIntegracao = (
+  clientId?: string,
+  contas: ContaConectada[] = cacheContas || [],
+  canais?: JobPlatform[]
+): boolean => {
+  if (!clientId) return false;
+  const contasDoCliente = contas.filter((c) => c.clientId === clientId);
+  if (!contasDoCliente.length) return false;
+  if (!canais || !canais.length) {
+    return contasDoCliente.some((c) => publicaSozinho(c.platform));
+  }
+  return canais.some(
+    (canal) => publicaSozinho(canal) && contasDoCliente.some((c) => c.platform === canal)
+  );
 };
 
 export const desconectarConta = async (id: string): Promise<void> => {
+  limparCacheContas();
   // O token some junto, pelo `on delete cascade`.
   const { error } = await supabase.from('social_connections').delete().eq('id', id);
   if (error) throw new Error(error.message);

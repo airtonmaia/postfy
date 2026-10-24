@@ -22,6 +22,7 @@ import {
   textoDoAgendamento,
   quandoDeveSair,
   listarContas,
+  clienteTemIntegracao,
 } from '../../lib/redes';
 import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
 import { Button } from '../ui/button';
@@ -307,8 +308,11 @@ export const CreateJobModal: React.FC = () => {
     const novo = salvar(e, 'scheduled', { fecharDepois: false });
     if (!novo) return;
 
+    const contas = await listarContas().catch(() => []);
+    const temIntegracao = clienteTemIntegracao(novo.clientId, contas, novo.canais);
+
     // Feed+story sem a arte vertical não entra na fila: ver `faltaArteDoStory`.
-    if (faltaArteDoStory(novo)) {
+    if (temIntegracao && faltaArteDoStory(novo)) {
       setResultado({ ok: false, texto: AVISO_SEM_ARTE_DE_STORY });
       return;
     }
@@ -316,22 +320,15 @@ export const CreateJobModal: React.FC = () => {
     setAcao('agendando');
     setResultado(null);
     try {
-      /**
-       * `agendarPublicacao` enfileira **um item por canal marcado**, e a
-       * escolha da conta mora nela.
-       *
-       * Aqui havia um `listarContas().find(...)` — a mesma cópia que estava
-       * nas outras duas telas —, e ele pegava **uma** conta: com Instagram e
-       * Facebook marcados, só a primeira entrava na fila e a segunda rede não
-       * publicava, em silêncio.
-       *
-       * O texto também é da biblioteca: ele nomeia o que **não** entrou na
-       * fila, que é a metade que a mensagem antiga omitia. E a janela, não só
-       * a data — o agendador passa de 5 em 5 minutos, e quem clica às 15:10:07
-       * espera até 15:15.
-       */
-      const resultadoDoAgendamento = await agendarPublicacao(novo);
-      setResultado(textoDoAgendamento(resultadoDoAgendamento, novo.scheduledDate));
+      if (temIntegracao) {
+        const resultadoDoAgendamento = await agendarPublicacao(novo);
+        setResultado(textoDoAgendamento(resultadoDoAgendamento, novo.scheduledDate));
+      } else {
+        setResultado({
+          ok: true,
+          texto: 'Conteúdo agendado no calendário.',
+        });
+      }
     } catch (err) {
       setResultado({
         ok: false,
