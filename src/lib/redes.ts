@@ -221,12 +221,13 @@ export const listarContas = async (forcar = false): Promise<ContaConectada[]> =>
   if (!forcar && cacheContas) return cacheContas;
   if (!forcar && promessaContas) return promessaContas;
 
-  promessaContas = supabase
-    .from('social_connections')
-    .select('*')
-    .order('created_at')
-    .then(({ data, error }) => {
-      promessaContas = null;
+  const buscar = async (): Promise<ContaConectada[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('social_connections')
+        .select('*')
+        .order('created_at');
+
       if (error) throw new Error(error.message);
       cacheContas = (data || []).map((l: any) => ({
         id: l.id,
@@ -244,12 +245,12 @@ export const listarContas = async (forcar = false): Promise<ContaConectada[]> =>
         publicacoes: l.publicacoes ?? undefined,
       }));
       return cacheContas;
-    })
-    .catch((err) => {
+    } finally {
       promessaContas = null;
-      throw err;
-    });
+    }
+  };
 
+  promessaContas = buscar();
   return promessaContas;
 };
 
