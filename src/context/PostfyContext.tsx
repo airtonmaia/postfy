@@ -1763,6 +1763,7 @@ export const PostfyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       status: jobData.status || 'ideas',
       priority: jobData.priority || 'medium',
       caption: jobData.caption || '',
+      draft: jobData.draft,
       cta: jobData.cta || '',
       hashtags: jobData.hashtags || [],
       firstComment: jobData.firstComment || '',

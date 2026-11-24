@@ -122,6 +122,14 @@ describe('o cadastro e a edição montam o mesmo formulário', () => {
     });
   }
 
+  it('a peça criada mantém o rascunho recebido do formulário', () => {
+    const contexto = ler('src', 'context', 'PostfyContext.tsx');
+    const criacao = objetoDepoisDe(contexto, 'const createJob = (jobData: Partial<Job>): Job =>');
+    const novaPeca = objetoDepoisDe(criacao, 'const newJob: Job =');
+
+    expect(novaPeca).toMatch(/\bdraft:\s*jobData\.draft\b/);
+  });
+
   it('a edição também grava o que só existe depois de criado', () => {
     // CTA, hashtags e campanha saíram do cadastro de propósito, e continuam
     // editáveis aqui. Sem eles no payload, "Mais opções" seria decoração.
