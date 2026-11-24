@@ -778,15 +778,13 @@ describe('o título do conteúdo tem um editor só', () => {
     }
   });
 
-  it('no cadastro ele continua sendo o campo do formulário', () => {
-    /*
-      Lá não há cabeçalho com a peça: esconder o campo faria a peça nascer sem
-      nome, e o título é obrigatório.
-    */
-    expect(cadastro, 'o cadastro passou a esconder o título e a peça nasce sem nome').not.toMatch(
-      /semTitulo/
+  it('no cadastro o título fica no cabeçalho no desktop e no passo Básico no celular', () => {
+    expect(cadastro).toMatch(
+      /<header[\s\S]*?onChange=\{\(e\) => mudar\(\{ title: e\.target\.value \}\)\}[\s\S]*?<\/header>/
     );
-    expect(formulario, 'o campo Título sumiu do formulário').toMatch(/Título do conteúdo \*/);
+    expect(cadastro).toContain("campos(['identificacao', 'agenda'], true)");
+    expect(cadastro).toContain("conteudo: campos(['identificacao'])");
+    expect(formulario).toMatch(/Título do conteúdo \*/);
   });
 });
 

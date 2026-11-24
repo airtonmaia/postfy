@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { usePostfy } from '../../context/PostfyContext';
 import {
   ThumbsUp, Send, CheckCircle2, AlertTriangle,
-  Lightbulb, CalendarClock, ChevronDown, ChevronUp,
+  Lightbulb, CalendarClock, ChevronDown, ChevronUp, FileText,
 } from 'lucide-react';
 import { Job, JobStatus } from '../../types';
 import { definicaoDoTipo } from '../../lib/tiposDeJob';
+import { Avatar } from '../common/Avatar';
+import { FormatBadge, PlatformBadge, PriorityBadge } from '../common/Badges';
 import { PreviaDaRede } from '../common/PreviaDaRede';
 import {
   FormularioDoConteudo,
@@ -13,7 +15,7 @@ import {
 } from '../jobs/FormularioDoConteudo';
 import { camposVisiveis } from '../../lib/camposDoCanal';
 import { deParedeParaUtc, deUtcParaParede } from '../../lib/fusoHorario';
-import { safeDateFormat, safeDateTimeFormat } from '../../lib/utils';
+import { safeDateFormat } from '../../lib/utils';
 import {
   publicaSozinho,
   publicarAgora,
@@ -24,7 +26,7 @@ import {
   listarContas,
   clienteTemIntegracao,
 } from '../../lib/redes';
-import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY } from '../../lib/formatos';
+import { faltaArteDoStory, AVISO_SEM_ARTE_DE_STORY, rotuloDoFormato } from '../../lib/formatos';
 import { Button } from '../ui/button';
 import { useAviso } from '../ui/alert-dialog';
 import { AssistenteDoConteudo, type PassoDoConteudo } from '../jobs/AssistenteDoConteudo';
@@ -87,7 +89,6 @@ export const CreateJobModal: React.FC = () => {
   const mudar = (parcial: Partial<DadosDoConteudo>) =>
     setDados((atual) => ({ ...atual, ...parcial }));
 
-  const [status] = useState<JobStatus>('ideas');
   const [erro, setErro] = useState('');
 
   // Mora aqui em cima, junto dos outros hooks, e não perto das funções que os
@@ -99,17 +100,6 @@ export const CreateJobModal: React.FC = () => {
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const ocupado = acao !== 'nenhuma';
 
-  /**
-   * A prévia começa fechada **no celular**, e é `false` aqui de propósito.
-   *
-   * Lado a lado ela não custa nada; empilhada embaixo de um formulário de
-   * doze campos, ela é uma tela e meia de espaço vazio — três quadros "a arte
-   * aparece aqui" que a pessoa rola antes de chegar ao fim. Quem abre a modal
-   * no telefone veio preencher, não conferir.
-   *
-   * No desktop o `lg:block` ignora este estado: a coluna está sempre lá, e
-   * ninguém precisa clicar para ter o que já tinha.
-   */
   const [previaAberta, setPreviaAberta] = useState(false);
   const estreita = useTelaEstreita();
 
@@ -130,6 +120,7 @@ export const CreateJobModal: React.FC = () => {
       setDados({ ...EM_BRANCO, clientId: clients[0]?.id || '' });
       setErro('');
       setResultado(null);
+      setPreviaAberta(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreateJobModalOpen]);
@@ -391,7 +382,10 @@ export const CreateJobModal: React.FC = () => {
    * um passo "Arte" vazio num assistente de quatro é a tela pedindo algo que
    * não existe — a mesma razão de o upload não aparecer nesses tipos.
    */
-  const campos = (blocos: Parameters<typeof FormularioDoConteudo>[0]['blocos']) => (
+  const campos = (
+    blocos: Parameters<typeof FormularioDoConteudo>[0]['blocos'],
+    semTitulo = false,
+  ) => (
     <FormularioDoConteudo
       valor={dados}
       aoMudar={mudar}
@@ -400,6 +394,7 @@ export const CreateJobModal: React.FC = () => {
       equipe={users}
       aoGerarComIA={gerarTextoComIA}
       blocos={blocos}
+      semTitulo={semTitulo}
     />
   );
 
@@ -435,216 +430,215 @@ export const CreateJobModal: React.FC = () => {
   ];
   const botoesDeAcao = (
     <>
-            <Button variant="ghost"
-              type="button"
-              onClick={closeCreateJobModal}
-            >
-              Cancelar
-            </Button>
+      <Button variant="ghost"
+        type="button"
+        onClick={closeCreateJobModal}
+        className="lg:mr-auto"
+      >
+        Cancelar
+      </Button>
 
-            {/* A prévia é consulta, não decisão — por isso ela fica na ponta
-                oposta dos botões que gravam, e é o que separa as duas metades
-                da linha. */}
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setPreviaAberta((v) => !v)}
-              className="sm:mr-auto"
-              aria-expanded={previaAberta}
-            >
-              {previaAberta ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {previaAberta ? 'Ocultar prévia' : 'Ver prévia'}
-            </Button>
+      {/* Publicar agora fica **longe** do primário, e com a cor de
+          aviso: é a única ação daqui que não tem volta. Encostada no
+          botão que a pessoa aperta por reflexo, ela seria apertada por
+          reflexo também. */}
+      {dados.canais.some(publicaSozinho) && (
+        <Button
+          type="button"
+          onClick={(e) => void publicarImediatamente(e)}
+          disabled={ocupado}
+          title="Salva e publica imediatamente nas contas conectadas do cliente. Não tem volta."
+          className="border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60"
+        >
+          <Send className="w-3.5 h-3.5" />
+          {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
+        </Button>
+      )}
 
-            {/* Publicar agora fica **longe** do primário, e com a cor de
-                aviso: é a única ação daqui que não tem volta. Encostada no
-                botão que a pessoa aperta por reflexo, ela seria apertada por
-                reflexo também. */}
-            {dados.canais.some(publicaSozinho) && (
-              <Button
-                type="button"
-                onClick={(e) => void publicarImediatamente(e)}
-                disabled={ocupado}
-                title="Salva e publica imediatamente nas contas conectadas do cliente. Não tem volta."
-                className="border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {acao === 'publicando' ? 'Publicando...' : 'Publicar agora'}
-              </Button>
-            )}
+      {/* Ideia é o começo do funil: entra sem data, sem arte e sem
+          pedir nada a ninguém. */}
+      <Button variant="outline"
+        type="button"
+        onClick={(e) => salvar(e, 'ideas')}
+        disabled={ocupado}
+        className="text-slate-700 dark:text-slate-200"
+      >
+        <Lightbulb className="w-3.5 h-3.5" />
+        Criar ideia
+      </Button>
 
-            {/* Ideia é o começo do funil: entra sem data, sem arte e sem
-                pedir nada a ninguém. */}
-            <Button variant="outline"
-              type="button"
-              onClick={(e) => salvar(e, 'ideas')}
-              disabled={ocupado}
-              className="text-slate-700 dark:text-slate-200"
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              Criar ideia
-            </Button>
+      {/* Agendar **põe na fila de verdade**, quando há conta conectada.
+          Só marcar o status seria a armadilha que já custou caro: o card
+          ficava em "Agendado", a data passava e nada publicava. */}
+      <Button variant="outline"
+        type="button"
+        onClick={(e) => void agendar(e)}
+        disabled={ocupado}
+        className="text-slate-700 dark:text-slate-200"
+      >
+        <CalendarClock className="w-3.5 h-3.5" />
+        {acao === 'agendando' ? 'Agendando...' : 'Agendar'}
+      </Button>
 
-            {/* Agendar **põe na fila de verdade**, quando há conta conectada.
-                Só marcar o status seria a armadilha que já custou caro: o card
-                ficava em "Agendado", a data passava e nada publicava. */}
-            <Button variant="outline"
-              type="button"
-              onClick={(e) => void agendar(e)}
-              disabled={ocupado}
-              className="text-slate-700 dark:text-slate-200"
-            >
-              <CalendarClock className="w-3.5 h-3.5" />
-              {acao === 'agendando' ? 'Agendando...' : 'Agendar'}
-            </Button>
+      {/* O caminho mais comum de uma agência, e por isso o primário. */}
+      <Button
+        type="button"
+        onClick={(e) => salvar(e, 'for_approval')}
+        disabled={ocupado}
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+        Enviar para aprovação
+      </Button>
+    </>
+  );
 
-            {/* O caminho mais comum de uma agência, e por isso o primário. */}
-            <Button
-              type="button"
-              onClick={(e) => salvar(e, 'for_approval')}
-              disabled={ocupado}
-            >
-              <ThumbsUp className="w-3.5 h-3.5" />
-              Enviar para aprovação
-            </Button>
+  const cartao =
+    'rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900';
+
+  const botaoDaPrevia = (
+    <Button
+      variant="outline"
+      type="button"
+      onClick={() => setPreviaAberta((v) => !v)}
+      className="w-full"
+      aria-expanded={previaAberta}
+    >
+      {previaAberta ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      {previaAberta ? 'Ocultar prévia' : 'Ver prévia da publicação'}
+    </Button>
+  );
+
+  const previa = previaAberta && (
+    <PreviaDaRede
+      className="w-full"
+      dados={{
+        nomeDoPerfil: clienteSelecionado?.name || '',
+        avatar: clienteSelecionado?.avatar,
+        canais: dados.canais,
+        artes: tipo.pedeArte ? dados.mediaUrls : [],
+        artesDoStory: dados.format === 'feed_story' ? dados.storyMediaUrls : [],
+        legenda: dados.caption,
+        localizacao: String(dados.configuracoes.localizacao || '') || undefined,
+        dataPrevista: dados.scheduledDate
+          ? safeDateFormat(deParedeParaUtc(dados.scheduledDate), { day: '2-digit', month: 'long' })
+          : undefined,
+      }}
+    />
+  );
+
+  const feedback = (
+    <>
+      {erro && (
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400">
+          {erro}
+        </p>
+      )}
+      {resultado && (
+        <div
+          role="status"
+          className={`flex items-start gap-2 rounded-xl border p-3 text-xs ${
+            resultado.ok
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300'
+          }`}
+        >
+          {resultado.ok ? (
+            <CheckCircle2 className="mt-px h-4 w-4 shrink-0" />
+          ) : (
+            <AlertTriangle className="mt-px h-4 w-4 shrink-0" />
+          )}
+          <span className="font-semibold leading-relaxed">{resultado.texto}</span>
+        </div>
+      )}
     </>
   );
 
   return (
-    /*
-      `Dialog` do shadcn. A tela cheia no celular e o X do canto agora vêm do
-      primitivo — eram escritos aqui, e em mais 24 lugares com três posições e
-      dois tamanhos diferentes entre si.
-
-      O ganho maior é o que não se vê: trava de foco, `Esc` e bloqueio da
-      rolagem do fundo. Num formulário desta altura o terceiro é o que mais
-      pesa — rolar até o fim passava a rolar a tela de trás.
-    */
     <Dialog
       open={isCreateJobModalOpen}
       onOpenChange={(aberto) => !aberto && closeCreateJobModal()}
     >
       <DialogContent tamanho="editorComPrevia" className="p-0 gap-0">
-        {/* O formulário se explica sozinho e a faixa de cabeçalho comia
-            altura útil, então o título existe só para o leitor de tela. */}
         <DialogTitle className="sr-only">Novo conteúdo</DialogTitle>
 
-        {/*
-          **No celular o cadastro vira passos, e isso é decidido em
-          JavaScript.**
-
-          Empilhado, o formulário é uma lista de doze campos com uma área de
-          upload e duas de texto no meio — e rolar isso de ponta a ponta no
-          telefone é o que faz alguém preferir abrir o notebook.
-
-          Esconder por CSS montaria as duas versões e deixaria uma invisível: o formulário
-          seria montado o dobro de vezes, com o efeito que revalida o formato
-          rodando numa instância que ninguém vê.
-        */}
         {estreita ? (
-          <AssistenteDoConteudo passos={passosDoConteudo} acoes={botoesDeAcao} />
-        ) : (
-        <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row min-h-0">
-        {/* Form */}
-        <form onSubmit={(e) => salvar(e, status)} className="flex-1 min-w-0 p-4 sm:p-6 space-y-4">
-          {/*
-            **O formulário é o mesmo da edição.** Ele mora em
-            `components/jobs/FormularioDoConteudo`, e as duas telas o montam
-            com o mesmo estado — era este arquivo que tinha campos que a modal
-            de detalhe não tinha, e quem criava aqui não conseguia corrigir lá.
-          */}
-          <FormularioDoConteudo
-            valor={dados}
-            aoMudar={mudar}
-            tipo={tipo}
-            clients={clients}
-            equipe={users}
-            aoGerarComIA={gerarTextoComIA}
-          />
-
-          {erro && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
-              {erro}
-            </p>
-          )}
-
-          {/* O resultado fica acima dos botões e não some sozinho: é a única
-              prova do que aconteceu, e some junto com a modal se ela fechar. */}
-          {resultado && (
-            <div
-              className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${
-                resultado.ok
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
-                  : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
-              }`}
-            >
-              {resultado.ok ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-              )}
-              <span className="font-semibold leading-relaxed">{resultado.texto}</span>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="p-4 pr-12 text-sm font-semibold">Novo conteúdo</div>
+            {previaAberta && (
+              <div className="space-y-4 px-4 pb-4">
+                {botaoDaPrevia}
+                {previa}
+              </div>
+            )}
+            <div hidden={previaAberta}>
+              <AssistenteDoConteudo
+                passos={passosDoConteudo}
+                acoes={
+                  <>
+                    {feedback}
+                    {botaoDaPrevia}
+                    {botoesDeAcao}
+                  </>
+                }
+              />
             </div>
-          )}
-
-          {/*
-            Buttons
-
-            **No celular cada ação ocupa a linha inteira, na ordem da
-            decisão.** Com `flex-wrap justify-end` e o `mr-auto` do Cancelar,
-            os cinco botões caíam em três linhas desencontradas — uma com dois,
-            uma com dois e uma com um, todas alinhadas à direita e nenhuma
-            dizendo qual era a ação principal. Empilhados, a ordem do DOM vira
-            a ordem de leitura, e ela já está certa: cancelar, publicar agora,
-            ideia, agendar, enviar para aprovação.
-
-            `[&>*]:w-full` alcança os botões sem repetir a classe em cada um —
-            e sai sozinho no `sm`, onde a linha volta a ser linha.
-          */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-3 [&>*]:w-full sm:[&>*]:w-auto">
-            {botoesDeAcao}
           </div>
-        </form>
+        ) : (
+          <form onSubmit={(e) => salvar(e, 'ideas')} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1">
+              <section className="flex min-w-0 flex-1 flex-col">
+                <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+                  <Avatar nome={clienteSelecionado?.name || 'Cliente'} url={clienteSelecionado?.avatar} tamanho={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{clienteSelecionado?.name}</p>
+                    <input
+                      type="text"
+                      value={dados.title}
+                      onChange={(e) => mudar({ title: e.target.value })}
+                      placeholder="Título do novo conteúdo"
+                      aria-label="Título do conteúdo"
+                      aria-required="true"
+                      className="block w-full rounded-lg border border-transparent bg-transparent -ml-1.5 px-1.5 py-0.5 text-base font-bold text-slate-900 outline-hidden hover:border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30 dark:text-white dark:hover:border-slate-700"
+                    />
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <PlatformBadge platform={platform} />
+                      <FormatBadge format={dados.format} rotulo={rotuloDoFormato(dados.format, platform)} />
+                      <PriorityBadge priority={dados.priority} />
+                    </div>
+                  </div>
+                </header>
+                <div className="shrink-0 border-b border-slate-200 bg-white px-5 dark:border-slate-800 dark:bg-slate-900">
+                  <h2 className="inline-flex items-center gap-2 border-b-2 border-purple-500 px-4 py-3 text-xs font-semibold text-purple-700 dark:text-purple-400">
+                    <FileText className="h-3.5 w-3.5" />
+                    Conteúdo
+                  </h2>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950/50">
+                  <div className={`${cartao} p-5`}>
+                    {campos(['arte', 'texto'], true)}
+                  </div>
+                </div>
+              </section>
 
-        {/* Prévia: como fica na rede escolhida, com o dado deste formulário. */}
-        {/* Centralizada na vertical, e com folga no topo: encostada em cima
-            ela passava por baixo do botão de fechar. */}
-        {/*
-          **A coluna da prévia só existe quando a prévia está aberta.**
+              <aside className="w-[400px] shrink-0 space-y-4 overflow-y-auto border-l border-slate-200 bg-slate-50 p-5 pt-12 dark:border-slate-800 dark:bg-slate-950">
+                {botaoDaPrevia}
+                {previa}
+                <section className={`${cartao} space-y-3 p-4`}>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Gestão
+                  </h2>
+                  {campos(['identificacao', 'agenda'], true)}
+                </section>
+              </aside>
+            </div>
 
-          Ela reservava 440px fixos, e o formulário ficava com o resto — que
-          é pouco desde que a arte e o texto passaram a dividir a linha. Com
-          ela fechada, a largura inteira volta para quem está preenchendo, que
-          é o que a pessoa veio fazer no cadastro.
-
-          O botão que a abre mora na linha de ações, com o resto das decisões.
-        */}
-        {previaAberta && (
-        <aside className="lg:w-[440px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:pt-12 flex flex-col lg:flex-row lg:items-center gap-3">
-
-          <div className="flex w-full items-center">
-          <PreviaDaRede
-            className="w-full"
-            dados={{
-              nomeDoPerfil: clienteSelecionado?.name || '',
-              avatar: clienteSelecionado?.avatar,
-              canais: dados.canais,
-              artes: tipo.pedeArte ? dados.mediaUrls : [],
-              artesDoStory: dados.format === 'feed_story' ? dados.storyMediaUrls : [],
-              legenda: dados.caption,
-              localizacao: String(dados.configuracoes.localizacao || '') || undefined,
-              dataPrevista: dados.scheduledDate
-                ? safeDateFormat(deParedeParaUtc(dados.scheduledDate), {
-                    day: '2-digit',
-                    month: 'long',
-                  })
-                : undefined,
-            }}
-          />
-          </div>
-        </aside>
-        )}
-        </div>
+            <footer className="shrink-0 space-y-2 border-t border-slate-200 bg-white px-5 py-3 dark:border-slate-800 dark:bg-slate-900">
+              {feedback}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {botoesDeAcao}
+              </div>
+            </footer>
+          </form>
         )}
       </DialogContent>
 
